@@ -1,0 +1,4 @@
+# intermediate files
+*~
+.curry
+*.state
