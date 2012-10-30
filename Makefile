@@ -7,8 +7,10 @@
 .PHONY: all
 all:
 	@cd currydoc  ; $(MAKE)
+	@cd genint    ; $(MAKE)
 
 .PHONY: clean
 clean: 
 	cd analysis  ; $(ROOT)/bin/cleancurry
 	cd currydoc  ; $(MAKE) clean
+	cd genint    ; $(MAKE) clean
