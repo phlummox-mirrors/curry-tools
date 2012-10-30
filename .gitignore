@@ -2,3 +2,8 @@
 *~
 .curry
 *.state
+
+# executables
+currydoc/CurryDoc
+genint/GenInt
+importcalls/ImportCalls

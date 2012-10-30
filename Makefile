@@ -6,11 +6,13 @@
 
 .PHONY: all
 all:
-	@cd currydoc  ; $(MAKE)
-	@cd genint    ; $(MAKE)
+	@cd currydoc    ; $(MAKE)
+	@cd genint      ; $(MAKE)
+	@cd importcalls ; $(MAKE)
 
 .PHONY: clean
 clean: 
-	cd analysis  ; $(ROOT)/bin/cleancurry
-	cd currydoc  ; $(MAKE) clean
-	cd genint    ; $(MAKE) clean
+	cd analysis    ; $(ROOT)/bin/cleancurry
+	cd currydoc    ; $(MAKE) clean
+	cd genint      ; $(MAKE) clean
+	cd importcalls ; $(MAKE) clean

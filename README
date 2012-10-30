@@ -3,14 +3,16 @@ that are used by different Curry systems, like PAKCS or KiCS2.
 
 Currently it contains:
 
-analysis:
-   A directory containing various analyzers for Curry program.
+`analysis`:
+A directory containing various analyzers for Curry program.
 
-currydoc:
-   A documentation generator for Curry programs.
+`currydoc`:
+A documentation generator for Curry programs.
 
-genint:
-   A program for generating module interfaces and source code
-   of a Curry module (used by the commands ":interface" and ":show"
-   of some Curry systems).
+`genint`:
+A program for generating module interfaces and source code
+of a Curry module (used by the commands ":interface" and ":show"
+of some Curry systems).
 
+`importcalls`:
+A tool to show all calls to imported functions in a module.

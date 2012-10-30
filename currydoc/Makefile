@@ -8,18 +8,6 @@ LIB=$(ROOT)/lib
 META=$(LIB)/meta
 ANADIR=../analysis
 
-.PHONY: all
-all:
-	$(MAKE) CurryDoc4$(CURRYSYSTEM)
-
-.PHONY: CurryDoc4pakcs
-CurryDoc4pakcs:
-	$(MAKE) CurryDoc.state
-
-.PHONY: CurryDoc4kics2
-CurryDoc4kics2:
-	$(MAKE) CurryDoc
-
 # Source modules of currydoc:
 DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
        CurryDocTeX.curry CurryDocParams.curry \
@@ -34,15 +22,9 @@ DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
        $(ANADIR)/AnaDependency.curry 
 
 # generate saved PAKCS state for currydoc program:
-CurryDoc.state: $(DEPS)
-	(echo ":set path $(ANADIR)" ; echo ":l CurryDoc" ; echo ":set path" ; \
-	 echo ":save main" ) | $(ROOT)/bin/pakcs
-	(cd $(ROOT)/bin ; rm -f currydoc ; \
-	                  ln -s ../currytools/currydoc/CurryDoc.state currydoc)
-
-# generate KiCS2 executable for currydoc program:
 CurryDoc: $(DEPS)
-	$(ROOT)/bin/kics2 $(REPL_OPTS) :set path $(ANADIR) :l CurryDoc :save :q
+	$(ROOT)/bin/$(CURRYSYSTEM) $(REPL_OPTS) :set path $(ANADIR) \
+	                           :l CurryDoc :save :q
 	(cd $(ROOT)/bin ; rm -f currydoc ; \
 	                  ln -s ../currytools/currydoc/CurryDoc currydoc)
 
