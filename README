@@ -26,6 +26,9 @@ generation of web user interfaces (WUIs).
 `currydoc`:
 A documentation generator for Curry programs.
 
+`currytest`:
+A test tool for Curry programs.
+
 `genint`:
 A program for generating module interfaces and source code
 of a Curry module (used by the commands ":interface" and ":show"
