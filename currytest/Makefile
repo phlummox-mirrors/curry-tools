@@ -10,7 +10,8 @@ META=$(LIB)/meta
 # generate executable for CurryTest tool:
 CurryTest: CurryTest.curry $(META)/FlatCurry.curry \
 	         $(LIB)/System.curry $(LIB)/Assertion.curry \
-	         $(LIB)/Dynamic.curry $(LIB)/Distribution.curry $(LIB)/GUI.curry
+	         $(LIB)/Directory.curry $(LIB)/Distribution.curry \
+	         $(LIB)/GUI.curry
 	$(ROOT)/bin/$(CURRYSYSTEM) $(REPL_OPTS) :l CurryTest :save :q
 	(cd $(ROOT)/bin ; rm -f currytest ; \
 	                  ln -s ../currytools/currytest/CurryTest currytest)
