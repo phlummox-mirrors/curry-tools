@@ -4,6 +4,10 @@
 *.state
 
 # executables
+addtypes/AddTypes
+browser/BrowserGUI
+browser/SourceProgGUI
+curry2js/Curry2JS
 currydoc/CurryDoc
 genint/GenInt
 importcalls/ImportCalls

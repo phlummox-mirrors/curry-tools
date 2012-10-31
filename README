@@ -1,10 +1,27 @@
+Curry Tools
+===========
+
 This directory contains various tools for Curry
 that are used by different Curry systems, like PAKCS or KiCS2.
 
 Currently it contains:
 
+`addtypes`:
+A tool that adds type signaturs to a given Curry program.
+
 `analysis`:
 A directory containing various analyzers for Curry program.
+
+`browser`:
+A tool to browse through the modules and functions of a Curry program,
+show them in various formats, and analyze their properties.
+
+`createmakefile`:
+A tool to create a simple makefile for a Curry application.
+
+`curry2js`:
+A compiler for Curry into JavaScript programs used in the
+generation of web user interfaces (WUIs).
 
 `currydoc`:
 A documentation generator for Curry programs.
