@@ -8,5 +8,6 @@ browser/BrowserGUI
 browser/SourceProgGUI
 currydoc/CurryDoc
 currytest/CurryTest
+createmakefile/CreateMakefile
 genint/GenInt
 importcalls/ImportCalls

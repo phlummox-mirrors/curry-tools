@@ -6,17 +6,19 @@
 
 .PHONY: all
 all:
-	@cd browser     && $(MAKE)
-	@cd currydoc    && $(MAKE)
-	@cd currytest   && $(MAKE)
-	@cd genint      && $(MAKE)
-	@cd importcalls && $(MAKE)
+	@cd browser        && $(MAKE)
+	@cd currydoc       && $(MAKE)
+	@cd createmakefile && $(MAKE)
+	@cd currytest      && $(MAKE)
+	@cd genint         && $(MAKE)
+	@cd importcalls    && $(MAKE)
 
 .PHONY: clean
 clean: 
-	cd analysis    && $(ROOT)/bin/cleancurry
-	cd browser     && $(MAKE) clean
-	cd currydoc    && $(MAKE) clean
-	cd currytest   && $(MAKE) clean
-	cd genint      && $(MAKE) clean
-	cd importcalls && $(MAKE) clean
+	cd analysis       && $(ROOT)/bin/cleancurry
+	cd browser        && $(MAKE) clean
+	cd currydoc       && $(MAKE) clean
+	cd createmakefile && $(MAKE) clean
+	cd currytest      && $(MAKE) clean
+	cd genint         && $(MAKE) clean
+	cd importcalls    && $(MAKE) clean
