@@ -4,6 +4,9 @@
 *.state
 
 # executables
+browser/BrowserGUI
+browser/SourceProgGUI
 currydoc/CurryDoc
+currytest/CurryTest
 genint/GenInt
 importcalls/ImportCalls
