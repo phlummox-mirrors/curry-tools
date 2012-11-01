@@ -31,6 +31,7 @@ import CurryDocParams
 import CurryDocRead
 import CurryDocHtml
 import CurryDocTeX
+import CurryDocCDoc
 import FlatCurry
 import System
 import Time
@@ -67,6 +68,8 @@ processArgs docparams args = do
         processArgs (setDocType HtmlDoc docparams) margs
     ("--tex":margs) ->
         processArgs (setDocType TexDoc docparams) margs
+    ("--cdoc":margs) ->
+        processArgs (setDocType CDoc docparams) margs
     ["--noindexhtml",docdir,modname] ->
        makeCompleteDoc (setIndex False (setDocType HtmlDoc docparams))
                        True docdir (stripSuffix modname)
@@ -107,7 +110,8 @@ makeCompleteDoc docparams recursive docdir modname = do
   prepareDocDir (docType docparams) docdir
   -- parsing source program:
   callFrontend FCY modname
-  (alltypes,allfuns,allops) <- readFlatCurryWithImports [modname]
+  -- when constructing CDOC the imported modules don't have to be read from the flatCurryFile
+  (alltypes, allfuns, allops) <- getProg $ docType docparams
   progname <- findSourceFileInLoadPath modname
   makeDocIfNecessary docparams recursive docdir
                      (genAnaInfo (Prog modname [] alltypes allfuns allops))
@@ -121,6 +125,12 @@ makeCompleteDoc docparams recursive docdir modname = do
   -- change access rights to readable for everybody:
   system ("chmod -R go+rX "++docdir)
   done
+    where getProg HtmlDoc = readFlatCurryWithImports [modname]
+          getProg TexDoc  = readFlatCurryWithImports [modname]
+          getProg CDoc    = do
+              Prog _ _ t f o <- readFlatCurry modname
+              return (t, f, o)
+
 
 --- Generate only the index pages for a list of (already compiled!) modules:
 makeIndexPages :: String -> [String] -> IO ()
@@ -149,6 +159,9 @@ prepareDocDir TexDoc docdir = do
   createDir docdir
   putStrLn $ "Copy macros into documentation directory \""++docdir++"\"..."
   copyIncludeIfPresent docdir "currydoc.tex"
+prepareDocDir CDoc docdir = do
+  createDir docdir
+  putStrLn ("Directory was created succesfully")
 
 copyIncludeIfPresent docdir inclfile = do
   existIDir <- doesDirectoryExist includeDir
@@ -174,25 +187,20 @@ makeDoc docparams recursive docdir anainfo progname = do
 makeDocWithComments HtmlDoc docparams recursive docdir anainfo progname
                     modcmts progcmts = do
   time <- getLocalTime
-  (imports,hexps) <- generateHtmlDocs currydocVersion time docparams anainfo
-                                      progname modcmts progcmts
-  let outfile = docdir++"/"++getLastName progname++".html"
-  putStrLn $ "Writing documentation to \""++outfile++"\"..."
-  writeFile outfile (showDocCSS ("Module "++getLastName progname) hexps)
+  writeOutfile docparams recursive docdir anainfo progname (generateHtmlDocs
+               currydocVersion time docparams anainfo progname modcmts progcmts)
   translateSource2ColoredHtml docdir progname
-  if recursive
-   then mapIO_ (makeDocIfNecessary docparams recursive docdir anainfo) imports
-   else done
+  writeOutfile (DocParams CDoc False False) False docdir anainfo progname (generateCDoc progname modcmts progcmts anainfo)
+
 
 makeDocWithComments TexDoc docparams recursive docdir anainfo progname
                     modcmts progcmts = do
-  (imports,textxt) <- generateTexDocs docparams anainfo progname modcmts progcmts
-  let outfile = docdir++"/"++getLastName progname++".tex"
-  putStrLn $ "Writing documentation to \""++outfile++"\"..."
-  writeFile outfile textxt
-  if recursive
-   then mapIO_ (makeDocIfNecessary docparams recursive docdir anainfo) imports
-   else done
+  writeOutfile docparams recursive docdir anainfo progname (generateTexDocs docparams anainfo progname modcmts progcmts)
+
+
+makeDocWithComments CDoc docparams recursive docdir anainfo progname
+                    modcmts progcmts = do
+  writeOutfile docparams recursive docdir anainfo progname (generateCDoc progname modcmts progcmts anainfo)
 
 
 --- Generates the documentation for a module if it is necessary.
@@ -290,4 +298,22 @@ findSourceFileInLoadPath modname = do
         (return . stripSuffix)
         mbfname
 
------------------------------------------------------------------------
+-- get the associated file extenstion from DocType
+fileExtension :: DocType -> String
+fileExtension HtmlDoc = "html"
+fileExtension TexDoc  = "tex"
+fileExtension CDoc    = "cdoc"
+
+-- harmonized writeFile function for all docType
+writeOutfile :: DocParams -> Bool -> String -> AnaInfo -> String -> IO String -> IO ()
+writeOutfile docparams recursive docdir anainfo progname generate = do
+  doc     <- generate
+  imports <- getImports progname
+  let outfile = docdir++"/"++getLastName progname++"."++fileExtension (docType docparams)
+  putStrLn ("Writing documentation to \""++outfile++"\"...")
+  writeFile outfile doc
+  if recursive
+    then mapIO_ (makeDocIfNecessary docparams recursive docdir anainfo) imports
+    else done
+
+-- -----------------------------------------------------------------------

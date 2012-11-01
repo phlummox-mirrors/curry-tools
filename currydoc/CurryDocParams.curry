@@ -6,7 +6,7 @@ import System(system)
 
 --------------------------------------------------------------------------
 -- The kind of documentations which can be generated.
-data DocType = HtmlDoc | TexDoc
+data DocType = HtmlDoc | TexDoc | CDoc
 
 -- The parameters for the documentation generator. Parameters:
 -- doctype - the target format of the documentation

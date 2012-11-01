@@ -19,23 +19,21 @@ import Markdown
 -- Generates the documentation of a module in HTML format where the comments
 -- are already analyzed.
 generateTexDocs :: DocParams -> AnaInfo -> String -> String
-                -> [(SourceLine,String)] -> IO ([String],String)
+                -> [(SourceLine,String)] -> IO String
 generateTexDocs docparams anainfo progname modcmts progcmts = do
   let fcyname = flatCurryFileName progname
   putStrLn $ "Reading FlatCurry program \""++fcyname++"\"..."
-  (Prog _ imports types functions _) <- readFlatCurryFile fcyname
+  (Prog _ _ types functions _) <- readFlatCurryFile fcyname
   let textypes = concatMap (genTexType docparams progcmts) types
       texfuncs = concatMap (genTexFunc docparams progcmts anainfo) functions
       modcmt   = fst (splitComment modcmts)
   return $
-    (imports,
      "\\currymodule{"++getLastName progname++"}\n" ++
      htmlString2Tex docparams modcmt ++ "\n" ++
      (if null textypes then ""
       else "\\currytypesstart\n" ++ textypes ++ "\\currytypesstop\n") ++
      (if null texfuncs then ""
       else "\\curryfuncstart\n" ++ texfuncs ++ "\\curryfuncstop\n")
-    )
 
 --- Translate a documentation comment to LaTeX and use markdown translation
 --- if necessary. If the string contains HTML tags, these are also
@@ -130,7 +128,6 @@ showTexType nested (TCons tc ts)
    = brackets nested
       (snd tc ++ " " ++ concat (intersperse " " (map (showTexType True) ts)))
 
-
 -- convert string into TeX:
 string2tex :: String -> String
 string2tex = concatMap char2tex
@@ -154,5 +151,3 @@ string2tex = concatMap char2tex
              | c=='}'      = "\\}"
              | c=='&'      = "\\&"
              | otherwise   = [c]
-
-

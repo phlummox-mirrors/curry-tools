@@ -27,14 +27,13 @@ currydocCSS = "currydoc.css"
 -- Generates the documentation of a module in HTML format where the comments
 -- are already analyzed.
 generateHtmlDocs :: String -> CalendarTime -> DocParams -> AnaInfo -> String
-                 -> String -> [(SourceLine,String)] -> IO ([String],[HtmlExp])
+                 -> String -> [(SourceLine,String)] -> IO String
 generateHtmlDocs cdversion time docparams anainfo progname modcmts progcmts = do
   let fcyname = flatCurryFileName progname
   putStrLn $ "Reading FlatCurry program \""++fcyname++"\"..."
   (Prog _ imports types functions ops) <- readFlatCurryFile fcyname
-  return $
-    (imports,
-     [h1 [href (getLastName progname++"_curry.html")
+  return
+     (showDocCSS ("Module"++getLastName progname) $ [h1 [href (getLastName progname++"_curry.html")
                [htxt (getLastName progname++".curry")]]] ++
      genHtmlModule docparams modcmts ++
      [HtmlStruct "table" [("border","1"),("width","100%")]
