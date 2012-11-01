@@ -27,32 +27,37 @@
 
 module CurryDoc where
 
+import Directory
+import Distribution
+import FileGoodies
+import FilePath ((</>), (<.>))
+import FlatCurry
+import List
+import System
+import Time
+
+import AnaCompleteness
+import AnaIndeterminism
+import AnaOpComplete
+import AnaOverlapping
+
 import CurryDocParams
 import CurryDocRead
 import CurryDocHtml
 import CurryDocTeX
 import CurryDocCDoc
-import FlatCurry
-import System
-import Time
-import List
-import Directory
-import FileGoodies
-import AnaOverlapping
-import AnaCompleteness
-import AnaIndeterminism
-import AnaOpComplete
-import Distribution
 
 --------------------------------------------------------------------------
 -- Global definitions:
 
 -- Version of currydoc
-currydocVersion = "Version 0.5.1 of April 27, 2012"
+currydocVersion = "Version 0.6.0 of November 1, 2012"
+
+greeting = "CurryDoc (" ++ currydocVersion ++ ") - the Curry Documentation Tool\n"
 
 -- Directory where include files for generated documention (e.g., icons,
 -- css, tex includes) are stored:
-includeDir = installDir++"/include"
+includeDir = installDir </> "include"
 
 --------------------------------------------------------------------------
 -- Check arguments and call main function:
@@ -60,42 +65,45 @@ main = do
   args <- getArgs
   processArgs defaultCurryDocParams args
 
-processArgs docparams args = do
-  case args of
-    ("--nomarkdown":margs) ->
-        processArgs (setMarkDown False docparams) margs
-    ("--html":margs) ->
-        processArgs (setDocType HtmlDoc docparams) margs
-    ("--tex":margs) ->
-        processArgs (setDocType TexDoc docparams) margs
-    ("--cdoc":margs) ->
-        processArgs (setDocType CDoc docparams) margs
-    ["--noindexhtml",docdir,modname] ->
-       makeCompleteDoc (setIndex False (setDocType HtmlDoc docparams))
-                       True docdir (stripSuffix modname)
-    ("--onlyindexhtml":docdir:modnames) ->
-                        makeIndexPages docdir (map stripSuffix modnames)
-    (('-':_):_) -> putStrLn usageMessage
-    [modname] ->
-        makeCompleteDoc docparams (docType docparams == HtmlDoc)
-                        ("DOC_"++stripSuffix modname) (stripSuffix modname)
-    [docdir,modname] ->
-        makeCompleteDoc docparams (docType docparams == HtmlDoc) docdir
-                        (stripSuffix modname)
-    _ -> putStrLn usageMessage
+processArgs params args = case args of
+  -- no markdown
+  ("--nomarkdown":margs) -> processArgs (setMarkDown False  params) margs
+  -- documentation type
+  ("--html"      :margs) -> processArgs (setDocType HtmlDoc params) margs
+  ("--tex"       :margs) -> processArgs (setDocType TexDoc  params) margs
+  ("--cdoc"      :margs) -> processArgs (setDocType CDoc    params) margs
+  -- HTML without index
+  ["--noindexhtml",docdir,modname] ->
+      makeCompleteDoc (setIndex False (setDocType HtmlDoc params))
+                      True docdir (stripSuffix modname)
+  -- HTML index only
+  ("--onlyindexhtml":docdir:modnames) ->
+                      makeIndexPages docdir (map stripSuffix modnames)
+  (('-':_):_) -> putStrLn usageMessage
+  -- module
+  [modname] ->
+      makeCompleteDoc params (docType params == HtmlDoc)
+                      ("DOC_" ++ stripSuffix modname) (stripSuffix modname)
+  -- docdir + module
+  [docdir,modname] ->
+      makeCompleteDoc params (docType params == HtmlDoc) docdir
+                      (stripSuffix modname)
+  _ -> putStrLn usageMessage
 
-usageMessage =
- "ERROR: Illegal arguments for currydoc\n" ++
- "Usage: currydoc [--nomarkdown] [--html|--tex] <module_name>\n" ++
- "       currydoc [--nomarkdown] [--html|--tex] <doc directory> <module_name>\n" ++
- "       currydoc [--nomarkdown] --noindexhtml <doc directory> <module_name>\n" ++
- "       currydoc --onlyindexhtml <doc directory> <module_names>\n"
+usageMessage = unlines
+ [ "ERROR: Illegal arguments for currydoc"
+ , "Usage: currydoc [--nomarkdown] [--html|--tex|--cdoc] [<doc directory>] <module_name>"
+ , "       currydoc [--nomarkdown] --noindexhtml <doc directory> <module_name>"
+ , "       currydoc --onlyindexhtml <doc directory> <module_names>"
+ ]
+
+
 
 -- create directory if not existent:
 createDir :: String -> IO ()
 createDir dir = do
   exdir <- doesDirectoryExist dir
-  if exdir then done else system ("mkdir "++dir) >> done
+  if exdir then done else system ("mkdir " ++ dir) >> done
 
 --------------------------------------------------------------------------
 --- The main function of the CurryDoc utility.
@@ -106,7 +114,7 @@ createDir dir = do
 --- @param modname - the name of the main module to be documented
 makeCompleteDoc :: DocParams -> Bool -> String -> String -> IO ()
 makeCompleteDoc docparams recursive docdir modname = do
-  putStrLn("CurryDoc ("++currydocVersion++") - the Curry Documentation Tool\n")
+  putStrLn greeting
   prepareDocDir (docType docparams) docdir
   -- parsing source program:
   callFrontend FCY modname
@@ -135,7 +143,7 @@ makeCompleteDoc docparams recursive docdir modname = do
 --- Generate only the index pages for a list of (already compiled!) modules:
 makeIndexPages :: String -> [String] -> IO ()
 makeIndexPages docdir modnames = do
-  putStrLn("CurryDoc ("++currydocVersion++") - the Curry Documentation Tool\n")
+  putStrLn greeting
   prepareDocDir HtmlDoc docdir
   (alltypes,allfuns,_) <- readFlatCurryWithImports modnames
   time <- getLocalTime
@@ -210,7 +218,7 @@ makeDocWithComments CDoc docparams recursive docdir anainfo progname
 makeDocIfNecessary :: DocParams -> Bool -> String -> AnaInfo -> String -> IO ()
 makeDocIfNecessary docparams recursive docdir anainfo modname = do
   progname <- findSourceFileInLoadPath modname
-  let docfile = docdir ++ "/" ++ getLastName progname ++
+  let docfile = docdir </> getLastName progname ++
                 (if docType docparams == HtmlDoc then ".html" else ".tex")
   docexists <- doesFileExist docfile
   if not docexists
@@ -249,20 +257,21 @@ copyDocIfPossible docparams docdir progname =
   if docType docparams == TexDoc
   then return False -- ignore copying for TeX docs
   else do
-     let docprogname = getDirName progname++"/CDOC/"++getLastName progname
-     docexists <- doesFileExist (docprogname++".html")
-     if not docexists
+    let docprogname = getDirName progname </> "CDOC" </> getLastName progname
+        docHtmlFile = docprogname <.> "html"
+    docexists <- doesFileExist docHtmlFile
+    if not docexists
       then return False
-      else
-       do ctime <- getModificationTime (flatCurryFileName progname)
-          htime <- getModificationTime (docprogname++".html")
-          if compareClockTime ctime htime == GT
-           then return False
-           else
-            do putStrLn ("Copying doc file from "++docprogname++".html")
-               system ("cp "++docprogname++".html "++docdir)
-               system ("cp "++docprogname++"_curry.html "++docdir)
-               return True
+      else do
+        ctime <- getModificationTime (flatCurryFileName progname)
+        htime <- getModificationTime docHtmlFile
+        if compareClockTime ctime htime == GT
+          then return False
+          else do
+            putStrLn ("Copying doc file from " ++ docHtmlFile)
+            system ("cp " ++ docHtmlFile ++ ' ':docdir)
+            system ("cp " ++ docprogname ++ "_curry.html "++docdir)
+            return True
 
 -----------------------------------------------------------------------
 -- auxiliaries:
@@ -278,16 +287,14 @@ getDirName n =
 readFlatCurryWithImports :: [String] -> IO ([TypeDecl],[FuncDecl],[OpDecl])
 readFlatCurryWithImports modules = collectMods modules []
  where
-  collectMods [] _ = return ([],[],[])
-  collectMods (m:ms) implist =
-    if m `elem` implist
-    then collectMods ms implist
-    else
-      do filename <- findFileInLoadPath (m++".fcy")
-         (Prog _ imps types funs ops) <- readFlatCurryFile filename
-         (ts,fs,os) <- collectMods (ms++imps) (m:implist)
-         return (types++ts, funs++fs, ops++os)
-
+  collectMods []     _       = return ([],[],[])
+  collectMods (m:ms) implist
+    | m `elem` implist = collectMods ms implist
+    | otherwise        = do
+      filename <- findFileInLoadPath (m <.> "fcy")
+      (Prog _ imps types funs ops) <- readFlatCurryFile filename
+      (ts,fs,os) <- collectMods (ms++imps) (m:implist)
+      return (types++ts, funs++fs, ops++os)
 
 -- add a directory name for a Curry source file by looking up the
 -- current load path (CURRYPATH):
@@ -309,8 +316,8 @@ writeOutfile :: DocParams -> Bool -> String -> AnaInfo -> String -> IO String ->
 writeOutfile docparams recursive docdir anainfo progname generate = do
   doc     <- generate
   imports <- getImports progname
-  let outfile = docdir++"/"++getLastName progname++"."++fileExtension (docType docparams)
-  putStrLn ("Writing documentation to \""++outfile++"\"...")
+  let outfile = docdir </> getLastName progname <.> fileExtension (docType docparams)
+  putStrLn ("Writing documentation to \"" ++ outfile ++ "\"...")
   writeFile outfile doc
   if recursive
     then mapIO_ (makeDocIfNecessary docparams recursive docdir anainfo) imports
