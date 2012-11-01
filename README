@@ -7,10 +7,10 @@ that are used by different Curry systems, like PAKCS or KiCS2.
 Currently it contains:
 
 `addtypes`:
-A tool that adds type signaturs to a given Curry program.
+A tool that adds type signatures to a given Curry program.
 
 `analysis`:
-A directory containing various analyzers for Curry program.
+A directory containing various analyzers for Curry programs.
 
 `browser`:
 A tool to browse through the modules and functions of a Curry program,
