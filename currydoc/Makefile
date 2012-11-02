@@ -30,7 +30,7 @@ DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
 .PHONY: install
 install: CurryDoc
 	$(MAKE) uninstall
-	ln -s $< $(INSTALLBIN)
+	ln -s $(CURDIR)/$< $(INSTALLBIN)
 
 .PHONY: uninstall
 uninstall:
@@ -41,6 +41,6 @@ clean:
 	$(CLEANCURRY)
 	rm -f CurryDoc
 
-# generate saved PAKCS state for currydoc program:
+# generate executable for currydoc program:
 CurryDoc: $(DEPS)
 	$(REPL) $(REPL_OPTS) :set path $(ANADIR) :load $@ :save :quit
