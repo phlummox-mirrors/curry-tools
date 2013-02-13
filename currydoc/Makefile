@@ -36,11 +36,11 @@ install: CurryDoc
 uninstall:
 	rm -f $(INSTALLBIN)
 
-.PHONY: clean
-clean:
-	$(CLEANCURRY)
-	rm -f CurryDoc
-
 # generate executable for currydoc program:
 CurryDoc: $(DEPS)
 	$(REPL) $(REPL_OPTS) :set path $(ANADIR) :load $@ :save :quit
+
+.PHONY: clean
+clean: uninstall
+	$(CLEANCURRY)
+	rm -f CurryDoc
