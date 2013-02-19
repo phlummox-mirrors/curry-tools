@@ -3,6 +3,7 @@
 --- generation of HTML documentation from Curry programs.
 ---
 --- @author Michael Hanus
+--- @version February 2013
 ----------------------------------------------------------------------
 
 -- * All comments to be put into the HTML documentation must be
@@ -46,12 +47,10 @@ import CurryDocRead
 import CurryDocHtml
 import CurryDocTeX
 import CurryDocCDoc
+import CurryDocConfig
 
 --------------------------------------------------------------------------
 -- Global definitions:
-
--- Version of currydoc
-currydocVersion = "Version 0.6.0 of November 1, 2012"
 
 greeting = "CurryDoc (" ++ currydocVersion ++ ") - the Curry Documentation Tool\n"
 
@@ -124,11 +123,10 @@ makeCompleteDoc docparams recursive docdir modname = do
   makeDocIfNecessary docparams recursive docdir
                      (genAnaInfo (Prog modname [] alltypes allfuns allops))
                      progname
-  time <- getLocalTime
   if withIndex docparams
-   then do genMainIndexPage     currydocVersion time docdir [modname]
-           genFunctionIndexPage currydocVersion time docdir allfuns
-           genConsIndexPage     currydocVersion time docdir alltypes
+   then do genMainIndexPage     docdir [modname]
+           genFunctionIndexPage docdir allfuns
+           genConsIndexPage     docdir alltypes
    else done
   -- change access rights to readable for everybody:
   system ("chmod -R go+rX "++docdir)
@@ -146,10 +144,9 @@ makeIndexPages docdir modnames = do
   putStrLn greeting
   prepareDocDir HtmlDoc docdir
   (alltypes,allfuns,_) <- readFlatCurryWithImports modnames
-  time <- getLocalTime
-  genMainIndexPage     currydocVersion time docdir modnames
-  genFunctionIndexPage currydocVersion time docdir allfuns
-  genConsIndexPage     currydocVersion time docdir alltypes
+  genMainIndexPage     docdir modnames
+  genFunctionIndexPage docdir allfuns
+  genConsIndexPage     docdir alltypes
   -- change access rights to readable for everybody:
   system ("chmod -R go+rX "++docdir)
   done
@@ -194,9 +191,8 @@ makeDoc docparams recursive docdir anainfo progname = do
 
 makeDocWithComments HtmlDoc docparams recursive docdir anainfo progname
                     modcmts progcmts = do
-  time <- getLocalTime
-  writeOutfile docparams recursive docdir anainfo progname (generateHtmlDocs
-               currydocVersion time docparams anainfo progname modcmts progcmts)
+  writeOutfile docparams recursive docdir anainfo progname
+               (generateHtmlDocs docparams anainfo progname modcmts progcmts)
   translateSource2ColoredHtml docdir progname
   writeOutfile (DocParams CDoc False False) False docdir anainfo progname (generateCDoc progname modcmts progcmts anainfo)
 

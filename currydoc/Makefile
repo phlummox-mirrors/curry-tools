@@ -16,7 +16,7 @@ INSTALLBIN = $(ROOT)/bin/currydoc
 
 # Source modules of currydoc:
 DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
-       CurryDocTeX.curry CurryDocParams.curry \
+       CurryDocTeX.curry CurryDocParams.curry CurryDocConfig.curry \
        $(LIBDIR)/Markdown.curry \
        $(METADIR)/FlexRigid.curry \
        $(LIBDIR)/CategorizedHtmlList.curry \
