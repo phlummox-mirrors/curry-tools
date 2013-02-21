@@ -430,17 +430,19 @@ genMainIndexPage docdir modnames =
        if length modnames == 1
        then [htxt "Documentation of the Curry program ",
              href (head modnames++".html") [htxt (head modnames++".curry")]]
-       else [htxt "Documentation of the Curry programs "] ++
-            map (\m->href (m++".html") [htxt (m++".curry ")])
-                (mergeSort leqStringIgnoreCase modnames))
-      allConsFuncsMenu indexPage
+       else [htxt "Documentation of Curry programs"])
+      allConsFuncsMenu (indexPage modnames)
      >>= writeFile (docdir++"/index.html")
 
 allConsFuncsMenu =
   [[href "findex.html" [htxt "All functions"]],
    [href "cindex.html" [htxt "All constructors"]]]
 
-indexPage =
+indexPage modnames =
+  (if length modnames == 1
+   then []
+   else [ulist (map (\m->[href (m++".html") [htxt (m++".curry ")]])
+                    (mergeSort leqStringIgnoreCase modnames))]) ++
   [bold [htxt "Explanations of the icons used in the documentation:"],
    par [anchor "det_explain" [image "det.gif" "deterministic"],
         htxt " Function is deterministically defined, i.e.,",
