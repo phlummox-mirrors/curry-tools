@@ -8,7 +8,7 @@ LIB=$(ROOT)/lib
 META=$(LIB)/meta
 
 # generate executable for the Curry2JavaScript translator:
-Curry2JS.state: Curry2JS.curry $(LIB)/JavaScript.curry \
+Curry2JS: Curry2JS.curry $(LIB)/JavaScript.curry \
 	        $(META)/CompactFlatCurry.curry $(META)/FlatCurry.curry
 	$(ROOT)/bin/$(CURRYSYSTEM) $(REPL_OPTS) :l Curry2JS :save :q
 
