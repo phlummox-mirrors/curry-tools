@@ -37,7 +37,8 @@ bootstrapForm rootdir styles title lefttopmenu righttopmenu
               [blockstyle "row-fluid"
                 (if leftcols==0
                  then [headerRow, blockstyle "row-fluid" contents]
-                 else [blockstyle ("span"++show leftcols) sidemenu,
+                 else [blockstyle ("span"++show leftcols)
+                        [blockstyle "well sidebar-nav" sidemenu],
                        blockstyle ("span"++show (12-leftcols))
                         [headerRow,
                          blockstyle "row-fluid" contents]]),
@@ -88,7 +89,8 @@ bootstrapPage rootdir styles title lefttopmenu righttopmenu
               [blockstyle "row-fluid"
                 (if leftcols==0
                  then [headerRow, blockstyle "row-fluid" contents]
-                 else [blockstyle ("span"++show leftcols) sidemenu,
+                 else [blockstyle ("span"++show leftcols)
+                        [blockstyle "well sidebar-nav" sidemenu],
                        blockstyle ("span"++show (12-leftcols))
                         [headerRow,
                          blockstyle "row-fluid" contents]]),
@@ -120,9 +122,9 @@ topNavigationBar leftmenu rightmenu =
 --- Create a side menu containing a title and a list of items:
 titledSideMenu :: String -> [[HtmlExp]] -> [HtmlExp]
 titledSideMenu title items =
-  [blockstyle "well sidebar-nav"
-    ((if null title then []
-      else [HtmlStruct "small" [] [htxt title]]) ++
-     [ulist items `addClass` "nav nav-list"])]
+  (if null title
+   then []
+   else [HtmlStruct "small" [] [htxt title]]) ++
+  [ulist items `addClass` "nav nav-list"]
 
 ------------------------------------------------------------------------
