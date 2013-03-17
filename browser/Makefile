@@ -15,7 +15,6 @@ all: BrowserGUI SourceProgGUI
 # generate executable for Curry Browser:
 BrowserGUI: BrowserGUI.curry ShowFlatCurry.curry Imports.curry \
 	    AnalysisTypes.curry BrowserAnalysis.curry ShowGraph.curry \
-	    FlatCurryGoodies.curry \
 	    $(CURRYTOOLS)/addtypes/AddTypes.curry \
 	    $(CURRYTOOLS)/importcalls/ImportCalls.curry \
 	    $(LIB)/GUI.curry $(LIB)/IOExts.curry  $(LIB)/System.curry \

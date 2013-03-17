@@ -17,7 +17,7 @@ import FlatCurry
 
 isOverlappingFunction :: FuncDecl -> Bool
 isOverlappingFunction (Func _ _ _ _ (Rule _ e))   = orInExpr e
-isOverlappingFunction (Func _ _ _ _ (External _)) = False
+isOverlappingFunction (Func f _ _ _ (External _)) = f==("Prelude","?")
 
 --------------------------------------------------------------------------
 -- Check an expression for occurrences of OR:

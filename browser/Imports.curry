@@ -21,7 +21,7 @@ getImportedInterfaces mod = do
   imps <- readFlatCurryIntWithImports (if null args
                                        then mod
                                        else dirName(head args)++"/"++mod)
-  return (map (\prog -> (moduleName prog, IF prog)) imps)
+  return (map (\prog -> (progName prog, IF prog)) imps)
 
 -- Extract a module and its imports:
 moduleImports (Prog mod imps _ _ _) = (mod,imps)
