@@ -19,4 +19,4 @@ CurryTest: CurryTest.curry $(META)/FlatCurry.curry \
 .PHONY: clean
 clean: 
 	$(ROOT)/bin/cleancurry
-	rm -f $(ROOT)/bin/currytest
+	rm -f CurryTest $(ROOT)/bin/currytest

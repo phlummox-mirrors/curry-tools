@@ -19,3 +19,4 @@ GenInt: $(DEPS)
 .PHONY: clean
 clean: 
 	$(ROOT)/bin/cleancurry
+	rm -f GenInt

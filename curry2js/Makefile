@@ -14,3 +14,5 @@ Curry2JS.state: Curry2JS.curry $(LIB)/JavaScript.curry \
 
 clean: 
 	$(ROOT)/bin/cleancurry
+	rm -f Curry2JS
+
