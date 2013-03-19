@@ -292,4 +292,5 @@ withAction (GlobalDataAnalysis ana) =
 
 -- A simple example for a global function analysis of type IO:
 printFuncName :: [FuncDecl] -> [(QName,IO ())]
-printFuncName = map (\fdecl -> (funcName fdecl, putStrLn (unqualifiedName fdecl)))
+printFuncName =
+  map (\fdecl -> (funcName fdecl, putStrLn (snd (funcName fdecl))))

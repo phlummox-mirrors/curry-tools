@@ -14,7 +14,7 @@ import Imports
 import FlatCurry
 import FlatCurryGoodies
 import FlatCurryShow
-import ShowFlatCurry(leqFunc)
+import ShowFlatCurry(leqFunc,funcModule)
 import System
 import FileGoodies
 import List
@@ -60,7 +60,7 @@ start mod = do
   putStrLn "Please be patient, reading all interfaces..."
   helptxt <- readFile (browserDir++"/README")
   mods <- getImportedInterfaces mod
-  let mainmod = moduleName (progOfIFFP (snd (head mods)))
+  let mainmod = progName (progOfIFFP (snd (head mods)))
       trees = [Leaf (if mainmod==mod then mod else mod++"(module: "++mainmod++")")
                     (mainmod,map (moduleImports . progOfIFFP . snd) mods)]
   stateref <- newIORef (trees,
@@ -229,7 +229,7 @@ getProgWithName gs prt name = do
 getAllTypes gs _ mod =
   getAllImportsOfModule gs mod >>= \imps ->
   readIORef gs >>= \(_,mods,_,_,_,_) ->
-  return (concatMap (typesOfProg . progOfIFFP . snd . snd)
+  return (concatMap (progTypes . progOfIFFP . snd . snd)
                     (filter ((`elem` imps) . fst) mods))
 
 -- Get all function declarations (also imported) of a module:
@@ -239,7 +239,7 @@ getAllFunctions gs prt mod = do
   (_,mods,_,_,_,_) <- readIORef gs
   mapIO_ (readProgAndStoreIfNecessary gs prt) (filter ((`elem` imps) . fst) mods)
   (_,newmods,_,_,_,_) <- readIORef gs
-  return (concatMap (funcsOfProg . progOfIFFP . snd . snd)
+  return (concatMap (progFuncs . progOfIFFP . snd . snd)
                     (filter ((`elem` imps) . fst) newmods))
 
 -- Get all function names (also imported) of a module:
@@ -247,7 +247,7 @@ getAllFunctionNames :: IORef GuiState -> String -> IO [QName]
 getAllFunctionNames gs mod =
   getAllImportsOfModule gs mod >>= \imps ->
   readIORef gs >>= \(_,mods,_,_,_,_) ->
-  return (map funcName (concatMap (funcsOfProg . progOfIFFP . snd . snd)
+  return (map funcName (concatMap (progFuncs . progOfIFFP . snd . snd)
                                   (filter ((`elem` imps) . fst) mods)))
 
 -- Get currently selected function analysis:
@@ -505,18 +505,18 @@ browserGUI gstate rmod rtxt names =
   -- show module's functions:
   showAllModuleFuns mod gp = do
     prog <- getProgWithName gstate (showDoing gp) mod
-    storeSelectedFunctions gstate (funcsOfProg prog)
+    storeSelectedFunctions gstate (progFuncs prog)
     setFunctionListKind gstate True
     funs <- getFuns gstate
-    setConfig rfun (List (map unqualifiedName funs)) gp
+    setConfig rfun (List (map (snd . funcName) funs)) gp
 
   -- show module's exported functions:
   showExportedFuns mod gp = do
     prog <- getProgWithName gstate (showDoing gp) mod
-    storeSelectedFunctions gstate (filter isPublic (funcsOfProg prog))
+    storeSelectedFunctions gstate (filter isPublic (progFuncs prog))
     setFunctionListKind gstate True
     funs <- getFuns gstate
-    setConfig rfun (List (map unqualifiedName funs)) gp
+    setConfig rfun (List (map (snd . funcName) funs)) gp
 
   -- show exported functions of module and selected modules:
   showAllExportedFuns mod gp = do
@@ -614,7 +614,7 @@ browserGUI gstate rmod rtxt names =
       getFuns gstate >>= \funs ->
       setValue resultwidget explanation gp >>
       performAllAnalysis analysis (showDoing gp) (fromJust mod) funs >>= \anaresults ->
-      setConfig rfun (List (map (\(prefix,func)-> prefix++" "++unqualifiedName func)
+      setConfig rfun (List (map (\(prefix,func)-> prefix++" "++snd (funcName func))
                                 (zip anaresults funs))) gp
 
   -- Perform an analysis on a module:
@@ -670,6 +670,7 @@ browserGUI gstate rmod rtxt names =
     let anaresults = ana types funcs in
     return (map (\fd->fromJust (lookup (funcName fd) anaresults)) fdecls)
 
+isPublic fd = funcVisibility fd == Public
 
 ---------------------------------------------------------------------
 -- find a function declaration in a program text:

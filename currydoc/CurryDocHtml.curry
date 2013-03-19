@@ -2,7 +2,7 @@
 --- Functions to generate documentation in HTML format.
 ---
 --- @author Michael Hanus
---- @version February 2013
+--- @version March 2013
 ----------------------------------------------------------------------
 
 module CurryDocHtml where
@@ -13,6 +13,7 @@ import CurryDocConfig
 import FlatCurry
 import FlexRigid
 import HTML
+import BootstrapStyle
 import List
 import Char
 import AnaCompleteness
@@ -41,30 +42,27 @@ generateHtmlDocs docparams anainfo progname modcmts progcmts = do
             genHtmlExportIndex (map typeName exptypes)
                                (getExportedCons types)
                                (map funcName expfuns),
-            docAnchor "imported_modules" [bold [htxt "Imported modules:"]],
+            anchored "imported_modules" [bold [htxt "Imported modules:"]],
             ulist (map (\i -> [href (getLastName i++".html") [htxt i]])
                        imports) `addClass` "nav nav-list"]
     (genHtmlModule docparams modcmts ++
        ([h2 [htxt "Summary of exported functions:"],
-         table (map (\fd -> [genHtmlFuncShort docparams progcmts anainfo fd])
-                    expfuns) `addClass` "table table-bordered table-hover"] ++
+         borderedTable
+           (map (genHtmlFuncShort docparams progcmts anainfo) expfuns)] ++
         (if null types
          then []
-         else [docAnchor "exported_datatypes"
-                         [h2 [htxt "Exported datatypes:"]],
-               table (map (\td -> [genHtmlType docparams progcmts td])
-                          exptypes) `addClass` "table table-bordered table-hover"]) ++
-        [docAnchor "exported_functions"
-                   [h2 [htxt "Exported functions:"]],
-         table (map (\fd -> [genHtmlFunc docparams progname progcmts anainfo ops fd])
-                    expfuns) `addClass` "table table-bordered table-hover"]
-             ))
+         else [anchoredSection "exported_datatypes"
+                               [h2 [htxt "Exported datatypes:"]], hrule] ++
+               concatMap (genHtmlType docparams progcmts) exptypes) ++
+        [anchored "exported_functions"
+                  [h2 [htxt "Exported functions:"]]] ++
+        (map (genHtmlFunc docparams progname progcmts anainfo ops) expfuns)))
  where
    title = "Module "++getLastName progname
 
-   htmltitle = [htxt "Module ",
-                href (getLastName progname++"_curry.html")
-                     [htxt (getLastName progname++".curry")]]
+   htmltitle = [h1 [htxt "Module ",
+                    href (getLastName progname++"_curry.html")
+                         [htxt (getLastName progname++".curry")]]]
 
    lefttopmenu types =
      [[href "?" [htxt title]],
@@ -163,53 +161,48 @@ genHtmlModule docparams modcmts =
 
 --- generate HTML documentation for a datatype if it is exported:
 genHtmlType :: DocParams -> [(SourceLine,String)] -> TypeDecl -> [HtmlExp]
-genHtmlType docparams progcmts (Type (_,tcons) tvis tvars constrs) =
-  if tvis==Public
-  then
-   let (datacmt,conscmts) = splitComment (getDataComment tcons progcmts)
-    in [h3 [anchor tcons [htxt tcons]],
-        par (docComment2HTML docparams datacmt),
-        par [explainCat "Constructors:", breakline,
-             dlist (concatMap
-                      (genHtmlCons (getCommentType "cons" conscmts))
-                      constrs)]]
-  else []
+genHtmlType docparams progcmts (Type (_,tcons) _ tvars constrs) =
+  let (datacmt,conscmts) = splitComment (getDataComment tcons progcmts)
+   in [anchored tcons [style "typeheader" [htxt tcons]],
+       par (docComment2HTML docparams datacmt),
+       par [explainCat "Constructors:"]] ++
+      concatMap (genHtmlCons (getCommentType "cons" conscmts)) constrs ++
+      [hrule]
  where
   genHtmlCons conscmts (Cons (cmod,cname) _ cvis argtypes) =
     if cvis==Public
-    then [([code [opnameDoc [anchor (cname++"_CONS") [htxt cname]],
-                  HtmlText
-                   (" :: " ++
-                    concatMap (\t->" "++showType cmod True t++" -> ")
-                              argtypes ++
-                    tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars)]],
-           (maybe []
-                  (\ (call,cmt) ->
-                     [par ([code [htxt call], htxt " : "] ++
-                           removeTopPar (docComment2HTML docparams
-                                                         (removeDash cmt)))])
-                  (getConsComment conscmts cname))
-          )]
+    then [style "anchored"
+           [code [opnameDoc [htxt cname],
+                  HtmlText (" :: " ++
+                            concatMap (\t->" "++showType cmod True t++" -> ")
+                                      argtypes ++
+                            tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars)]]
+            `addAttr` ("id",cname++"_CONS"),
+           maybe (par [])
+                 (\ (call,cmt) ->
+                    par ([code [htxt call], htxt " : "] ++
+                         removeTopPar (docComment2HTML docparams
+                                                       (removeDash cmt)))
+                      `addClass` "conscomment")
+                (getConsComment conscmts cname)]
     else []
 
-genHtmlType docparams progcmts (TypeSyn (tcmod,tcons) tvis tvars texp) =
-  if tvis==Public
-  then let (typecmt,_) = splitComment (getDataComment tcons progcmts) in
-       [h3 [anchor tcons [htxt tcons]],
-        par (docComment2HTML docparams typecmt),
-        par [explainCat "Type synonym:", nbsp,
-             if tcons=="String" && tcmod=="Prelude"
-             then code [htxt "String = [Char]"]
-             else code [HtmlText
-                   (tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++ " = " ++
-                    showType tcmod False texp)]],
-        hrule]
-  else []
+genHtmlType docparams progcmts (TypeSyn (tcmod,tcons) _ tvars texp) =
+  let (typecmt,_) = splitComment (getDataComment tcons progcmts)
+   in [anchored tcons [style "typeheader" [htxt tcons]],
+       par (docComment2HTML docparams typecmt),
+       par [explainCat "Type synonym:", nbsp,
+            if tcons=="String" && tcmod=="Prelude"
+            then code [htxt "String = [Char]"]
+            else code [HtmlText
+                        (tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
+                         " = " ++ showType tcmod False texp)]],
+       hrule]
 
 -- generate short HTML documentation for a function:
 genHtmlFuncShort docparams progcmts anainfo
                  (Func (fmod,fname) _ _ ftype rule) =
-  [code [opnameDoc
+ [[code [opnameDoc
             [anchor (fname++"_SHORT")
                     [href ('#':fname) [htxt (showId fname)]]],
            HtmlText (" :: " ++ showType fmod False ftype)],
@@ -219,29 +212,31 @@ genHtmlFuncShort docparams progcmts anainfo
    removeTopPar
       (docComment2HTML docparams
          (firstSentence (fst (splitComment
-                                (getFuncComment fname progcmts)))))
+                                (getFuncComment fname progcmts)))))]
 
 -- generate HTML documentation for a function:
 genHtmlFunc :: DocParams -> String -> [(SourceLine,String)] -> AnaInfo
-            -> [OpDecl] -> FuncDecl -> [HtmlExp]
+            -> [OpDecl] -> FuncDecl -> HtmlExp
 genHtmlFunc docparams progname progcmts anainfo ops
             (Func (fmod,fname) _ _ ftype rule) =
   let (funcmt,paramcmts) = splitComment (getFuncComment fname progcmts)
-   in [par $
-        [code [opnameDoc
-               [anchor fname
-                       [href (getLastName progname++"_curry.html#"++fname)
-                             [htxt (showId fname)]]],
-               HtmlText (" :: "++ showType fmod False ftype)],
-         nbsp, nbsp] ++
-        genFuncPropIcons anainfo (fmod,fname) rule] ++
-      docComment2HTML docparams funcmt ++
-      genParamComment paramcmts ++
-      -- show further infos for this function, if present:
-      (if furtherInfos == []
-       then []
-       else [dlist [([explainCat "Further infos:"],
-                     [ulist furtherInfos])]] )
+   in style "anchored"
+       [borderedTable [[
+         [par $
+           [code [opnameDoc
+                   [href (getLastName progname++"_curry.html#"++fname)
+                         [htxt (showId fname)]],
+                  HtmlText (" :: "++ showType fmod False ftype)],
+            nbsp, nbsp] ++
+           genFuncPropIcons anainfo (fmod,fname) rule] ++
+         docComment2HTML docparams funcmt ++
+         genParamComment paramcmts ++
+         -- show further infos for this function, if present:
+         (if furtherInfos == []
+          then []
+          else [dlist [([explainCat "Further infos:"],
+                        [ulist furtherInfos])]] )]]]
+       `addAttr` ("id",fname)
  where
   furtherInfos = genFuncPropComments anainfo (fmod,fname) rule ops
 
@@ -436,17 +431,19 @@ genMainIndexPage docdir modnames =
        if length modnames == 1
        then [htxt "Documentation of the Curry program ",
              href (head modnames++".html") [htxt (head modnames++".curry")]]
-       else [htxt "Documentation of the Curry programs "] ++
-            map (\m->href (m++".html") [htxt (m++".curry ")])
-                (mergeSort leqStringIgnoreCase modnames))
-      allConsFuncsMenu indexPage
+       else [htxt "Documentation of Curry programs"])
+      allConsFuncsMenu (indexPage modnames)
      >>= writeFile (docdir++"/index.html")
 
 allConsFuncsMenu =
   [[href "findex.html" [htxt "All functions"]],
    [href "cindex.html" [htxt "All constructors"]]]
 
-indexPage =
+indexPage modnames =
+  (if length modnames == 1
+   then []
+   else [ulist (map (\m->[href (m++".html") [htxt (m++".curry ")]])
+                    (mergeSort leqStringIgnoreCase modnames))]) ++
   [bold [htxt "Explanations of the icons used in the documentation:"],
    par [anchor "det_explain" [image "det.gif" "deterministic"],
         htxt " Function is deterministically defined, i.e.,",
@@ -519,8 +516,12 @@ htmlConsIndex qnames = categorizeByItemKey (map showModNameRef qnames)
 mainPage :: String -> [HtmlExp] -> [[HtmlExp]] -> [HtmlExp] -> [HtmlExp]
          -> IO String
 mainPage title htmltitle lefttopmenu sidemenu maindoc = do
-    body <- addLayout htmltitle lefttopmenu rightTopMenu sidemenu maindoc
-    return (showPageWithDocStyle title body)
+    time <- getLocalTime
+    return $ showHtmlPage $
+      bootstrapPage baseURL
+                    ["bootstrap","bootstrap-responsive","currydoc"]
+                    title lefttopmenu rightTopMenu 3 sidemenu htmltitle maindoc
+                    (curryDocFooter time)
 
 --- Generate a page with the default documentation style.
 --- @param title - the title of the page
@@ -529,18 +530,9 @@ showPageWithDocStyle :: String -> [HtmlExp] -> String
 showPageWithDocStyle title body =
   showHtmlPage $
     HtmlPage title
-             ([responsiveView, icon] ++
-              map (\f -> pageCSS $ baseURL++"/css/"++f++".css")
-                  ["bootstrap","bootstrap-responsive"] ++
-              [pageCSS currydocCSS])
+             (map (\f -> pageCSS $ baseURL++"/css/"++f++".css")
+                  ["bootstrap","bootstrap-responsive","currydoc"])
              body
- where
-   responsiveView =
-     pageMetaInfo [("name","viewport"),
-                   ("content","width=device-width, initial-scale=1.0")]
-
-   icon = pageLinkInfo [("rel","shortcut icon"),
-                        ("href",baseURL++"/img/favicon.ico")]
 
 --- The standard right top menu.
 rightTopMenu =
@@ -550,62 +542,12 @@ rightTopMenu =
          [htxt "About CurryDoc"]]]
   
 
---- Adds the basic page layout to a view.
---- The arguments are the title, the left and right top menu,
---- the side menu, and the main contents.
-addLayout :: [HtmlExp] -> [[HtmlExp]] -> [[HtmlExp]] -> [HtmlExp]
-          -> [HtmlExp] -> IO [HtmlExp]
-addLayout htmltitle lefttopmenu righttopmenu sidemenu maindoc = do
-    time <- getLocalTime
-    return $ topNavBar lefttopmenu righttopmenu ++
-      [blockstyle "container-fluid"
-        [blockstyle "row-fluid"
-          [HtmlStruct "header" [("class","hero-unit")] [h1 htmltitle]]],
-       blockstyle "container-fluid"
-        [blockstyle "row-fluid"
-          [blockstyle "span3"
-            [blockstyle "well sidebar-nav" sidemenu],
-           blockstyle "span9"
-            [blockstyle "row-fluid" maindoc]],
-         hrule,
-         curryDocFooter time]] ++
-      bottomNavBar lefttopmenu righttopmenu
-
 -- Standard footer information for generated web pages:
 curryDocFooter time =
-  HtmlStruct "footer" []
-             [italic [htxt "Generated by ",
-                      bold [htxt "CurryDoc"],
-                      htxt (" ("++currydocVersion++") at "),
-                      htxt (calendarTimeToString time)]]
-
--- Standard navigation bar at the top.
--- The first and the second argument are the left and right top menus.
-topNavBar :: [[HtmlExp]] -> [[HtmlExp]] -> [HtmlExp]
-topNavBar lefttopmenu righttopmenu =
-  [blockstyle "navbar navbar-inverse"
-    [blockstyle "navbar-inner"
-      [blockstyle "container-fluid"
-         [ulist lefttopmenu `addClass` "nav",
-          blockstyle "navbar-text pull-right"
-           [ulist righttopmenu `addClass` "nav"]]
-      ]
-    ]
-  ]
-
--- Standard navigation bar which is fixed at the bottom.
--- The first and the second argument are the left and right top menus.
-bottomNavBar :: [[HtmlExp]] -> [[HtmlExp]] -> [HtmlExp]
-bottomNavBar lefttopmenu righttopmenu =
-  [blockstyle "navbar navbar-inverse navbar-fixed-bottom"
-    [blockstyle "navbar-inner"
-      [blockstyle "container-fluid"
-         [ulist lefttopmenu `addClass` "nav",
-          blockstyle "navbar-text pull-right"
-           [ulist righttopmenu `addClass` "nav"]]
-      ]
-    ]
-  ]
+  [italic [htxt "Generated by ",
+           bold [htxt "CurryDoc"],
+           htxt (" ("++currydocVersion++") at "),
+           htxt (calendarTimeToString time)]]
 
 --- Generate a simple page with the default documentation style.
 --- @param title - the title of the page
@@ -614,29 +556,26 @@ bottomNavBar lefttopmenu righttopmenu =
 --- @param doc - the main contents of the page
 simplePage :: String -> Maybe [HtmlExp] -> [[HtmlExp]] -> [HtmlExp] -> IO String
 simplePage title htmltitle lefttopmenu maindoc = do
-    body <- addSimpleLayout title htmltitle lefttopmenu rightTopMenu maindoc
-    return (showPageWithDocStyle title body)
-
---- Adds simple page layout to a view.
---- The arguments are the title, the left and right top menu, and the contents.
-addSimpleLayout :: String -> Maybe [HtmlExp] -> [[HtmlExp]] -> [[HtmlExp]]
-                -> [HtmlExp] -> IO [HtmlExp]
-addSimpleLayout title htmltitle lefttopmenu righttopmenu maindoc = do
     time <- getLocalTime
-    return $ topNavBar lefttopmenu righttopmenu ++
-      [blockstyle "container-fluid"
-        [blockstyle "row-fluid"
-          [HtmlStruct "header" [("class","hero-unit")]
-                      [h1 (maybe [htxt title] id htmltitle)]]],
-       blockstyle "container-fluid"
-        [blockstyle "row-fluid" maindoc,
-         hrule,
-         curryDocFooter time]] ++
-      bottomNavBar lefttopmenu righttopmenu
+    return $ showHtmlPage $
+      bootstrapPage baseURL
+                    ["bootstrap","bootstrap-responsive","currydoc"]
+                    title lefttopmenu rightTopMenu 0 []
+                    [h1 (maybe [htxt title] id htmltitle)]
+                    maindoc
+                    (curryDocFooter time)
 
---- An anchor in the document:
-docAnchor :: String -> [HtmlExp] -> HtmlExp
-docAnchor tag doc = HtmlStruct "section" [("id",tag)] doc
+--- An anchored section in the document:
+anchoredSection :: String -> [HtmlExp] -> HtmlExp
+anchoredSection tag doc = HtmlStruct "section" [("id",tag)] doc
+
+--- An anchored element in the document:
+anchored :: String -> [HtmlExp] -> HtmlExp
+anchored tag doc = style "anchored" doc `addAttr` ("id",tag)
+
+--- A bordered table:
+borderedTable :: [[[HtmlExp]]] -> HtmlExp
+borderedTable rows = table rows `addClass` "table table-bordered table-hover"
 
 --- An external reference
 ehref :: String -> [HtmlExp] -> HtmlExp

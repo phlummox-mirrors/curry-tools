@@ -12,7 +12,8 @@
 ------------------------------------------------------------------------------
 
 module ShowFlatCurry(showInterface,showCurryMod,showFlatProg,
-                     showFuncDeclAsCurry,showFuncDeclAsFlatCurry,leqFunc)
+                     showFuncDeclAsCurry,showFuncDeclAsFlatCurry,leqFunc,
+                     funcModule)
  where
 
 import FlatCurry
@@ -273,3 +274,4 @@ showFuncDeclAsFlatCurry fd =
   showCurryFuncDecl (showQNameInModule (funcModule fd))
                     (showQNameInModule (funcModule fd)) True fd
 
+funcModule fd = fst (funcName fd)
