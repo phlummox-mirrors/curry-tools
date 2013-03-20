@@ -22,7 +22,7 @@ generateCDoc progName modCmts progCmts anaInfo = do
         tExpr
         mName
         (funcComment fName progCmts)
-        (getOverlappingInfo anaInfo qName)
+        (getNondetInfo anaInfo qName)
         (flexRigid rule)
       typeInfo (Type (mName, tName) _ vars consDecl) =
         TypeInfo tName

@@ -10,13 +10,13 @@ module CurryDocHtml where
 import CurryDocParams
 import CurryDocRead
 import CurryDocConfig
+import TotallyDefined(Completeness(..))
 import FlatCurry
 import FlexRigid
 import HTML
 import BootstrapStyle
 import List
 import Char
-import AnaCompleteness
 import Sort
 import Time
 import Distribution
@@ -281,7 +281,7 @@ genFuncPropIcons anainfo fname rule =
  where
    --(non)deterministically defined property:
    detIcon =
-    if getOverlappingInfo anainfo fname
+    if getNondetInfo anainfo fname
     then href "index.html#nondet_explain"
               [addIconParams $ image "nondet.gif" "non-deterministic"]
     else href "index.html#det_explain"
@@ -317,14 +317,13 @@ genFuncPropComments anainfo fname rule ops =
                   externalInfo rule]
  where
    -- comment about the definitional completeness of a function:
-   completenessInfo =
-      let ci = getCompleteInfo anainfo fname
-       in if ci==Complete
-          then []
-          else [htxt (if ci==InComplete
-                      then "incompletely defined"
-                      else
-           "incompletely defined in each disjunction (but might be complete)")]
+   completenessInfo = let ci = getCompleteInfo anainfo fname in
+     if ci==Complete
+     then []
+     else [htxt (if ci==InComplete
+                 then "partially defined"
+                 else
+             "partially defined in each disjunction (but might be complete)")]
 
    -- comment about the indeterminism of a function:
    indeterminismInfo = if getIndetInfo anainfo fname
@@ -446,11 +445,11 @@ indexPage modnames =
                     (mergeSort leqStringIgnoreCase modnames))]) ++
   [bold [htxt "Explanations of the icons used in the documentation:"],
    par [anchor "det_explain" [image "det.gif" "deterministic"],
-        htxt " Function is deterministically defined, i.e.,",
-        htxt " patterns are pairwise exclusive"],
+        htxt " Function is deterministic, i.e., defined by exclusive rules",
+        htxt " and depend only on deterministic functions"],
    par [anchor "nondet_explain" [image "nondet.gif" "non-deterministic"],
-        htxt " Function is non-deterministically defined, i.e.,",
-        htxt " contains overlapping patterns"],
+        htxt " Function might be non-deterministic, i.e., it is defined by",
+        htxt " overlapping rules or depend on non-deterministic functions"],
    par [anchor "rigid_explain" [image "rigid.gif" "rigid"],
         htxt " Function is rigid"],
    par [anchor "flex_explain" [image "flex.gif" "flexible"],

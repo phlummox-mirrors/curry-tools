@@ -7,6 +7,7 @@
 # directories
 LIBDIR     = $(ROOT)/lib
 METADIR    = $(LIBDIR)/meta
+CASS       = ../CASS
 ANADIR     = ../analysis
 
 # binaries
@@ -24,9 +25,9 @@ DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
        $(LIBDIR)/Distribution.curry $(LIBDIR)/PropertyFile.curry \
        $(METADIR)/FlatCurry.curry \
        $(LIBDIR)/HTML.curry $(LIBDIR)/HtmlParser.curry \
-       $(ANADIR)/AnaOverlapping.curry $(ANADIR)/AnaIndeterminism.curry \
-       $(ANADIR)/AnaCompleteness.curry $(ANADIR)/AnaOpComplete.curry \
-       $(ANADIR)/AnaDependency.curry
+       $(CASS)/AnalysisServer.curry \
+       $(ANADIR)/Deterministic.curry $(ANADIR)/TotallyDefined.curry \
+       $(ANADIR)/Indeterministic.curry $(ANADIR)/SolutionCompleteness.curry
 
 .PHONY: install
 install: CurryDoc
@@ -39,7 +40,7 @@ uninstall:
 
 # generate executable for currydoc program:
 CurryDoc: $(DEPS)
-	$(REPL) $(REPL_OPTS) :set path $(ANADIR) :load $@ :save :quit
+	$(REPL) $(REPL_OPTS) :set path $(CASS):$(ANADIR) :load $@ :save :quit
 
 .PHONY: clean
 clean: uninstall

@@ -7,7 +7,7 @@
 module CurryDocRead where
 
 import FlatCurry
-import AnaCompleteness
+import TotallyDefined(Completeness(..))
 import Char
 
 --------------------------------------------------------------------------
@@ -156,25 +156,25 @@ splitCommentParams param paramcmt (l:ls) =
 -- Datatype for passing analysis results:
 
 data AnaInfo =
-   AnaInfo ((String,String) -> Bool)  -- overlapping?
-           ((String,String) -> CompletenessType)  -- completely defined?
-           ((String,String) -> Bool)  -- indeterministically defined?
-           ((String,String) -> Bool)  -- solution complete?
+   AnaInfo (QName -> Bool)          -- non-deterministic?
+           (QName -> Completeness)  -- completely defined?
+           (QName -> Bool)          -- indeterministically defined?
+           (QName -> Bool)          -- solution complete?
 
-getOverlappingInfo :: AnaInfo -> (String,String) -> Bool
-getOverlappingInfo (AnaInfo oi _ _ _) = oi
+getNondetInfo :: AnaInfo -> QName -> Bool
+getNondetInfo (AnaInfo oi _ _ _) = oi
 
-getCompleteInfo :: AnaInfo -> (String,String) -> CompletenessType
+getCompleteInfo :: AnaInfo -> QName -> Completeness
 getCompleteInfo (AnaInfo _ cdi _ _) = cdi
 
-getIndetInfo :: AnaInfo -> (String,String) -> Bool
+getIndetInfo :: AnaInfo -> QName -> Bool
 getIndetInfo (AnaInfo _ _ idi _) = idi
 
-getOpCompleteInfo :: AnaInfo -> (String,String) -> Bool
+getOpCompleteInfo :: AnaInfo -> QName -> Bool
 getOpCompleteInfo (AnaInfo _ _ _ oci) = oci
 
 -- Translate a standard analysis result into functional form:
-getFunctionInfo :: [((String,String),a)] -> (String,String) -> a
+getFunctionInfo :: [(QName,a)] -> QName -> a
 getFunctionInfo [] n = error ("No analysis result for function "++show n)
 getFunctionInfo ((fn,fi):fnis) n = if fn==n then fi
                                             else getFunctionInfo fnis n

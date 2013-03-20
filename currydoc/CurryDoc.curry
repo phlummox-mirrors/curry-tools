@@ -37,10 +37,11 @@ import List
 import System
 import Time
 
-import AnaCompleteness
-import AnaIndeterminism
-import AnaOpComplete
-import AnaOverlapping
+import AnalysisServer(analyzeInterface)
+import Deterministic
+import TotallyDefined
+import Indeterministic
+import SolutionCompleteness
 
 import CurryDocParams
 import CurryDocRead
@@ -118,11 +119,8 @@ makeCompleteDoc docparams recursive docdir modname = do
   -- parsing source program:
   callFrontend FCY modname
   -- when constructing CDOC the imported modules don't have to be read from the flatCurryFile
-  (alltypes, allfuns, allops) <- getProg $ docType docparams
-  progname <- findSourceFileInLoadPath modname
-  makeDocIfNecessary docparams recursive docdir
-                     (genAnaInfo (Prog modname [] alltypes allfuns allops))
-                     progname
+  (alltypes, allfuns, _) <- getProg $ docType docparams
+  makeDocIfNecessary docparams recursive docdir modname
   if withIndex docparams
    then do genMainIndexPage     docdir [modname]
            genFunctionIndexPage docdir allfuns
@@ -174,61 +172,73 @@ copyIncludeIfPresent docdir inclfile = do
    then system ("cp "++includeDir++"/"++inclfile++" "++docdir) >> done
    else done
 
--- generate all analysis infos:
-genAnaInfo prog =
-  AnaInfo (getFunctionInfo (analyseOverlappings prog))
-          (getFunctionInfo (analyseCompleteness prog))
-          (getFunctionInfo (analyseIndeterminism prog))
-          (getFunctionInfo (analyseOpCompleteness prog))
+-- read and generate all analysis infos:
+readAnaInfo modname = do
+  nondet   <- analyzeInterface ndAnalysis modname >>= stopIfError
+  complete <- analyzeInterface patCompAnalysis modname >>= stopIfError
+  indet    <- analyzeInterface indetAnalysis   modname >>= stopIfError
+  solcomp  <- analyzeInterface solcompAnalysis modname >>= stopIfError
+  return (AnaInfo (\qn -> nondet qn == NDet) complete indet solcomp)
+ where
+   stopIfError (Right err) = error ("Analysis error: "++err)
+   stopIfError (Left results) =
+     return (\qn -> maybe (error $ "No analysis result for function "++show qn)
+                          id
+                          (lookup qn results))
 
 -- generate documentation for a single module:
-makeDoc :: DocParams -> Bool -> String -> AnaInfo -> String -> IO ()
-makeDoc docparams recursive docdir anainfo progname = do
+makeDoc :: DocParams -> Bool -> String -> String -> String -> IO ()
+makeDoc docparams recursive docdir modname progname = do
   putStrLn ("Reading comments from file \""++progname++".curry\"...")
   (modcmts,progcmts) <- readComments (progname++".curry")
+  putStrLn ("Reading analysis information for module \""++modname++"\"...")
+  anainfo <- readAnaInfo modname
   makeDocWithComments (docType docparams) docparams recursive docdir
                       anainfo progname modcmts progcmts
 
 makeDocWithComments HtmlDoc docparams recursive docdir anainfo progname
                     modcmts progcmts = do
-  writeOutfile docparams recursive docdir anainfo progname
+  writeOutfile docparams recursive docdir progname
                (generateHtmlDocs docparams anainfo progname modcmts progcmts)
   translateSource2ColoredHtml docdir progname
-  writeOutfile (DocParams CDoc False False) False docdir anainfo progname (generateCDoc progname modcmts progcmts anainfo)
+  writeOutfile (DocParams CDoc False False) False docdir progname
+               (generateCDoc progname modcmts progcmts anainfo)
 
 
 makeDocWithComments TexDoc docparams recursive docdir anainfo progname
                     modcmts progcmts = do
-  writeOutfile docparams recursive docdir anainfo progname (generateTexDocs docparams anainfo progname modcmts progcmts)
+  writeOutfile docparams recursive docdir progname
+               (generateTexDocs docparams anainfo progname modcmts progcmts)
 
 
 makeDocWithComments CDoc docparams recursive docdir anainfo progname
                     modcmts progcmts = do
-  writeOutfile docparams recursive docdir anainfo progname (generateCDoc progname modcmts progcmts anainfo)
+  writeOutfile docparams recursive docdir progname
+               (generateCDoc progname modcmts progcmts anainfo)
 
 
 --- Generates the documentation for a module if it is necessary.
 --- I.e., the documentation is generated if no previous documentation
 --- file exists or if the existing documentation file is older than
 --- the FlatCurry file.
-makeDocIfNecessary :: DocParams -> Bool -> String -> AnaInfo -> String -> IO ()
-makeDocIfNecessary docparams recursive docdir anainfo modname = do
+makeDocIfNecessary :: DocParams -> Bool -> String -> String -> IO ()
+makeDocIfNecessary docparams recursive docdir modname = do
   progname <- findSourceFileInLoadPath modname
   let docfile = docdir </> getLastName progname ++
                 (if docType docparams == HtmlDoc then ".html" else ".tex")
   docexists <- doesFileExist docfile
   if not docexists
-   then copyOrMakeDoc docparams recursive docdir anainfo progname 
-   else do ctime  <- getModificationTime (flatCurryFileName progname)
-           dftime <- getModificationTime docfile
-           if compareClockTime ctime dftime == GT
-            then copyOrMakeDoc docparams recursive docdir anainfo progname
-            else if recursive
-                 then do imports <- getImports progname
-                         mapIO_ (makeDocIfNecessary docparams recursive docdir
-                                                    anainfo)
-                                imports
-                 else done
+   then copyOrMakeDoc docparams recursive docdir modname progname 
+   else do
+     ctime  <- getModificationTime (flatCurryFileName progname)
+     dftime <- getModificationTime docfile
+     if compareClockTime ctime dftime == GT
+      then copyOrMakeDoc docparams recursive docdir modname progname
+      else if recursive
+           then do imports <- getImports progname
+                   mapIO_ (makeDocIfNecessary docparams recursive docdir)
+                          imports
+           else done
 
 -- get imports of a program by reading the interface, if possible:
 getImports progname = do
@@ -239,11 +249,11 @@ getImports progname = do
                             else readFlatCurryFile (flatCurryFileName progname)
   return imports
 
-copyOrMakeDoc :: DocParams -> Bool -> String -> AnaInfo -> String -> IO ()
-copyOrMakeDoc docparams recursive docdir anainfo progname = do
+copyOrMakeDoc :: DocParams -> Bool -> String -> String -> String -> IO ()
+copyOrMakeDoc docparams recursive docdir modname progname = do
   hasCopied <- copyDocIfPossible docparams docdir progname
   if hasCopied then done
-               else makeDoc docparams recursive docdir anainfo progname
+               else makeDoc docparams recursive docdir modname progname
 
 --- Copy the documentation file from standard documentation directoy "CDOC"
 --- (used for documentation of system libraries) if possible.
@@ -308,15 +318,15 @@ fileExtension TexDoc  = "tex"
 fileExtension CDoc    = "cdoc"
 
 -- harmonized writeFile function for all docType
-writeOutfile :: DocParams -> Bool -> String -> AnaInfo -> String -> IO String -> IO ()
-writeOutfile docparams recursive docdir anainfo progname generate = do
+writeOutfile :: DocParams -> Bool -> String -> String -> IO String -> IO ()
+writeOutfile docparams recursive docdir progname generate = do
   doc     <- generate
   imports <- getImports progname
   let outfile = docdir </> getLastName progname <.> fileExtension (docType docparams)
   putStrLn ("Writing documentation to \"" ++ outfile ++ "\"...")
   writeFile outfile doc
   if recursive
-    then mapIO_ (makeDocIfNecessary docparams recursive docdir anainfo) imports
+    then mapIO_ (makeDocIfNecessary docparams recursive docdir) imports
     else done
 
 -- -----------------------------------------------------------------------

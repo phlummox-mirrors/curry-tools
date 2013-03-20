@@ -8,6 +8,7 @@
 all:
 	@cd addtypes       && $(MAKE)
 	@cd browser        && $(MAKE)
+	@cd CASS           && $(MAKE)
 	@cd currydoc       && $(MAKE)
 	@cd curry2js       && $(MAKE)
 	@cd createmakefile && $(MAKE)
@@ -20,6 +21,7 @@ clean:
 	cd addtypes       && $(MAKE) clean
 	cd analysis       && $(ROOT)/bin/cleancurry
 	cd browser        && $(MAKE) clean
+	cd CASS           && $(MAKE) clean
 	cd currydoc       && $(MAKE) clean
 	cd curry2js       && $(MAKE) clean
 	cd createmakefile && $(MAKE) clean
