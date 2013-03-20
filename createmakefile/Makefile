@@ -33,4 +33,4 @@ CreateMakefile: CreateMakefile.curry \
 .PHONY: clean
 clean:
 	$(ROOT)/bin/cleancurry
-	rm -f $(ROOT)/bin/currycreatemake
+	rm -f CreateMakefile $(ROOT)/bin/currycreatemake

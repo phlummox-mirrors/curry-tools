@@ -15,3 +15,4 @@ ImportCalls: ImportCalls.curry $(META)/FlatCurry.curry \
 .PHONY: clean
 clean: 
 	$(ROOT)/bin/cleancurry
+	rm -f ImportCalls

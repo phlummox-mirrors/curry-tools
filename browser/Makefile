@@ -32,4 +32,4 @@ SourceProgGUI: SourceProgGUI.curry $(LIB)/GUI.curry
 .PHONY: clean
 clean: 
 	$(ROOT)/bin/cleancurry
-	rm -f $(ROOT)/bin/currybrowse
+	rm -f BrowserGUI SourceProgGUI $(ROOT)/bin/currybrowse

@@ -17,4 +17,4 @@ AddTypes: AddTypes.curry $(META)/AbstractCurry.curry \
 .PHONY: clean
 clean: 
 	$(ROOT)/bin/cleancurry
-	rm -f $(ROOT)/bin/addtypes
+	rm -f AddTypes $(ROOT)/bin/addtypes
