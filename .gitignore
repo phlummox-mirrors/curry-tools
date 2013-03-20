@@ -7,6 +7,8 @@
 addtypes/AddTypes
 browser/BrowserGUI
 browser/SourceProgGUI
+CASS/cass
+CASS/cass_worker
 curry2js/Curry2JS
 currydoc/CurryDoc
 currytest/CurryTest
