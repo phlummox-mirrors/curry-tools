@@ -1,14 +1,15 @@
 ------------------------------------------------------------------------------
--- Generate an interface description or a human-readable
--- presentation of a Curry module.
---
--- The interface description contains the type declarations
--- for all entities defined and exported by this module.
---
--- The human-readable presentation is (almost) Curry source code
--- generated from a FlatCurry program.
---
--- Michael Hanus, September 2003
+--- Generate an interface description or a human-readable
+--- presentation of a Curry module.
+---
+--- The interface description contains the type declarations
+--- for all entities defined and exported by this module.
+---
+--- The human-readable presentation is (almost) Curry source code
+--- generated from a FlatCurry program.
+---
+--- @author Michael Hanus
+--- @version April 2013
 ------------------------------------------------------------------------------
 
 module ShowFlatCurry(showInterface,showCurryMod,showFlatProg,
@@ -19,7 +20,6 @@ module ShowFlatCurry(showInterface,showCurryMod,showFlatProg,
 import FlatCurry
 import FlatCurryShow
 import FlatCurryGoodies
-import FlexRigid
 import List
 import Char(isAlpha)
 import Sort(mergeSort,leqString)
@@ -55,12 +55,13 @@ showOp (_,on) = if isAlpha (head on) then '`':on++"`"
 showInterfaceType tt (Type (_,tcons) vis tvars constrs) =
   if vis==Public
   then "data " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
-       " = " ++
-       concat (intersperse " | "
-                 (map (showExportConsDecl tt)
-                      (filter (\(Cons _ _ cvis _)->cvis==Public) constrs)))
+       (if null constxt then "" else " = " ++ constxt)
        ++ "\n"
   else ""
+ where
+  constxt = intercalate " | "
+              (map (showExportConsDecl tt)
+                   (filter (\ (Cons _ _ cvis _)->cvis==Public) constrs))
 showInterfaceType tt (TypeSyn (_,tcons) vis tvars texp) =
   if vis==Public
   then "type " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
@@ -103,18 +104,18 @@ showTypeExports types = concatMap (++",") (concatMap exptype types)
      else []
    exptype (TypeSyn tcons vis _ _) = if vis==Public then [snd tcons] else []
 
-   expcons cds = "(" ++ concat (intersperse "," (concatMap expc cds)) ++ ")"
+   expcons cds = "(" ++ intercalate "," (concatMap expc cds) ++ ")"
    expc (Cons cname _ vis _) = if vis==Public then [snd cname] else []
 
-showFuncExports funcs = concat (intersperse "," (concatMap expfun funcs))
+showFuncExports funcs = intercalate "," (concatMap expfun funcs)
  where
    expfun (Func fname _ vis _ _) = if vis==Public then [snd fname] else []
 
 showCurryDataDecl tt (Type tcons _ tvars constrs) =
   "data " ++ snd tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
-  " = " ++
-  concat (intersperse " | " (map (showCurryConsDecl tt) constrs))
+  (if null constxt then "" else " = " ++ constxt)
   ++ "\n"
+ where constxt = intercalate " | " (map (showCurryConsDecl tt) constrs)
 showCurryDataDecl tt (TypeSyn tcons _ tvars texp) =
   "type " ++ snd tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
   " = " ++ showCurryType tt True texp ++ "\n"
@@ -139,22 +140,15 @@ showCurryRuleAsCase tf fname (Rule lhs rhs)
   = showCurryVar (head lhs) ++ " " ++ tf fname ++ " " ++ showCurryVar (lhs!!1) ++
     " = " ++ showCurryExpr tf False 0 rhs ++ "\n\n"
  | otherwise
-  = tf fname ++ " " ++ concat (intersperse " " (map showCurryVar lhs)) ++
+  = tf fname ++ " " ++ intercalate " " (map showCurryVar lhs) ++
     " = " ++ showCurryExpr tf False 0 rhs ++ "\n\n"
 showCurryRuleAsCase _ fname (External _) = showCurryId (snd fname) ++ " external\n"
 
 -- format rule as set of pattern matching rules:
 showCurryRuleAsPatterns tf fname (Rule lhs rhs) =
-   showEvalAnnot (getFlexRigid rhs) ++
-   concatMap (\(l,r)->showCurryPatternRule tf l r) patternrules
+  concatMap (\ (l,r) -> showCurryPatternRule tf l r)
+            (rule2equations (shallowPattern2Expr fname lhs) rhs)
    ++ "\n"
- where
-   showEvalAnnot ConflictFR = tf fname ++ " eval rigid&flex -- CONFLICTING!!\n"
-   showEvalAnnot UnknownFR = ""
-   showEvalAnnot KnownRigid = tf fname ++ " eval rigid\n"
-   showEvalAnnot KnownFlex  = "" --tf fname ++ " eval flex\n"
-
-   patternrules = rule2equations (shallowPattern2Expr fname lhs) rhs
 
 splitFreeVars exp = case exp of
   Free vars e -> (vars,e)
@@ -164,7 +158,7 @@ showCurryPatternRule tf l r = let (vars,e) = splitFreeVars r in
    showCurryExpr tf False 0 l ++
    showCurryCRHS tf e ++
    (if vars==[] then "" else
-    " where " ++ concat (intersperse "," (map showCurryVar vars)) ++ " free")
+    " where " ++ intercalate "," (map showCurryVar vars) ++ " free")
    ++ "\n"
 
 showCurryCRHS tf r =
@@ -179,16 +173,10 @@ showCurryCRHS tf r =
 -- transform a rule consisting of a left- and a right-hand side
 -- (represented as expressions) into a set of pattern matching rules:
 rule2equations :: Expr -> Expr -> [(Expr,Expr)]
-rule2equations lhs (Or e1 e2) =
-   rule2equations lhs e1 ++ rule2equations lhs e2
-rule2equations lhs (Case ctype e bs) =
-   if isVarExpr e then let Var i = e  in  caseIntoLhs lhs i bs
-                  else [(lhs,Case ctype e bs)]
-rule2equations lhs (Var i) = [(lhs,Var i)]
-rule2equations lhs (Lit l) = [(lhs,Lit l)]
-rule2equations lhs (Comb ct name args) = [(lhs,Comb ct name args)]
-rule2equations lhs (Free vs e) = [(lhs,Free vs e)]
-rule2equations lhs (Let bs e) = [(lhs,Let bs e)]
+rule2equations lhs rhs = case rhs of
+  Case Flex (Var i) bs -> caseIntoLhs lhs i bs
+  Or e1 e2 -> rule2equations lhs e1 ++ rule2equations lhs e2
+  _        -> [(lhs,rhs)]
 
 caseIntoLhs _ _ [] = []
 caseIntoLhs lhs vi (Branch (Pattern c vs) e : bs) =
@@ -246,22 +234,15 @@ isGuardedExpr e = case e of
   Comb _ f _ -> f == ("Prelude","cond")
   _ -> False
 
--- Is the expression a variable?
-isVarExpr :: Expr -> Bool
-isVarExpr e = case e of
-  Var _ -> True
-  _ -> False
-
 
 -------- Definition of some orderings:
-leqOp (Op (_,op1) _ p1) (Op (_,op2) _ p2) =
-                         p1>p2 || p1==p2 && leqString op1 op2
+leqOp (Op (_,op1) _ p1) (Op (_,op2) _ p2) = p1>p2 || p1==p2 && op1<=op2
 
-leqType t1 t2 = leqString (tname t1) (tname t2)
+leqType t1 t2 = (tname t1) <= (tname t2)
  where tname (Type    (_,tn) _ _ _) = tn
        tname (TypeSyn (_,tn) _ _ _) = tn
 
-leqFunc (Func (_,f1) _ _ _ _) (Func (_,f2) _ _ _ _) = leqString f1 f2
+leqFunc (Func (_,f1) _ _ _ _) (Func (_,f2) _ _ _ _) = f1 <= f2
 
 ---------------------------------------------------------------------------
 -- Show individual functions:

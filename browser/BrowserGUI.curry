@@ -38,7 +38,7 @@ showExecTime = False
 -- Title and version
 title = "CurryBrowser"
 
-version = "Version of 31/10/2012"
+version = "Version of 04/04/2013"
 
 patchReadmeVersion = do
   readmetxt <- readCompleteFile "README"

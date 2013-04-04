@@ -1,20 +1,19 @@
 ------------------------------------------------------------------------------
--- Generate an interface description or a human-readable
--- presentation of a Curry module.
---
--- The interface description contains the type declarations
--- for all entities defined and exported by this module.
---
--- The human-readable presentation is (almost) Curry source code
--- generated from a FlatCurry file.
---
--- @author Michael Hanus
--- @version June 2011
+--- Generate an interface description or a human-readable
+--- presentation of a Curry module.
+---
+--- The interface description contains the type declarations
+--- for all entities defined and exported by this module.
+---
+--- The human-readable presentation is (almost) Curry source code
+--- generated from a FlatCurry program.
+---
+--- @author Michael Hanus
+--- @version April 2013
 ------------------------------------------------------------------------------
 
 import FlatCurry
 import FlatCurryShow
-import FlexRigid
 import List
 import Char(isAlpha)
 import System(getArgs,getEnviron,system)
@@ -31,7 +30,7 @@ main = do
     ["-mod",mod,target] -> writeCurryMod target mod
     ["-int",mod,target] -> writeInterface target mod
     _ -> putStrLn $ "ERROR: Illegal arguments for genint: " ++
-                    concat (intersperse " " args) ++ "\n" ++
+                    intercalate " " args ++ "\n" ++
                     "Usage: [-mod|-int] module_name [targetfile]"
 
 -- show interface on stdout:
@@ -87,12 +86,12 @@ findSourceFileInLoadPath modname = do
 genInt :: Bool -> String -> IO String
 genInt genstub progname = do
  (Prog mod imports types funcs ops) <- getFlatInt progname
- return $ concatMap genIntImport imports ++ "\n" ++
-          concatMap genIntOpDecl (mergeSort leqOp ops) ++
+ return $ concatMap showInterfaceImport imports ++ "\n" ++
+          concatMap showInterfaceOpDecl (mergeSort leqOp ops) ++
           (if null ops then "" else "\n") ++
-          concatMap (genIntType (showQNameInModule mod))
+          concatMap (showInterfaceType (showQNameInModule mod))
                     (mergeSort leqType types) ++ "\n" ++
-          concatMap (genIntFunc (showQNameInModule mod) genstub)
+          concatMap (showInterfaceFunc (showQNameInModule mod) genstub)
                     (mergeSort leqFunc funcs) ++ "\n"
 
 -- Get a FlatCurry program (parse only if necessary):
@@ -110,40 +109,40 @@ getFlatInt modname = do
              else readFlatCurryFile fintprogname
 
 -- write import declaration
-genIntImport impmod = if impmod=="Prelude" then ""
-                                           else "import "++impmod++"\n"
+showInterfaceImport impmod = if impmod=="Prelude"
+                             then ""
+                             else "import "++impmod++"\n"
 
--- write operator declaration
-genIntOpDecl (Op op InfixOp  prec) = "infix "++show prec++" "++showOp op++"\n"
-genIntOpDecl (Op op InfixlOp prec) = "infixl "++show prec++" "++showOp op++"\n"
-genIntOpDecl (Op op InfixrOp prec) = "infixr "++show prec++" "++showOp op++"\n"
+-- show operator declaration
+showInterfaceOpDecl (Op op InfixOp  prec) = "infix "++show prec++" "++showOp op++"\n"
+showInterfaceOpDecl (Op op InfixlOp prec) = "infixl "++show prec++" "++showOp op++"\n"
+showInterfaceOpDecl (Op op InfixrOp prec) = "infixr "++show prec++" "++showOp op++"\n"
 
 showOp (_,on) = if isAlpha (head on) then '`':on++"`"
                                      else on
 
--- write type declaration
-genIntType tt (TypeSyn (_,tcons) vis tvars texp) =
-  if vis==Public
-  then "type " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
-       " = " ++ showCurryType tt True texp ++ "\n"
-  else ""
-genIntType tt (Type (_,tcons) vis tvars constrs) =
+-- show type declaration
+showInterfaceType tt (Type (_,tcons) vis tvars constrs) =
   if vis==Public
   then "data " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
        (if null constxt then "" else " = " ++ constxt)
        ++ "\n"
   else ""
  where
-  constxt = concat
-               (intersperse " | "
-                 (map (showExportConsDecl tt)
-                      (filter (\ (Cons _ _ cvis _)->cvis==Public) constrs)))
+  constxt = intercalate " | "
+              (map (showExportConsDecl tt)
+                   (filter (\ (Cons _ _ cvis _)->cvis==Public) constrs))
+showInterfaceType tt (TypeSyn (_,tcons) vis tvars texp) =
+  if vis==Public
+  then "type " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
+       " = " ++ showCurryType tt True texp ++ "\n"
+  else ""
 
 showExportConsDecl tt (Cons (_,cname) _ _ argtypes) =
   cname ++ concatMap (\t->" "++showCurryType tt True t) argtypes
 
--- write function type declaration
-genIntFunc ttrans genstub (Func (_,fname) _ vis ftype _) =
+-- show function type declaration
+showInterfaceFunc ttrans genstub (Func (_,fname) _ vis ftype _) =
   if vis==Public
   then showCurryId fname ++ " :: " ++
        showCurryType ttrans False ftype ++ "\n" ++
@@ -178,8 +177,8 @@ showCurryProgram :: Prog -> String
 showCurryProgram (Prog mod imports types funcs ops) =
   "module "++mod++"("++showTypeExports types++
   showFuncExports funcs++") where\n\n"++
-  concatMap genIntImport imports ++ "\n" ++
-  concatMap genIntOpDecl ops ++
+  concatMap showInterfaceImport imports ++ "\n" ++
+  concatMap showInterfaceOpDecl ops ++
   (if null ops then "" else "\n") ++
   concatMap (showCurryDataDecl (showQNameInModule mod)) types
   ++ "\n" ++
@@ -195,18 +194,18 @@ showTypeExports types = concatMap (++",") (concatMap exptype types)
      else []
    exptype (TypeSyn tcons vis _ _) = if vis==Public then [snd tcons] else []
 
-   expcons cds = "(" ++ concat (intersperse "," (concatMap expc cds)) ++ ")"
+   expcons cds = "(" ++ intercalate "," (concatMap expc cds) ++ ")"
    expc (Cons cname _ vis _) = if vis==Public then [snd cname] else []
 
-showFuncExports funcs = concat (intersperse "," (concatMap expfun funcs))
+showFuncExports funcs = intercalate "," (concatMap expfun funcs)
  where
    expfun (Func fname _ vis _ _) = if vis==Public then [snd fname] else []
 
 showCurryDataDecl tt (Type tcons _ tvars constrs) =
   "data " ++ snd tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
-  " = " ++
-  concat (intersperse " | " (map (showCurryConsDecl tt) constrs))
+  (if null constxt then "" else " = " ++ constxt)
   ++ "\n"
+ where constxt = intercalate " | " (map (showCurryConsDecl tt) constrs)
 showCurryDataDecl tt (TypeSyn tcons _ tvars texp) =
   "type " ++ snd tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
   " = " ++ showCurryType tt True texp ++ "\n"
@@ -227,21 +226,14 @@ showCurryRule tf fname (Rule lhs rhs) =
 
 -- format rule as case expression:
 showCurryRuleAsCase tf fname (Rule lhs rhs) =
-   showCurryId (tf fname) ++ " " ++ concat (intersperse " " (map showCurryVar lhs)) ++
+   showCurryId (tf fname) ++ " " ++ intercalate " " (map showCurryVar lhs) ++
    " = " ++ showCurryExpr tf False 0 rhs ++ "\n\n"
 
 -- format rule as set of pattern matching rules:
 showCurryRuleAsPatterns tf fname (Rule lhs rhs) =
-   showEvalAnnot (getFlexRigid rhs) ++
-   concatMap (\(l,r)->showCurryPatternRule tf l r) patternrules
+  concatMap (\ (l,r) -> showCurryPatternRule tf l r)
+            (rule2equations (shallowPattern2Expr fname lhs) rhs)
    ++ "\n"
- where
-   showEvalAnnot ConflictFR = tf fname ++ " eval rigid&flex -- CONFLICTING!!\n"
-   showEvalAnnot UnknownFR = ""
-   showEvalAnnot KnownRigid = tf fname ++ " eval rigid\n"
-   showEvalAnnot KnownFlex  = "" --tf fname ++ " eval flex\n"
-
-   patternrules = rule2equations (shallowPattern2Expr fname lhs) rhs
 
 splitFreeVars exp = case exp of
   Free vars e -> (vars,e)
@@ -251,7 +243,7 @@ showCurryPatternRule tf l r = let (vars,e) = splitFreeVars r in
    showCurryExpr tf False 0 l ++
    showCurryCRHS tf e ++
    (if vars==[] then "" else
-    " where " ++ concat (intersperse "," (map showCurryVar vars)) ++ " free")
+    " where " ++ intercalate "," (map showCurryVar vars) ++ " free")
    ++ "\n"
 
 showCurryCRHS tf r =
@@ -266,16 +258,10 @@ showCurryCRHS tf r =
 -- transform a rule consisting of a left- and a right-hand side
 -- (represented as expressions) into a set of pattern matching rules:
 rule2equations :: Expr -> Expr -> [(Expr,Expr)]
-rule2equations lhs (Or e1 e2) =
-   rule2equations lhs e1 ++ rule2equations lhs e2
-rule2equations lhs (Case ctype e bs) =
-   if isVarExpr e then let Var i = e  in  caseIntoLhs lhs i bs
-                  else [(lhs,Case ctype e bs)]
-rule2equations lhs (Var i) = [(lhs,Var i)]
-rule2equations lhs (Lit l) = [(lhs,Lit l)]
-rule2equations lhs (Comb ct name args) = [(lhs,Comb ct name args)]
-rule2equations lhs (Free vs e) = [(lhs,Free vs e)]
-rule2equations lhs (Let bs e) = [(lhs,Let bs e)]
+rule2equations lhs rhs = case rhs of
+  Case Flex (Var i) bs -> caseIntoLhs lhs i bs
+  Or e1 e2 -> rule2equations lhs e1 ++ rule2equations lhs e2
+  _        -> [(lhs,rhs)]
 
 caseIntoLhs _ _ [] = []
 caseIntoLhs lhs vi (Branch (Pattern c vs) e : bs) =
@@ -333,22 +319,15 @@ isGuardedExpr e = case e of
   Comb _ f _ -> f == ("Prelude","cond")
   _ -> False
 
--- Is the expression a variable?
-isVarExpr :: Expr -> Bool
-isVarExpr e = case e of
-  Var _ -> True
-  _ -> False
-
 
 -------- Definition of some orderings:
-leqOp (Op (_,op1) _ p1) (Op (_,op2) _ p2) =
-                         p1>p2 || p1==p2 && leqString op1 op2
+leqOp (Op (_,op1) _ p1) (Op (_,op2) _ p2) = p1>p2 || p1==p2 && op1<=op2
 
-leqType t1 t2 = leqString (tname t1) (tname t2)
+leqType t1 t2 = (tname t1) <= (tname t2)
  where tname (Type    (_,tn) _ _ _) = tn
        tname (TypeSyn (_,tn) _ _ _) = tn
 
-leqFunc (Func (_,f1) _ _ _ _) (Func (_,f2) _ _ _ _) = leqString f1 f2
+leqFunc (Func (_,f1) _ _ _ _) (Func (_,f2) _ _ _ _) = f1 <= f2
 
 
 -- Examples:
