@@ -11,8 +11,10 @@
 module AnalysisServer(main,analyzeModuleForBrowser,analyzeGeneric,
                       analyzeInterface) where
 
+import ReadNumeric(readNat)
+import Char(isSpace)
 import FlatCurry(QName)
-import Socket(Socket(..),listenOnFresh,sClose,waitForSocketAccept)
+import Socket(Socket(..),listenOn,listenOnFresh,sClose,waitForSocketAccept)
 import IO
 import ReadShowTerm(readQTerm,showQTerm)
 import System(system,sleep,setEnviron,getArgs)
@@ -39,29 +41,43 @@ main = do
   debugMessageLevel 1 systemBanner
   initializeSystem
   args <- getArgs
-  if null args then mainServer else case args of
-    ["-h"]     -> showHelp
-    ["-?"]     -> showHelp
-    ["--help"] -> showHelp
-    [ananame,modname] ->
-      analyzeModuleWithOutputFormat ananame modname "Text" True >>= putStrLn
-    _ -> error "Illegal arguments (use '--help' for description)"
+  if null args then mainServer Nothing else case args of
+    ["-p",port] -> maybe showError
+                         (\ (p,r) -> if all isSpace r
+                                     then mainServer (Just p)
+                                     else showError )
+                         (readNat port)
+    ["-h"]      -> showHelp
+    ["-?"]      -> showHelp
+    ["--help"]  -> showHelp
+    [ananame,mname] ->
+      if ananame `elem` registeredAnalysisNames
+      then analyzeModuleWithOutputFormat ananame mname "Text" True >>= putStrLn
+      else showError
+    _ -> showError
+ where
+  showError = error "Illegal arguments (use '--help' for description)"
 
 --- Initializations to be done when the system is started.
 initializeSystem = updateRCFile
 
 showHelp = putStrLn $
-  "Usage:\n"++
-  "cass : start analysis system in server mode\n\n"++
-  "cass <analysis name> <module name> :\n"++
-  "analyze a module with a given analysis\n\n"++
+  "Usage: cass [-p <port>] :\n" ++
+  "       start analysis system in server mode\n\n"++
+  "       <port>: port number for communication\n" ++
+  "               (if omitted, a free port number is selected)\n\n"++
+  "Usage: cass <analysis name> <module name> :\n"++
+  "       analyze a module with a given analysis\n\n"++
   "Registered analyses names:\n" ++
   unlines registeredAnalysisNames
 
 --- Start server on a socket.
-mainServer = do
+mainServer :: Maybe Int -> IO ()
+mainServer mbport = do
   putStrLn "Start Server"
-  (port1,socket1) <- listenOnFresh
+  (port1,socket1) <- maybe listenOnFresh
+                           (\p -> listenOn p >>= \s -> return (p,s))
+                           mbport
   putStrLn ("Server Port: "++show port1)
   storeServerPortNumber port1
   getDefaultPath >>= setEnviron "CURRYPATH" 

@@ -27,7 +27,7 @@ import Char(isSpace)
 
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System ("++
-                   "version of 20/03/2013 for "++curryCompiler++")"
+                   "version of 17/04/2013 for "++curryCompiler++")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
