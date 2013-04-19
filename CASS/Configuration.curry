@@ -6,7 +6,7 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version March 2013
+--- @version April 2013
 --------------------------------------------------------------------------
 
 module Configuration
@@ -27,7 +27,7 @@ import Char(isSpace)
 
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System ("++
-                   "version of 17/04/2013 for "++curryCompiler++")"
+                   "version of 19/04/2013 for "++curryCompiler++")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 

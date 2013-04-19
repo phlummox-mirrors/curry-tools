@@ -5,7 +5,7 @@
 --- to use the analysis system in another Curry program.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2013
+--- @version April 2013
 --------------------------------------------------------------------------
 
 module AnalysisServer(main,analyzeModuleForBrowser,analyzeGeneric,
@@ -88,10 +88,10 @@ mainServer mbport = do
     (workerport,workersocket) <- listenOnFresh
     debugMessageLevel 2 ("SERVER: port to workers: "++show workerport)
     handles <- startWorkers numworkers workersocket serveraddress workerport []
-    outerLoop socket1 handles
+    serverLoop socket1 handles
     sClose workersocket
    else
-    outerLoop socket1 []
+    serverLoop socket1 []
 
 
 --- Start the analysis system to show the results in the BrowserGUI.
@@ -180,78 +180,88 @@ stopWorkers (handle:whandles) = do
 
 --------------------------------------------------------------------------
 -- server loop to answer analysis requests over network
-outerLoop socket1 whandles = do
-  --debugMessageLevel 3 "SERVER: outerLoop"
+serverLoop socket1 whandles = do
+  --debugMessageLevel 3 "SERVER: serverLoop"
   connection <- waitForSocketAccept socket1 waitTime
   case connection of 
-    Just (_,handle) -> do
-      readable <- hWaitForInput handle waitTime
-      if readable
-        then do 
-          string <- hGetLine handle
-          debugMessageLevel 2 ("SERVER got message: "++string)
-          case parseServerMessage string of
-             ParseError -> do
-               sendServerError handle ("Illegal message received: "++string)
-               outerLoop socket1 whandles
-             GetAnalysis -> do
-               sendServerResult handle showAnalysisNamesAndFormats
-               outerLoop socket1 whandles
-             AnalyzeModule ananame outForm modname public ->
-               catch (runAnalysisWithWorkers ananame whandles modname >>=
-                      return . formatResult modname outForm Nothing public >>=
-                      sendResult handle)
-                     (sendAnalysisError handle)
-             AnalyzeEntity ananame outForm modname functionName ->
-               catch (runAnalysisWithWorkers ananame whandles modname >>=
-                      return . formatResult modname outForm
-                                            (Just functionName) False >>=
-                      sendResult handle)
-                     (sendAnalysisError handle)
-             SetCurryPath path -> do
-               setEnviron "CURRYPATH" path
-               changeWorkerPath path whandles
-               sendServerResult handle ""
-               outerLoop socket1 whandles
-             StopServer -> do
-               stopWorkers whandles
-               sendServerResult handle ""
-               sClose socket1
-               putStrLn "Stop Server"
-               removeServerPortNumber
-        else do
-          putStrLn "input error"
-          outerLoop socket1 whandles
-    _ -> do
-      putStrLn "outerLoop: connection error: time out in waitForSocketAccept"
+    Just (_,handle) -> serverLoopOnHandle socket1 whandles handle
+    Nothing -> do
+      putStrLn "serverLoop: connection error: time out in waitForSocketAccept"
       sleep 1
-      outerLoop socket1 whandles
- where
-   sendResult handle resultstring = do
-     debugMessageLevel 4 ("formatted result:\n"++resultstring)
-     sendServerResult handle resultstring
-     outerLoop socket1 whandles
+      serverLoop socket1 whandles
 
-   sendAnalysisError handle err = do
-     sendServerError handle ("ERROR in analysis server: "++showError err)
-     outerLoop socket1 whandles
+--- Reads a line from an input handle and returns it.
+hGetLineUntilEOF  :: Handle -> IO String
+hGetLineUntilEOF h = do
+  eof <- hIsEOF h
+  if eof
+   then return ""
+   else do c <- hGetChar h
+           if c=='\n' then return ""
+                      else do cs <- hGetLineUntilEOF h
+                              return (c:cs)
+
+serverLoopOnHandle socket1 whandles handle = do
+  eof <- hIsEOF handle
+  if eof
+   then do hClose handle
+           debugMessageLevel 2 "SERVER connection: eof"
+           serverLoop socket1 whandles
+   else do
+     string <- hGetLineUntilEOF handle
+     debugMessageLevel 2 ("SERVER got message: "++string)
+     case parseServerMessage string of
+       ParseError -> do
+         sendServerError handle ("Illegal message received: "++string)
+         serverLoopOnHandle socket1 whandles handle
+       GetAnalysis -> do
+         sendServerResult handle showAnalysisNamesAndFormats
+         serverLoopOnHandle socket1 whandles handle
+       AnalyzeModule ananame outForm modname public ->
+         catch (runAnalysisWithWorkers ananame whandles modname >>=
+                return . formatResult modname outForm Nothing public >>=
+                sendResult)
+               sendAnalysisError
+       AnalyzeEntity ananame outForm modname functionName ->
+         catch (runAnalysisWithWorkers ananame whandles modname >>=
+                return . formatResult modname outForm
+                                      (Just functionName) False >>= sendResult)
+               sendAnalysisError
+       SetCurryPath path -> do
+         setEnviron "CURRYPATH" path
+         changeWorkerPath path whandles
+         sendServerResult handle ""
+         serverLoopOnHandle socket1 whandles handle
+       StopServer -> do
+         stopWorkers whandles
+         sendServerResult handle ""
+         hClose handle
+         sClose socket1
+         putStrLn "Stop Server"
+         removeServerPortNumber
+ where
+  sendResult resultstring = do
+    debugMessageLevel 4 ("formatted result:\n"++resultstring)
+    sendServerResult handle resultstring
+    serverLoopOnHandle socket1 whandles handle
+
+  sendAnalysisError err = do
+    sendServerError handle ("ERROR in analysis server: "++showError err)
+    serverLoopOnHandle socket1 whandles handle
 
 -- Send a server result in the format "ok <n>\n<result text>" where <n>
--- is the number of lines of the <result text>. Close handle afterwards.
+-- is the number of lines of the <result text>.
 sendServerResult handle resultstring = do
   let resultlines = lines resultstring
   hPutStrLn handle ("ok " ++ show (length resultlines))
   hPutStr handle (unlines resultlines)
   hFlush handle
-  hClose handle
 
--- Send a server error in the format "error <error message>\n"
--- close handle afterwards.
+-- Send a server error in the format "error <error message>\n".
 sendServerError handle errstring = do
   debugMessageLevel 1 errstring
   hPutStrLn handle ("error "++errstring)
   hFlush handle
-  hClose handle
 
 -- worker threads are given changed library-search-path
 changeWorkerPath _ [] = return()
