@@ -37,6 +37,7 @@ import RightLinearity
 import SolutionCompleteness
 import TotallyDefined
 import Indeterministic
+import Demandedness
 
 --- Each analysis name should be added here together with a short explanation.
 --- The first component is the registered analysis name.
@@ -47,24 +48,26 @@ import Indeterministic
 analysisInfos = functionAnalysisInfos ++ typeAnalysisInfos
 
 functionAnalysisInfos =
-  [("Overlapping",  "Overlapping rules", "Overlapping function analysis"),
-   ("Deterministic","Deterministic operations",
-    "(Non-)determinism function analysis"),
-   ("SetValued",    "Set-valued operations", "Set-valued function analysis"),
-   ("PatComplete",  "Pattern completeness", "Pattern completeness analysis"),
-   ("Total",        "Totally defined operations",
-    "Totally definedness analysis"),
-   ("SolComplete",  "Solution completeness","Solution completeness analysis"),
-   ("Indeterministic","Indeterministic operations",
-    "Indeterminism function analysis"),
-   ("RightLinear",  "Right-linear operations","Right-linear function analysis"),
-   ("HiOrderFunc",  "Higher-order functions","Higher-order function analysis")]
+  [("Overlapping",  "Overlapping rules", "Overlapping function analysis")
+  ,("Deterministic","Deterministic operations",
+    "(Non-)determinism function analysis")
+  ,("PatComplete",  "Pattern completeness", "Pattern completeness analysis")
+  ,("Total",        "Totally defined operations",
+    "Totally definedness analysis")
+  ,("SolComplete",  "Solution completeness","Solution completeness analysis")
+  ,("Indeterministic","Indeterministic operations",
+    "Indeterminism function analysis")
+  ,("RightLinear",  "Right-linear operations","Right-linear function analysis")
+  ,("HiOrderFunc",  "Higher-order functions","Higher-order function analysis")
+  ,("Demand",       "Demanded arguments","Demanded arguments analysis")
+  ]
 
 typeAnalysisInfos =
-  [("HiOrderType",  "Higher-order datatypes", "Higher-order datatype analysis"),
-   ("HiOrderConstr","Higher-order constructors",
-    "Higher-order constructor analysis"),
-   ("SiblingCons",  "Sibling constructors","Sibling constructor analysis")]
+  [("HiOrderType",  "Higher-order datatypes", "Higher-order datatype analysis")
+  ,("HiOrderConstr","Higher-order constructors",
+    "Higher-order constructor analysis")
+  ,("SiblingCons",  "Sibling constructors","Sibling constructor analysis")
+  ]
 
 --------------------------------------------------------------------
 --- Each analysis used in our tool must be registered in this list
@@ -72,13 +75,13 @@ typeAnalysisInfos =
 registeredAnalysis :: [RegisteredAnalysis]
 registeredAnalysis =
   [scAnalysis overlapAnalysis showOverlap
-  ,scAnalysis ndAnalysis      showDet
-  ,scAnalysis setValAnalysis  showSetValued
+  ,scAnalysis nondetAnalysis  showDet
   ,scAnalysis rlinAnalysis    showRightLinear
   ,scAnalysis solcompAnalysis showSolComplete
   ,scAnalysis patCompAnalysis showComplete
   ,scAnalysis totalAnalysis   showTotally
   ,scAnalysis indetAnalysis   showIndet
+  ,scAnalysis demandAnalysis  showDemand
   ,scAnalysis hiOrdType       showOrder
   ,scAnalysis hiOrdCons       showOrder
   ,scAnalysis hiOrdFunc       show

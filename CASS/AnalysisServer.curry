@@ -8,7 +8,7 @@
 --- @version April 2013
 --------------------------------------------------------------------------
 
-module AnalysisServer(main,analyzeModuleForBrowser,analyzeGeneric,
+module AnalysisServer(main, analyzeModuleForBrowser, analyzeGeneric,
                       analyzeInterface) where
 
 import ReadNumeric(readNat)
@@ -263,8 +263,9 @@ sendServerError handle errstring = do
   hPutStrLn handle ("error "++errstring)
   hFlush handle
 
--- worker threads are given changed library-search-path
-changeWorkerPath _ [] = return()
+-- Inform the worker threads about a given changed library search path
+changeWorkerPath :: String -> [Handle] -> IO ()
+changeWorkerPath _ [] = done
 changeWorkerPath path (handle:whandles) = do
   hPutStrLn handle (showQTerm (ChangePath path))
   changeWorkerPath path whandles

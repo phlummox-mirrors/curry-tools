@@ -4,7 +4,7 @@
 --- non-rigid functions
 ---
 --- @author Michael Hanus
---- @version March 2013
+--- @version April 2013
 ------------------------------------------------------------------------------
 
 module SolutionCompleteness(solcompAnalysis,showSolComplete)  where
@@ -50,6 +50,7 @@ isFlexExpr (Let bs e)        = all isFlexExpr (map snd bs) && isFlexExpr e
 isFlexExpr (Or e1 e2)        = isFlexExpr e1 && isFlexExpr e2
 isFlexExpr (Case ctype e bs) = ctype==Flex &&
                          all isFlexExpr (e : map (\(Branch _ be)->be) bs)
+isFlexExpr (Typed e _)       = isFlexExpr e
 
 -- Show solution completeness information as a string.
 showSolComplete :: Bool -> String

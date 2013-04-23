@@ -6,7 +6,7 @@
 --- to `SetFunctions.select` or to a committed choice.
 ---
 --- @author Michael Hanus
---- @version March 2013
+--- @version April 2013
 ------------------------------------------------------------------------------
 
 module Indeterministic(indetAnalysis,showIndet) where
@@ -52,6 +52,7 @@ choiceInExpr (Let bs e) = any choiceInExpr (map snd bs) || choiceInExpr e
 choiceInExpr (Or e1 e2) = choiceInExpr e1 || choiceInExpr e2
 choiceInExpr (Case _  e bs) = choiceInExpr e || any choiceInBranch bs
                 where choiceInBranch (Branch _ be) = choiceInExpr be
+choiceInExpr (Typed e _) = choiceInExpr e
 
 indetFuns = [("Prelude","commit"),
              ("Ports","send"),("Ports","doSend"),

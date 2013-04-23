@@ -3,7 +3,7 @@
 --- check whether functions are defined by right-linear rules.
 ---
 --- @author Michael Hanus
---- @version March 2013
+--- @version April 2013
 ------------------------------------------------------------------------------
 
 module RightLinearity(rlinAnalysis,hasRightLinearRules,linearExpr,
@@ -87,3 +87,4 @@ linearVariables (Case _ e bs) =
  where
   patternVars (Branch (Pattern _ vs) _) = vs
   patternVars (Branch (LPattern _)   _) = []
+linearVariables (Typed e _) = linearVariables e

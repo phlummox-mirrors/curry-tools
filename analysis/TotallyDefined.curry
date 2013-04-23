@@ -6,7 +6,7 @@
 --- constructor terms
 ---
 --- @author Johannes Koj, Michael Hanus
---- @version March 2013
+--- @version April 2013
 -----------------------------------------------------------------------------
 
 module TotallyDefined(siblingCons,
@@ -109,6 +109,7 @@ isComplete consinfo (Case _ _ (Branch (Pattern cons _) bexp : ces)) =
    checkAllCons (c:cs) (Branch (Pattern i _) e : ps) =
      combineAndResults (checkAllCons (delete i (c:cs)) ps)
                        (isComplete consinfo e)
+isComplete consinfo (Typed e _) = isComplete consinfo e
 
 -- Combines the completeness results in different Or branches.
 combineOrResults Complete     _            = Complete

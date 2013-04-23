@@ -8,8 +8,8 @@
 --- @version March 2013
 ------------------------------------------------------------------------------
 
-module Deterministic(overlapAnalysis,showOverlap,showDet,showSetValued,
-                     Deterministic(..),ndAnalysis,setValAnalysis) where
+module Deterministic(overlapAnalysis,showOverlap,showDet,
+                     Deterministic(..),nondetAnalysis) where
 
 import Analysis
 import FlatCurry
@@ -37,6 +37,7 @@ orInExpr (Let bs e) = any orInExpr (map snd bs) || orInExpr e
 orInExpr (Or _ _) = True
 orInExpr (Case _ e bs) = orInExpr e || any orInBranch bs
                    where orInBranch (Branch _ be) = orInExpr be
+orInExpr (Typed e _) = orInExpr e
 
 -- Show overlapping information as a string.
 showOverlap :: Bool -> String
@@ -44,52 +45,40 @@ showOverlap True  = "overlapping"
 showOverlap False = "non-overlapping" 
 
 ------------------------------------------------------------------------------
+-- The determinism analysis is a global function dependency analysis.
+-- It assigns to a function a flag which indicates whether is function
+-- might be non-deterministic, i.e., might reduce in different ways
+-- for given ground arguments.
+
 --- Data type to represent determinism information.
 data Deterministic = NDet | Det
-
---- Determinism analysis.
-ndAnalysis :: Analysis Deterministic
-ndAnalysis = dependencyFuncAnalysis "Deterministic" Det ndFunc
-
--- An operation is non-deterministic if it has an overlapping definition.
--- or if it calls a non-deterministic operation.
-ndFunc :: FuncDecl -> [(QName,Deterministic)] -> Deterministic
-ndFunc fdecl calledFuncs =
-  --trace (snd(funcName fdecl)++"...") $
-  if isOverlappingFunction fdecl || any (==NDet) (map snd calledFuncs)
-  then NDet
-  else Det
 
 -- Show determinism information as a string.
 showDet :: Deterministic -> String
 showDet NDet = "nondeterministic"
 showDet Det  = "deterministic" 
 
-------------------------------------------------------------------------------
--- The set-valued analysis is a global function dependency analysis.
--- It assigns to a function a flag which is True if this function
--- might be set-valued, i.e., might reduce to different values
--- for given ground arguments.
+nondetAnalysis :: Analysis Deterministic
+nondetAnalysis = dependencyFuncAnalysis "Deterministic" Det nondetFunc
 
-setValAnalysis :: Analysis Bool
-setValAnalysis = dependencyFuncAnalysis "SetValued" False setValFunc
+-- An operation is non-deterministic if its definition is potentially
+-- non-deterministic or it depends on a non-deterministic function.
+nondetFunc :: FuncDecl -> [(QName,Deterministic)] -> Deterministic
+nondetFunc func calledFuncs =
+  if isNondetDefined func || any (==NDet) (map snd calledFuncs)
+  then NDet
+  else Det
 
--- An operation is set-valued if its definition is potentially set-valued
--- or it depends on a set-valued function.
-setValFunc :: FuncDecl -> [(QName,Bool)] -> Bool
-setValFunc func calledFuncs =
-  isSetValuedDefined func || any snd calledFuncs
-
--- Is a function f defined to be potentially set-valued, i.e., is the rule
--- nondeterministic or does it contain extra variables?
-isSetValuedDefined :: FuncDecl -> Bool
-isSetValuedDefined (Func f _ _ _ rule) =
+-- Is a function f defined to be potentially non-deterministic, i.e.,
+-- is the rule non-deterministic or does it contain extra variables?
+isNondetDefined :: FuncDecl -> Bool
+isNondetDefined (Func f _ _ _ rule) =
   f `notElem` (map pre ["failed","$!!","$##","normalForm","groundNormalForm"])
   -- these operations are internally defined in PAKCS with extra variables
-  && isSetValuedRule rule
+  && isNondetRule rule
 
-isSetValuedRule (Rule _ e) = orInExpr e || extraVarInExpr e
-isSetValuedRule (External _) = False
+isNondetRule (Rule _ e) = orInExpr e || extraVarInExpr e
+isNondetRule (External _) = False
 
 
 -- check an expression for occurrences of extra variables:
@@ -102,12 +91,7 @@ extraVarInExpr (Let bs e) = any extraVarInExpr (map snd bs) || extraVarInExpr e
 extraVarInExpr (Or e1 e2) = extraVarInExpr e1 || extraVarInExpr e2
 extraVarInExpr (Case _  e bs) = extraVarInExpr e || any extraVarInBranch bs
                 where extraVarInBranch (Branch _ be) = extraVarInExpr be
-
--- Show set-valued information as a string.
-showSetValued :: Bool -> String
-showSetValued True  = "set-valued"
-showSetValued False = "single-valued" 
-
+extraVarInExpr (Typed e _) = extraVarInExpr e
 
 pre n = ("Prelude",n)
 
