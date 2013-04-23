@@ -174,7 +174,7 @@ copyIncludeIfPresent docdir inclfile = do
 
 -- read and generate all analysis infos:
 readAnaInfo modname = do
-  nondet   <- analyzeInterface ndAnalysis modname >>= stopIfError
+  nondet   <- analyzeInterface nondetAnalysis  modname >>= stopIfError
   complete <- analyzeInterface patCompAnalysis modname >>= stopIfError
   indet    <- analyzeInterface indetAnalysis   modname >>= stopIfError
   solcomp  <- analyzeInterface solcompAnalysis modname >>= stopIfError
