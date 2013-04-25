@@ -39,10 +39,13 @@ demandAnalysis = dependencyFuncAnalysis "Demand" [1..] daFunc
 -- or if it calls a non-deterministic operation.
 daFunc :: FuncDecl -> [(QName,DemandedArgs)] -> DemandedArgs
 daFunc (Func (m,f) _ _ _ rule) calledFuncs
- | f `elem` ["$#","$##","$!","$!!"] && m==prelude = [1,2]
- | f `elem` ["seq","ensureNotFree","apply","cond","=:<="] && m==prelude = [1]
- | f `elem` ["==","=:=","compare"] && m==prelude  = [1,2]
+ | f `elem` prelude2s && m==prelude = [1,2]
+ | f `elem` prelude1s && m==prelude = [1]
  | otherwise = daFuncRule calledFuncs rule
+ where
+  prelude2s = ["==","=:=","compare","<=","$#","$##","$!","$!!",
+               "+","-","*","div","mod","divMod","quot","rem","quotRem"]
+  prelude1s = ["seq","ensureNotFree","apply","cond","=:<=","negateFloat"]
  -- TODO: >>= catch catchFail
 
 
