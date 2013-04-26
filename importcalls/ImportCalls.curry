@@ -1,7 +1,8 @@
 -----------------------------------------------------------------------------
--- Show all calls to imported functions in a module
---
--- Michael Hanus, November 2003
+--- Show all calls to imported functions in a module
+---
+--- @author Michael Hanus
+--- @version April 2013
 -----------------------------------------------------------------------------
 
 module ImportCalls(main,showImportCalls) where
@@ -78,6 +79,7 @@ globalFunsInExpr mod exp = funsInExpr exp
   funsInExpr (Case _ e bs) = union (funsInExpr e)
                                    (nub (concatMap funsInBranch bs))
                        where funsInBranch (Branch _ be) = funsInExpr be
+  funsInExpr (Typed e _) = funsInExpr e
 
 
 ----------------- Auxiliaries:

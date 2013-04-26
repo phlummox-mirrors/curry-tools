@@ -2,7 +2,7 @@
 --- A few base functions for analysing type dependencies in FlatCurry programs.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2013
+--- @version April 2013
 -----------------------------------------------------------------------------
 
 module FlatCurryDependency(dependsDirectlyOnTypes,callsDirectly) where
@@ -51,6 +51,7 @@ funcSetOfExpr (Or e1 e2) = unionRBT (funcSetOfExpr e1) (funcSetOfExpr e2)
 funcSetOfExpr (Case _ e bs) = unionRBT (funcSetOfExpr e)
                                        (unionMap funcSetOfBranch bs)
  where funcSetOfBranch (Branch _ be) = funcSetOfExpr be
+funcSetOfExpr (Typed e _) = funcSetOfExpr e
 
 isConstructorComb ct = case ct of
   ConsCall       -> True

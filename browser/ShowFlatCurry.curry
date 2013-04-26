@@ -226,6 +226,8 @@ substituteAllCase vs es b (Branch (Pattern l pvs) e) =
                  Branch (Pattern l (map (+b) pvs)) (substituteAll vs es b e)
 substituteAllCase vs es b (Branch (LPattern l) e) =
                  Branch (LPattern l) (substituteAll vs es b e)
+substituteAll vs es b (Typed e t) =
+                 Typed (substituteAll vs es b e) t
 
 
 -- Is the expression a guarded expressions?
