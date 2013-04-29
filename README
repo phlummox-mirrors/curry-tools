@@ -10,11 +10,17 @@ Currently it contains:
 A tool that adds type signatures to a given Curry program.
 
 `analysis`:
-A directory containing various analyzers for Curry programs.
+A directory containing various analyses for Curry programs.
+These are used in the `CASS` and `currydoc` tools.
 
 `browser`:
 A tool to browse through the modules and functions of a Curry program,
 show them in various formats, and analyze their properties.
+
+`CASS`:
+This directory contains the implementation of the
+Curry Analysis Server System, a generic and distributed analysis system
+for Curry programs.
 
 `createmakefile`:
 A tool to create a simple makefile for a Curry application.
@@ -36,3 +42,9 @@ of some Curry systems).
 
 `importcalls`:
 A tool to show all calls to imported functions in a module.
+
+`typeinference`:
+This directory contains the implementation of a type
+inferencer for FlatCurry programs which annotates
+each expression occurring in a FlatCurry program with its
+actual type.

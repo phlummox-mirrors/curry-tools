@@ -1,0 +1,14 @@
+Type Inference for FlatCurry
+============================
+
+This directory contains the implementation of a type
+inferencer for FlatCurry programs which annotates
+each expression occurring in a FlatCurry program with its
+actual type.
+
+It can be used by any other Curry program which processes
+or transforms FlatCurry programs. The main operation to use is
+
+    Inference.inferProg :: Prog -> IO (Either String (AProg TypeExpr))
+
+which annotates a FlatCurry program with type information.

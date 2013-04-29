@@ -15,6 +15,7 @@ all:
 	@cd currytest      && $(MAKE)
 	@cd genint         && $(MAKE)
 	@cd importcalls    && $(MAKE)
+	@cd typeinference  && $(MAKE)
 
 .PHONY: clean
 clean: 
@@ -28,3 +29,4 @@ clean:
 	cd currytest      && $(MAKE) clean
 	cd genint         && $(MAKE) clean
 	cd importcalls    && $(MAKE) clean
+	cd typeinference  && $(MAKE) clean
