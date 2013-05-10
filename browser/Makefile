@@ -24,7 +24,7 @@ BrowserGUI: BrowserGUI.curry ShowFlatCurry.curry Imports.curry \
 	    $(META)/FlatCurry.curry $(META)/FlatCurryShow.curry \
 	    analysis/*.curry $(ANADIR)/*.curry
 	$(ROOT)/bin/$(CURRYSYSTEM) $(REPL_OPTS) \
-	  :set path analysis::$(CASS):$(ANADIR):$(CURRYTOOLS)/importcalls:$(CURRYTOOLS)/addtypes \
+	  :set path analysis:$(CASS):$(ANADIR):$(CURRYTOOLS)/importcalls:$(CURRYTOOLS)/addtypes \
 	  :l BrowserGUI :eval "patchReadmeVersion" :save :q
 	(cd $(ROOT)/bin ; rm -f currybrowse ; \
 	                  ln -s ../currytools/browser/BrowserGUI currybrowse)
