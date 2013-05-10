@@ -3,6 +3,7 @@
 --- programs.
 ---
 --- @author Michael Hanus
+--- @version May 2013
 ---------------------------------------------------------------------
 
 module BrowserGUI where
@@ -27,18 +28,21 @@ import ShowGraph
 import ImportCalls
 import Directory
 import Time(toCalendarTime,calendarTimeToString)
-import Distribution(installDir)
+import Distribution(installDir,curryCompiler)
+
+import AnalysisServer(analyzeModuleForBrowser)
+import AnalysisCollection(functionAnalysisInfos)
 
 ---------------------------------------------------------------------
 -- Set this constant to True if the execution times of the main operations
 -- should be shown in the status line:
-showExecTime = False
+showExecTime = True
 
 ---------------------------------------------------------------------
 -- Title and version
 title = "CurryBrowser"
 
-version = "Version of 04/04/2013"
+version = "Version of 03/05/2013"
 
 patchReadmeVersion = do
   readmetxt <- readCompleteFile "README"
@@ -299,9 +303,15 @@ browserGUI gstate rmod rtxt names =
                       Cmd (showBusy selmod), Background "yellow", Fill],
        MenuButton
         [Text "Analyze selected module...",
-         Menu (map (\ (aname,acmt,afun) -> MButton (showMBusy (analyzeAllFuns acmt afun))
-                                              aname)
+         Menu (map (\ (aname,acmt,afun) ->
+                       MButton (showMBusy (analyzeAllFuns acmt afun)) aname)
                    allFunctionAnalyses)],
+       MenuButton
+        [Text "Analyze selected module with CASS...",
+         Menu (map (\ (aname,atitle) ->
+                      MButton (showMBusy (analyzeAllFunsWithCASS aname atitle))
+                              atitle)
+                   functionAnalysisInfos)],
        row [MenuButton
              [Text "Select functions...",
               Menu [MButton (showMBusy (executeForModule showExportedFuns))
@@ -398,12 +408,16 @@ browserGUI gstate rmod rtxt names =
   showBusy handler gp = do
      setConfig rstatus (Background "red") gp
      setConfig rstatus (Text "Status: running") gp
-     time1 <- getCPUTime
+     let elapsed = curryCompiler=="pakcs"
+     time1 <- if elapsed then getElapsedTime else getCPUTime
      handler gp
-     time2 <- getCPUTime
-     setConfig rstatus (Text $ if showExecTime
-                               then "Status: ready (" ++ show(time2-time1) ++ " msecs)"
-                               else "Status: ready") gp
+     time2 <- if elapsed then getElapsedTime else getCPUTime
+     setConfig rstatus
+       (Text $ if showExecTime
+               then "Status: ready (" ++
+                    (if elapsed then "elapsed time: " else "exec time: ") ++
+                    show(time2-time1) ++ " msecs)"
+               else "Status: ready") gp
      setConfig rstatus (Background "green") gp
 
   showMBusy handler gp = showBusy handler gp >> return []
@@ -608,14 +622,35 @@ browserGUI gstate rmod rtxt names =
   -- analyze all functions in the function column:
   analyzeAllFuns explanation analysis gp = safeIO gp $ do
     mod <- getSelectedModName gp
-    if mod==Nothing then done else
-      getFunctionListKind gstate >>= \modfuns ->
-      (if modfuns then done else showExportedFuns (fromJust mod) gp) >>
-      getFuns gstate >>= \funs ->
-      setValue resultwidget explanation gp >>
-      performAllAnalysis analysis (showDoing gp) (fromJust mod) funs >>= \anaresults ->
-      setConfig rfun (List (map (\(prefix,func)-> prefix++" "++snd (funcName func))
-                                (zip anaresults funs))) gp
+    if mod==Nothing then done else do
+      modfuns <- getFunctionListKind gstate
+      let modName = fromJust mod
+      if modfuns then done else showExportedFuns modName gp
+      funs <- getFuns gstate
+      setValue resultwidget explanation gp
+      anaresults <- performAllAnalysis analysis (showDoing gp) modName funs
+      setConfig rfun
+                (List (map (\ (prefix,func)-> prefix++" "++snd (funcName func))
+                           (zip anaresults funs)))
+                gp
+
+  -- analyze all functions with Curry Analysis Server System:
+  analyzeAllFunsWithCASS analysisName explanation gp = safeIO gp $ do
+    mod <- getSelectedModName gp
+    if mod==Nothing then done else do
+      let modName = fromJust mod
+      modfuns <- getFunctionListKind gstate
+      if modfuns then done else showExportedFuns modName gp
+      funs <- getFuns gstate
+      setValue resultwidget explanation gp
+      showDoing gp "Analyzing..."
+      results <- analyzeModuleForBrowser analysisName modName
+      setConfig rfun
+        (List (map (\qf -> let info = maybe "?" id (lookup qf results)
+                            in snd qf ++ if null info then ""
+                                         else ": "++info)
+                   (map funcName funs)))
+        gp
 
   -- Perform an analysis on a module:
   performModuleAnalysis (InterfaceAnalysis ana) _ mod = do

@@ -9,7 +9,7 @@
 --------------------------------------------------------------------
 
 module AnalysisCollection(
-  analysisInfos,functionAnalysisInfos,registeredAnalysisNames,
+  functionAnalysisInfos,registeredAnalysisNames,
   lookupRegAnaWorker,runAnalysisWithWorkers,analyzeMain) where
 
 import FlatCurry
@@ -39,53 +39,23 @@ import TotallyDefined
 import Indeterministic
 import Demandedness
 
---- Each analysis name should be added here together with a short explanation.
---- The first component is the registered analysis name.
---- These names will be visible by the server message `GetAnalysis`.
---- The second and third components, which might be used in interactive tools
---- like the CurryBrowser, are a longer analysis name and some explanation
---- of the analysis and their result values.
-analysisInfos = functionAnalysisInfos ++ typeAnalysisInfos
-
-functionAnalysisInfos =
-  [("Overlapping",  "Overlapping rules", "Overlapping function analysis")
-  ,("Deterministic","Deterministic operations",
-    "(Non-)determinism function analysis")
-  ,("PatComplete",  "Pattern completeness", "Pattern completeness analysis")
-  ,("Total",        "Totally defined operations",
-    "Totally definedness analysis")
-  ,("SolComplete",  "Solution completeness","Solution completeness analysis")
-  ,("Indeterministic","Indeterministic operations",
-    "Indeterminism function analysis")
-  ,("RightLinear",  "Right-linear operations","Right-linear function analysis")
-  ,("HiOrderFunc",  "Higher-order functions","Higher-order function analysis")
-  ,("Demand",       "Demanded arguments","Demanded arguments analysis")
-  ]
-
-typeAnalysisInfos =
-  [("HiOrderType",  "Higher-order datatypes", "Higher-order datatype analysis")
-  ,("HiOrderConstr","Higher-order constructors",
-    "Higher-order constructor analysis")
-  ,("SiblingCons",  "Sibling constructors","Sibling constructor analysis")
-  ]
-
 --------------------------------------------------------------------
 --- Each analysis used in our tool must be registered in this list
 --- together with an operation to show the analysis result as a string.
 registeredAnalysis :: [RegisteredAnalysis]
 registeredAnalysis =
-  [scAnalysis overlapAnalysis showOverlap
-  ,scAnalysis nondetAnalysis  showDet
-  ,scAnalysis rlinAnalysis    showRightLinear
-  ,scAnalysis solcompAnalysis showSolComplete
-  ,scAnalysis patCompAnalysis showComplete
-  ,scAnalysis totalAnalysis   showTotally
-  ,scAnalysis indetAnalysis   showIndet
-  ,scAnalysis demandAnalysis  showDemand
-  ,scAnalysis hiOrdType       showOrder
-  ,scAnalysis hiOrdCons       showOrder
-  ,scAnalysis hiOrdFunc       show
-  ,scAnalysis siblingCons     show
+  [cassAnalysis "Overlapping rules"          overlapAnalysis showOverlap
+  ,cassAnalysis "Deterministic operations"   nondetAnalysis  showDet
+  ,cassAnalysis "Right-linear operations"    rlinAnalysis    showRightLinear
+  ,cassAnalysis "Solution completeness"      solcompAnalysis showSolComplete
+  ,cassAnalysis "Pattern completeness"       patCompAnalysis showComplete
+  ,cassAnalysis "Totally defined operations" totalAnalysis   showTotally
+  ,cassAnalysis "Indeterministic operations" indetAnalysis   showIndet
+  ,cassAnalysis "Demanded arguments"         demandAnalysis  showDemand
+  ,cassAnalysis "Higher-order datatypes"     hiOrdType       showOrder
+  ,cassAnalysis "Higher-order constructors"  hiOrdCons       showOrder
+  ,cassAnalysis "Higher-order functions"     hiOrdFunc       show
+  ,cassAnalysis "Sibling constructors"       siblingCons     show
   ]
 
 
@@ -94,28 +64,50 @@ registeredAnalysis =
 -- Static part of this module follows below
 --------------------------------------------------------------------
 
+--- This auxiliary operation creates a new program analysis to be used
+--- by the server/client analysis tool from a given analysis and
+--- analysis show function. The first argument is a short title for the
+--- analysis.
+cassAnalysis :: String -> Analysis a -> (a->String) -> RegisteredAnalysis
+cassAnalysis title analysis showres =
+  RegAna (analysisName analysis)
+         (isFunctionAnalysis analysis)
+         title
+         (analyzeAsString analysis showres)
+         (analysisClient analysis)
+
 --- The type of all registered analysis.
---- The first component is the name of the analysis.
---- The second component is the operation used by the server
---- to distribute analysis work to the clients.
---- The third component is the worker operation to analyze a list of modules.
+--- The components are as follows:
+--- * the name of the analysis
+--- * is this a function analysis?
+--- * a long meaningful name of the analysis
+--- * the operation used by the server to distribute analysis work
+---   to the clients
+--- * the worker operation to analyze a list of modules
 data RegisteredAnalysis =
   RegAna String
+         Bool
+         String
          (String -> [Handle] -> Bool -> IO (Either (ProgInfo String) String))
          ([String] -> IO ())
 
-regAnaName (RegAna n _ _) = n
+regAnaName (RegAna n _ _ _ _) = n
 
-regAnaServer (RegAna _ a _) = a
+regAnaServer (RegAna _ _ _ a _) = a
 
-regAnaWorker (RegAna _ _ a) = a
+regAnaWorker (RegAna _ _ _ _ a) = a
 
 --- Names of all registered analyses.
 registeredAnalysisNames = map regAnaName registeredAnalysis
 
+--- Names and titles of all registered function analyses.
+functionAnalysisInfos =
+  map (\ (RegAna n _ t _ _) -> (n,t))
+      (filter (\ (RegAna _ fa _ _ _) -> fa) registeredAnalysis)
+
 lookupRegAna :: String -> [RegisteredAnalysis] -> Maybe RegisteredAnalysis
 lookupRegAna _ [] = Nothing
-lookupRegAna aname (ra@(RegAna raname _ _) : ras) =
+lookupRegAna aname (ra@(RegAna raname _ _ _ _) : ras) =
   if aname==raname then Just ra else lookupRegAna aname ras
 
 -- Look up a registered analysis server with a given analysis name.
@@ -130,15 +122,6 @@ lookupRegAnaServer aname =
 lookupRegAnaWorker :: String -> ([String] -> IO ())
 lookupRegAnaWorker aname =
   maybe (const done) regAnaWorker (lookupRegAna aname registeredAnalysis)
-
---- This auxiliary operation creates new analysis operations to be used
---- by the server/client analysis tool from a given analysis and
---- analysis show function.
-scAnalysis :: Analysis a -> (a->String) -> RegisteredAnalysis
-scAnalysis analysis showres =
-  RegAna (analysisName analysis)
-         (analyzeAsString analysis showres)
-         (analysisClient analysis)
 
 --------------------------------------------------------------------
 

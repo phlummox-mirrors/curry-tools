@@ -5,7 +5,7 @@ Server commands:
 ----------------
 GetAnalysis
 SetCurryPath <dir1>:<dir2>:...
-StopSever
+StopServer
 AnalyzeModule          <kind of analysis> <output type> <module name>
 AnalyzeInterface       <kind of analysis> <output type> <module name>
 AnalyzeFunction        <kind of analysis> <output type> <module name> <function name>

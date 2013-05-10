@@ -302,5 +302,5 @@ parseServerMessage message = case words message of
 showAnalysisNamesAndFormats :: String
 showAnalysisNamesAndFormats =
   unlines (concatMap (\an -> map ((an++" ")++) serverFormats)
-                     (map (\ (an,_,_) -> an) analysisInfos))
+                     registeredAnalysisNames)
 

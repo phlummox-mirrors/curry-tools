@@ -8,6 +8,8 @@ LIB=$(ROOT)/lib
 META=$(LIB)/meta
 TOOLS=$(ROOT)/tools
 CURRYTOOLS=$(ROOT)/currytools
+CASS=$(CURRYTOOLS)/CASS
+ANADIR=$(CURRYTOOLS)/analysis
 
 .PHONY: all
 all: BrowserGUI SourceProgGUI
@@ -15,13 +17,14 @@ all: BrowserGUI SourceProgGUI
 # generate executable for Curry Browser:
 BrowserGUI: BrowserGUI.curry ShowFlatCurry.curry Imports.curry \
 	    AnalysisTypes.curry BrowserAnalysis.curry ShowGraph.curry \
+	    $(CASS)/AnalysisServer.curry $(CASS)/AnalysisCollection.curry \
 	    $(CURRYTOOLS)/addtypes/AddTypes.curry \
 	    $(CURRYTOOLS)/importcalls/ImportCalls.curry \
 	    $(LIB)/GUI.curry $(LIB)/IOExts.curry  $(LIB)/System.curry \
 	    $(META)/FlatCurry.curry $(META)/FlatCurryShow.curry \
-	    analysis/*.curry
+	    analysis/*.curry $(ANADIR)/*.curry
 	$(ROOT)/bin/$(CURRYSYSTEM) $(REPL_OPTS) \
-	  :set path analysis:$(CURRYTOOLS)/importcalls:$(CURRYTOOLS)/addtypes \
+	  :set path analysis::$(CASS):$(ANADIR):$(CURRYTOOLS)/importcalls:$(CURRYTOOLS)/addtypes \
 	  :l BrowserGUI :eval "patchReadmeVersion" :save :q
 	(cd $(ROOT)/bin ; rm -f currybrowse ; \
 	                  ln -s ../currytools/browser/BrowserGUI currybrowse)
