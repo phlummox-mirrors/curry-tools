@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2013
+--- @version May 2013
 --------------------------------------------------------------------
 
 module AnalysisCollection(
@@ -54,8 +54,8 @@ registeredAnalysis =
   ,cassAnalysis "Demanded arguments"         demandAnalysis  showDemand
   ,cassAnalysis "Higher-order datatypes"     hiOrdType       showOrder
   ,cassAnalysis "Higher-order constructors"  hiOrdCons       showOrder
-  ,cassAnalysis "Higher-order functions"     hiOrdFunc       show
-  ,cassAnalysis "Sibling constructors"       siblingCons     show
+  ,cassAnalysis "Higher-order functions"     hiOrdFunc       showOrder
+  ,cassAnalysis "Sibling constructors"       siblingCons     showSibling
   ]
 
 
@@ -68,7 +68,8 @@ registeredAnalysis =
 --- by the server/client analysis tool from a given analysis and
 --- analysis show function. The first argument is a short title for the
 --- analysis.
-cassAnalysis :: String -> Analysis a -> (a->String) -> RegisteredAnalysis
+cassAnalysis :: String -> Analysis a -> (AOutFormat -> a -> String)
+             -> RegisteredAnalysis
 cassAnalysis title analysis showres =
   RegAna (analysisName analysis)
          (isFunctionAnalysis analysis)
@@ -88,7 +89,8 @@ data RegisteredAnalysis =
   RegAna String
          Bool
          String
-         (String -> [Handle] -> Bool -> IO (Either (ProgInfo String) String))
+         (String -> [Handle] -> Maybe AOutFormat
+                 -> IO (Either (ProgInfo String) String))
          ([String] -> IO ())
 
 regAnaName (RegAna n _ _ _ _) = n
@@ -111,8 +113,8 @@ lookupRegAna aname (ra@(RegAna raname _ _ _ _) : ras) =
   if aname==raname then Just ra else lookupRegAna aname ras
 
 -- Look up a registered analysis server with a given analysis name.
-lookupRegAnaServer :: String
-        -> (String -> [Handle] -> Bool -> IO (Either (ProgInfo String) String))
+lookupRegAnaServer :: String -> (String -> [Handle] -> Maybe AOutFormat
+                                        -> IO (Either (ProgInfo String) String))
 lookupRegAnaServer aname =
   maybe (\_ _ _ -> return (Right ("unknown analysis: "++aname)))
         regAnaServer
@@ -131,16 +133,16 @@ debugMessage dl message =
 --------------------------------------------------------------------
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles and return the analysis results.
-runAnalysisWithWorkers :: String -> [Handle] -> String
+runAnalysisWithWorkers :: String -> AOutFormat -> [Handle] -> String
                        -> IO (Either (ProgInfo String) String)
-runAnalysisWithWorkers ananame handles moduleName =
-  (lookupRegAnaServer ananame) moduleName handles True
+runAnalysisWithWorkers ananame aoutformat handles moduleName =
+  (lookupRegAnaServer ananame) moduleName handles (Just aoutformat)
 
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles but do not load analysis results.
 runAnalysisWithWorkersNoLoad :: String -> [Handle] -> String -> IO ()
 runAnalysisWithWorkersNoLoad ananame handles moduleName =
-  (lookupRegAnaServer ananame) moduleName handles False >> done
+  (lookupRegAnaServer ananame) moduleName handles Nothing >> done
 
 --- Generic operation to analyze a module.
 --- The parameters are the analysis, the show operation for analysis results,
@@ -149,11 +151,13 @@ runAnalysisWithWorkersNoLoad ananame handles moduleName =
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeAsString :: Analysis a -> (a->String) -> String -> [Handle] -> Bool
-                -> IO (Either (ProgInfo String) String)
-analyzeAsString analysis showres modname handles load = do
-  analyzeMain analysis modname handles load >>=
-    return . either (Left . mapProgInfo showres) Right
+analyzeAsString :: Analysis a -> (AOutFormat->a->String) -> String -> [Handle]
+                -> Maybe AOutFormat -> IO (Either (ProgInfo String) String)
+analyzeAsString analysis showres modname handles mbaoutformat = do
+  analyzeMain analysis modname handles (mbaoutformat /= Nothing) >>=
+    return . either (Left . mapProgInfo (showres aoutformat)) Right
+ where
+  aoutformat = maybe AText id mbaoutformat
 
 --- Generic operation to analyze a module.
 --- The parameters are the analysis, the name of the main module

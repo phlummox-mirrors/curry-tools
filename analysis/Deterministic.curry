@@ -5,7 +5,7 @@
 --- different computation paths.
 ---
 --- @author Michael Hanus
---- @version March 2013
+--- @version May 2013
 ------------------------------------------------------------------------------
 
 module Deterministic(overlapAnalysis,showOverlap,showDet,
@@ -40,9 +40,10 @@ orInExpr (Case _ e bs) = orInExpr e || any orInBranch bs
 orInExpr (Typed e _) = orInExpr e
 
 -- Show overlapping information as a string.
-showOverlap :: Bool -> String
-showOverlap True  = "overlapping"
-showOverlap False = "non-overlapping" 
+showOverlap :: AOutFormat -> Bool -> String
+showOverlap _     True  = "overlapping"
+showOverlap AText False = "non-overlapping" 
+showOverlap ANote False = ""
 
 ------------------------------------------------------------------------------
 -- The determinism analysis is a global function dependency analysis.
@@ -54,9 +55,10 @@ showOverlap False = "non-overlapping"
 data Deterministic = NDet | Det
 
 -- Show determinism information as a string.
-showDet :: Deterministic -> String
-showDet NDet = "nondeterministic"
-showDet Det  = "deterministic" 
+showDet :: AOutFormat -> Deterministic -> String
+showDet _     NDet = "nondeterministic"
+showDet AText Det  = "deterministic" 
+showDet ANote Det  = ""
 
 nondetAnalysis :: Analysis Deterministic
 nondetAnalysis = dependencyFuncAnalysis "Deterministic" Det nondetFunc

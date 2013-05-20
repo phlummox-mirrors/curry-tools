@@ -37,7 +37,7 @@ import List
 import System
 import Time
 
-import AnalysisServer(analyzeInterface)
+import AnalysisServer(initializeAnalysisSystem,analyzeInterface)
 import Deterministic
 import TotallyDefined
 import Indeterministic
@@ -174,6 +174,7 @@ copyIncludeIfPresent docdir inclfile = do
 
 -- read and generate all analysis infos:
 readAnaInfo modname = do
+  initializeAnalysisSystem
   nondet   <- analyzeInterface nondetAnalysis  modname >>= stopIfError
   complete <- analyzeInterface patCompAnalysis modname >>= stopIfError
   indet    <- analyzeInterface indetAnalysis   modname >>= stopIfError

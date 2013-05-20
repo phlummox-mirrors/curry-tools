@@ -30,7 +30,8 @@ import Directory
 import Time(toCalendarTime,calendarTimeToString)
 import Distribution(installDir,curryCompiler)
 
-import AnalysisServer(analyzeModuleForBrowser)
+import Analysis(AOutFormat(..))
+import AnalysisServer(initializeAnalysisSystem,analyzeModuleForBrowser)
 import AnalysisCollection(functionAnalysisInfos)
 
 ---------------------------------------------------------------------
@@ -61,6 +62,7 @@ main = do
                    "Usage: currybrowser <module_name>"
 
 start mod = do
+  initializeAnalysisSystem
   putStrLn "Please be patient, reading all interfaces..."
   helptxt <- readFile (browserDir++"/README")
   mods <- getImportedInterfaces mod
@@ -596,7 +598,8 @@ browserGUI gstate rmod rtxt names =
       showAnalysisResult result gp
 
   showAnalysisResult (MsgResult str) gp = setValue resultwidget str gp
-  showAnalysisResult (ActionResult act) _ = act
+  showAnalysisResult (ActionResult act) gp =
+    act >>= \str -> setValue resultwidget str gp
 
 
   -- focus on a function if selected:
@@ -644,11 +647,11 @@ browserGUI gstate rmod rtxt names =
       funs <- getFuns gstate
       setValue resultwidget explanation gp
       showDoing gp "Analyzing..."
-      results <- analyzeModuleForBrowser analysisName modName
+      results <- analyzeModuleForBrowser analysisName modName ANote
       setConfig rfun
         (List (map (\qf -> let info = maybe "?" id (lookup qf results)
                             in snd qf ++ if null info then ""
-                                         else ": "++info)
+                                         else " >>> "++info)
                    (map funcName funs)))
         gp
 

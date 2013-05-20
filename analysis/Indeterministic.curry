@@ -30,9 +30,11 @@ indetFunc func calledFuncs =
   hasIndetRules func || any snd calledFuncs
 
 -- Show right-linearity information as a string.
-showIndet :: Bool -> String
-showIndet True  = "indeterministic"
-showIndet False = "" 
+showIndet :: AOutFormat -> Bool -> String
+showIndet AText True  = "impure (indeterministic) operation"
+showIndet ANote True  = "indeterministic"
+showIndet AText False = "referentially transparent operation"
+showIndet ANote False = "" 
 
 ------------------------------------------------------------------------------
 -- The right-linearity analysis can also be applied to individual functions.

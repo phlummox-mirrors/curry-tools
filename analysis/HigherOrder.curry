@@ -14,9 +14,9 @@ import GenericProgInfo
 data Order = HO | FO
 
 -- Show higher-order information as a string.
-showOrder :: Order -> String
-showOrder HO = "higher-order"
-showOrder FO = "first-order"
+showOrder :: AOutFormat -> Order -> String
+showOrder _ HO = "higher-order"
+showOrder _ FO = "first-order"
 
 hoOr :: Order -> Order -> Order
 hoOr HO _ = HO 

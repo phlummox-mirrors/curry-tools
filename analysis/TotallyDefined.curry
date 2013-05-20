@@ -6,10 +6,10 @@
 --- constructor terms
 ---
 --- @author Johannes Koj, Michael Hanus
---- @version April 2013
+--- @version May 2013
 -----------------------------------------------------------------------------
 
-module TotallyDefined(siblingCons,
+module TotallyDefined(siblingCons,showSibling,
                       Completeness(..),showComplete,showTotally,
                       patCompAnalysis,totalAnalysis) where
 
@@ -22,6 +22,11 @@ import List(delete)
 -----------------------------------------------------------------------
 --- An analysis to compute the sibling constructors (belonging to the
 --- same data type) for a data constructor.
+
+--- Shows the result of the sibling constructors analysis, i.e.,
+--- shows a list of constructor names.
+showSibling :: AOutFormat -> [QName] -> String
+showSibling _ = show
 
 siblingCons :: Analysis [QName]
 siblingCons =
@@ -59,9 +64,10 @@ analyseTotally pcinfo fdecl calledfuncs =
   && all snd calledfuncs
 
 -- Shows the result of the totally-defined analysis.
-showTotally :: Bool -> String
-showTotally True  = "totally defined"
-showTotally False = "partially defined"
+showTotally :: AOutFormat -> Bool -> String
+showTotally AText True  = "totally defined"
+showTotally ANote True  = ""
+showTotally _     False = "partially defined"
 
 ------------------------------------------------------------------------------
 --- Pattern completeness analysis
@@ -70,10 +76,11 @@ patCompAnalysis =
   combinedSimpleFuncAnalysis "PatComplete" siblingCons analysePatComplete
 
 -- Shows the result of the completeness analysis.
-showComplete :: Completeness -> String
-showComplete Complete     = "complete"
-showComplete InComplete   = "incomplete"
-showComplete InCompleteOr = "incomplete in each disjunction"
+showComplete :: AOutFormat -> Completeness -> String
+showComplete AText Complete     = "complete"
+showComplete ANote Complete     = ""
+showComplete _     InComplete   = "incomplete"
+showComplete _     InCompleteOr = "incomplete in each disjunction"
 
 
 analysePatComplete :: ProgInfo [QName] -> FuncDecl -> Completeness

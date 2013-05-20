@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------
 --- This module provides some operations to deal with Curry/FlatCurry files
---- and their dependencies. of analysis files.
+--- and their dependencies.
 ---
 --- @author Michael Hanus
 --- @version March 2013

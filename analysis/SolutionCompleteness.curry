@@ -53,9 +53,9 @@ isFlexExpr (Case ctype e bs) = ctype==Flex &&
 isFlexExpr (Typed e _)       = isFlexExpr e
 
 -- Show solution completeness information as a string.
-showSolComplete :: Bool -> String
-showSolComplete True  = "solution complete"
-showSolComplete False = "maybe suspend"
+showSolComplete :: AOutFormat -> Bool -> String
+showSolComplete _ True  = "solution complete"
+showSolComplete _ False = "maybe suspend"
 
 
 pre n = ("Prelude",n)

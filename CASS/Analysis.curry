@@ -20,7 +20,8 @@ module Analysis(Analysis(..),
                 combinedSimpleFuncAnalysis,combinedSimpleTypeAnalysis,
                 combinedDependencyFuncAnalysis,combinedDependencyTypeAnalysis,
                 isSimpleAnalysis,isCombinedAnalysis,isFunctionAnalysis,
-                analysisName,baseAnalysisName,startValue)
+                analysisName,baseAnalysisName,startValue,
+                AOutFormat(..))
   where
 
 import FlatCurry(ConsDecl,FuncDecl,TypeDecl,QName)
@@ -29,6 +30,10 @@ import GenericProgInfo(ProgInfo,combineProgInfo,lookupProgInfo)
 import LoadAnalysis(loadCompleteAnalysis,getInterfaceInfos)
 import CurryFiles(getImports)
 
+--- Datatype representing a program analysis to be used in the
+--- generic analysis system. The datatype is abstract so that
+--- one has to use one of the constructor operations to create
+--- an analysis.
 data Analysis a = 
    SimpleFuncAnalysis String (FuncDecl -> a)
  | SimpleTypeAnalysis String (TypeDecl -> a)
@@ -213,3 +218,14 @@ startValue (DependencyFuncAnalysis _ startval _) = startval
 startValue (DependencyTypeAnalysis _ startval _) = startval 
 startValue (CombinedDependencyFuncAnalysis _ _ _ startval _) = startval
 startValue (CombinedDependencyTypeAnalysis _ _ _ startval _) = startval
+
+-------------------------------------------------------------------------
+--- The desired kind of output of an analysis result.
+--- `AText` denotes a standard textual representation.
+--- `ANote` denotes a short note that is empty in case of irrelevant
+--- information. For instance, this is used in the CurryBrowser
+--- to get a quick overview of the analysis results of all operations
+--- in a module.
+data AOutFormat = AText | ANote
+
+-------------------------------------------------------------------------

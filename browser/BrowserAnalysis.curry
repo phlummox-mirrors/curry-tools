@@ -8,6 +8,9 @@
 module BrowserAnalysis(moduleAnalyses,allFunctionAnalyses,functionAnalyses) where
 
 import AnalysisTypes
+import Analysis(AOutFormat(..))
+import AnalysisServer(analyzeFunctionForBrowser)
+import AnalysisCollection(functionAnalysisInfos)
 import FlatCurry
 import FlatCurryGoodies
 import FlatCurryShow(showFlatFunc)
@@ -77,8 +80,10 @@ functionAnalyses =
   ("Dependency graph (DOT)", withAction (GlobalAnalysis viewFuncDepGraphs)),
   ("Local dependency graph (DOT)", withAction (GlobalAnalysis viewFuncLocalDepGraphs)),
   ("Called by",         GlobalAnalysis    calledBy `showWithMsg`
-       showDep "Is called by the following functions of the current module:"),
-  ("Overlapping rules",
+       showDep "Is called by the following functions of the current module:")] ++
+ map (\ (aname,atitle) -> (atitle++" (CASS)", withCASS aname))
+     functionAnalysisInfos ++
+ [("Overlapping rules",
    LocalAnalysis     isOverlappingFunction   `showWithMsg` showOverlap),
   ("Right-linear rules",
    LocalAnalysis     hasRightLinearRules     `showWithMsg` showLinear),
@@ -275,20 +280,32 @@ showDGraph (mod,_) isExt fnames =
   extAttrs = [("style","filled"),("color",".7 .3 1.0")]
 
 --------------------------------------------------------------------------------
+-- Auxiliary operation to integrate a CASS analysis for an individual
+-- operation.
+withCASS :: String -> FunctionAnalysis AnalysisResult
+withCASS ananame =
+  LocalAnalysis (\f -> ActionResult (analyzeFunctionWithCASS f))
+ where
+   analyzeFunctionWithCASS (Func f _ _ _ _) =
+     analyzeFunctionForBrowser ananame f AText
+
+--------------------------------------------------------------------------------
 -- This function is useful to integrate an existing program analysis
 -- with result type (IO a) into the browser by providing a transformation
 -- of the analysis results.
 withAction :: FunctionAnalysis (IO _) -> FunctionAnalysis AnalysisResult
 withAction (LocalAnalysis ana) =
-   LocalAnalysis (\f -> ActionResult (ana f >> done))
+   LocalAnalysis (\f -> ActionResult (ana f >> return ""))
 withAction (LocalDataAnalysis ana) =
-   LocalDataAnalysis (\types f -> ActionResult (ana types f >> done))
+   LocalDataAnalysis (\types f -> ActionResult (ana types f >> return ""))
 withAction (GlobalAnalysis ana) =
-   GlobalAnalysis (\funs -> map (\(name,res)->(name,ActionResult (res >> done)))
-                                (ana funs))
+   GlobalAnalysis
+     (\funs -> map (\(name,res) -> (name,ActionResult (res >> return "")))
+                   (ana funs))
 withAction (GlobalDataAnalysis ana) =
-   GlobalDataAnalysis (\types funs -> map (\(name,res)->(name,ActionResult (res>>done)))
-                                          (ana types funs))
+   GlobalDataAnalysis
+     (\types funs -> map (\ (name,res) -> (name,ActionResult (res>>return "")))
+                         (ana types funs))
 
 -- A simple example for a global function analysis of type IO:
 printFuncName :: [FuncDecl] -> [(QName,IO ())]

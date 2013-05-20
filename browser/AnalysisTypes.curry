@@ -1,6 +1,7 @@
----------------------------------------------------------------------------------
--- Definition of the datatypes for the various analyses contained in the browser.
----------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+--- Definition of the datatypes for the various analyses contained
+--- in the browser.
+-------------------------------------------------------------------------------
 
 module AnalysisTypes(FunctionAnalysis(..),AnalysisResult(..),
                      ModuleAnalysis(..),ModuleAnalysisResult(..),
@@ -8,7 +9,7 @@ module AnalysisTypes(FunctionAnalysis(..),AnalysisResult(..),
 
 import FlatCurry
 
------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Types for analyzing functions:
 -- Interface of various kinds of function analyses:
 data FunctionAnalysis a =
@@ -19,11 +20,12 @@ data FunctionAnalysis a =
 
 -- The possible results of a function analysis:
 data AnalysisResult =
-   MsgResult String       -- a message to be shown in the browser
- | ActionResult (IO ())   -- an I/O action to show the result externally
+   MsgResult String          -- a message to be shown in the browser
+ | ActionResult (IO String)  -- an I/O action to compute or visualize
+                             -- the result externally
 
 
------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Types for analyzing complete modules:
 data ModuleAnalysis a =
    InterfaceAnalysis  (Prog -> a)   -- analysis based on the module interface

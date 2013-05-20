@@ -4,7 +4,7 @@
 --- delivers only bottom if some argument is bottom.
 ---
 --- @author Michael Hanus
---- @version April 2013
+--- @version May 2013
 ------------------------------------------------------------------------------
 
 module Demandedness
@@ -13,15 +13,19 @@ module Demandedness
 import Analysis
 import FlatCurry
 import FlatCurryGoodies
-import List((\\))
+import List((\\),intercalate)
 
 ------------------------------------------------------------------------------
 --- Data type to represent determinism information.
 type DemandedArgs = [Int]
 
 -- Show determinism information as a string.
-showDemand :: DemandedArgs -> String
-showDemand = show
+showDemand :: AOutFormat -> DemandedArgs -> String
+showDemand AText []     = "no demanded arguments"
+showDemand ANote []     = ""
+showDemand fmt (x:xs) =
+  (if fmt==AText then "demanded arguments: " else "") ++
+  intercalate "," (map show (x:xs))
 
 -- Abstract demand domain.
 data DemandDomain = Bot | Top

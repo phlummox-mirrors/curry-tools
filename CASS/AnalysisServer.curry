@@ -5,11 +5,12 @@
 --- to use the analysis system in another Curry program.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version April 2013
+--- @version May 2013
 --------------------------------------------------------------------------
 
-module AnalysisServer(main, analyzeModuleForBrowser, analyzeGeneric,
-                      analyzeInterface) where
+module AnalysisServer(main, initializeAnalysisSystem,
+                      analyzeModuleForBrowser, analyzeFunctionForBrowser,
+                      analyzeGeneric, analyzeInterface) where
 
 import ReadNumeric(readNat)
 import Char(isSpace)
@@ -22,8 +23,8 @@ import AnalysisCollection
 import ServerFormats
 import ServerFunctions(WorkerMessage(..))
 import Configuration
-import GenericProgInfo(ProgInfo,publicListFromProgInfo)
-import Analysis(Analysis)
+import GenericProgInfo
+import Analysis(Analysis,AOutFormat(..))
 
 -- Messages to communicate with the analysis server from external programs.
 data AnalysisServerMessage = 
@@ -39,7 +40,7 @@ data AnalysisServerMessage =
 --- Otherwise, it is started in batch mode to analyze a module.
 main = do
   debugMessageLevel 1 systemBanner
-  initializeSystem
+  initializeAnalysisSystem
   args <- getArgs
   if null args then mainServer Nothing else case args of
     ["-p",port] -> maybe showError
@@ -52,14 +53,16 @@ main = do
     ["--help"]  -> showHelp
     [ananame,mname] ->
       if ananame `elem` registeredAnalysisNames
-      then analyzeModuleWithOutputFormat ananame mname "Text" True >>= putStrLn
+      then analyzeModule ananame mname AText >>=
+             putStrLn . formatResult mname "Text" Nothing True
       else showError
     _ -> showError
  where
   showError = error "Illegal arguments (use '--help' for description)"
 
 --- Initializations to be done when the system is started.
-initializeSystem = updateRCFile
+initializeAnalysisSystem :: IO ()
+initializeAnalysisSystem = updateRCFile
 
 showHelp = putStrLn $
   "Usage: cass [-p <port>] :\n" ++
@@ -71,7 +74,7 @@ showHelp = putStrLn $
   "Registered analyses names:\n" ++
   unlines registeredAnalysisNames
 
---- Start server on a socket.
+--- Start the analysis server on a socket.
 mainServer :: Maybe Int -> IO ()
 mainServer mbport = do
   putStrLn "Start Server"
@@ -94,37 +97,53 @@ mainServer mbport = do
     serverLoop socket1 []
 
 
---- Start the analysis system to show the results in the BrowserGUI.
-analyzeModuleForBrowser :: String -> String -> IO [(QName,String)]
-analyzeModuleForBrowser ananame moduleName = do
-  initializeSystem
-  result <- analyzeModuleWithOutputFormat ananame moduleName "CurryTerm" False
-  return (readQTerm result)
+--- Run the analysis system to show the analysis results in the BrowserGUI.
+--- Note that, before its first use, the analysis system must be initialized
+--- by 'initializeAnalysisSystem'.
+analyzeModuleForBrowser :: String -> String -> AOutFormat -> IO [(QName,String)]
+analyzeModuleForBrowser ananame moduleName aoutformat =
+  analyzeModule ananame moduleName aoutformat >>=
+    return . either pinfo2list (const [])
+ where
+   pinfo2list pinfo = let (pubinfo,privinfo) = progInfo2Lists pinfo
+                       in pubinfo++privinfo
 
--- Analyze a complete module where an output format must be specified.
-analyzeModuleWithOutputFormat :: String -> String -> String -> Bool -> IO String
-analyzeModuleWithOutputFormat ananame moduleName outFormat public = do
+--- Run the analysis system to show the analysis result of a single function
+--- in the BrowserGUI.
+--- Note that before its first use, the analysis system must be initialized
+--- by 'initializeAnalysisSystem'.
+analyzeFunctionForBrowser :: String -> QName -> AOutFormat -> IO String
+analyzeFunctionForBrowser ananame qn@(mname,_) aoutformat = do
+  analyzeModule ananame mname aoutformat >>=
+    return . either (maybe "" id . lookupProgInfo qn) (const "")
+
+--- Analyze a complete module for a given analysis result format.
+--- Note that before its first use, the analysis system must be initialized
+--- by 'initializeAnalysisSystem'.
+analyzeModule :: String -> String -> AOutFormat
+              -> IO (Either (ProgInfo String) String)
+analyzeModule ananame moduleName aoutformat = do
   numworkers <- numberOfWorkers
   if numworkers>0
    then do
     serveraddress <- getServerAddress
     (port,socket) <- listenOnFresh
     handles <- startWorkers numworkers socket serveraddress port []
-    result <- runAnalysisWithWorkers ananame handles moduleName
+    result <- runAnalysisWithWorkers ananame aoutformat handles moduleName
     stopWorkers handles
     sClose socket
-    return (formatResult moduleName outFormat Nothing public result)
-   else do
-    result <- runAnalysisWithWorkers ananame [] moduleName
-    return (formatResult moduleName outFormat Nothing public result)
+    return result
+   else runAnalysisWithWorkers ananame aoutformat [] moduleName
    
 --- Start the analysis system with a particular analysis.
 --- The analysis must be a registered one if workers are used.
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
+--- Note that, before its first use, the analysis system must be initialized
+--- by 'initializeAnalysisSystem'.
 analyzeGeneric :: Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzeGeneric analysis moduleName = do
-  initializeSystem
+  initializeAnalysisSystem
   numworkers <- numberOfWorkers
   if numworkers>0
    then do
@@ -143,6 +162,8 @@ analyzeGeneric analysis moduleName = do
 --- The analysis must be a registered one if workers are used.
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
+--- Note that, before its first use, the analysis system must be initialized
+--- by 'initializeAnalysisSystem'.
 analyzeInterface :: Analysis a -> String -> IO (Either [(QName,a)] String)
 analyzeInterface analysis moduleName = do
   analyzeGeneric analysis moduleName
@@ -218,12 +239,12 @@ serverLoopOnHandle socket1 whandles handle = do
          sendServerResult handle showAnalysisNamesAndFormats
          serverLoopOnHandle socket1 whandles handle
        AnalyzeModule ananame outForm modname public ->
-         catch (runAnalysisWithWorkers ananame whandles modname >>=
+         catch (runAnalysisWithWorkers ananame AText whandles modname >>=
                 return . formatResult modname outForm Nothing public >>=
                 sendResult)
                sendAnalysisError
        AnalyzeEntity ananame outForm modname functionName ->
-         catch (runAnalysisWithWorkers ananame whandles modname >>=
+         catch (runAnalysisWithWorkers ananame AText whandles modname >>=
                 return . formatResult modname outForm
                                       (Just functionName) False >>= sendResult)
                sendAnalysisError

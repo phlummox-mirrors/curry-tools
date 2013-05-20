@@ -30,9 +30,10 @@ rlFunc func calledFuncs =
   hasRightLinearRules func && all snd calledFuncs
 
 -- Show right-linearity information as a string.
-showRightLinear :: Bool -> String
-showRightLinear True  = "right-linear"
-showRightLinear False = "" 
+showRightLinear :: AOutFormat -> Bool -> String
+showRightLinear _     True  = "right-linear"
+showRightLinear AText False = "not defined by right-linear rules"
+showRightLinear ANote False = "" 
 
 ------------------------------------------------------------------------------
 -- The right-linearity analysis can also be applied to individual functions.
