@@ -38,6 +38,7 @@ import SolutionCompleteness
 import TotallyDefined
 import Indeterministic
 import Demandedness
+import Groundness
 
 --------------------------------------------------------------------
 --- Each analysis used in our tool must be registered in this list
@@ -52,6 +53,7 @@ registeredAnalysis =
   ,cassAnalysis "Totally defined operations" totalAnalysis   showTotally
   ,cassAnalysis "Indeterministic operations" indetAnalysis   showIndet
   ,cassAnalysis "Demanded arguments"         demandAnalysis  showDemand
+  ,cassAnalysis "Groundness"                 groundAnalysis  showGround
   ,cassAnalysis "Higher-order datatypes"     hiOrdType       showOrder
   ,cassAnalysis "Higher-order constructors"  hiOrdCons       showOrder
   ,cassAnalysis "Higher-order functions"     hiOrdFunc       showOrder
@@ -93,16 +95,23 @@ data RegisteredAnalysis =
                  -> IO (Either (ProgInfo String) String))
          ([String] -> IO ())
 
+regAnaName :: RegisteredAnalysis -> String
 regAnaName (RegAna n _ _ _ _) = n
 
+regAnaServer :: RegisteredAnalysis
+                -> (String -> [Handle] -> Maybe AOutFormat
+                    -> IO (Either (ProgInfo String) String))
 regAnaServer (RegAna _ _ _ a _) = a
 
+regAnaWorker :: RegisteredAnalysis -> ([String] -> IO ())
 regAnaWorker (RegAna _ _ _ _ a) = a
 
 --- Names of all registered analyses.
+registeredAnalysisNames :: [String]
 registeredAnalysisNames = map regAnaName registeredAnalysis
 
 --- Names and titles of all registered function analyses.
+functionAnalysisInfos :: [(String,String)]
 functionAnalysisInfos =
   map (\ (RegAna n _ t _ _) -> (n,t))
       (filter (\ (RegAna _ fa _ _ _) -> fa) registeredAnalysis)
