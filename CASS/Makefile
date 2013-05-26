@@ -45,6 +45,11 @@ cass: $(DEPS)
 	$(REPL) $(REPL_OPTS) :set path $(ANADIR) :l AnalysisServer :save :q
 	mv AnalysisServer $@
 
+# load the analysis server program into the Curry system:
+.PHONY: load
+load: $(DEPS)
+	$(REPL) $(REPL_OPTS) :set path $(ANADIR) :l AnalysisServer
+
 .PHONY: clean
 clean: uninstall
 	$(CLEANCURRY) -r

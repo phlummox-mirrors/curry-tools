@@ -45,19 +45,20 @@ import Groundness
 --- together with an operation to show the analysis result as a string.
 registeredAnalysis :: [RegisteredAnalysis]
 registeredAnalysis =
-  [cassAnalysis "Overlapping rules"          overlapAnalysis showOverlap
-  ,cassAnalysis "Deterministic operations"   nondetAnalysis  showDet
-  ,cassAnalysis "Right-linear operations"    rlinAnalysis    showRightLinear
-  ,cassAnalysis "Solution completeness"      solcompAnalysis showSolComplete
-  ,cassAnalysis "Pattern completeness"       patCompAnalysis showComplete
-  ,cassAnalysis "Totally defined operations" totalAnalysis   showTotally
-  ,cassAnalysis "Indeterministic operations" indetAnalysis   showIndet
-  ,cassAnalysis "Demanded arguments"         demandAnalysis  showDemand
-  ,cassAnalysis "Groundness"                 groundAnalysis  showGround
-  ,cassAnalysis "Higher-order datatypes"     hiOrdType       showOrder
-  ,cassAnalysis "Higher-order constructors"  hiOrdCons       showOrder
-  ,cassAnalysis "Higher-order functions"     hiOrdFunc       showOrder
-  ,cassAnalysis "Sibling constructors"       siblingCons     showSibling
+  [cassAnalysis "Overlapping rules"          overlapAnalysis  showOverlap
+  ,cassAnalysis "Deterministic operations"   nondetAnalysis   showDet
+  ,cassAnalysis "Right-linear operations"    rlinAnalysis     showRightLinear
+  ,cassAnalysis "Solution completeness"      solcompAnalysis  showSolComplete
+  ,cassAnalysis "Pattern completeness"       patCompAnalysis  showComplete
+  ,cassAnalysis "Totally defined operations" totalAnalysis    showTotally
+  ,cassAnalysis "Indeterministic operations" indetAnalysis    showIndet
+  ,cassAnalysis "Demanded arguments"         demandAnalysis   showDemand
+  ,cassAnalysis "Groundness"                 groundAnalysis   showGround
+  ,cassAnalysis "Non-determinism effects"    ndEffectAnalysis showNDEffect
+  ,cassAnalysis "Higher-order datatypes"     hiOrdType        showOrder
+  ,cassAnalysis "Higher-order constructors"  hiOrdCons        showOrder
+  ,cassAnalysis "Higher-order functions"     hiOrdFunc        showOrder
+  ,cassAnalysis "Sibling constructors"       siblingCons      showSibling
   ]
 
 
