@@ -13,7 +13,7 @@ REPL       = $(ROOT)/bin/$(CURRYSYSTEM)
 CLEANCURRY = $(ROOT)/bin/cleancurry
 INSTALLBIN = $(ROOT)/bin/cass
 
-# Source modules of currydoc:
+# Source modules of CASS:
 DEPS = Analysis.curry AnalysisCollection.curry AnalysisDependencies.curry \
        AnalysisServer.curry AnalysisWorker.curry Configuration.curry \
        CurryFiles.curry FlatCurryDependency.curry GenericProgInfo.curry \

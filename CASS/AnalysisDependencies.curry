@@ -93,19 +93,22 @@ getDependencyList :: [String] -> [(String,[String])]
                   -> IO [(String,[String])]
 getDependencyList [] moddeps = return moddeps
 getDependencyList (mname:mods) moddeps =
-  let (newmoddeps,imps,processed) = checkAndReorder mname [] moddeps
-   in if not processed
-      then do --debugMessage 3 ("Getting imports of "++ mname)
-              --debugMessage 3 ("Still to do: "++ show mods)
-              imports <- getImports mname
-              let newimports = filter (`notElem` mods) imports
-              getDependencyList (mods++newimports) ((mname,imports):moddeps)
-      else getDependencyList (mods++imps) newmoddeps
+  maybe (do --debugMessage 3 ("Getting imports of "++ mname)
+            --debugMessage 3 ("Still to do: "++ show mods)
+            imports <- getImports mname
+            getDependencyList (addNewMods mods imports)
+                              ((mname,imports):moddeps))
+        (\ (newmoddeps,imps) ->
+              getDependencyList (addNewMods mods imps) newmoddeps)
+        (lookupAndReorder mname [] moddeps)
 
-checkAndReorder _ _ [] = ([], [], False)
-checkAndReorder key1 list1 ((key2,value):rest)
-  | key1==key2 = ((key2,value):reverse list1++rest, value, True)
-  | otherwise = checkAndReorder key1 ((key2,value):list1) rest
+-- add new modules if they are not already there:
+addNewMods oldmods newmods = oldmods ++ filter (`notElem` oldmods) newmods
+
+lookupAndReorder _ _ [] = Nothing
+lookupAndReorder mname list1 ((amod,amodimports):rest)
+  | mname==amod = Just ((amod,amodimports):reverse list1++rest, amodimports)
+  | otherwise   = lookupAndReorder mname ((amod,amodimports):list1) rest
 
 -- get timestamp of analysis file
 getAnaFileTime :: String -> String -> IO (String,Maybe ClockTime)

@@ -186,6 +186,8 @@ analyzeMain analysis modname handles load = do
     if null modulesToDo
     then return Nothing
     else do
+     debugMessage 1
+       ("Number of modules to be analyzed: " ++ show (length modulesToDo))
      prepareCombinedAnalysis analysis modname (map fst modulesToDo) handles
      numworkers <- numberOfWorkers
      if numworkers>0
