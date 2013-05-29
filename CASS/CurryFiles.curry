@@ -6,12 +6,14 @@
 --- @version March 2013
 -----------------------------------------------------------------------
 
-module CurryFiles(getImports,getSourceFileTime,readNewestFlatCurry) where
+module CurryFiles(getImports,findSourceFileInLoadPath,
+                  getSourceFileTime,readNewestFlatCurry) where
 
 import FlatCurry
 import FlatCurryGoodies(progImports)
 import Directory(doesFileExist,getModificationTime)
-import Distribution(findFileInLoadPath)
+import Distribution(getLoadPathForFile)
+import FileGoodies(getFileInPath,baseName)
 import Time(ClockTime)
 import Configuration(debugMessageLevel)
 
@@ -22,10 +24,15 @@ getImports moduleName = do
   debugMessageLevel 3 ("Reading interface of module "++moduleName)
   readNewestFlatCurryInt moduleName >>= return . progImports
 
+-- Find a source file for a module in the current load path.
+findSourceFileInLoadPath modname = do
+  loadpath <- getLoadPathForFile modname
+  getFileInPath (baseName modname) [".lcurry",".curry"] loadpath
+
 -- Get timestamp of a Curry source file (together with its name)
 getSourceFileTime :: String -> IO (String,ClockTime)
 getSourceFileTime moduleName = do
-  fileName <- findFileInLoadPath (moduleName++".curry")
+  fileName <- findSourceFileInLoadPath moduleName
   time <- getModificationTime fileName
   return (moduleName,time)
 
@@ -33,7 +40,7 @@ getSourceFileTime moduleName = do
 --- exists and is newer than the source file.
 flatCurryFileNewer :: String -> IO (Maybe String)
 flatCurryFileNewer modname = do
-  sourceFileName <- findFileInLoadPath (modname++".curry")
+  sourceFileName <- findSourceFileInLoadPath modname
   stime <- getModificationTime sourceFileName
   let fcyFileName = flatCurryFileName sourceFileName
   fcyExists <- doesFileExist fcyFileName

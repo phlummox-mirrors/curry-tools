@@ -9,7 +9,6 @@
 module LoadAnalysis where
 
 import Directory
-import Distribution(findFileInLoadPath)
 import FileGoodies(separatorChar,splitDirectoryBaseName,stripSuffix)
 import System(system,getArgs,getEnviron)
 import GenericProgInfo
@@ -18,6 +17,7 @@ import IO
 import FiniteMap
 import ReadShowTerm(readQTerm,showQTerm)
 import FlatCurry(QName)
+import CurryFiles(findSourceFileInLoadPath)
 
 debugMessage n message = debugMessageLevel n ("LoadAnalysis: "++message)
 
@@ -27,7 +27,7 @@ debugMessage n message = debugMessageLevel n ("LoadAnalysis: "++message)
 getAnalysisBaseFile :: String -> String -> IO String
 getAnalysisBaseFile moduleName anaName = do
   analysisDirectory <- getAnalysisDirectory
-  fileName <- findFileInLoadPath (moduleName++".curry")
+  fileName <- findSourceFileInLoadPath moduleName
   let (fileDir,_) = splitDirectoryBaseName fileName
   if fileDir == "."
     then do
@@ -76,7 +76,7 @@ getInterfaceInfos anaName (mod:mods) =
 --- and the second component is an analysis value.
 loadDefaultAnalysisValues :: String -> String -> IO [(QName,a)]
 loadDefaultAnalysisValues anaName moduleName = do
-  fileName <- findFileInLoadPath (moduleName++".curry")
+  fileName <- findSourceFileInLoadPath moduleName
   let defaultFileName = stripSuffix fileName ++ ".defaults."++anaName
   fileExists <- doesFileExist defaultFileName
   if fileExists
