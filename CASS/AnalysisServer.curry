@@ -42,35 +42,46 @@ main = do
   debugMessageLevel 1 systemBanner
   initializeAnalysisSystem
   args <- getArgs
-  if null args then mainServer Nothing else case args of
-    ["-p",port] -> maybe showError
-                         (\ (p,r) -> if all isSpace r
-                                     then mainServer (Just p)
-                                     else showError )
-                         (readNat port)
-    ["-h"]      -> showHelp
-    ["-?"]      -> showHelp
-    ["--help"]  -> showHelp
-    [ananame,mname] ->
+  processArgs args
+
+processArgs args = case args of
+  [] -> mainServer Nothing
+  ["-p",port] -> maybe showError
+                       (\ (p,r) -> if all isSpace r
+                                   then mainServer (Just p)
+                                   else showError )
+                       (readNat port)
+  ["-h"]      -> showHelp
+  ["-?"]      -> showHelp
+  ["--help"]  -> showHelp
+  (('-':'D':kvs):rargs) -> let (key,eqvalue) = break (=='=') kvs
+                            in if null eqvalue
+                               then showError
+                               else do updateCurrentProperty key (tail eqvalue)
+                                       processArgs rargs
+  [ananame,mname] ->
       if ananame `elem` registeredAnalysisNames
       then analyzeModule ananame mname AText >>=
              putStrLn . formatResult mname "Text" Nothing True
       else showError
-    _ -> showError
+  _ -> showError
  where
-  showError = error "Illegal arguments (use '--help' for description)"
+  showError =
+    error ("Illegal arguments (use '--help' for description):\n"++unwords args)
 
 --- Initializations to be done when the system is started.
 initializeAnalysisSystem :: IO ()
 initializeAnalysisSystem = updateRCFile
 
 showHelp = putStrLn $
-  "Usage: cass [-p <port>] :\n" ++
+  "Usage: cass <options> [-p <port>] :\n" ++
   "       start analysis system in server mode\n\n"++
   "       <port>: port number for communication\n" ++
   "               (if omitted, a free port number is selected)\n\n"++
-  "Usage: cass <analysis name> <module name> :\n"++
+  "Usage: cass <options> <analysis name> <module name> :\n"++
   "       analyze a module with a given analysis\n\n"++
+  "where <options> can contain:\n"++
+  "-Dname=val : set property (of ~/.curryanalysisrc) 'name' as 'val'\n\n"++
   "Registered analyses names:\n" ++
   unlines registeredAnalysisNames
 

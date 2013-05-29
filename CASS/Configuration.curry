@@ -10,7 +10,8 @@
 --------------------------------------------------------------------------
 
 module Configuration
- (systemBanner,baseDir,getServerAddress,updateRCFile,getFPMethod,getWithPrelude,
+ (systemBanner,baseDir,getServerAddress,updateRCFile,updateCurrentProperty,
+  getFPMethod,getWithPrelude,
   storeServerPortNumber,removeServerPortNumber,getServerPortNumber,
   getDefaultPath,waitTime,numberOfWorkers,debugMessageLevel) where
 
@@ -27,7 +28,7 @@ import Char(isSpace)
 
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System ("++
-                   "version of 24/05/2013 for "++curryCompiler++")"
+                   "version of 29/05/2013 for "++curryCompiler++")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -60,10 +61,10 @@ installPropertyFile = do
 updateRCFile :: IO ()
 updateRCFile = do
   installPropertyFile
-  rcName    <- propertyFileName
-  userprops <- readPropertyFile rcName
+  userprops <- readPropertiesAndStoreLocally
   distprops <- readPropertyFile defaultPropertyFileName
   if (rcKeys userprops == rcKeys distprops) then done else do
+    rcName    <- propertyFileName
     putStrLn $ "Updating \"" ++ rcName ++ "\"..."
     renameFile rcName $ rcName <.> "bak"
     copyFile defaultPropertyFileName rcName
@@ -77,18 +78,33 @@ rcKeys = mergeSort (<=) . map fst
 
 --- Reads the user property file (which must be installed!)
 --- and store the properties in a global variable for next access.
+readPropertiesAndStoreLocally :: IO [(String,String)]
+readPropertiesAndStoreLocally = do
+  pfn <- propertyFileName
+  props <- readPropertyFile pfn
+  writeGlobal currProps (Just props)
+  return props
+
+--- Reads the user property file (which must be installed!)
+--- and store the properties in a global variable for next access.
 getProperties :: IO [(String,String)]
 getProperties =
-  (readGlobal currProps) >>=
-  maybe (do pfn <- propertyFileName
-            props <- readPropertyFile pfn
-            writeGlobal currProps (Just props)
-            return props )
-        return
+  readGlobal currProps >>= maybe readPropertiesAndStoreLocally return
 
 --- Global variable to store the current properties.
 currProps :: Global (Maybe [(String,String)])
 currProps = global Nothing Temporary
+
+-- Updates a current property.
+updateCurrentProperty :: String -> String -> IO ()
+updateCurrentProperty pn pv = do
+  currprops <- getProperties
+  writeGlobal currProps (Just (replaceKeyValue pn pv currprops))
+
+replaceKeyValue k v [] = [(k,v)]
+replaceKeyValue k v ((k1,v1):kvs) =
+  if k==k1 then (k,v):kvs else (k1,v1) : replaceKeyValue k v kvs
+
 
 --------------------------------------------------------------------------
 --- Gets the name of file containing the current server port and pid
