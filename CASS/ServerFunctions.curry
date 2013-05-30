@@ -25,7 +25,7 @@ data WorkerMessage = Task String String | ChangePath String | StopWorker
 debugMessage dl message = debugMessageLevel dl ("ServerFunctions: "++message)
 
 
--- loop for communication with workers
+-- Master loop for communication with workers
 -- Argument 1: handles for workers that are currently free
 -- Argument 2: handles for workers that are currently busy
 -- Argument 3: the analysis name
@@ -34,14 +34,14 @@ debugMessage dl message = debugMessageLevel dl ("ServerFunctions: "++message)
 -- Argument 6: names of modules that are ready be to analyzed (since their
 --             imports are already analyzed)
 -- Result: Nothing (in case of successful work) or (Just <error>)
-workerLoop :: [Handle] -> [Handle] -> String -> String
+masterLoop :: [Handle] -> [Handle] -> String -> String
            -> [(String,[String])] -> [String] -> IO (Maybe String)
-workerLoop _ [] _ _ [] [] = do
-  debugMessage 2 "workerLoop terminated"
+masterLoop _ [] _ _ [] [] = do
+  debugMessage 2 "masterLoop terminated"
   return Nothing
 
-workerLoop _ (b:busyWorker) ananame mainModule [] [] = do
-  debugMessage 2 "workerLoop waiting for worker result"
+masterLoop _ (b:busyWorker) ananame mainModule [] [] = do
+  debugMessage 2 "masterLoop waiting for worker result"
   inputHandle <- hWaitForInputs (b:busyWorker) waitTime 
   if inputHandle/=0
     then return (Just "No input from any worker received")
@@ -54,14 +54,14 @@ workerLoop _ (b:busyWorker) ananame mainModule [] [] = do
         then return Nothing
         else return (Just "Received analysis does not match requested analysis")
 
-workerLoop idleWorker busyWorker ananame mainModule
+masterLoop idleWorker busyWorker ananame mainModule
            modulesToDo@(_:_) [] = do
   debugMessage 3 ("modulesToDo: "++(showQTerm modulesToDo))
   let modulesToDo2 = filter ((not . null) . snd) modulesToDo
       waitList     = map fst (filter (null . snd) modulesToDo)
   if null waitList
     then do
-      debugMessage 2 "WorkerLoop: waiting for workers to finish"
+      debugMessage 2 "MasterLoop: waiting for workers to finish"
       inputHandle <- hWaitForInputs busyWorker waitTime 
       if inputHandle<0
         then return (Just "No input from any worker received")
@@ -74,27 +74,27 @@ workerLoop idleWorker busyWorker ananame mainModule
             then do
               let modulesToDo3 = reduceDependencies modulesToDo2 [moduleName2]
                   busyWorker2= deleteIndex inputHandle busyWorker 
-              workerLoop (handle:idleWorker) busyWorker2 ananame
+              masterLoop (handle:idleWorker) busyWorker2 ananame
                          mainModule modulesToDo3 waitList  
             else
              return
               (Just "Received analysis does not match requested analysis type")
-    else workerLoop idleWorker busyWorker ananame mainModule modulesToDo2
+    else masterLoop idleWorker busyWorker ananame mainModule modulesToDo2
                     waitList
 
-workerLoop (handle:idleWorker) busyWorker ananame mainModule modulesToDo
+masterLoop (handle:idleWorker) busyWorker ananame mainModule modulesToDo
            (modName:waitList) = do
   debugMessage 2 "Worker available, send task to a worker..."
   let newTask = showQTerm (Task ananame modName)
   hPutStrLn handle newTask
   hFlush handle
   debugMessage 2 ("send message: "++newTask)
-  workerLoop idleWorker (handle:busyWorker) ananame mainModule
+  masterLoop idleWorker (handle:busyWorker) ananame mainModule
              modulesToDo waitList
 
-workerLoop [] busyWorker ananame mainModule modulesToDo
+masterLoop [] busyWorker ananame mainModule modulesToDo
            waits@(modName:waitList) = do
-  debugMessage 2 $ "Waiting for analysis results for: "++show waits
+  debugMessage 2 $ "Waiting for worker to analyze modules: "++show waits
   inputHandle <- hWaitForInputs busyWorker waitTime 
   if inputHandle<0
     then return (Just "No input from any worker received")
@@ -108,7 +108,7 @@ workerLoop [] busyWorker ananame mainModule modulesToDo
       hFlush handle
       debugMessage 2 ("send message: "++newTask)
       let modulesToDo2 = reduceDependencies modulesToDo [finishedmodule]
-      workerLoop [] busyWorker ananame mainModule modulesToDo2 waitList
+      masterLoop [] busyWorker ananame mainModule modulesToDo2 waitList
 
 deleteIndex :: Int -> [a] -> [a]
 deleteIndex _ [] = []

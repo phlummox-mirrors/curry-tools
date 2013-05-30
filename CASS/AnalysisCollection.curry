@@ -23,7 +23,7 @@ import Configuration(debugMessageLevel,numberOfWorkers)
 import CurryFiles(getImports)
 import GenericProgInfo
 import AnalysisDependencies(getModulesToAnalyze)
-import ServerFunctions(workerLoop)
+import ServerFunctions(masterLoop)
 import WorkerFunctions(analysisClient)
 import LoadAnalysis(loadCompleteAnalysis)
 
@@ -191,8 +191,8 @@ analyzeMain analysis modname handles load = do
      prepareCombinedAnalysis analysis modname (map fst modulesToDo) handles
      numworkers <- numberOfWorkers
      if numworkers>0
-       then do debugMessage 2 "start WorkerLoop"
-               workerLoop handles [] ananame modname modulesToDo []
+       then do debugMessage 2 "start MasterLoop"
+               masterLoop handles [] ananame modname modulesToDo []
        else analyzeLocally ananame (map fst modulesToDo)
   result <-
     maybe (if load
