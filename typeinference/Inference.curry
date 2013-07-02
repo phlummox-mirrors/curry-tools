@@ -223,7 +223,8 @@ initTIM = (0, emptyFM (<))
 
 --- Retrieve the next fresh type variable.
 nextTVar :: TIM TypeExpr
-nextTVar = gets >+= \ (n,var2tvar) -> puts (n+1, var2tvar) >+ returnES (TVar n)
+nextTVar = gets >+= \ (n, var2tvar) ->
+           puts (n + 1, var2tvar) >+ returnES (TVar n)
 
 --- Intialize the "variable to type variable mapping", i.e., delete all
 --- associations.
@@ -372,10 +373,20 @@ inferFuncs env fs = mapES (inferFunc env) fs
 --- @param f - the function
 --- @return the inferred function or an error
 inferFunc :: TypeEnv -> AFuncDecl TypeExpr -> TIM (AFuncDecl TypeExpr)
-inferFunc env (AFunc f a v _ r@(ARule _ _)) =
-  inferRule env r >+= \r' -> gets >+= \ (n,_) ->
-  returnES (normFunc $ (AFunc f a v (extractFuncType n r') r'))
+inferFunc env (AFunc f a v ty r@(ARule vs e)) =
+  inferRule env r >+= \r' ->
+  extractFuncType vs e >+= \ty2 ->
+  renameTVars ty >+= \ty' ->
+  checkInstance ty' ty2 >+
+  returnES (normFunc $ AFunc f a v ty r')
 inferFunc _ a@(AFunc _ _ _ _ (AExternal _)) = returnES a
+
+--- Check whether the first type is an instance of the second type.
+--- @param ty1 - Specific type
+--- @param ty2 - General type
+checkInstance :: TypeExpr -> TypeExpr -> TIM ()
+checkInstance ty1 ty2 = checkFailure (unify (fromTypeEqs [ty1 =.= ty2]))
+                        >+ returnES ()
 
 --- Infer the type for a rule.
 inferRule :: TypeEnv -> ARule TypeExpr -> TIM (ARule TypeExpr)
@@ -410,11 +421,11 @@ checkFailure (Right sub) = returnES sub
 ---            plus one
 --- @param rule - the rule to generate a function type for
 --- @return the function type
-extractFuncType :: Int -> ARule TypeExpr -> TypeExpr
-extractFuncType _ (ARule []     e) = exprType e
-extractFuncType n (ARule (i:is) e) = case extractVarType i e of
-  Nothing -> FuncType (TVar n) (extractFuncType (n + 1) (ARule is e))
-  Just t  -> FuncType t (extractFuncType n (ARule is e))
+extractFuncType :: [VarIndex] -> AExpr TypeExpr -> TIM TypeExpr
+extractFuncType []     e = returnES $ exprType e
+extractFuncType (v:vs) e = case extractVarType v e of
+  Nothing -> nextTVar >+= \tv -> FuncType tv `liftES` extractFuncType vs e
+  Just t  -> FuncType t `liftES` extractFuncType vs e
 
 --- Searches the expression for the type of the variable with the given
 --- index.
@@ -721,7 +732,7 @@ lookupTypeRename env f = case lookupType env f of
 
 --- Renames all TVars inside the given type expression.
 ---
---- @param t< - the type expression
+--- @param ty - the type expression
 --- @return The renamed type expression
 renameTVars :: TypeExpr -> TIM TypeExpr
 renameTVars ty = snd `liftES` rename [] ty
@@ -797,7 +808,7 @@ subst sub (FuncType a b) = FuncType (subst sub a) (subst sub b)
 
 --- Converts a list of type expression equations into term equations.
 fromTypeEqs :: TypeEqs -> TermEqs
-fromTypeEqs = map (\(a,b) -> (fromTypeExpr a, fromTypeExpr b) )
+fromTypeEqs = map (\(a,b) -> (fromTypeExpr a, fromTypeExpr b))
 
 --- Converts a list of term equations into type expression equations.
 toTypeEqs :: TermEqs -> TypeEqs
