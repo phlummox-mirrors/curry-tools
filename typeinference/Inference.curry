@@ -3,11 +3,12 @@
 --- with type information.
 ---
 --- @author  Jonas Oberschweiber, Björn Peemöller, Michael Hanus
---- @version April 2013
+--- @version July 2013
 ------------------------------------------------------------------------------
 module Inference
-  ( TypeEnv, getTypeEnv
-  , inferProg, inferProgEnv, inferFunction, inferFunctionEnv
+  ( TypeEnv, getTypeEnv, getTypeEnvFromProgEnv
+  , inferProg, inferProgFromProgEnv
+  , inferProgEnv, inferFunction, inferFunctionEnv
   ) where
 
 import FiniteMap
@@ -36,6 +37,34 @@ getTypeEnv p = do
 --- @return the inferred program or an error
 inferProg :: Prog -> IO (Either String (AProg TypeExpr))
 inferProg p = getTypeEnv p >>= \te -> return (inferProgEnv te p)
+
+--- Extract the type environment from the given Prog by lookup in a
+--- module name -> Prog environment.
+---
+--- @param env - An environment mapping module names to Progs
+--- @param p - the Prog
+--- @return a type environment
+getTypeEnvFromProgEnv :: [(String, Prog)] -> Prog -> Either String TypeEnv
+getTypeEnvFromProgEnv env prog@(Prog _ imps _ _ _) = case extract imps of
+  Left err   -> Left err
+  Right mods -> Right (extractKnownTypes (prog : mods))
+ where
+  extract []     = Right []
+  extract (i:is) = case lookup i env of
+    Nothing -> Left ("getTypeEnvFrom: Could not find module " ++ i)
+    Just p  -> case extract is of
+      Left err -> Left err
+      Right ps -> Right (p : ps)
+
+--- Infers the type of a whole program.
+---
+--- @param p - the Prog to infer
+--- @return the inferred program or an error
+inferProgFromProgEnv :: [(String, Prog)] -> Prog
+                     -> Either String (AProg TypeExpr)
+inferProgFromProgEnv env p = case getTypeEnvFromProgEnv env p of
+  Left err    -> Left err
+  Right tyEnv -> inferProgEnv tyEnv p
 
 --- Infers the type of a whole program.
 --- Uses the given type environment instead of generating a new one.
@@ -237,7 +266,7 @@ annFunc (Func qn a v t r) = AFunc qn a v t `liftES` annRule r
 annRule :: Rule -> TIM (ARule TypeExpr)
 annRule (Rule  vs e) =
   ARule vs `liftES` (initVar2TVar >+ mapES initVarType vs >+ annExpr e)
- where initVarType v = nextTVar >+= \ty -> insertVar2TVar v ty 
+ where initVarType v = nextTVar >+= \ty -> insertVar2TVar v ty
 annRule (External e) = returnES (AExternal e)
 
 --- Converts the Expr to an AExpr, inserting TVars into all
