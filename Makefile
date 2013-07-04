@@ -17,8 +17,12 @@ all:
 	@cd importcalls    && $(MAKE)
 	@cd typeinference  && $(MAKE)
 
+.PHONY: typeinference
+typeinference:
+	cd typeinference && $(MAKE)
+
 .PHONY: clean
-clean: 
+clean:
 	cd addtypes       && $(MAKE) clean
 	cd analysis       && $(ROOT)/bin/cleancurry
 	cd browser        && $(MAKE) clean
