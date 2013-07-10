@@ -274,9 +274,12 @@ annExpr (Comb t q es) = liftES3 (\ty -> AComb ty t) nextTVar
 annExpr (Case t e bs) = liftES3 (\ty -> ACase ty t) nextTVar
                                 (annExpr e) (mapES annBranch bs)
 annExpr (Or      a b) = liftES3 AOr  nextTVar (annExpr a) (annExpr b)
-annExpr (Let    ds e) = liftES3 ALet nextTVar (mapES annBinding ds) (annExpr e)
-  where annBinding (v, ve) = checkShadowing v >+ insertFreshVar v >+
-                             annExpr ve >+= \ve' -> returnES (v, ve')
+annExpr (Let    ds e) = liftES3 ALet nextTVar (annBindings ds) (annExpr e)
+ where annBindings bs = let (vs, es) = unzip bs in
+                        mapES checkVar vs >+= \vs' ->
+                        mapES annExpr  es >+= \es' ->
+                        returnES (zip vs' es')
+       checkVar v     = checkShadowing v >+ insertFreshVar v >+ returnES v
 annExpr (Free   vs e) = liftES3 AFree nextTVar (mapES annFree vs) (annExpr e)
   where annFree v     = checkShadowing v >+ annVar v
 annExpr (Typed  e ty) = liftES3 ATyped nextTVar (annExpr e) (freshVariant ty)
