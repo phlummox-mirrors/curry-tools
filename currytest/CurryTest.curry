@@ -8,7 +8,7 @@
 -- positive if some error occurred.
 --
 -- @author Michael Hanus
--- @version October 2012
+-- @version July 2013
 ---------------------------------------------------------------------
 
 import Socket
@@ -34,11 +34,16 @@ main = do
    "-w":modnames -> startGUI modnames
    "-window":modnames -> startGUI modnames
    ["-f",portnums] -> forwardMessages (readNat portnums)
-   a:as -> do rcs <- mapIO (testModule putStrFlush 0) (map stripSuffix (a:as))
-              let ecode = foldr (+) 0 rcs
-              if ecode==0 then done
-               else putStrLn "FAILURE IN SOME TEST OCCURRED!!!"
-              exitWith ecode
+   _:_ -> do let testmods = map stripSuffix args
+             rcs <- mapIO (testModule putStrFlush 0) testmods
+             if all (==0) rcs
+              then exitWith 0
+              else do
+                putStrLn "FAILURE IN SOME TEST OCCURRED!!!"
+                putStrLn $ "FAILED TEST MODULES:" ++
+                    concatMap (\ (rc,tmod) -> if rc==0 then "" else ' ':tmod)
+                              (zip rcs testmods)
+                exitWith 1
    _ -> do putStrLn $ "ERROR: Illegal arguments for currytest: " ++
                       concat (intersperse " " args) ++ "\n" ++
                       "Usage: currytest [--window|-w] <module_names>"
