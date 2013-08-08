@@ -17,6 +17,10 @@ all:
 	@cd importcalls    && $(MAKE)
 	@cd typeinference  && $(MAKE)
 
+.PHONY: currydoc
+currydoc:
+	cd currydoc && $(MAKE)
+
 .PHONY: typeinference
 typeinference:
 	cd typeinference && $(MAKE)
