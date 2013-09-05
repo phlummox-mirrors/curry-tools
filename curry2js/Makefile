@@ -4,15 +4,14 @@
 # - installed Curry System (PAKCS or KiCS2) specified by variable CURRYSYSTEM
 # - root location of the Curry System specified by variable ROOT
 
-LIB=$(ROOT)/lib
-META=$(LIB)/meta
+TOOL = Curry2JS
 
-# generate executable for the Curry2JavaScript translator:
-Curry2JS: Curry2JS.curry $(LIB)/JavaScript.curry \
-	        $(META)/CompactFlatCurry.curry $(META)/FlatCurry.curry
-	$(ROOT)/bin/$(CURRYSYSTEM) $(REPL_OPTS) :l Curry2JS :save :q
+# generate executable for the Curry2JavaScript translator
+$(TOOL):  Curry2JS.curry $(LIBDIR)/JavaScript.curry \
+	        $(METADIR)/CompactFlatCurry.curry $(METADIR)/FlatCurry.curry
+	$(REPL) $(REPL_OPTS) :load Curry2JS :save :quit
 
-clean: 
-	$(ROOT)/bin/cleancurry
-	rm -f Curry2JS
+clean:
+	$(CLEANCURRY)
+	rm -f $(TOOL)
 

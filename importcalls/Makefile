@@ -1,18 +1,13 @@
 # Makefile for generating ImportCalls tool
 
-# Required:
-# - installed Curry System (PAKCS or KiCS2) specified by variable CURRYSYSTEM
-# - root location of the Curry System specified by variable ROOT
-
-LIB=$(ROOT)/lib
-META=$(LIB)/meta
+TOOL = ImportCalls
 
 # generate executable for import calls tools:
-ImportCalls: ImportCalls.curry $(META)/FlatCurry.curry \
-	     $(LIB)/System.curry $(LIB)/List.curry
-	$(ROOT)/bin/$(CURRYSYSTEM) $(REPL_OPTS) :l ImportCalls :save :q
+$(TOOL): ImportCalls.curry $(METADIR)/FlatCurry.curry \
+	     $(LIBDIR)/System.curry $(LIBDIR)/List.curry
+	$(REPL) $(REPL_OPTS) :load ImportCalls :save :quit
 
 .PHONY: clean
-clean: 
-	$(ROOT)/bin/cleancurry
-	rm -f ImportCalls
+clean:
+	$(CLEANCURRY)
+	rm -f $(TOOL)

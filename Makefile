@@ -4,6 +4,12 @@
 # - installed Curry System (PAKCS or KiCS2) specified by variable CURRYSYSTEM
 # - root location of the Curry System specified by variable ROOT
 
+export BINDIR     = $(ROOT)/bin
+export LIBDIR     = $(ROOT)/lib
+export METADIR    = $(LIBDIR)/meta
+export REPL       = $(BINDIR)/$(CURRYSYSTEM)
+export CLEANCURRY = $(BINDIR)/cleancurry
+
 .PHONY: all
 all:
 	@cd addtypes       && $(MAKE)
@@ -28,7 +34,7 @@ typeinference:
 .PHONY: clean
 clean:
 	cd addtypes       && $(MAKE) clean
-	cd analysis       && $(ROOT)/bin/cleancurry
+	cd analysis       && $(CLEANCURRY)
 	cd browser        && $(MAKE) clean
 	cd CASS           && $(MAKE) clean
 	cd currydoc       && $(MAKE) clean

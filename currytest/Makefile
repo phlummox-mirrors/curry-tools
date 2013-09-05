@@ -1,22 +1,15 @@
-# Makefile for generating ImportCalls tool
+# Makefile for generating currytest tool
 
-# Required:
-# - installed Curry System (PAKCS or KiCS2) specified by variable CURRYSYSTEM
-# - root location of the Curry System specified by variable ROOT
+TOOL = $(BINDIR)/currytest
 
-LIB=$(ROOT)/lib
-META=$(LIB)/meta
-
-# generate executable for CurryTest tool:
-CurryTest: CurryTest.curry $(META)/FlatCurry.curry \
-	         $(LIB)/System.curry $(LIB)/Assertion.curry \
-	         $(LIB)/Directory.curry $(LIB)/Distribution.curry \
-	         $(LIB)/GUI.curry
-	$(ROOT)/bin/$(CURRYSYSTEM) $(REPL_OPTS) :l CurryTest :save :q
-	(cd $(ROOT)/bin ; rm -f currytest ; \
-	                  ln -s ../currytools/currytest/CurryTest currytest)
+$(TOOL):  CurryTest.curry           $(METADIR)/FlatCurry.curry   \
+	  $(LIBDIR)/System.curry    $(LIBDIR)/Assertion.curry    \
+	  $(LIBDIR)/Directory.curry $(LIBDIR)/Distribution.curry \
+	  $(LIBDIR)/GUI.curry
+	$(REPL) $(REPL_OPTS) :load CurryTest :save :quit
+	mv CurryTest $@
 
 .PHONY: clean
-clean: 
-	$(ROOT)/bin/cleancurry
-	rm -f CurryTest $(ROOT)/bin/currytest
+clean:
+	$(CLEANCURRY)
+	rm -f CurryTest $(TOOL)

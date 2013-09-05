@@ -5,17 +5,12 @@
 # - root location of the Curry System specified by variable ROOT
 
 # directories
-LIBDIR     = $(ROOT)/lib
-METADIR    = $(LIBDIR)/meta
 CASS       = ../CASS
 ANADIR     = ../analysis
+# binary
+TOOL       = $(BINDIR)/currydoc
 
-# binaries
-REPL       = $(ROOT)/bin/$(CURRYSYSTEM)
-CLEANCURRY = $(ROOT)/bin/cleancurry
-INSTALLBIN = $(ROOT)/bin/currydoc
-
-# Source modules of currydoc:
+# Source modules of currydoc
 DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
        CurryDocTeX.curry CurryDocParams.curry CurryDocConfig.curry \
        BootstrapStyle.curry \
@@ -29,20 +24,12 @@ DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
        $(ANADIR)/Deterministic.curry $(ANADIR)/TotallyDefined.curry \
        $(ANADIR)/Indeterministic.curry $(ANADIR)/SolutionCompleteness.curry
 
-.PHONY: install
-install: CurryDoc
-	$(MAKE) uninstall
-	ln -s $(CURDIR)/$< $(INSTALLBIN)
-
-.PHONY: uninstall
-uninstall:
-	rm -f $(INSTALLBIN)
-
-# generate executable for currydoc program:
-CurryDoc: $(DEPS)
-	$(REPL) $(REPL_OPTS) :set path $(CASS):$(ANADIR) :load $@ :save :quit
+# generate executable for currydoc program
+$(TOOL): $(DEPS)
+	$(REPL) $(REPL_OPTS) :set path $(CASS):$(ANADIR) :load CurryDoc :save :quit
+	mv CurryDoc $@
 
 .PHONY: clean
-clean: uninstall
+clean:
 	$(CLEANCURRY)
-	rm -f CurryDoc
+	rm -f CurryDoc $(TOOL)
