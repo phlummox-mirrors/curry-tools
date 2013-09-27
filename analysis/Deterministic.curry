@@ -5,7 +5,7 @@
 --- different computation paths.
 ---
 --- @author Michael Hanus
---- @version May 2013
+--- @version September 2013
 ------------------------------------------------------------------------------
 
 module Deterministic(overlapAnalysis,showOverlap,showDet,
@@ -78,9 +78,9 @@ isNondetDefined (Func f _ _ _ rule) =
   f `notElem` (map pre ["failed","$!!","$##","normalForm","groundNormalForm"])
   -- these operations are internally defined in PAKCS with extra variables
   && isNondetRule rule
-
-isNondetRule (Rule _ e) = orInExpr e || extraVarInExpr e
-isNondetRule (External _) = False
+ where
+  isNondetRule (Rule _ e) = orInExpr e || extraVarInExpr e
+  isNondetRule (External _) = f==("Prelude","?")
 
 
 -- check an expression for occurrences of extra variables:
