@@ -134,6 +134,7 @@ analyzeFunctionForBrowser ananame qn@(mname,_) aoutformat = do
 analyzeModule :: String -> String -> AOutFormat
               -> IO (Either (ProgInfo String) String)
 analyzeModule ananame moduleName aoutformat = do
+  getDefaultPath >>= setEnviron "CURRYPATH" 
   numworkers <- numberOfWorkers
   if numworkers>0
    then do
@@ -155,6 +156,7 @@ analyzeModule ananame moduleName aoutformat = do
 analyzeGeneric :: Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzeGeneric analysis moduleName = do
   initializeAnalysisSystem
+  getDefaultPath >>= setEnviron "CURRYPATH" 
   numworkers <- numberOfWorkers
   if numworkers>0
    then do

@@ -180,7 +180,7 @@ waitTime = -1
 -- configuration file).
 defaultWorkers=0
 
---- Gets the default load path from the property file (added add the end
+--- Gets the default load path from the property file (added at the end
 --- of CURRYPATH).
 getDefaultPath = do
   currypath <- getEnviron "CURRYPATH"
