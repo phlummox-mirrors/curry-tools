@@ -19,8 +19,10 @@ all:
 	@cd curry2js       && $(MAKE)
 	@cd createmakefile && $(MAKE)
 	@cd currytest      && $(MAKE)
+	@cd erd2curry      && $(MAKE)
 	@cd genint         && $(MAKE)
 	@cd importcalls    && $(MAKE)
+	@cd spicey         && $(MAKE)
 	@cd typeinference  && $(MAKE)
 
 .PHONY: currydoc
@@ -41,6 +43,8 @@ clean:
 	cd curry2js       && $(MAKE) clean
 	cd createmakefile && $(MAKE) clean
 	cd currytest      && $(MAKE) clean
+	cd erd2curry      && $(MAKE) clean
 	cd genint         && $(MAKE) clean
 	cd importcalls    && $(MAKE) clean
+	cd spicey         && $(MAKE) clean
 	cd typeinference  && $(MAKE) clean
