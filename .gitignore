@@ -13,5 +13,7 @@ curry2js/Curry2JS
 currydoc/CurryDoc
 currytest/CurryTest
 createmakefile/CreateMakefile
+erd2curry/erd2curry
 genint/GenInt
 importcalls/ImportCalls
+spicey/spiceup
