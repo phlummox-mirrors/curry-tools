@@ -16,12 +16,15 @@ import ERD2Graph
 import System(exitWith)
 import Distribution(curryCompiler)
 
-banner = "ERD->Curry Compiler (Version of 10/11/13)\n"
+systemBanner =
+  let bannerText = "ERD->Curry Compiler (Version of 05/12/13)"
+      bannerLine = take (length bannerText) (repeat '-')
+   in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
 --- Main function for saved state. The argument is the directory containing
 --- these sources.
 main erd2currydir = do
-  putStrLn banner
+  putStrLn systemBanner
   args <- getArgs
   callStart erd2currydir (parseArgs ("",False,SQLite ".",False) args)
 

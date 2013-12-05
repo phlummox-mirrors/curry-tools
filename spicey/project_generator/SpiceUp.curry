@@ -6,8 +6,10 @@ import System(system, getArgs, exitWith)
 import SpiceyScaffolding
 import Distribution
 
-banner = line ++ "Spicey Web Framework (Version of 10/11/13)\n" ++ line
- where line = take 70 (repeat '-') ++ "\n"
+systemBanner =
+  let bannerText = "Spicey Web Framework (Version of 05/12/13)"
+      bannerLine = take (length bannerText) (repeat '-')
+   in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
 data FileMode = Exec | NoExec
 
@@ -142,7 +144,7 @@ createStructure target_path generator_path term_path db_path
 --- The main operation to start the scaffolding.
 --- The argument is the directory containing the project generator.
 main generatordir = do
-  putStrLn banner
+  putStrLn systemBanner
   curdir <- getCurrentDirectory
   args <- getArgs
   case args of

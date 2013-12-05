@@ -96,9 +96,9 @@ createModelsForTerm _ term_path path db_path = do
   let orgerdfile   = erdName erd ++ "_ERD.term"
       transerdfile = erdName erd ++ "_ERDT.term"
       curryfile    = erdName erd ++ ".curry"
-  system $ "mv " ++ transerdfile ++ " " ++ path ++ "/" ++ transerdfile
-  system $ "mv " ++ curryfile ++ " " ++ path ++ "/" ++ curryfile
-  system $ "cp " ++ term_path ++ " " ++ path ++ "/" ++ orgerdfile
+  system $ unwords ["mv",transerdfile,curryfile,"ERDGeneric.curry",
+                         "KeyDatabase.curry",path]
+  system $ unwords ["cp",term_path,path ++ "/" ++ orgerdfile]
   done
 
 createRoutesForTerm :: String -> String -> String -> String -> IO ()

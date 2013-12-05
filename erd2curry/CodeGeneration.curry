@@ -1321,17 +1321,17 @@ tests (str,enName) entities rels tt =
              [CSymbol (s, lowerFirst eName ++"Entry")]
 
     relToMinTestA :: QName -> Relationship -> CExpr
-    relToMinTestA (s,eName) (Relationship _ [REnd e1 _ _, REnd e2 _ c2]) =
+    relToMinTestA (s,eName) (Relationship rn [REnd e1 _ _, REnd e2 _ c2]) =
       relToMinTest (s,eName)
                    (cardMinimum c2)
-                   (combineIds [e1,e2,"Key"])         
-                   e2      
+                   (combineIds [e1,if null rn then e2 else rn,"Key"])
+                   e2
     relToMinTestB :: QName -> Relationship -> CExpr
-    relToMinTestB (s,eName) (Relationship _ [REnd e1 _ c1, REnd e2 _ _]) =
+    relToMinTestB (s,eName) (Relationship rn [REnd e1 _ c1, REnd e2 _ _]) =
       relToMinTest (s,eName)
                    (cardMinimum c1)
-                   (combineIds [e2,e1,"Key"])         
-                   e1  
+                   (combineIds [e2,if null rn then e1 else rn,"Key"])
+                   e1
     relToMinTest :: QName -> Int -> String -> String -> CExpr
     relToMinTest (s,eName) m attrName eN =
       let en = lowerFirst eN in
