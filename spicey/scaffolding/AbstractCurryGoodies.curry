@@ -127,6 +127,15 @@ tuplePattern ps
   | otherwise = CPComb (pre ('(' : take (l-1) (repeat ',') ++ ")")) ps
  where l = length ps
 
+--- Constructs a list pattern from list of component patterns.
+listPattern :: [CPattern] -> CPattern
+listPattern []     = CPComb (pre "[]") []
+listPattern (p:ps) = CPComb (pre ":") [p, listPattern ps]
+
+--- Constructs a string into a pattern representing this string.
+stringPattern :: String -> CPattern
+stringPattern = listPattern . map (CPLit . CCharc)
+
 --- Converts a list of AbstractCurry expressions into an
 --- AbstractCurry representation of this list.
 list2ac :: [CExpr] -> CExpr

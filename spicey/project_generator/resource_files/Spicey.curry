@@ -7,8 +7,9 @@ module Spicey (
   module System, 
   module HTML, 
   module ReadNumeric, 
-  Controller,
+  Controller, applyControllerOn,
   nextController, nextControllerForData, confirmNextController,
+  confirmController,
   getControllerURL,getControllerParams, showControllerURL,
   getForm, wDateType, wBoolean, wUncheckMaybe,
   displayError, cancelOperation,
@@ -17,6 +18,7 @@ module Spicey (
   stringToHtml, maybeStringToHtml,
   intToHtml,maybeIntToHtml, floatToHtml, maybeFloatToHtml,
   boolToHtml, maybeBoolToHtml, calendarTimeToHtml, maybeCalendarTimeToHtml,
+  spHref,
   spButton, spPrimButton, spSmallButton, spTable,
   setPageMessage, getPageMessage,
   saveLastUrl, getLastUrl, getLastUrls
@@ -51,6 +53,13 @@ type ViewBlock = [HtmlExp]
 --- Spicey.getControllerParams inside the controller.
 type Controller = IO ViewBlock
 
+--- Reads an entity for a given key and applies a controller to it.
+applyControllerOn :: Maybe enkey -> (enkey -> Transaction en)
+                  -> (en -> Controller) -> Controller
+applyControllerOn Nothing _ _ = displayError "Illegal URL"
+applyControllerOn (Just userkey) getuser usercontroller =
+  runJustT (getuser userkey) >>= usercontroller
+
 nextController :: Controller -> _ -> IO HtmlForm
 nextController controller _ = do
   view <- controller
@@ -69,6 +78,14 @@ confirmNextController question controller _ = do
   getForm [question,
            spButton "Yes" (nextController (controller True)),
            spButton "No"  (nextController (controller False))]
+
+--- Call the next controller after a user confirmation.
+--- The Boolean user answer is passed as an argument to the controller.
+confirmController :: HtmlExp -> (Bool -> Controller) -> Controller
+confirmController question controller = do
+  return [question,
+          par [spButton "Yes" (nextController (controller True)),
+               spButton "No"  (nextController (controller False))]]
 
 --- If we are in a process, execute the next process depending on
 --- the provided information passed in the second argument,
@@ -291,6 +308,11 @@ maybeCalendarTimeToHtml ct =
 
 --------------------------------------------------------------------------
 -- Auxiliary HTML items:
+
+--- Hypertext reference in Spicey (rendered as a block button):
+spHref :: String -> [HtmlExp] -> HtmlExp
+spHref ref hexps =
+  href ref hexps `addClass` "btn btn-small"
 
 --- Input button in Spicey (rendered as a default button):
 spButton :: String -> HtmlHandler -> HtmlExp

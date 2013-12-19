@@ -19,20 +19,32 @@ generateControllersForEntity erdname allEntities
                              (Entity ename attrlist) relationships =
  CurryProg
   (controllerModuleName ename)
+  -- imports:
   ["Spicey", "KeyDatabase", "HTML", "Time", erdname, viewModuleName ename,
-   "Maybe", authModName, enauthModName, "UserProcesses"] -- imports
+   "Maybe", authModName, enauthModName, "UserProcesses",
+   erdname++"EntitiesToHtml"]
   [] -- typedecls
   -- functions
   (
     [
-      newController erdname (Entity ename attrlist) relationships allEntities, -- controllers for providing a page to enter new entity data
-      createController erdname (Entity ename attrlist) relationships allEntities, -- controllers for saving data in new entity
-      editController erdname (Entity ename attrlist) relationships allEntities, -- controllers to show an existing record in a form to edit
-      updateController erdname (Entity ename attrlist) relationships allEntities, -- controllers to update a record with the given data
-      deleteController erdname (Entity ename attrlist) relationships allEntities,
-      listController erdname (Entity ename attrlist) relationships allEntities,
-      -- controllers to show entites:
-      showController erdname (Entity ename attrlist) relationships allEntities
+     -- controller for dispatching to various controllers:
+     mainController erdname (Entity ename attrlist) relationships allEntities,
+     -- controller for providing a page to enter new entity data:
+     newController erdname (Entity ename attrlist) relationships allEntities,
+     -- controller for saving data in new entity:
+     createController erdname (Entity ename attrlist) relationships allEntities,
+     -- controller to show an existing record in a form to edit
+     editController erdname (Entity ename attrlist) relationships allEntities,
+     -- controller to update a record with the given data
+     updateController erdname (Entity ename attrlist) relationships allEntities,
+     -- controllers to delete an entity with the given data
+     confirmDeleteController erdname (Entity ename attrlist)
+                             relationships allEntities,
+     deleteController erdname (Entity ename attrlist) relationships allEntities,
+     -- contgroller to list of all entities:
+     listController erdname (Entity ename attrlist) relationships allEntities,
+     -- controller to show entites:
+     showController erdname (Entity ename attrlist) relationships allEntities
    ] ++ 
     (manyToManyAddOrRemove erdname (Entity ename attrlist) (manyToMany allEntities (Entity ename attrlist)) allEntities) ++
     --(getAll erdname (Entity ename attrlist) (manyToOne (Entity ename attrlist) relationships) allEntities) ++
@@ -47,6 +59,54 @@ generateControllersForEntity erdname allEntities
 -- entity: the entity to generate a controller for
 type ControllerGenerator = String -> Entity -> [Relationship] -> [Entity] -> CFuncDecl
 
+-- Generates the main controller that dispatches to the various
+-- subcontrollers according to the URL parameters.
+mainController :: ControllerGenerator
+mainController erdname (Entity entityName _) _ _ =
+  controllerFunction 
+  ("Choose the controller for a "++entityName++
+   " entity according to the URL parameter.")
+  entityName "main" 0
+    controllerType -- function type
+    [ -- rules
+    CRule
+      [] -- no arguments
+      [noGuard (
+        CDoExpr
+         [CSPat (CPVar (1,"args"))
+                (constF ("Spicey","getControllerParams")),
+          CSExpr
+           (CCase (CVar (1,"args"))
+            ([CBranch (listPattern [])
+                      (constF (controllerFunctionName entityName "list")),
+              CBranch (listPattern [stringPattern "list"])
+                      (constF (controllerFunctionName entityName "list")),
+              CBranch (listPattern [stringPattern "new"])
+                      (constF (controllerFunctionName entityName "new")),
+              CBranch (listPattern [stringPattern "show", CPVar (2,"s")])
+                (applyF ("Spicey","applyControllerOn")
+                  [applyF (erdname,"read"++entityName++"Key") [CVar (2,"s")],
+                   constF (erdname,"get"++entityName),
+                   constF (controllerFunctionName entityName "show")]),
+              CBranch (listPattern [stringPattern "edit", CPVar (2,"s")])
+                (applyF ("Spicey","applyControllerOn")
+                  [applyF (erdname,"read"++entityName++"Key") [CVar (2,"s")],
+                   constF (erdname,"get"++entityName),
+                   constF (controllerFunctionName entityName "edit")]),
+              CBranch (listPattern [stringPattern "delete", CPVar (2,"s")])
+                (applyF ("Spicey","applyControllerOn")
+                  [applyF (erdname,"read"++entityName++"Key") [CVar (2,"s")],
+                   constF (erdname,"get"++entityName),
+                   constF (controllerFunctionName entityName "confirmDelete")]),
+              CBranch (CPVar (3,"_"))
+                 (applyF ("Spicey", "displayError")
+                         [string2ac "Illegal URL"])])
+          )
+         ]
+      )]
+      [] -- where clauses
+    ]
+
 -- generates a controller to show a form to create a new entity
 -- the input is then passed to the create controller
 -- only has to call the blank entry form and pass the create controller
@@ -59,7 +119,7 @@ newController erdname (Entity entityName attrList) relationships allEntities =
   in
     controllerFunction 
     ("Shows a form to create a new "++entityName++" entity.")
-    entityName "new" 2
+    entityName "new" 0
       controllerType -- function type
       [ -- rules
       CRule
@@ -262,8 +322,8 @@ editController erdname (Entity entityName attrList) relationships allEntities =
 updateController :: ControllerGenerator
 updateController erdname (Entity entityName attrList) _ allEntities =
  let manyToManyEntities = manyToMany allEntities (Entity entityName attrList)
---    manyToOneEntities = manyToOne (Entity entityName attrList) relationships
---    noPKeys = (filter notPKey attrList)
+     -- manyToOneEntities = manyToOne (Entity entityName attrList) relationships
+     -- noPKeys = (filter notPKey attrList)
   in
     controllerFunction
     ("Persists modifications of a given "++entityName++" entity to the\n"++
@@ -328,6 +388,40 @@ updateController erdname (Entity entityName attrList) _ allEntities =
         [] -- where clauses
       ]
 
+--- Generates controller to confirm and delete an entity.
+confirmDeleteController :: ControllerGenerator
+confirmDeleteController erdname (Entity entityName _) _ _ =
+  controllerFunction
+  ("Deletes a given "++entityName++" entity (after asking for confirmation)\n"++
+   "and proceeds with the list controller.")
+  entityName "confirmDelete" 1
+  (baseType (erdname, entityName) ~> controllerType)
+  [CRule 
+    [CPVar entvar]
+    [noGuard (
+      applyF ("Spicey","confirmController")
+       [applyF ("HTML","h3")
+         [list2ac
+           [applyF ("HTML","htxt")
+            [applyF (pre "concat")
+             [list2ac [string2ac "Really delete entity \"",
+                       applyF (erdname++"EntitiesToHtml",
+                               lowerFirst entityName++"ToShortView")
+                              [cvar $ lowerFirst entityName],
+                       string2ac "\"?"]]]]],
+          CLambda [CPVar (1,"ack")]
+           (applyF (pre "if_then_else")
+             [CVar (1,"ack"),
+              applyF (controllerFunctionName entityName "delete")
+                     [CVar entvar],
+              applyF (controllerFunctionName entityName "show")
+                     [CVar entvar]])])]
+     [] -- where clauses
+    ]
+ where
+  entvar = (0, lowerFirst entityName) -- entity parameter for controller
+
+--- Generates controller to delete an entity.
 deleteController :: ControllerGenerator
 deleteController erdname (Entity entityName attrList) _ allEntities =
   let
@@ -337,14 +431,9 @@ deleteController erdname (Entity entityName attrList) _ allEntities =
     ("Deletes a given "++entityName++" entity (depending on the Boolean\n"++
      "argument) and proceeds with the list controller.")
     entityName "delete" 2
-    (baseType (erdname, entityName) ~> boolType ~> controllerType)
-    [CRule [CPVar (0,"_"), CPComb (pre "False") []]
-           [noGuard (callEntityListController entityName)]
-           [],
-     CRule 
-      [
-        CPVar (0, lowerFirst entityName), CPComb (pre "True") []
-      ] -- parameter list for controller
+    (baseType (erdname, entityName) ~> controllerType)
+    [CRule 
+      [CPVar (0, lowerFirst entityName)] -- entity parameter for controller
       [
         noGuard (
          applyF (pre "$")
@@ -409,14 +498,10 @@ listController erdname (Entity entityName _) _ _ =
                           [constF (erdname,"queryAll"++entityName++"s")]
                   ),
                   CSExpr (
-                    applyF (pre "return") [applyF (viewFunctionName entityName "list")
-                    [
-                      CVar (1, (lowerFirst entityName)++"s"),
-                      constF (controllerFunctionName entityName "show"),
-                      constF (controllerFunctionName entityName "edit"),
-                      constF (controllerFunctionName entityName "delete")
-                    ]
-                  ])             
+                    applyF (pre "return")
+                     [applyF (viewFunctionName entityName "list")
+                             [CVar (1, (lowerFirst entityName)++"s")]
+                  ])
               ]
             )
            ]
@@ -483,8 +568,7 @@ showController erdname (Entity entityName attrList) relationships allEntities =
                                CVar (num,lowerFirst (linkTableName entityName
                                                        ename allEntities)
                                          ++ename++"s"))
-                             (zip (manyToManyEntities) [1..])) ++
-                        [callEntityListController entityName])
+                             (zip (manyToManyEntities) [1..])))
                     ])
               ])
             ]
@@ -645,7 +729,7 @@ entityConstructorFunction erdname (Entity entityName attrList) relationships =
 controllerFunction description entityName controllerType arity functionType
                    rules =
   cmtfunc description (controllerFunctionName entityName controllerType) arity
-          (if controllerType `elem` ["new", "edit", "delete", "list"]
+          (if controllerType `elem` ["main"]
            then Public
            else Private)
           functionType rules
@@ -718,7 +802,7 @@ generateDefaultController _ (Entity ename _:_) = CurryProg
     Public
     controllerType
     [CRule []
-     [noGuard (constF (ename++"Controller","list"++ename++"Controller"))]
+     [noGuard (constF (ename++"Controller","main"++ename++"Controller"))]
      [] -- where clauses
     ]
   ]

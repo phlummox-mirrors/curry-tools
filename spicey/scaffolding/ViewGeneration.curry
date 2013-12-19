@@ -515,7 +515,6 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
  let manyToManyEntities = manyToMany allEntities (Entity entityName attrlist)
      manyToOneEntities  = manyToOne (Entity entityName attrlist) relationships
      evar    = (1, lowerFirst entityName)
-     ctrlvar = (2, "controller")
   in viewFunction 
       ("Supplies a view to show the details of a "++entityName++".\n")
       entityName "show" 2
@@ -523,8 +522,7 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
       (foldr CFuncType viewBlockType (
           [baseType (erdname,entityName)] ++
           (map ctvar manyToOneEntities) ++ -- defaults for n:1
-          (map (\name -> listType (ctvar name)) manyToManyEntities) ++
-          [controllerType])
+          (map (\name -> listType (ctvar name)) manyToManyEntities))
       )
       [CRule
         ( -- parameters
@@ -532,8 +530,7 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
           (map (\ (name, varId) -> CPVar (varId,"related"++name))
                (zip manyToOneEntities [3..])) ++
           (map (\ (name, varId) -> CPVar (varId, lowerFirst name ++ "s"))
-               (zip manyToManyEntities [(length manyToOneEntities + 3)..])) ++
-          [CPVar ctrlvar]
+               (zip manyToManyEntities [(length manyToOneEntities + 3)..]))
         )
         [
           noGuard (
@@ -547,10 +544,10 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
                        (zip manyToManyEntities
                             [(length manyToOneEntities + 3)..])
                   ),
-               list2ac [applyF ("Spicey","spButton")
-                          [string2ac ("back to "++entityName++" list"),
-                           applyF ("Spicey", "nextController")
-                                  [CVar ctrlvar]]]
+               list2ac [applyF ("Spicey","spHref")
+                         [string2ac ("?"++entityName++"/list"),
+                          list2ac [applyF ("HTML","htxt")
+                            [string2ac ("back to "++entityName++" list")]]]]
               ]
             )
          ]
@@ -560,34 +557,19 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
 
 listView :: ViewGenerator
 listView erdname (Entity entityName attrlist) _ _ =
- let showctrlvar = (2, snd (controllerFunctionName entityName "show"))
-     editctrlvar = (3, snd (controllerFunctionName entityName "edit"))
-     deltctrlvar = (4, snd (controllerFunctionName entityName "delete"))
+ let envar = (1, lowerFirst entityName)
+     showkey = applyF (erdname,"show"++entityName++"Key") [CVar envar]
   in
     viewFunction 
       ("Supplies a list view for a given list of "++entityName++" entities.\n"++
        "Shows also buttons to show, delete, or edit entries.\n"++
-       "The arguments are the list of "++entityName++" entities\n"++
-       "and the controller functions to show, delete and edit entities.\n")
-      entityName "list" 4
+       "The argument is the list of "++entityName++" entities.\n")
+      entityName "list" 1
       -- function type
-      (foldr CFuncType viewBlockType
-             [listType (baseType (erdname,entityName)),
-              baseType (erdname,entityName) ~> controllerType,
-              baseType (erdname,entityName) ~> controllerType,
-              baseType (erdname,entityName) ~> boolType ~> controllerType
-             ]
-      ) -- type
+      (listType (baseType (erdname,entityName)) ~> viewBlockType)
       [
-        CRule
-        ( -- params
-          [
-            CPVar (1, lowerFirst entityName ++ "s"),
-            CPVar showctrlvar,
-            CPVar editctrlvar,
-            CPVar deltctrlvar
-          ]
-        )
+       CRule
+        [CPVar (1, lowerFirst entityName ++ "s")]
         [
           noGuard (            
             applyF (pre ":") [
@@ -624,42 +606,29 @@ listView erdname (Entity entityName attrlist) _ _ =
             (ctvar entityName ~> listType viewBlockType)
             [
              CRule
-              [
-               CPVar (1, lowerFirst entityName)
-              ]
+              [CPVar envar]
               [noGuard (
                 applyF (pre "++") [
                   applyF (erdname++"EntitiesToHtml",
                           lowerFirst entityName++"ToListView")
                          [cvar $ lowerFirst entityName],
-                  list2ac [list2ac [
-                    applyF ("Spicey", "spSmallButton")
-                      [string2ac "show",
-                       applyF ("Spicey", "nextController")
-                         [applyV showctrlvar
-                                 [cvar $ lowerFirst entityName]]],
-                    applyF ("Spicey", "spSmallButton")
-                      [string2ac "edit",
-                       applyF ("Spicey", "nextController")
-                         [CApply (CVar editctrlvar)
-                                 (cvar $ lowerFirst entityName)]],
-                    applyF ("Spicey", "spSmallButton")
-                      [string2ac "delete",
-                       applyF ("Spicey", "confirmNextController")
-                         [applyF ("HTML","h3")
-                            [list2ac
-                              [applyF ("HTML","htxt")
-                                [applyF (pre "concat")
-                                  [list2ac
-                                    [string2ac "Really delete entity \"",
-                                     applyF (erdname++"EntitiesToHtml",
-                                          lowerFirst entityName++"ToShortView")
-                                            [cvar $ lowerFirst entityName],
-                                     string2ac "\"?"]]
-                                ]]],
-                          CApply (CVar deltctrlvar)
-                                 (cvar $ lowerFirst entityName)]]
-                  ]]
+                  list2ac
+                   [list2ac
+                     [applyF ("Spicey", "spHref")
+                       [applyF (pre "++")
+                         [string2ac ("?"++entityName++"/show/"),showkey],
+                        list2ac [applyF ("HTML","htxt") [string2ac "show"]]]],
+                    list2ac
+                     [applyF ("Spicey", "spHref")
+                       [applyF (pre "++")
+                         [string2ac ("?"++entityName++"/edit/"),showkey],
+                        list2ac [applyF ("HTML","htxt") [string2ac "edit"]]]],
+                    list2ac
+                     [applyF ("Spicey", "spHref")
+                       [applyF (pre "++")
+                         [string2ac ("?"++entityName++"/delete/"),showkey],
+                        list2ac [applyF ("HTML","htxt") [string2ac "delete"]]]]
+                  ]
                 ]
                 )
               ]

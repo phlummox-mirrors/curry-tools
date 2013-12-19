@@ -17,6 +17,7 @@ import HTML
 import Time
 import Global
 import List
+import Crypto
 
 --- The life span in minutes to store data in sessions.
 --- Thus, older data is deleted by a clean up that is initiated
@@ -45,7 +46,8 @@ getUnusedId = do
   if clockTimeToInt clockTime /= ltime
     then writeGlobal lastId (clockTimeToInt clockTime, 0)
     else writeGlobal lastId (clockTimeToInt clockTime, lsid+1)
-  return (SessionId (show (clockTimeToInt clockTime) ++ show (lsid+1)))
+  rans <- randomString 30
+  return (SessionId (show (clockTimeToInt clockTime) ++ show (lsid+1) ++ rans))
 
 --- Gets the id of the current user session.
 --- If this is a new session, a new id is created and returned.

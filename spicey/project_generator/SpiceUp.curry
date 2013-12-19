@@ -7,7 +7,7 @@ import SpiceyScaffolding
 import Distribution
 
 systemBanner =
-  let bannerText = "Spicey Web Framework (Version of 05/12/13)"
+  let bannerText = "Spicey Web Framework (Version of 19/12/13)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -38,6 +38,7 @@ structure =
     Directory "system" [
       ResourceFile NoExec "Spicey.curry",
       ResourceFile NoExec "Routes.curry",
+      ResourceFile NoExec "Crypto.curry",
       ResourceFile NoExec "Session.curry",
       ResourceFile NoExec "Authorization.curry",
       ResourceFile NoExec "Authentication.curry",

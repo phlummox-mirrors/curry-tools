@@ -26,6 +26,9 @@ getControllerReference url = getRoutes >>= return . findControllerReference
         Exact string -> if (url == string)
                         then Just fktref
                         else findControllerReference restroutes
+        Prefix pre _ -> if (url == pre)
+                        then Just fktref
+                        else findControllerReference restroutes
         Matcher fkt  -> if (fkt url)
                         then Just fktref
                         else findControllerReference restroutes
@@ -43,7 +46,9 @@ getRouteMenu = do
    getLinks :: [Route] -> [[HtmlExp]]
    getLinks ((name, matcher, _):restroutes) =
      case matcher of
-       Exact string -> [(href ("?" ++ string) [htxt name])]
+       Exact string -> [href ("?" ++ string) [htxt name]]
                         : getLinks restroutes
+       Prefix s1 s2 -> [href ("?"++s1++"/"++s2) [htxt name]]
+                             : getLinks restroutes
        _ -> getLinks restroutes
    getLinks [] = []
