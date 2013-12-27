@@ -7,7 +7,7 @@ import SpiceyScaffolding
 import Distribution
 
 systemBanner =
-  let bannerText = "Spicey Web Framework (Version of 19/12/13)"
+  let bannerText = "Spicey Web Framework (Version of 27/12/13)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
