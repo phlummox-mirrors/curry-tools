@@ -12,10 +12,7 @@ module Authentication (
   getSessionLogin, loginToSession, logoutFromSession
  ) where
 
-import IO
-import IOExts
-import Session
-import Global
+import SessionInfo
 import Crypto
 
 --------------------------------------------------------------------------
@@ -38,22 +35,19 @@ randomPassword = randomString
 --------------------------------------------------------------------------
 -- Operations for storing logins in the current session.
 
---- Definition of the session state to store the login name (as a string).
-sessionLogin :: Global (SessionStore String)
-sessionLogin = global emptySessionStore (Persistent "sessionLogin")
-
 --- Gets the login name of the current session
 --- (or the Nothing if there is no login).
 getSessionLogin :: IO (Maybe String)
-getSessionLogin = getSessionData sessionLogin
+getSessionLogin = getUserSessionInfo >>= return . userLoginOfSession
 
 --- Stores a login name in the current session.
 --- The authentication has to be done before!
 loginToSession :: String -> IO ()
-loginToSession loginname = putSessionData loginname sessionLogin
+loginToSession loginname =
+  updateUserSessionInfo (setUserLoginOfSession (Just loginname))
 
 --- removes the login name from the current session.
 logoutFromSession :: IO ()
-logoutFromSession = removeSessionData sessionLogin
+logoutFromSession = updateUserSessionInfo (setUserLoginOfSession Nothing)
 
 --------------------------------------------------------------------------

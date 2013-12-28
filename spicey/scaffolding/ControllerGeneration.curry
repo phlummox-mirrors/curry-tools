@@ -21,7 +21,7 @@ generateControllersForEntity erdname allEntities
   (controllerModuleName ename)
   -- imports:
   ["Spicey", "KeyDatabase", "HTML", "Time", erdname, viewModuleName ename,
-   "Maybe", authModName, enauthModName, "UserProcesses",
+   "Maybe", "SessionInfo", authModName, enauthModName, "UserProcesses",
    erdname++"EntitiesToHtml"]
   [] -- typedecls
   -- functions
@@ -116,6 +116,8 @@ newController erdname (Entity entityName attrList) relationships allEntities =
     manyToManyEntities = manyToMany allEntities (Entity entityName attrList)
     manyToOneEntities  = manyToOne (Entity entityName attrList) relationships
     withCTime          = hasCalendarTimeAttribute attrList
+    infovar            = (0, "sinfo")
+    ctimevar           = (1,"ctime")
   in
     controllerFunction 
     ("Shows a form to create a new "++entityName++" entity.")
@@ -131,7 +133,8 @@ newController erdname (Entity entityName attrList) relationships allEntities =
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [constF (authModName,"NewEntity")]],
              CDoExpr (
-              (map 
+              (CSPat (CPVar infovar) getUserSessionInfoFunc :
+               map 
                 (\ (ename, num) ->
                    CSPat (CPVar (num,"all"++ename++"s")) 
                          (applyF (db "runQ")
@@ -140,14 +143,15 @@ newController erdname (Entity entityName attrList) relationships allEntities =
                 (zip (manyToOneEntities ++ manyToManyEntities) [2..])
               ) ++
               (if withCTime
-               then [CSPat (CPVar (1,"ctime"))
+               then [CSPat (CPVar ctimevar)
                            (constF ("Time","getLocalTime"))]
                else []) ++
               [         
                 CSExpr (
                   applyF (pre "return")
                    [applyF (viewFunctionName entityName "blank")
-                     ((if withCTime then [CVar (1,"ctime")] else []) ++
+                     ([CVar infovar] ++
+                      (if withCTime then [CVar ctimevar] else []) ++
                       map (\ (ename, num) -> CVar (num, "all"++ename++"s"))
                            (zip (manyToOneEntities ++ manyToManyEntities)
                                 [2..]) ++
@@ -238,12 +242,13 @@ editController :: ControllerGenerator
 editController erdname (Entity entityName attrList) relationships allEntities =
   let
     manyToManyEntities = manyToMany allEntities (Entity entityName attrList)
-    manyToOneEntities = manyToOne (Entity entityName attrList) relationships
-    pvar = (0, lowerFirst entityName ++ "ToEdit")
+    manyToOneEntities  = manyToOne (Entity entityName attrList) relationships
+    pvar               = (0, lowerFirst entityName ++ "ToEdit")
+    infovar            = (1, "sinfo")
   in
     controllerFunction
     ("Shows a form to edit the given "++entityName++" entity.")
-    entityName "edit" 2
+    entityName "edit" 1
       (baseType (erdname,entityName) ~> controllerType
       )
       [
@@ -256,7 +261,8 @@ editController erdname (Entity entityName attrList) relationships allEntities =
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [applyF (authModName,"UpdateEntity") [CVar pvar]]],
              CDoExpr (
-              (map 
+              (CSPat (CPVar infovar) getUserSessionInfoFunc :
+               map 
                 (\ (ename, num) ->
                       CSPat (CPVar (num,"all"++ename++"s")) 
                             (applyF (db "runQ")
@@ -287,7 +293,8 @@ editController erdname (Entity entityName attrList) relationships allEntities =
               [CSExpr (
                  applyF (pre "return")
                   [applyF (viewFunctionName entityName "edit")
-                     ([tupleExpr
+                     ([CVar infovar,
+                       tupleExpr
                         (
                           [CVar pvar] ++ 
                           (map (\ (ename, num) ->
@@ -485,10 +492,13 @@ deleteController erdname (Entity entityName attrList) _ allEntities =
 
 listController :: ControllerGenerator
 listController erdname (Entity entityName _) _ _ =
+  let infovar = (0, "sinfo")
+      entsvar = (1, (lowerFirst entityName)++"s")
+   in
     controllerFunction
       ("Lists all "++entityName++" entities with buttons to show, delete,\n"++
        "or edit an entity.")
-      entityName "list" 2
+      entityName "list" 0
       controllerType
       [
       CRule 
@@ -500,16 +510,13 @@ listController erdname (Entity entityName _) _ _ =
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [applyF (authModName,"ListEntities") []]],
              CDoExpr (            
-              [
-                CSPat (CPVar (1, (lowerFirst entityName)++"s"))
-                  (applyF (db "runQ")
-                          [constF (erdname,"queryAll"++entityName++"s")]
-                  ),
-                  CSExpr (
-                    applyF (pre "return")
-                     [applyF (viewFunctionName entityName "list")
-                             [CVar (1, (lowerFirst entityName)++"s")]
-                  ])
+              [CSPat (CPVar infovar) getUserSessionInfoFunc,
+               CSPat (CPVar entsvar)
+                     (applyF (db "runQ")
+                             [constF (erdname,"queryAll"++entityName++"s")]),
+               CSExpr (applyF (pre "return")
+                             [applyF (viewFunctionName entityName "list")
+                                     [CVar infovar, CVar entsvar]])
               ]
             )
            ]
@@ -522,11 +529,12 @@ showController :: ControllerGenerator
 showController erdname (Entity entityName attrList) relationships allEntities =
   let manyToManyEntities = manyToMany allEntities (Entity entityName attrList)
       manyToOneEntities  = manyToOne (Entity entityName attrList) relationships
-      pvar = (0, lowerFirst entityName)
+      pvar               = (0, lowerFirst entityName)
+      infovar            = (1, "sinfo")
   in
     controllerFunction
     ("Shows a "++entityName++" entity.")
-    entityName "show" 2
+    entityName "show" 1
       (baseType (erdname,entityName) ~> controllerType
       )
       [
@@ -538,7 +546,8 @@ showController erdname (Entity entityName attrList) relationships allEntities =
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [applyF (authModName,"ShowEntity") [CVar pvar]]],
              CDoExpr (
-              (map (\ (ename, num) ->
+              (CSPat (CPVar infovar) getUserSessionInfoFunc :
+               map (\ (ename, num) ->
                      CSPat (CPVar (num,lowerFirst
                                          (fst $ relationshipName entityName
                                                ename relationships) ++ ename)) 
@@ -566,7 +575,7 @@ showController erdname (Entity entityName attrList) relationships allEntities =
               [CSExpr (
                  applyF (pre "return")
                     [applyF (viewFunctionName entityName "show")
-                       ([CVar pvar] ++
+                       ([CVar infovar, CVar pvar] ++
                         (map (\ (ename, num) ->
                                 CVar (num,lowerFirst (fst $ relationshipName
                                              entityName ename relationships)
@@ -853,5 +862,10 @@ generateAuthorizations erdname entities = CurryProg
   --exprDenied = applyF (pre "return")
   --                    [applyF (authModName,"AccessDenied")
   --                            [string2ac "Operation not allowed!"]]
+
+------------------------------------------------------------------------
+-- Auxiliaries:
+
+getUserSessionInfoFunc = constF ("SessionInfo","getUserSessionInfo")
 
 ------------------------------------------------------------------------

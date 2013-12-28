@@ -78,6 +78,7 @@ sessionCookie = do
 data SessionStore a = SStore [(SessionId, Int, a)]
 
 --- An initial value for the empty session store.
+emptySessionStore :: SessionStore _
 emptySessionStore = SStore []
 
 --- Retrieves data for the current user session stored in a session store.

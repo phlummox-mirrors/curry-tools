@@ -40,6 +40,7 @@ structure =
       ResourceFile NoExec "Routes.curry",
       ResourceFile NoExec "Crypto.curry",
       ResourceFile NoExec "Session.curry",
+      ResourceFile NoExec "SessionInfo.curry",
       ResourceFile NoExec "Authorization.curry",
       ResourceFile NoExec "Authentication.curry",
       ResourceFile NoExec "Processes.curry" ],
