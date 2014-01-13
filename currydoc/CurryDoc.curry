@@ -3,7 +3,7 @@
 --- generation of HTML documentation from Curry programs.
 ---
 --- @author Michael Hanus
---- @version February 2013
+--- @version January 2014
 ----------------------------------------------------------------------
 
 -- * All comments to be put into the HTML documentation must be
@@ -103,7 +103,7 @@ usageMessage = unlines
 createDir :: String -> IO ()
 createDir dir = do
   exdir <- doesDirectoryExist dir
-  if exdir then done else system ("mkdir " ++ dir) >> done
+  unless exdir $ system ("mkdir " ++ dir) >> done
 
 --------------------------------------------------------------------------
 --- The main function of the CurryDoc utility.
@@ -121,11 +121,10 @@ makeCompleteDoc docparams recursive docdir modname = do
   -- when constructing CDOC the imported modules don't have to be read from the flatCurryFile
   (alltypes, allfuns, _) <- getProg $ docType docparams
   makeDocIfNecessary docparams recursive docdir modname
-  if withIndex docparams
-   then do genMainIndexPage     docdir [modname]
-           genFunctionIndexPage docdir allfuns
-           genConsIndexPage     docdir alltypes
-   else done
+  when (withIndex docparams) $ do
+    genMainIndexPage     docdir [modname]
+    genFunctionIndexPage docdir allfuns
+    genConsIndexPage     docdir alltypes
   -- change access rights to readable for everybody:
   system ("chmod -R go+rX "++docdir)
   done
@@ -168,9 +167,8 @@ prepareDocDir CDoc docdir = do
 
 copyIncludeIfPresent docdir inclfile = do
   existIDir <- doesDirectoryExist includeDir
-  if existIDir
-   then system ("cp "++includeDir++"/"++inclfile++" "++docdir) >> done
-   else done
+  when existIDir $
+    system ("cp "++includeDir++"/"++inclfile++" "++docdir) >> done
 
 -- read and generate all analysis infos:
 readAnaInfo modname = do
@@ -235,11 +233,9 @@ makeDocIfNecessary docparams recursive docdir modname = do
      dftime <- getModificationTime docfile
      if compareClockTime ctime dftime == GT
       then copyOrMakeDoc docparams recursive docdir modname progname
-      else if recursive
-           then do imports <- getImports progname
-                   mapIO_ (makeDocIfNecessary docparams recursive docdir)
-                          imports
-           else done
+      else when recursive $ do
+             imports <- getImports progname
+             mapIO_ (makeDocIfNecessary docparams recursive docdir) imports
 
 -- get imports of a program by reading the interface, if possible:
 getImports progname = do
@@ -253,8 +249,7 @@ getImports progname = do
 copyOrMakeDoc :: DocParams -> Bool -> String -> String -> String -> IO ()
 copyOrMakeDoc docparams recursive docdir modname progname = do
   hasCopied <- copyDocIfPossible docparams docdir progname
-  if hasCopied then done
-               else makeDoc docparams recursive docdir modname progname
+  unless hasCopied $ makeDoc docparams recursive docdir modname progname
 
 --- Copy the documentation file from standard documentation directoy "CDOC"
 --- (used for documentation of system libraries) if possible.
@@ -326,8 +321,7 @@ writeOutfile docparams recursive docdir progname generate = do
   let outfile = docdir </> getLastName progname <.> fileExtension (docType docparams)
   putStrLn ("Writing documentation to \"" ++ outfile ++ "\"...")
   writeFile outfile doc
-  if recursive
-    then mapIO_ (makeDocIfNecessary docparams recursive docdir) imports
-    else done
+  when recursive $
+    mapIO_ (makeDocIfNecessary docparams recursive docdir) imports
 
 -- -----------------------------------------------------------------------

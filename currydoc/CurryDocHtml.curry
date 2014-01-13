@@ -2,7 +2,7 @@
 --- Functions to generate documentation in HTML format.
 ---
 --- @author Michael Hanus
---- @version March 2013
+--- @version January 2014
 ----------------------------------------------------------------------
 
 module CurryDocHtml where
@@ -171,13 +171,12 @@ genHtmlType docparams progcmts (Type (_,tcons) _ tvars constrs) =
  where
   genHtmlCons conscmts (Cons (cmod,cname) _ cvis argtypes) =
     if cvis==Public
-    then [style "anchored"
+    then [anchored (cname++"_CONS")
            [code [opnameDoc [htxt cname],
                   HtmlText (" :: " ++
                             concatMap (\t->" "++showType cmod True t++" -> ")
                                       argtypes ++
-                            tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars)]]
-            `addAttr` ("id",cname++"_CONS"),
+                            tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars)]],
            maybe (par [])
                  (\ (call,cmt) ->
                     par ([code [htxt call], htxt " : "] ++
@@ -203,9 +202,9 @@ genHtmlType docparams progcmts (TypeSyn (tcmod,tcons) _ tvars texp) =
 genHtmlFuncShort docparams progcmts anainfo
                  (Func (fmod,fname) _ _ ftype rule) =
  [[code [opnameDoc
-            [anchor (fname++"_SHORT")
-                    [href ('#':fname) [htxt (showId fname)]]],
-           HtmlText (" :: " ++ showType fmod False ftype)],
+            [anchored (fname++"_SHORT")
+                      [href ('#':fname) [htxt (showId fname)]]],
+         HtmlText (" :: " ++ showType fmod False ftype)],
      nbsp, nbsp]
      ++ genFuncPropIcons anainfo (fmod,fname) rule ++
   [breakline] ++
@@ -220,7 +219,7 @@ genHtmlFunc :: DocParams -> String -> [(SourceLine,String)] -> AnaInfo
 genHtmlFunc docparams progname progcmts anainfo ops
             (Func (fmod,fname) _ _ ftype rule) =
   let (funcmt,paramcmts) = splitComment (getFuncComment fname progcmts)
-   in style "anchored"
+   in anchored fname
        [borderedTable [[
          [par $
            [code [opnameDoc
@@ -236,7 +235,6 @@ genHtmlFunc docparams progname progcmts anainfo ops
           then []
           else [dlist [([explainCat "Further infos:"],
                         [ulist furtherInfos])]] )]]]
-       `addAttr` ("id",fname)
  where
   furtherInfos = genFuncPropComments anainfo (fmod,fname) rule ops
 
