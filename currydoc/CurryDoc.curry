@@ -152,18 +152,18 @@ makeIndexPages docdir modnames = do
 prepareDocDir :: DocType -> String -> IO ()
 prepareDocDir HtmlDoc docdir = do
   createDir docdir
-  putStrLn ("Copying icons into documentation directory \""++docdir++"\"...")
+  --putStrLn ("Copying icons into documentation directory \""++docdir++"\"...")
   -- copying all icons:
-  copyIncludeIfPresent docdir "currydocicons/*.gif"
+  --copyIncludeIfPresent docdir "currydocicons/*.gif"
   -- copy style sheet:
-  copyIncludeIfPresent docdir "currydoc.css"
+  --copyIncludeIfPresent docdir "currydoc.css"
 prepareDocDir TexDoc docdir = do
   createDir docdir
   putStrLn $ "Copy macros into documentation directory \""++docdir++"\"..."
   copyIncludeIfPresent docdir "currydoc.tex"
 prepareDocDir CDoc docdir = do
   createDir docdir
-  putStrLn ("Directory was created succesfully")
+  putStrLn ("Directory was succesfully created")
 
 copyIncludeIfPresent docdir inclfile = do
   existIDir <- doesDirectoryExist includeDir

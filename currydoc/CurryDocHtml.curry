@@ -1,5 +1,5 @@
 ----------------------------------------------------------------------
---- Functions to generate documentation in HTML format.
+--- Operations to generate documentation in HTML format.
 ---
 --- @author Michael Hanus
 --- @version January 2014
@@ -23,9 +23,6 @@ import Distribution
 import CategorizedHtmlList
 import Markdown
 
--- Name of style sheet for documentation files:
-currydocCSS = "currydoc.css"
-
 --------------------------------------------------------------------------
 -- Generates the documentation of a module in HTML format where the comments
 -- are already analyzed.
@@ -46,7 +43,7 @@ generateHtmlDocs docparams anainfo progname modcmts progcmts = do
             ulist (map (\i -> [href (getLastName i++".html") [htxt i]])
                        imports) `addClass` "nav nav-list"]
     (genHtmlModule docparams modcmts ++
-       ([h2 [htxt "Summary of exported functions:"],
+       ([h2 [htxt "Summary of exported operations:"],
          borderedTable
            (map (genHtmlFuncShort docparams progcmts anainfo) expfuns)] ++
         (if null types
@@ -54,8 +51,8 @@ generateHtmlDocs docparams anainfo progname modcmts progcmts = do
          else [anchoredSection "exported_datatypes"
                                [h2 [htxt "Exported datatypes:"]], hrule] ++
                concatMap (genHtmlType docparams progcmts) exptypes) ++
-        [anchored "exported_functions"
-                  [h2 [htxt "Exported functions:"]]] ++
+        [anchored "exported_operations"
+                  [h2 [htxt "Exported operations:"]]] ++
         (map (genHtmlFunc docparams progname progcmts anainfo ops) expfuns)))
  where
    title = "Module "++getLastName progname
@@ -69,7 +66,7 @@ generateHtmlDocs docparams anainfo progname modcmts progcmts = do
       [href "#imported_modules" [htxt "Imports"]]] ++
      (if null types then []
       else [[href "#exported_datatypes" [htxt "Datatypes"]]]) ++
-     [[href "#exported_functions" [htxt "Functions"]]]
+     [[href "#exported_operations" [htxt "Operations"]]]
 
 
 --- Translate a documentation comment to HTML and use markdown translation
@@ -114,7 +111,7 @@ genHtmlExportIndex exptypes expcons expfuns =
                       map (HtmlStruct "li" []) htmlnames)
             [(htmltypes,"Datatypes:"),
              (htmlcons ,"Constructors:"),
-             (htmlfuns ,"Functions:")])
+             (htmlfuns ,"Operations:")])
  where
   htmltypes = map (\n->[href ('#':n) [htxt n]])
                   (nub (sortStrings exptypes))
@@ -275,33 +272,25 @@ removeTopPar hexps = case hexps of
 --------------------------------------------------------------------------
 --- Generates icons for particular properties of functions.
 genFuncPropIcons anainfo fname rule =
-   [detIcon, nbsp, flexRigidIcon rule]
+   [detPropIcon, nbsp, flexRigidIcon rule]
  where
    --(non)deterministically defined property:
-   detIcon =
+   detPropIcon =
     if getNondetInfo anainfo fname
-    then href "index.html#nondet_explain"
-              [addIconParams $ image "nondet.gif" "non-deterministic"]
-    else href "index.html#det_explain"
-              [addIconParams $ image "det.gif" "deterministic"]
+    then href "index.html#nondet_explain" [nondetIcon]
+    else href "index.html#det_explain"    [detIcon]
 
    -- icon for rigid/flexible:
    flexRigidIcon (External _) = htxt ""
    flexRigidIcon (Rule _ rhs) = imageEvalAnnot (getFlexRigid rhs)
     where
       imageEvalAnnot ConflictFR = -- mixed rigid flexible
-          href "index.html#flexrigid_explain"
-               [addIconParams $ image "flexrigid.gif" "flexible+rigid"]
+          href "index.html#flexrigid_explain" [flexrigidIcon]
       imageEvalAnnot UnknownFR  = htxt ""
       imageEvalAnnot KnownRigid =
-          href "index.html#rigid_explain"
-               [addIconParams $ image "rigid.gif" "rigid"]
+          href "index.html#rigid_explain" [rigidIcon]
       imageEvalAnnot KnownFlex  =
-          href "index.html#flex_explain"
-               [addIconParams $ image "flex.gif" "flexible"]
-
-addIconParams hicon = hicon `addAttr` ("align","middle")
-                            `addAttr` ("border","0")
+          href "index.html#flex_explain" [flexibleIcon]
 
 --------------------------------------------------------------------------
 --- Generates further textual infos about particular properties
@@ -433,7 +422,7 @@ genMainIndexPage docdir modnames =
      >>= writeFile (docdir++"/index.html")
 
 allConsFuncsMenu =
-  [[href "findex.html" [htxt "All functions"]],
+  [[href "findex.html" [htxt "All operations"]],
    [href "cindex.html" [htxt "All constructors"]]]
 
 indexPage modnames =
@@ -442,28 +431,33 @@ indexPage modnames =
    else [ulist (map (\m->[href (m++".html") [htxt (m++".curry ")]])
                     (mergeSort leqStringIgnoreCase modnames))]) ++
   [bold [htxt "Explanations of the icons used in the documentation:"],
-   par [anchor "det_explain" [image "det.gif" "deterministic"],
-        htxt " Function is deterministic, i.e., defined by exclusive rules",
-        htxt " and depend only on deterministic functions"],
-   par [anchor "nondet_explain" [image "nondet.gif" "non-deterministic"],
-        htxt " Function might be non-deterministic, i.e., it is defined by",
-        htxt " overlapping rules or depend on non-deterministic functions"],
-   par [anchor "rigid_explain" [image "rigid.gif" "rigid"],
-        htxt " Function is rigid"],
-   par [anchor "flex_explain" [image "flex.gif" "flexible"],
-        htxt " Function is flexible"],
-   par [anchor "flexrigid_explain" [image "flexrigid.gif" "flexible+rigid"],
-        htxt " Function is partially flexible and partially rigid"]
-   --par [image "impl.gif" "implementation",
-   --     htxt " Reference to the implementation of the module or function"]
-  ]
+   table
+     [[[anchor "det_explain" [detIcon]],[nbsp],
+       [htxt " Operation is deterministic, i.e., defined by exclusive rules",
+        htxt " and depend only on deterministic operations"]]
+     ,[[anchor "nondet_explain" [nondetIcon]],[nbsp],
+       [htxt " Operation might be non-deterministic, i.e., it is defined by",
+        htxt " overlapping rules or depend on non-deterministic operations"]]
+     ,[[anchor "rigid_explain" [rigidIcon]],[nbsp],
+       [htxt " Operation is rigid"]]
+     ,[[anchor "flex_explain" [flexibleIcon]],[nbsp],
+       [htxt " Operation is flexible"]]
+     ,[[anchor "flexrigid_explain" [flexrigidIcon]],[nbsp],
+       [htxt " Operation is partially flexible and partially rigid"]]
+     ]
+   ]
    
+detIcon       = italic [] `addClass` "fa fa-long-arrow-down"
+nondetIcon    = italic [] `addClass` "fa fa-arrows-alt"
+rigidIcon     = italic [] `addClass` "fa fa-cogs"
+flexibleIcon  = italic [] `addClass` "fa fa-pagelines"
+flexrigidIcon = italic [] `addClass` "fa fa-exclamation-triangle"
 
 --------------------------------------------------------------------------
 -- generate the function index page for the documentation directory:
 genFunctionIndexPage docdir funs = do
-  putStrLn ("Writing function index page to \""++docdir++"/findex.html\"...")
-  simplePage "Index to all functions" Nothing allConsFuncsMenu
+  putStrLn ("Writing operation index page to \""++docdir++"/findex.html\"...")
+  simplePage "Index to all operations" Nothing allConsFuncsMenu
              (htmlFuncIndex (sortNames expfuns))
     >>= writeFile (docdir++"/findex.html")
  where
@@ -515,10 +509,11 @@ mainPage :: String -> [HtmlExp] -> [[HtmlExp]] -> [HtmlExp] -> [HtmlExp]
 mainPage title htmltitle lefttopmenu sidemenu maindoc = do
     time <- getLocalTime
     return $ showHtmlPage $
-      bootstrapPage baseURL
-                    ["bootstrap","bootstrap-responsive","currydoc"]
+      bootstrapPage baseURL cssIncludes
                     title lefttopmenu rightTopMenu 3 sidemenu htmltitle maindoc
                     (curryDocFooter time)
+
+cssIncludes = ["bootstrap","bootstrap-responsive","font-awesome.min","currydoc"]
 
 --- Generate a page with the default documentation style.
 --- @param title - the title of the page
@@ -527,17 +522,20 @@ showPageWithDocStyle :: String -> [HtmlExp] -> String
 showPageWithDocStyle title body =
   showHtmlPage $
     HtmlPage title
-             (map (\f -> pageCSS $ baseURL++"/css/"++f++".css")
-                  ["bootstrap","bootstrap-responsive","currydoc"])
+             (map (\f -> pageCSS $ baseURL++"/css/"++f++".css") cssIncludes)
              body
 
 --- The standard right top menu.
 rightTopMenu =
-  [[ehref "http://www.curry-language.org/" [htxt "Curry Homepage"]],
-   [ehref (baseURL++"/lib/") [htxt $ currySystem++" Libraries"]],
+  [[ehref "http://www.curry-language.org/"
+          [extLinkIcon, htxt " Curry Homepage"]],
+   [ehref (baseURL++"/lib/")
+          [extLinkIcon, htxt $ " "++currySystem++" Libraries"]],
    [ehref "http://www.curry-language.org/tools/currydoc"
-         [htxt "About CurryDoc"]]]
-  
+          [extLinkIcon, htxt " About CurryDoc"]]]
+ where
+  extLinkIcon = italic [] `addClass` "fa fa-external-link"
+
 
 -- Standard footer information for generated web pages:
 curryDocFooter time =
@@ -555,8 +553,7 @@ simplePage :: String -> Maybe [HtmlExp] -> [[HtmlExp]] -> [HtmlExp] -> IO String
 simplePage title htmltitle lefttopmenu maindoc = do
     time <- getLocalTime
     return $ showHtmlPage $
-      bootstrapPage baseURL
-                    ["bootstrap","bootstrap-responsive","currydoc"]
+      bootstrapPage baseURL cssIncludes
                     title lefttopmenu rightTopMenu 0 []
                     [h1 (maybe [htxt title] id htmltitle)]
                     maindoc

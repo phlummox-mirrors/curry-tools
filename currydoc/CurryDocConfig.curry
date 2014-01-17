@@ -3,7 +3,7 @@
 --- the CurryDoc tool.
 ---
 --- @author Michael Hanus
---- @version February 2013
+--- @version January 2014
 ----------------------------------------------------------------------
 
 module CurryDocConfig where
@@ -11,7 +11,7 @@ module CurryDocConfig where
 import Distribution(curryCompiler)
 
 --- Version of currydoc
-currydocVersion = "Version 0.7.1 of March 20, 2013"
+currydocVersion = "Version 0.7.2 of January 16, 2014"
 
 --- The URL of the base directory containing the styles, images, etc.
 baseURL = if curryCompiler=="pakcs"
