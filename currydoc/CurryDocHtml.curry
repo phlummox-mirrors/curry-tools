@@ -23,6 +23,8 @@ import Distribution
 import CategorizedHtmlList
 import Markdown
 
+infixl 0 `withTitle`
+
 --------------------------------------------------------------------------
 -- Generates the documentation of a module in HTML format where the comments
 -- are already analyzed.
@@ -448,10 +450,17 @@ indexPage modnames =
    ]
    
 detIcon       = italic [] `addClass` "fa fa-long-arrow-down"
+                  `withTitle` "This operation is deterministic"
 nondetIcon    = italic [] `addClass` "fa fa-arrows-alt"
+                  `withTitle` "This operation might be non-deterministic"
 rigidIcon     = italic [] `addClass` "fa fa-cogs"
+                  `withTitle` "This operation is rigid"
 flexibleIcon  = italic [] `addClass` "fa fa-pagelines"
+                  `withTitle` "This operation is flexible"
 flexrigidIcon = italic [] `addClass` "fa fa-exclamation-triangle"
+    `withTitle` "This operation is partially flexible and partially rigid"
+
+withTitle he t = he `addAttr` ("title",t)
 
 --------------------------------------------------------------------------
 -- generate the function index page for the documentation directory:

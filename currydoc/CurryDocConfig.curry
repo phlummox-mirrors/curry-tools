@@ -11,7 +11,7 @@ module CurryDocConfig where
 import Distribution(curryCompiler)
 
 --- Version of currydoc
-currydocVersion = "Version 0.7.2 of January 16, 2014"
+currydocVersion = "Version 0.7.2 of January 21, 2014"
 
 --- The URL of the base directory containing the styles, images, etc.
 baseURL = if curryCompiler=="pakcs"
