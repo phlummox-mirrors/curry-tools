@@ -164,6 +164,7 @@ elim r i t e s
     -- itself.
     RTermVar i'   -> unify' (addToFM r i (Ref i')) e ((RTermVar i, Ref i'):s)
     RTermCons _ _ -> unify' (addToFM r i t       ) e ((RTermVar i, t)     :s)
+    _             -> error "Unification.elim"
 
 --- Checks wether the first term occurs as a subterm of the second term.
 --- @param a - the term to search for
