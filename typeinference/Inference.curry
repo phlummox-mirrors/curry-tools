@@ -366,8 +366,10 @@ inferRule ty (AExternal ty2    _) = returnES [ty =.= ty2]
 --- @param ps - the parameter expressions
 --- @return a list of equations
 matchApp :: TypeExpr -> TypeExpr -> [TypeExpr] -> TypeEqs
-matchApp rty a              []     = [rty =.= a]
-matchApp rty (FuncType a b) (p:ps) = (p =.= a) : matchApp rty b ps
+matchApp rty a     []     = [rty =.= a]
+matchApp rty texpr (p:ps) = case texpr of
+  (FuncType a b) -> (p =.= a) : matchApp rty b ps
+  _              -> error "Inference.matchApp"
 
 --- Recursively generate equations for the unifier from an expression.
 ---
