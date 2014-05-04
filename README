@@ -35,6 +35,10 @@ A documentation generator for Curry programs.
 `currytest`:
 A test tool for Curry programs.
 
+`erd2curry`:
+A compiler to translate database (ER) models
+into Curry programs containing corresponding database operations.
+
 `genint`:
 A program for generating module interfaces and source code
 of a Curry module (used by the commands ":interface" and ":show"
