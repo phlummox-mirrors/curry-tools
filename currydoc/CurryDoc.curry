@@ -156,7 +156,7 @@ prepareDocDir HtmlDoc docdir = do
   -- copying all icons:
   --copyIncludeIfPresent docdir "currydocicons/*.gif"
   -- copy style sheet:
-  --copyIncludeIfPresent docdir "currydoc.css"
+  copyIncludeIfPresent docdir "currydoc.css"
 prepareDocDir TexDoc docdir = do
   createDir docdir
   putStrLn $ "Copy macros into documentation directory \""++docdir++"\"..."

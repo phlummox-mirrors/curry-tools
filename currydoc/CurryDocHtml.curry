@@ -382,7 +382,7 @@ translateSource2ColoredHtml docdir progname = do
     let output = docdir++"/"++getLastName progname++"_curry.html"         
     putStrLn ("Writing source file as HTML to \""++output++"\"...") 
     callFrontendWithParams HTML
-      (setQuiet True (setOutfile output defaultParams)) progname
+      (setQuiet True (setHtmlDir docdir defaultParams)) progname
 
 -- translate source file into HTML file with anchors for each function:
 translateSource2AnchoredHtml :: String -> String -> IO ()
