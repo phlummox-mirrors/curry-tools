@@ -21,9 +21,10 @@ import List
 import FlatCurry
 import IO
 import IOExts -- use IORefs
-import FileGoodies(stripSuffix)
+import FileGoodies  (stripSuffix)
 import Distribution
 import Directory
+import FilePath     ((</>))
 
 ---------------------------------------------------------------------
 -- Check arguments and call main function:
@@ -294,7 +295,7 @@ execTestFunctions prtmsg portnum modname fs@(_:_) = do
                    installDir++"/bin/pakcs\" -quiet -Dshowfcyload=no 2>&1"
         "kics2" -> "echo ':l "++modname++"\n:add Assertion\n:add System\n"++
                    ":save "++testgoal++"\n:q\n' | \""++
-                   installDir++"/bin/kics2\" && ./"++modname++
+                   installDir++"/bin/kics2\" && "++ ("." </> modname) ++
                    " && rm "++modname++" 2>&1"
         _ -> error "CurryTest: unknown Curry compiler!"
   --putStrLn testgoal
