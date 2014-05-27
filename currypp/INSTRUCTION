@@ -1,0 +1,52 @@
+----------------
+- INSTRUCTIONS -
+----------------
+USING THE REGEX AND FORMAT LIBRARIES:
+To make use of the Regex and Format libraries, the lib directory needs to be 
+added to the search path of your Curry compiler. Ways to do this can be found in
+the manual.
+This is only necessary if the use of files with translated Regex or Format code
+is intended.
+
+COMPILING THE CODE INTEGRATOR:
+The source code can be compiled using the Makefile in the main directory by
+executing make.
+The executable is then placed in the bin directory.
+The source folder can be cleaned by running make clean.
+
+It is possible to set a different compiler in the Makefile.
+The Code Integration Parser is fast with kics2 but Format expressions
+are translated slowly or sometimes never.
+The Code Integration Parser is slow on pakcs but Format expressions
+are translated faster.
+
+By default the source code is compiled using pakcs. The prefered compiler and
+output folder for the binary can be set in the Makefile.
+
+USING THE CODE INTEGRATOR:
+Files can be translated by running the binary with two parameters: the path to
+the input file and the path to the output file
+
+Example: currypp org-filename input-file output-file.curry [-o]
+
+--------------------------------------
+- WRITING FILES WITH INTEGRATED CODE -
+--------------------------------------
+A detailed specification on the usage of integrated code in Curry files which
+can be translated with the Code Integrator can be found in the Appendix of
+the thesis. Here is a short version:
+
+The basic syntax of integrated code looks like
+	``langtag expression''
+
+If `` or '' are used in the expression the enclosing accents need to be of higher
+number than the inner graves.
+
+Possible langtags are at the moment
+format - Printf Syntax
+printf - same as above
+regex  - Polymorphic regex expressions
+html   - Standard HTML
+xml    - Standard XML
+
+See the examples and source file comments for further details.

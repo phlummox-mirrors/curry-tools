@@ -17,6 +17,7 @@ all:
 	@cd CASS           && $(MAKE)
 	@cd currydoc       && $(MAKE)
 	@cd curry2js       && $(MAKE)
+	@cd currypp        && $(MAKE)
 	@cd createmakefile && $(MAKE)
 	@cd currytest      && $(MAKE)
 	@cd erd2curry      && $(MAKE)
@@ -41,6 +42,7 @@ clean:
 	cd CASS           && $(MAKE) clean
 	cd currydoc       && $(MAKE) clean
 	cd curry2js       && $(MAKE) clean
+	cd currypp        && $(MAKE) clean
 	cd createmakefile && $(MAKE) clean
 	cd currytest      && $(MAKE) clean
 	cd erd2curry      && $(MAKE) clean
