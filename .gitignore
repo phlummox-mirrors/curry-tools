@@ -2,6 +2,7 @@
 *~
 .curry
 *.state
+Curry_Main_Goal.curry
 
 # executables
 addtypes/AddTypes
