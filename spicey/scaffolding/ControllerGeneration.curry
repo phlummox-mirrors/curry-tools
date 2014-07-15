@@ -13,7 +13,8 @@ enauthModName = "AuthorizedControllers"
 defCtrlModName = "DefaultController"
 
 -- "main"-function
-generateControllersForEntity :: String -> [Entity] -> Entity -> [Relationship]
+generateControllersForEntity :: String -> [Entity] -> Entity
+                             -> [Relationship]
                              -> CurryProg
 generateControllersForEntity erdname allEntities
                              (Entity ename attrlist) relationships =
@@ -38,9 +39,9 @@ generateControllersForEntity erdname allEntities
      -- controller to update a record with the given data
      updateController erdname (Entity ename attrlist) relationships allEntities,
      -- controllers to delete an entity with the given data
-     confirmDeleteController erdname (Entity ename attrlist)
-                             relationships allEntities,
-     deleteController erdname (Entity ename attrlist) relationships allEntities,
+     deleteController erdname (Entity ename attrlist)
+                              relationships allEntities,
+     deleteTransaction erdname (Entity ename attrlist) relationships allEntities,
      -- contgroller to list of all entities:
      listController erdname (Entity ename attrlist) relationships allEntities,
      -- controller to show entites:
@@ -97,7 +98,7 @@ mainController erdname (Entity entityName _) _ _ =
                 (applyF ("Spicey","applyControllerOn")
                   [applyF (erdname,"read"++entityName++"Key") [CVar (2,"s")],
                    constF (erdname,"get"++entityName),
-                   constF (controllerFunctionName entityName "confirmDelete")]),
+                   constF (controllerFunctionName entityName "delete")]),
               CBranch (CPVar (3,"_"))
                  (applyF ("Spicey", "displayError")
                          [string2ac "Illegal URL"])])
@@ -395,16 +396,16 @@ updateController erdname (Entity entityName attrList) _ allEntities =
         [] -- where clauses
       ]
 
---- Generates controller to confirm and delete an entity.
-confirmDeleteController :: ControllerGenerator
-confirmDeleteController erdname (Entity entityName _) _ _ =
+--- Generates controller to delete an entity after confirmation.
+deleteController :: ControllerGenerator
+deleteController erdname (Entity entityName _) _ _ =
   let entlc  = lowerFirst entityName  -- entity name in lowercase
       entvar = (0, entlc)             -- entity parameter for controller
   in
   controllerFunction
   ("Deletes a given "++entityName++" entity (after asking for confirmation)\n"++
    "and proceeds with the list controller.")
-  entityName "confirmDelete" 1
+  entityName "delete" 1
   (baseType (erdname, entityName) ~> controllerType)
   [CRule 
     [CPVar entvar]
@@ -414,78 +415,56 @@ confirmDeleteController erdname (Entity entityName _) _ _ =
          [applyF (enauthModName,entlc++"OperationAllowed")
                  [applyF (authModName,"DeleteEntity") [CVar entvar]]],
         applyF ("Spicey","confirmController")
-         [applyF ("HTML","h3")
-           [list2ac
-             [applyF ("HTML","htxt")
-              [applyF (pre "concat")
-               [list2ac [string2ac "Really delete entity \"",
-                         applyF (erdname++"EntitiesToHtml",entlc++"ToShortView")
-                                [CVar entvar],
-                         string2ac "\"?"]]]]],
-            CLambda [CPVar (1,"ack")]
-             (applyF (pre "if_then_else")
-               [CVar (1,"ack"),
-                applyF (controllerFunctionName entityName "delete")
-                       [CVar entvar],
-                applyF (controllerFunctionName entityName "show")
-                       [CVar entvar]])]])]
+         [list2ac
+           [applyF ("HTML","h3")
+             [list2ac
+               [applyF ("HTML","htxt")
+                [applyF (pre "concat")
+                 [list2ac [string2ac "Really delete entity \"",
+                           applyF (erdname++"EntitiesToHtml",entlc++"ToShortView")
+                                  [CVar entvar],
+                           string2ac "\"?"]]]]]],
+          applyF ("Spicey","transactionController")
+            [applyF (controllerModuleName entityName,
+                     "delete"++entityName++"T")
+                    [CVar entvar],
+             constF (controllerFunctionName entityName "list")],
+          applyF (controllerFunctionName entityName "show")
+                 [CVar entvar]]])]
      [] -- where clauses
     ]
 
---- Generates controller to delete an entity.
-deleteController :: ControllerGenerator
-deleteController erdname (Entity entityName attrList) _ allEntities =
+--- Generates a transaction to delete an entity.
+deleteTransaction :: ControllerGenerator
+deleteTransaction erdname (Entity entityName attrList) _ allEntities =
   let manyToManyEntities = manyToMany allEntities (Entity entityName attrList)
       entlc  = lowerFirst entityName  -- entity name in lowercase
-      entvar = (0, entlc)             -- entity parameter for controller
+      entvar = (0, entlc)             -- entity parameter for trans.
   in
-    controllerFunction
-    ("Deletes a given "++entityName++" entity (depending on the Boolean\n"++
-     "argument) and proceeds with the list controller.")
-    entityName "delete" 1
-    (baseType (erdname, entityName) ~> controllerType)
+   cmtfunc
+    ("Transaction to delete a given "++entityName++" entity.")
+    (controllerModuleName entityName, "delete"++entityName++"T")
+    1 Private
+    (baseType (erdname, entityName) ~>
+                     CTCons (db "Transaction") [baseType (pre "()")])
     [CRule 
       [CPVar entvar] -- entity parameter for controller
-      [noGuard (
-         applyF (pre "$")
-          [applyF (authModName,"checkAuthorization")
-            [applyF (enauthModName,entlc++"OperationAllowed")
-                    [applyF (authModName,"DeleteEntity") [CVar entvar]]],
-           CDoExpr
-            [
-              CSPat (CPVar (4,"transResult")) 
-                (applyF (db "runT") [
-                  foldr1 (\a b -> applyF (db "|>>") [a,b])
-                   (map (\name ->
-                        applyF (db "|>>=")
+      [noGuard
+        (foldr1 (\a b -> applyF (db "|>>") [a,b])
+           (map (\name ->
+                  applyF (db "|>>=")
                          [applyF (controllerModuleName entityName,
                                   "get"++entityName++name++"s")
                                  [CVar entvar],
                           CLambda [CPVar(0, "old"++(linkTableName entityName name allEntities)++name++"s")]
-                                  (applyF (controllerModuleName entityName,
-                                           "remove"++(linkTableName entityName name allEntities))
+                            (applyF (controllerModuleName entityName,
+                                     "remove"++(linkTableName entityName name allEntities))
                                     [cvar ("old"++(linkTableName entityName name allEntities)++name++"s"),
                                      CVar entvar ])
                         ]
-                        ) 
-                        manyToManyEntities
-                    ++
-                    [applyF (erdname, "delete"++entityName) [CVar entvar]]
-                   )
-                ]),
-                CSExpr (
-                  applyF (pre "either") [
-                    CLambda [CPVar(0, "_")]
-                      (callEntityListController entityName),
-                    CLambda [CPVar(1, "error")]
-                       (applyF displayErrorFunction
-                          [applyF (db "showTError") [CVar(1,"error")]]),
-                    CVar (4,"transResult")
-                  ]
-                )              
-            ]
-          ]
-        )
+                 )
+                 manyToManyEntities ++
+            [applyF (erdname, "delete"++entityName) [CVar entvar]]))
       ]
       [] -- where clauses
     ]

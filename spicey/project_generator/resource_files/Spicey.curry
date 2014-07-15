@@ -9,7 +9,7 @@ module Spicey (
   module ReadNumeric, 
   Controller, applyControllerOn,
   nextController, nextControllerForData, confirmNextController,
-  confirmController,
+  confirmController, transactionController,
   getControllerURL,getControllerParams, showControllerURL,
   getForm, wDateType, wBoolean, wUncheckMaybe,
   displayError, cancelOperation,
@@ -79,13 +79,27 @@ confirmNextController question controller _ = do
            spButton "Yes" (nextController (controller True)),
            spButton "No"  (nextController (controller False))]
 
---- Call the next controller after a user confirmation.
---- The Boolean user answer is passed as an argument to the controller.
-confirmController :: HtmlExp -> (Bool -> Controller) -> Controller
-confirmController question controller = do
-  return [question,
-          par [spButton "Yes" (nextController (controller True)),
-               spButton "No"  (nextController (controller False))]]
+--- Ask the user for a confirmation and call the corresponding controller.
+--- @param question - a question asked
+--- @param yescontroller - the controller used if the answer is "yes"
+--- @param nocontroller  - the controller used if the answer is "no"
+confirmController :: [HtmlExp] -> Controller -> Controller -> Controller
+confirmController question yescontroller nocontroller = do
+  return $ question ++
+           [par [spButton "Yes" (nextController yescontroller),
+                 spButton "No"  (nextController nocontroller )]]
+
+--- A controller to execute a transaction and proceed with a given
+--- controller if the transaction succeeds. Otherwise, the
+--- transaction error is shown.
+--- @param trans - the transaction to be executed
+--- @param controller - the controller executed in case of success
+transactionController :: (Transaction _) -> Controller -> Controller
+transactionController trans controller = do
+  transResult <- runT trans
+  either (\_     -> controller)
+         (\error -> displayError (showTError error))
+         transResult
 
 --- If we are in a process, execute the next process depending on
 --- the provided information passed in the second argument,
