@@ -32,17 +32,21 @@ generateControllersForEntity erdname allEntities
      mainController erdname (Entity ename attrlist) relationships allEntities,
      -- controller for providing a page to enter new entity data:
      newController erdname (Entity ename attrlist) relationships allEntities,
-     -- controller for saving data in new entity:
-     createController erdname (Entity ename attrlist) relationships allEntities,
+     -- transaction for saving data in new entity:
+     createTransaction erdname (Entity ename attrlist)
+                               relationships allEntities,
      -- controller to show an existing record in a form to edit
      editController erdname (Entity ename attrlist) relationships allEntities,
-     -- controller to update a record with the given data
-     updateController erdname (Entity ename attrlist) relationships allEntities,
-     -- controllers to delete an entity with the given data
+     -- transaction to update a record with the given data
+     updateTransaction erdname (Entity ename attrlist)
+                               relationships allEntities,
+     -- controller to delete an entity with the given data
      deleteController erdname (Entity ename attrlist)
                               relationships allEntities,
-     deleteTransaction erdname (Entity ename attrlist) relationships allEntities,
-     -- contgroller to list of all entities:
+     -- transaction to delete an entity with the given data
+     deleteTransaction erdname (Entity ename attrlist)
+                               relationships allEntities,
+     -- controller to list all entities:
      listController erdname (Entity ename attrlist) relationships allEntities,
      -- controller to show entites:
      showController erdname (Entity ename attrlist) relationships allEntities
@@ -156,7 +160,14 @@ newController erdname (Entity entityName attrList) relationships allEntities =
                       map (\ (ename, num) -> CVar (num, "all"++ename++"s"))
                            (zip (manyToOneEntities ++ manyToManyEntities)
                                 [2..]) ++
-                      [constF (controllerFunctionName entityName "create")])
+                      [CLambda [CPVar (200,"entity")]
+                        (applyF ("Spicey","transactionController")
+                          [applyF (transFunctionName entityName "create")
+                                 [CVar (200,"entity")],
+                           applyF ("Spicey","nextInProcessOr")
+                                  [callEntityListController entityName,
+                                   constF (pre "Nothing")]]),
+                       callEntityListController entityName])
                   ]
                 )
               ]
@@ -167,8 +178,8 @@ newController erdname (Entity entityName attrList) relationships allEntities =
         [] -- where clauses
       ]
 
-createController :: ControllerGenerator
-createController erdname (Entity entityName attrList) relationships allEntities =
+createTransaction :: ControllerGenerator
+createTransaction erdname (Entity entityName attrList) relationships allEntities =
   let
     noPKeys            = (filter notPKey attrList)
 --    foreignKeys = (filter isForeignKey attrList)
@@ -179,35 +190,26 @@ createController erdname (Entity entityName attrList) relationships allEntities 
     manyToManyEntities = manyToMany allEntities (Entity entityName attrList)
     manyToOneEntities  = manyToOne (Entity entityName attrList) relationships
   in
-    controllerFunction
-    ("Persists a new "++entityName++" entity to the database.")
-    entityName "create" 2
-      (boolType ~>
-       tupleType (map attrType notGeneratedAttributes ++
+    cmtfunc
+    ("Transaction to persist a new "++entityName++" entity to the database.")
+    (transFunctionName entityName "create")
+    1 Private
+      (tupleType (map attrType notGeneratedAttributes ++
                   map ctvar manyToOneEntities ++
                   map (listType . ctvar) manyToManyEntities)
-        ~> controllerType
-      )
-      [CRule [CPComb (pre "False") [], CPVar (0,"_")]
-             [noGuard (callEntityListController entityName)]
-             [],
-       CRule 
-        [CPComb (pre "True") [],
-         tuplePattern
+        ~> CTCons (db "Transaction") [baseType (pre "()")])
+      [CRule 
+        [tuplePattern
           (map (\ (param, varId) -> CPVar (varId, param)) 
                (zip (parameterList ++ map lowerFirst manyToOneEntities ++
                      map (\e -> (lowerFirst e) ++ "s") manyToManyEntities)
                      [1..]))
         ] -- parameterlist for controller
-        [
-          noGuard (
-            CDoExpr [
-              CSPat (CPVar (4,"transResult")) 
-                (applyF (db "runT") [
-                  foldr1 (\a b -> applyF (db "|>>=") [a,b]) --(applyF (db "doneT") [])
-                    ([
-                      applyF (entityConstructorFunction erdname (Entity entityName attrList) relationships) 
-                        (map (\((Attribute name dom key null), varId) -> 
+        [noGuard (
+          applyF (db "|>>")
+           [foldr1 (\a b -> applyF (db "|>>=") [a,b])
+              ([applyF (entityConstructorFunction erdname (Entity entityName attrList) relationships) 
+                       (map (\ ((Attribute name dom key null), varId) -> 
                           if (isForeignKey (Attribute name dom key null))
                             then applyF (erdname, (lowerFirst (getReferencedEntityName dom))++"Key")
                                         [CVar (varId, lowerFirst (getReferencedEntityName dom))]
@@ -219,22 +221,9 @@ createController erdname (Entity entityName attrList) relationships allEntities 
                           (zip noPKeys [1..])
                         )
                      ] ++ (map (\name -> applyF (controllerModuleName entityName, "add"++(linkTableName entityName name allEntities)) [cvar ((lowerFirst name)++"s")]) manyToManyEntities)
-                    )
-                ]),
-                CSExpr (
-                  applyF (pre "either") [
-                    CLambda [CPVar(0, "_")]
-                      (applyF ("Spicey","nextInProcessOr")
-                        [callEntityListController entityName,
-                         constF (pre "Nothing")]),
-                    CLambda [CPVar(1, "error")]
-                      (applyF displayErrorFunction
-                         [applyF (db "showTError") [CVar(1,"error")]]),
-                    CVar (4,"transResult")
-                  ]
-                )              
-            ]
-          )
+                    ),
+            applyF (db "returnT") [constF (pre "()")]]
+           )
         ]
         [] -- where clauses
       ]
@@ -315,7 +304,15 @@ editController erdname (Entity entityName attrList) relationships allEntities =
                       ((map (\ (ename, num) -> CVar (num, "all"++ename++"s"))
                             (zip (manyToOneEntities ++ manyToManyEntities)
                                  [1..])) ++
-                      [applyF (controllerFunctionName entityName "update") []])
+                      [CLambda [CPVar (200,"entity")]
+                        (applyF ("Spicey","transactionController")
+                          [applyF (transFunctionName entityName "update")
+                                 [CVar (200,"entity")],
+                           applyF ("Spicey","nextInProcessOr")
+                                  [callEntityListController entityName,
+                                   constF (pre "Nothing")]]),
+                       callEntityListController entityName]
+                      )
                     )
                   ]
                 )
@@ -327,28 +324,23 @@ editController erdname (Entity entityName attrList) relationships allEntities =
         [] -- where clauses
       ]
 
-updateController :: ControllerGenerator
-updateController erdname (Entity entityName attrList) _ allEntities =
+updateTransaction :: ControllerGenerator
+updateTransaction erdname (Entity entityName attrList) _ allEntities =
  let manyToManyEntities = manyToMany allEntities (Entity entityName attrList)
      -- manyToOneEntities = manyToOne (Entity entityName attrList) relationships
      -- noPKeys = (filter notPKey attrList)
   in
-    controllerFunction
-    ("Persists modifications of a given "++entityName++" entity to the\n"++
-     "database depending on the Boolean argument. If the Boolean argument\n"++
-     "is False, nothing is changed.")
-    entityName "update" 2
-      ( boolType ~> 
-        tupleType ([baseType (erdname, entityName)] ++
+    cmtfunc
+    ("Transaction to persist modifications of a given "++entityName++" entity\n"++
+     "to the database.")
+    (transFunctionName entityName "update")
+    2 Private
+      (tupleType ([baseType (erdname, entityName)] ++
                    map (\name -> listType (ctvar name)) manyToManyEntities)
-        ~> controllerType
+        ~> CTCons (db "Transaction") [baseType (pre "()")]
       )
-      [CRule [CPComb (pre "False") [], CPVar (0,"_")]
-             [noGuard (callEntityListController entityName)]
-             [],
-       CRule 
-        [CPComb (pre "True") [],
-         tuplePattern
+      [CRule 
+        [tuplePattern
                ([CPVar (0, lowerFirst entityName)] ++
                 (map (\ (param, varId) -> CPVar (varId, param)) 
                      (zip (map (\e -> lowerFirst e ++ "s" ++
@@ -356,17 +348,11 @@ updateController erdname (Entity entityName attrList) _ allEntities =
                                manyToManyEntities)
                           [1..])))
         ] -- parameter list for controller
-        [
-          noGuard (
-            CDoExpr (          
-              [
-                CSPat (CPVar (4,"transResult")) 
-                  (applyF (db "runT") [
-                    foldr1 (\a b -> applyF (db "|>>") [a,b])
-                      (
-                        [applyF (erdname, "update"++entityName) [cvar (lowerFirst entityName)]] ++ 
-                        (map 
-                          (\name -> 
+        [noGuard (
+           foldr1 (\a b -> applyF (db "|>>") [a,b])
+                  ([applyF (erdname, "update"++entityName)
+                           [cvar (lowerFirst entityName)]] ++ 
+                   (map  (\name -> 
                             applyF (db "|>>=") [
                               applyF (controllerModuleName entityName,"get"++entityName++name++"s") [cvar (lowerFirst entityName)],
                               CLambda [CPVar(0, "old"++(linkTableName entityName name allEntities)++name++"s")] (applyF (controllerModuleName entityName, "remove"++(linkTableName entityName name allEntities)) [cvar ("old"++(linkTableName entityName name allEntities)++name++"s"), cvar (lowerFirst entityName)])
@@ -376,21 +362,6 @@ updateController erdname (Entity entityName attrList) _ allEntities =
                         ) ++
                         (map (\name -> applyF (controllerModuleName entityName, "add"++(linkTableName entityName name allEntities)) [cvar ((lowerFirst name)++"s"++(linkTableName entityName name allEntities)), cvar (lowerFirst entityName)]) manyToManyEntities)
                       )
-                  ]),
-                  CSExpr (
-                    applyF (pre "either") [
-                      CLambda [CPVar(0, "_")]
-                        (applyF ("Spicey","nextInProcessOr")
-                           [callEntityListController entityName,
-                            constF (pre "Nothing")]),
-                      CLambda [CPVar(1, "error")]
-                        (applyF displayErrorFunction
-                           [applyF (db "showTError") [CVar(1,"error")]]),
-                      CVar (4,"transResult")
-                    ]
-                  )              
-              ]
-            )
           )
         ]
         [] -- where clauses
@@ -425,8 +396,7 @@ deleteController erdname (Entity entityName _) _ _ =
                                   [CVar entvar],
                            string2ac "\"?"]]]]]],
           applyF ("Spicey","transactionController")
-            [applyF (controllerModuleName entityName,
-                     "delete"++entityName++"T")
+            [applyF (transFunctionName entityName "delete")
                     [CVar entvar],
              constF (controllerFunctionName entityName "list")],
           applyF (controllerFunctionName entityName "show")
@@ -443,7 +413,7 @@ deleteTransaction erdname (Entity entityName attrList) _ allEntities =
   in
    cmtfunc
     ("Transaction to delete a given "++entityName++" entity.")
-    (controllerModuleName entityName, "delete"++entityName++"T")
+    (transFunctionName entityName "delete")
     1 Private
     (baseType (erdname, entityName) ~>
                      CTCons (db "Transaction") [baseType (pre "()")])

@@ -92,9 +92,19 @@ controllerType = baseType ("Spicey","Controller")
 controllerModuleName :: String -> String
 controllerModuleName entityName = entityName ++ "Controller"
 
+--- The name of the controller function for a given entity and controller
+--- functionality.
 controllerFunctionName :: String -> String -> QName
 controllerFunctionName entityName controllerFunction =
-  (controllerModuleName entityName, controllerFunction ++ entityName ++ "Controller")
+  (controllerModuleName entityName,
+   controllerFunction ++ entityName ++ "Controller")
+  
+--- The name of the transaction function for a given entity and transaction
+--- functionality.
+transFunctionName :: String -> String -> QName
+transFunctionName entityName controllerFunction =
+  (controllerModuleName entityName,
+   controllerFunction ++ entityName ++ "T")
   
   
 viewModuleName :: String -> String

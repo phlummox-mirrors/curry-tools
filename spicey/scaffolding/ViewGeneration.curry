@@ -282,7 +282,7 @@ createView _ (Entity entityName attrlist) relationships allEntities =
     viewFunction 
       ("Supplies a WUI form to create a new "++entityName++" entity.\n"++
        "Takes default values to be prefilled in the form fields.")
-      entityName "create" 2
+      entityName "create" 3
       ( -- function type
        userSessionInfoType ~>
        (foldr CFuncType viewBlockType (
@@ -290,9 +290,9 @@ createView _ (Entity entityName attrlist) relationships allEntities =
           (map ctvar manyToOneEntities) ++ -- defaults for n:1
           (map (\e -> listType (ctvar e)) manyToManyEntities) ++ -- defaults for n:m
           (map (\e -> listType (ctvar e)) (manyToOneEntities ++ manyToManyEntities)) ++ -- possible values
-          [boolType ~>
-           entityInterface attrlist manyToOneEntities manyToManyEntities
-           ~> controllerType]))
+          [entityInterface attrlist manyToOneEntities manyToManyEntities
+           ~> controllerType,
+           controllerType]))
       )
       [
         CRule
@@ -307,51 +307,25 @@ createView _ (Entity entityName attrlist) relationships allEntities =
                (zip manyToManyEntities [1..])) ++
           (map (\ (name, varId) -> CPVar(varId,("possible"++name++"s")))
                (zip (manyToOneEntities++manyToManyEntities) [1..])) ++
-          [CPVar (100, "controller")]
+          [CPVar (100, "controller"), CPVar (101, "cancelcontroller")]
         )
-        [let initdata = (3,"initdata")
-             wuiframe = (4,"wuiframe")
-          in
-           noGuard (
-            (CLetDecl
-              -- let
-              [CLocalPat
-                 (CPVar initdata)
-                 (tupleExpr (
+        [noGuard (
+          applyF ("Spicey","renderWuiForm")
+           [applyF (viewModuleName entityName, "w"++entityName)
+              (map (\ (name, varId) -> CVar (varId,("possible"++name++"s")))
+                   (zip (manyToOneEntities++manyToManyEntities) [1..])),
+            tupleExpr (
                     (map (\ ((Attribute name _ _ _), varId) ->
                                 CVar(varId,("default"++name)))
                          (zip attrlist [1..])) ++
                     (map (\ (name, varId) -> CVar(varId,("default"++name)))
                          (zip manyToOneEntities [1..])) ++
                     (map (\ (name, varId) -> CVar(varId,"default"++name++"s"))
-                         (zip manyToManyEntities [1..])))) [],
-               CLocalPat
-                 (CPVar wuiframe)
-                 (applyF ("Spicey","wuiEditForm")
-                       [string2ac ("Create new "++entityName),
-                        string2ac "create",
-                        CApply (CApply (CVar (1, "controller"))
-                                       (constF (pre "False")))
-                               (CVar initdata)]) [],
-               CLocalPat (tuplePattern [CPVar (1,"hexp"), CPVar (2,"handler")])
-              -- =
-                (
-                  applyF ("WUI", "wuiWithErrorForm") [
-                    applyF (viewModuleName entityName, "w"++entityName) (
-                      (map (\ (name, varId) ->
-                                       CVar (varId,("possible"++name++"s")))
-                           (zip (manyToOneEntities++manyToManyEntities) [1..]))
-                    ),
-                    CVar initdata,
-                    applyF ("Spicey", "nextControllerForData")
-                           [CApply (CVar(100, "controller"))
-                                   (constF (pre "True"))],
-                    applyF ("Spicey", "wuiFrameToForm") [CVar wuiframe]
-                  ]
-                ) []]
-              -- in
-              (applyV wuiframe [CVar (1, "hexp"), CVar (2, "handler")])
-            )
+                         (zip manyToManyEntities [1..]))),
+            CVar (100, "controller"),
+            CVar (101, "cancelcontroller"),
+            string2ac ("Create new "++entityName),
+            string2ac "create"]
           )
         ]
         []
@@ -368,7 +342,7 @@ editView erdname (Entity entityName attrlist) relationships allEntities =
       ("Supplies a WUI form to edit the given "++entityName++" entity.\n"++
        "Takes also associated entities and a list of possible associations\n"++
        "for every associated entity type.")
-      entityName "edit" 2
+      entityName "edit" 3
       ( -- function type
        userSessionInfoType ~>
        (foldr CFuncType viewBlockType (
@@ -378,10 +352,10 @@ editView erdname (Entity entityName attrlist) relationships allEntities =
           (map ctvar manyToOneEntities) ++ -- defaults for n:1
           (map (\e -> listType (ctvar e))
                (manyToOneEntities ++ manyToManyEntities)) ++ -- possible values
-          [boolType ~> 
-           tupleType ([baseType (erdname, entityName)] ++
+          [tupleType ([baseType (erdname, entityName)] ++
                        map (\name -> listType (ctvar name)) manyToManyEntities)
-           ~> controllerType]))
+           ~> controllerType,
+           controllerType]))
       )
       [CRule
         ( -- params
@@ -395,47 +369,25 @@ editView erdname (Entity entityName attrlist) relationships allEntities =
                (zip manyToOneEntities [2..])) ++
           (map (\ (name, varId) -> CPVar(varId,("possible"++name++"s")))
                (zip (manyToOneEntities++manyToManyEntities) [2..])) ++
-          [CPVar (1, "controller")]
+          [CPVar (1, "controller"), CPVar (102, "cancelcontroller")]
         )
-        [let initdata = (3,"initdata")
-             wuiframe = (4,"wuiframe")
-          in
-          noGuard (
-            (CLetDecl
-              -- let
-              [CLocalPat
-                  (CPVar initdata)
-                  (tupleExpr ([CVar (1, lowerFirst entityName)] ++
-                              map (\name -> CVar (1, lowerFirst (name++"s")))
-                                  manyToManyEntities)) [],
-               CLocalPat
-                 (CPVar wuiframe)
-                 (applyF ("Spicey","wuiEditForm")
-                       [string2ac ("Edit "++entityName),
-                        string2ac "change",
-                        applyV (1, "controller")
-                               [constF (pre "False"), CVar initdata]]) [],
-               CLocalPat (tuplePattern [CPVar (1,"hexp"), CPVar (2,"handler")])
-              -- =
-                (applyF ("WUI", "wuiWithErrorForm") [
-                    applyF (viewModuleName entityName, "w"++entityName++"Type") (
-                      [cvar (lowerFirst entityName)] ++
-                      --(map (\ (name, varId) -> CVar(varId,((lowerFirst name)++"s"))) (zip manyToManyEntities [2..])) ++
-                      (map (\ (name, varId) -> CVar(varId,("related"++name)))
-                           (zip manyToOneEntities [2..])) ++
-                      (map (\ (name, varId) -> CVar(varId,("possible"++name++"s")))
-                           (zip (manyToOneEntities++manyToManyEntities) [2..]))
-                    ),
-                    CVar initdata,
-                    applyF ("Spicey", "nextControllerForData")
-                           [CApply (CVar (1, "controller"))
-                                   (constF (pre "True"))],
-                    applyF ("Spicey", "wuiFrameToForm") [CVar wuiframe]
-                  ]
-                ) []]
-              -- in
-              (applyV wuiframe [CVar (1, "hexp"), CVar (2, "handler")])
-            )
+        [noGuard (
+            applyF ("Spicey","renderWuiForm")
+             [applyF (viewModuleName entityName, "w"++entityName++"Type") (
+               [cvar (lowerFirst entityName)] ++
+                --(map (\ (name, varId) -> CVar(varId,((lowerFirst name)++"s"))) (zip manyToManyEntities [2..])) ++
+               (map (\ (name, varId) -> CVar(varId,("related"++name)))
+                    (zip manyToOneEntities [2..])) ++
+               (map (\ (name, varId) -> CVar(varId,("possible"++name++"s")))
+                    (zip (manyToOneEntities++manyToManyEntities) [2..]))
+               ),
+              tupleExpr ([CVar (1, lowerFirst entityName)] ++
+                         map (\name -> CVar (1, lowerFirst (name++"s")))
+                             manyToManyEntities),
+              CVar (1, "controller"),
+              CVar (102, "cancelcontroller"),
+              string2ac ("Edit "++entityName),
+              string2ac "change"]
           )
         ]
         []
@@ -452,16 +404,16 @@ blankView _ (Entity entityName attrlist) relationships allEntities =
     viewFunction
       ("Supplies a WUI form to create a new "++entityName++" entity.\n"++
        "The fields of the entity have some default values.")
-      entityName "blank" 2
+      entityName "blank" 3
       ( -- function type
        userSessionInfoType ~>
        foldr CFuncType viewBlockType (
           (if withCTime then [baseType ("Time","CalendarTime")] else []) ++
           (map (\e -> listType (ctvar e))
                (manyToOneEntities ++ manyToManyEntities)) ++ -- possible values
-          [boolType ~>
-           entityInterface attrlist manyToOneEntities manyToManyEntities
-           ~> controllerType])
+          [entityInterface attrlist manyToOneEntities manyToManyEntities
+           ~> controllerType,
+           controllerType])
       )
       [CRule
         ( -- params
@@ -469,7 +421,7 @@ blankView _ (Entity entityName attrlist) relationships allEntities =
          (if withCTime then [CPVar (0,"ctime")] else []) ++
          (map (\ (name, varId) -> CPVar(varId,("possible"++name++"s")))
               (zip (manyToOneEntities++manyToManyEntities) [2..])) ++
-         [CPVar (1, "controller")]
+         [CPVar (1, "controller"), CPVar (2, "cancelcontroller")]
         )
         [noGuard (
               applyF (viewFunctionName entityName "create") 
@@ -482,7 +434,7 @@ blankView _ (Entity entityName attrlist) relationships allEntities =
                (map (\_ -> list2ac []) (zip manyToManyEntities [2..])) ++
                (map (\ (name, varId) -> CVar (varId,("possible"++name++"s")))
                     (zip (manyToOneEntities++manyToManyEntities) [2..])) ++
-               [CVar (1, "controller")]
+               [CVar (1, "controller"), CVar (1, "cancelcontroller")]
               )
           )
         ]

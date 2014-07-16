@@ -13,8 +13,8 @@ module Spicey (
   getControllerURL,getControllerParams, showControllerURL,
   getForm, wDateType, wBoolean, wUncheckMaybe,
   displayError, cancelOperation,
-  wuiEditForm, wuiFrameToForm, nextInProcessOr,
-  renderLabels,
+  renderWuiForm, renderLabels,
+  nextInProcessOr,
   stringToHtml, maybeStringToHtml,
   intToHtml,maybeIntToHtml, floatToHtml, maybeFloatToHtml,
   boolToHtml, maybeBoolToHtml, calendarTimeToHtml, maybeCalendarTimeToHtml,
@@ -147,20 +147,28 @@ showControllerURL :: String -> [String] -> String
 showControllerURL ctrlurl params = '?' : ctrlurl ++ concatMap ('/':) params
 
 --------------------------------------------------------------------------
--- A standard HTML frame for editing data with WUIs.
-wuiEditForm :: String -> String -> Controller
-           -> HtmlExp -> WuiHandler -> [HtmlExp]
-wuiEditForm title buttontag controller hexp handler =
-  [h1 [htxt title],
-   blockstyle "editform" [hexp],
-   wuiHandler2button buttontag handler `addClass` "btn btn-primary",
-   spButton "cancel" (nextController (cancelOperation >> controller))]
-
---- Transforms a WUI frame into a standard form.
-wuiFrameToForm :: (HtmlExp -> WuiHandler -> [HtmlExp])
-               -> HtmlExp -> WuiHandler -> IO HtmlForm
-wuiFrameToForm wframe hexp wuihandler = getForm (wframe hexp wuihandler)
-
+--- Standard rendering for WUI forms to edit data.
+--- @param wuispec    - the associated WUI specification
+--- @param initdata   - initial data to be prefilled in the form
+--- @param ctrl       - the controller that handles the submission of the data
+--- @param cancelctrl - the controller called if submission is cancelled
+--- @param title      - the title of the WUI form
+--- @param buttontag  - the text on the submit button
+renderWuiForm :: WuiSpec a -> a -> (a -> Controller) -> Controller
+              -> String -> String -> [HtmlExp]
+renderWuiForm wuispec initdata controller cancelcontroller title buttontag =
+  wuiframe hexp handler
+ where
+  wuiframe wuihexp hdlr =
+    [h1 [htxt title],
+     blockstyle "editform" [wuihexp],
+     wuiHandler2button buttontag hdlr `addClass` "btn btn-primary",
+     spButton "cancel" (nextController (cancelOperation >> cancelcontroller))]
+      
+  (hexp,handler) = wuiWithErrorForm wuispec
+                     initdata
+                     (nextControllerForData controller)
+                     (\he whdlr -> getForm (wuiframe he whdlr))
 
 --- A WUI for manipulating CalendarTime entities.
 --- It is based on a WUI for dates, i.e., the time is ignored.
