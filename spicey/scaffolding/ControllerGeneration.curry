@@ -134,12 +134,12 @@ newController erdname (Entity entityName attrList) relationships allEntities =
         [
           noGuard (
            applyF (pre "$")
-            [applyF (authModName,"checkAuthorization")
+            [applyF checkAuthorizationFunc
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [constF (authModName,"NewEntity")]],
-             CDoExpr (
-              (CSPat (CPVar infovar) getUserSessionInfoFunc :
-               map 
+             CLambda [CPVar infovar] $
+              CDoExpr (
+              (map 
                 (\ (ename, num) ->
                    CSPat (CPVar (num,"all"++ename++"s")) 
                          (applyF (db "runQ")
@@ -247,12 +247,12 @@ editController erdname (Entity entityName attrList) relationships allEntities =
         [
           noGuard (
            applyF (pre "$")
-            [applyF (authModName,"checkAuthorization")
+            [applyF checkAuthorizationFunc
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [applyF (authModName,"UpdateEntity") [CVar pvar]]],
-             CDoExpr (
-              (CSPat (CPVar infovar) getUserSessionInfoFunc :
-               map 
+             CLambda [CPVar infovar] $
+              CDoExpr (
+              (map 
                 (\ (ename, num) ->
                       CSPat (CPVar (num,"all"++ename++"s")) 
                             (applyF (db "runQ")
@@ -382,10 +382,11 @@ deleteController erdname (Entity entityName _) _ _ =
     [CPVar entvar]
     [noGuard (
       applyF (pre "$")
-       [applyF (authModName,"checkAuthorization")
+       [applyF checkAuthorizationFunc
          [applyF (enauthModName,entlc++"OperationAllowed")
                  [applyF (authModName,"DeleteEntity") [CVar entvar]]],
-        applyF ("Spicey","confirmController")
+        CLambda [CPVar (0,"_")] $
+         applyF ("Spicey","confirmController")
          [list2ac
            [applyF ("HTML","h3")
              [list2ac
@@ -455,12 +456,12 @@ listController erdname (Entity entityName _) _ _ =
         [
           noGuard (
            applyF (pre "$")
-            [applyF (authModName,"checkAuthorization")
+            [applyF checkAuthorizationFunc
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [applyF (authModName,"ListEntities") []]],
-             CDoExpr (            
-              [CSPat (CPVar infovar) getUserSessionInfoFunc,
-               CSPat (CPVar entsvar)
+             CLambda [CPVar infovar] $
+              CDoExpr (            
+              [CSPat (CPVar entsvar)
                      (applyF (db "runQ")
                              [constF (erdname,"queryAll"++entityName++"s")]),
                CSExpr (applyF (pre "return")
@@ -491,12 +492,12 @@ showController erdname (Entity entityName attrList) relationships allEntities =
         [CPVar pvar] -- parameterlist for controller
         [noGuard (
            applyF (pre "$")
-            [applyF (authModName,"checkAuthorization")
+            [applyF checkAuthorizationFunc
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [applyF (authModName,"ShowEntity") [CVar pvar]]],
-             CDoExpr (
-              (CSPat (CPVar infovar) getUserSessionInfoFunc :
-               map (\ (ename, num) ->
+             CLambda [CPVar infovar] $
+              CDoExpr (
+              (map (\ (ename, num) ->
                      CSPat (CPVar (num,lowerFirst
                                          (fst $ relationshipName entityName
                                                ename relationships) ++ ename)) 
@@ -779,7 +780,7 @@ generateDefaultController _ (Entity ename _:_) = CurryProg
 generateAuthorizations :: String -> [Entity] -> CurryProg
 generateAuthorizations erdname entities = CurryProg
   enauthModName
-  ["Authorization", erdname] -- imports
+  ["Authorization", "SessionInfo", erdname] -- imports
   [] -- typedecls
   -- functions
   (map operationAllowed entities)
@@ -793,14 +794,15 @@ generateAuthorizations erdname entities = CurryProg
     1
     Public
     (CTCons (authModName,"AccessType") [baseType (erdname,entityName)]
+     ~> CTCons ("SessionInfo","UserSessionInfo") []
      ~> ioType (baseType (authModName,"AccessResult")))
-    [CRule [CPVar (1,"at")]
+    [CRule [CPVar (1,"at"), CPVar (2,"_")]
      [noGuard (CCase (CVar (1,"at"))
        [CBranch (CPComb (authModName,"ListEntities") []) allowed,
         CBranch (CPComb (authModName,"NewEntity")    []) allowed,
-        CBranch (CPComb (authModName,"ShowEntity")   [CPVar (2,"_")]) allowed,
-        CBranch (CPComb (authModName,"DeleteEntity") [CPVar (2,"_")]) allowed,
-        CBranch (CPComb (authModName,"UpdateEntity") [CPVar (2,"_")]) allowed])]
+        CBranch (CPComb (authModName,"ShowEntity")   [CPVar (3,"_")]) allowed,
+        CBranch (CPComb (authModName,"DeleteEntity") [CPVar (3,"_")]) allowed,
+        CBranch (CPComb (authModName,"UpdateEntity") [CPVar (3,"_")]) allowed])]
      [] -- where clauses
     ]
 
@@ -816,5 +818,7 @@ generateAuthorizations erdname entities = CurryProg
 -- Auxiliaries:
 
 getUserSessionInfoFunc = constF ("SessionInfo","getUserSessionInfo")
+
+checkAuthorizationFunc = (authModName,"checkAuthorization")
 
 ------------------------------------------------------------------------

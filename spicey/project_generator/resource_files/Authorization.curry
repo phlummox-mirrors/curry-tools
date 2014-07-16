@@ -5,6 +5,7 @@ module Authorization(AccessType(..), AccessResult(..),
 
 import Spicey(Controller,displayError)
 import HTML
+import SessionInfo
 
 --- The various kinds of operations applied to an entity.
 data AccessType a = NewEntity | ShowEntity a | UpdateEntity a | DeleteEntity a
@@ -15,17 +16,15 @@ data AccessType a = NewEntity | ShowEntity a | UpdateEntity a | DeleteEntity a
 data AccessResult = AccessGranted | AccessDenied String
 
 --- Checks the results of an authoriation access.
---- If the access is granted, we proceed with the given controller,
+--- If the access is granted, we proceed with the given controller
+--- to which the current user session information is passed,
 --- otherwise we display the access error message.
-checkAuthorization :: IO AccessResult -> Controller -> Controller
+checkAuthorization :: (UserSessionInfo -> IO AccessResult)
+                   -> (UserSessionInfo -> Controller)
+                   -> Controller
 checkAuthorization getaccess controller = do
-  accresult <- getaccess
+  sinfo <- getUserSessionInfo
+  accresult <- getaccess sinfo
   case accresult of
-    AccessGranted       -> controller
+    AccessGranted       -> controller sinfo
     AccessDenied reason -> displayError reason
-
-entryOperationAllowed :: AccessType _ -> IO AccessResult
-entryOperationAllowed at =
-  case at of
-    DeleteEntity _ -> return (AccessDenied "Operation not allowed!")
-    _ -> return AccessGranted
