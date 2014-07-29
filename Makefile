@@ -1,7 +1,7 @@
 # Generate various tools for Curry
 
 # Required:
-# - installed Curry System (PAKCS or KiCS2) specified by variable CURRYSYSTEM
+# - installed Curry System (PAKCS or KiCS2) specified by variable REPL
 # - root location of the Curry System specified by variable ROOT
 
 export BINDIR     = $(ROOT)/bin

@@ -1,28 +1,48 @@
 # Generic Makefile for Spicey applications
 
-# Definition of Curry installation bin directory to be used:
-CURRYBIN=XXXCURRYBINXXX
+# Target directory where the compiled cgi programs, style sheets, etc
+# should be stored:
+WEBSERVERDIR=$(HOME)/public_html
+
+# Definition of the Curry installation bin directory to be used:
+export CURRYBIN=XXXCURRYBINXXX
+# Definition of the Curry system executable to be used:
+export CURRYSYSTEM=XXXCURRYSYSTEMXXX
+
+# The root directory of the sources of the Spicey application:
+SRCDIR := $(CURDIR)
+# The load path for the Spicey application:
+export CURRYPATH := $(SRCDIR)/views:$(SRCDIR)/controllers:$(SRCDIR)/models:$(SRCDIR)/system:$(SRCDIR)/config:$(SRCDIR)/helpers
 
 .PHONY: all
 all:
-	@echo "make: deploy compile load clean?"
+	@echo "make: deploy compile load run clean?"
 
 # Deploy the generated Spicey application, i.e., install it in the
 # web pages:
 .PHONY: deploy
 deploy:
-	scripts/deploy.sh
+	$(CURRYBIN)/makecurrycgi -standalone -m main -o $(WEBSERVERDIR)/spicey.cgi Main.curry
+	# copy other files (style sheets, images,...)
+	cp -r $(SRCDIR)/public/* $(WEBSERVERDIR)
+	chmod -R go+rX $(WEBSERVERDIR)
 
 # Compile the generated Spicey application:
 .PHONY: compile
 compile:
-	scripts/compile.sh
+	$(CURRYBIN)/$(CURRYSYSTEM) :load Main :quit
 
 # Load the generated Spicey application into the Curry system so that
 # one can evaluate some expressions:
 .PHONY: load
 load:
-	scripts/load.sh
+	$(CURRYBIN)/$(CURRYSYSTEM) :load Main
+
+# Runs the generated Spicey application by evaluating the main expression.
+# This might be useful to test only the initial web page without a web server
+.PHONY: run
+run:
+	$(CURRYBIN)/$(CURRYSYSTEM) :load Main :eval main :quit
 
 # clean up generated programs
 .PHONY: clean

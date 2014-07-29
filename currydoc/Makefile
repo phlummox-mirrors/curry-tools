@@ -1,7 +1,7 @@
 # Makefile for generating CurryDoc tool
 
 # Required:
-# - installed Curry System (PAKCS or KiCS2) specified by variable CURRYSYSTEM
+# - installed Curry System (PAKCS or KiCS2) specified by variable REPL
 # - root location of the Curry System specified by variable ROOT
 
 # directories
