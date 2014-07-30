@@ -1,8 +1,8 @@
 # Generic Makefile for Spicey applications
 
 # Target directory where the compiled cgi programs, style sheets, etc
-# should be stored:
-WEBSERVERDIR=$(HOME)/public_html
+# should be stored, e.g.: $(HOME)/public_html
+WEBSERVERDIR = $(error "Define variable WEBSERVERDIR!")
 
 # Definition of the Curry installation bin directory to be used:
 export CURRYBIN=XXXCURRYBINXXX
@@ -12,20 +12,11 @@ export CURRYSYSTEM=XXXCURRYSYSTEMXXX
 # The root directory of the sources of the Spicey application:
 SRCDIR := $(CURDIR)
 # The load path for the Spicey application:
-export CURRYPATH := $(SRCDIR)/views:$(SRCDIR)/controllers:$(SRCDIR)/models:$(SRCDIR)/system:$(SRCDIR)/config:$(SRCDIR)/helpers
+export CURRYPATH := $(SRCDIR)/views:$(SRCDIR)/controllers:$(SRCDIR)/models:$(SRCDIR)/system:$(SRCDIR)/config
 
 .PHONY: all
 all:
 	@echo "make: deploy compile load run clean?"
-
-# Deploy the generated Spicey application, i.e., install it in the
-# web pages:
-.PHONY: deploy
-deploy:
-	$(CURRYBIN)/makecurrycgi -standalone -m main -o $(WEBSERVERDIR)/spicey.cgi Main.curry
-	# copy other files (style sheets, images,...)
-	cp -r $(SRCDIR)/public/* $(WEBSERVERDIR)
-	chmod -R go+rX $(WEBSERVERDIR)
 
 # Compile the generated Spicey application:
 .PHONY: compile
@@ -43,6 +34,16 @@ load:
 .PHONY: run
 run:
 	$(CURRYBIN)/$(CURRYSYSTEM) :load Main :eval main :quit
+
+# Deploy the generated Spicey application, i.e., install it in the
+# web directory WEBSERVERDIR:
+.PHONY: deploy
+deploy:
+	mkdir -p $(WEBSERVERDIR)
+	$(CURRYBIN)/makecurrycgi -standalone -m main -o $(WEBSERVERDIR)/spicey.cgi Main.curry
+	# copy other files (style sheets, images,...)
+	cp -r $(SRCDIR)/public/* $(WEBSERVERDIR)
+	chmod -R go+rX $(WEBSERVERDIR)
 
 # clean up generated programs
 .PHONY: clean

@@ -7,7 +7,7 @@ import SpiceyScaffolding
 import Distribution
 
 systemBanner =
-  let bannerText = "Spicey Web Framework (Version of 16/07/14)"
+  let bannerText = "Spicey Web Framework (Version of 30/07/14)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -25,7 +25,7 @@ data DirTree =
  | GeneratedFromERD (String -> String -> String -> String -> IO ())
    -- takes an operation to generate code from ERD specification
 
-structure = 
+spiceyStructure = 
   Directory "." [
     ResourceFile NoExec "README.txt",
     ResourcePatchFile NoExec "Makefile" replaceCurryDir,
@@ -140,7 +140,7 @@ createStructure target_path generator_path term_path db_path
                 (GeneratedFromERD generatorFunction) = do
   putStrLn $ "Generating from term file " ++ term_path ++ " ..."
   generatorFunction generator_path term_path target_path db_path
-    
+
 --- The main operation to start the scaffolding.
 --- The argument is the directory containing the project generator.
 main generatordir = do
@@ -149,9 +149,14 @@ main generatordir = do
   args <- getArgs
   case args of
     ["--dbpath",dbpath,termfile] -> 
-      createStructure curdir generatordir termfile dbpath structure
-    [termfile] -> createStructure curdir generatordir termfile "." structure
+      createStructure curdir generatordir termfile dbpath spiceyStructure
+    [termfile] ->
+      createStructure curdir generatordir termfile "." spiceyStructure
     _ -> putStrLn ("Wrong argument!\n" ++ helpText) >> exitWith 1
+  putStrLn $ take 70 (repeat '-')
+  putStrLn "Source files for the application generated.\n"
+  putStrLn "IMPORTANT NOTE: Before you deploy your web application (by 'make deploy'),"
+  putStrLn "you should define the variable WEBSERVERDIR in the Makefile!"
 
 helpText =
   "Usage: spiceup [--dbpath <dirpath>] <ERD term file>\n" ++
