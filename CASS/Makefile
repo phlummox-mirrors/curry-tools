@@ -24,7 +24,8 @@ DEPS = Analysis.curry AnalysisCollection.curry AnalysisDependencies.curry \
        $(ANADIR)/Deterministic.curry $(ANADIR)/HigherOrder.curry \
        $(ANADIR)/Indeterministic.curry $(ANADIR)/RightLinearity.curry \
        $(ANADIR)/SolutionCompleteness.curry $(ANADIR)/TotallyDefined.curry \
-       $(ANADIR)/Demandedness.curry $(ANADIR)/Groundness.curry
+       $(ANADIR)/Demandedness.curry $(ANADIR)/Groundness.curry \
+       $(ANADIR)/RequiredValues.curry
 
 .PHONY: install
 install: cass_worker cass

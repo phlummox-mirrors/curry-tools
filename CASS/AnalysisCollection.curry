@@ -39,6 +39,7 @@ import TotallyDefined
 import Indeterministic
 import Demandedness
 import Groundness
+import RequiredValues
 
 --------------------------------------------------------------------
 --- Each analysis used in our tool must be registered in this list
@@ -59,6 +60,7 @@ registeredAnalysis =
   ,cassAnalysis "Higher-order constructors"  hiOrdCons        showOrder
   ,cassAnalysis "Higher-order functions"     hiOrdFunc        showOrder
   ,cassAnalysis "Sibling constructors"       siblingCons      showSibling
+  ,cassAnalysis "Required values"            reqValueAnalysis showAFType
   ]
 
 
@@ -182,12 +184,13 @@ analyzeMain analysis modname handles load = do
   let ananame = analysisName analysis
   debugMessage 2 ("start analysis "++modname++"/"++ananame)
   modulesToDo <- getModulesToAnalyze analysis modname
+  let numModules = length modulesToDo
   workresult <-
-    if null modulesToDo
+    if numModules==0
     then return Nothing
     else do
-     debugMessage 1
-       ("Number of modules to be analyzed: " ++ show (length modulesToDo))
+     when (numModules>1) $
+       debugMessage 1 ("Number of modules to be analyzed: " ++ show numModules)
      prepareCombinedAnalysis analysis modname (map fst modulesToDo) handles
      numworkers <- numberOfWorkers
      if numworkers>0

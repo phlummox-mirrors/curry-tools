@@ -19,6 +19,7 @@ import Socket(Socket(..),listenOn,listenOnFresh,sClose,waitForSocketAccept)
 import IO
 import ReadShowTerm(readQTerm,showQTerm)
 import System(system,sleep,setEnviron,getArgs)
+import FileGoodies(stripSuffix)
 import AnalysisCollection
 import ServerFormats
 import ServerFunctions(WorkerMessage(..))
@@ -61,7 +62,7 @@ processArgs args = case args of
                                        processArgs rargs
   [ananame,mname] ->
       if ananame `elem` registeredAnalysisNames
-      then analyzeModule ananame mname AText >>=
+      then analyzeModule ananame (stripSuffix mname) AText >>=
              putStrLn . formatResult mname "Text" Nothing True
       else showError
   _ -> showError
@@ -151,8 +152,6 @@ analyzeModule ananame moduleName aoutformat = do
 --- The analysis must be a registered one if workers are used.
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
---- Note that, before its first use, the analysis system must be initialized
---- by 'initializeAnalysisSystem'.
 analyzeGeneric :: Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzeGeneric analysis moduleName = do
   initializeAnalysisSystem
@@ -175,8 +174,6 @@ analyzeGeneric analysis moduleName = do
 --- The analysis must be a registered one if workers are used.
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
---- Note that, before its first use, the analysis system must be initialized
---- by 'initializeAnalysisSystem'.
 analyzeInterface :: Analysis a -> String -> IO (Either [(QName,a)] String)
 analyzeInterface analysis moduleName = do
   analyzeGeneric analysis moduleName
