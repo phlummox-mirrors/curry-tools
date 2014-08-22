@@ -12,7 +12,7 @@
 --- @version August 2014
 -----------------------------------------------------------------------------
 
-module RequiredValues(AType(..),showAType,AFType(..),showAFType,
+module RequiredValues(AType(..),showAType,AFType(..),showAFType,lubAType,
                       reqValueAnalysis)
  where
 

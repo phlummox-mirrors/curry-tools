@@ -5,12 +5,13 @@
 --- to use the analysis system in another Curry program.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version May 2013
+--- @version August 2014
 --------------------------------------------------------------------------
 
 module AnalysisServer(main, initializeAnalysisSystem,
                       analyzeModuleForBrowser, analyzeFunctionForBrowser,
-                      analyzeGeneric, analyzeInterface) where
+                      analyzeGeneric, analyzePublic, analyzeInterface)
+  where
 
 import ReadNumeric(readNat)
 import Char(isSpace)
@@ -174,10 +175,20 @@ analyzeGeneric analysis moduleName = do
 --- The analysis must be a registered one if workers are used.
 --- If it is a combined analysis, the base analysis must be also
 --- a registered one.
-analyzeInterface :: Analysis a -> String -> IO (Either [(QName,a)] String)
-analyzeInterface analysis moduleName = do
+analyzePublic :: Analysis a -> String -> IO (Either (ProgInfo a) String)
+analyzePublic analysis moduleName =
   analyzeGeneric analysis moduleName
-    >>= return . either (Left . publicListFromProgInfo) Right
+  >>= return . either (Left . publicProgInfo) Right
+
+--- Start the analysis system with a given analysis to compute properties
+--- of a module interface.
+--- The analysis must be a registered one if workers are used.
+--- If it is a combined analysis, the base analysis must be also
+--- a registered one.
+analyzeInterface :: Analysis a -> String -> IO (Either [(QName,a)] String)
+analyzeInterface analysis moduleName =
+  analyzeGeneric analysis moduleName
+  >>= return . either (Left . publicListFromProgInfo) Right
 
 --------------------------------------------------------------------------
 -- start a number of workers at server start

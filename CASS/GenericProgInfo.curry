@@ -16,6 +16,7 @@ import XML
 --- The first component are public declarations, the second the private ones.
 data ProgInfo a = ProgInfo (FM QName a) (FM QName a)
 
+--- The empty program information.
 emptyProgInfo:: ProgInfo a
 emptyProgInfo = ProgInfo (emptyFM (<)) (emptyFM (<))
 
@@ -39,6 +40,8 @@ lists2ProgInfo (xs,ys) = ProgInfo (listToFM (<) xs) (listToFM (<) ys)
 publicListFromProgInfo:: ProgInfo a -> [(QName,a)]
 publicListFromProgInfo (ProgInfo fm1 _) = fmToList fm1
 
+--- Transforms a program information into a pair of lists
+--- containing the information about public and private entities.
 progInfo2Lists :: ProgInfo a -> ([(QName,a)],[(QName,a)])
 progInfo2Lists (ProgInfo map1 map2)= (fmToList map1,fmToList map2)
 
@@ -56,6 +59,8 @@ mapProgInfo:: (a->b) -> ProgInfo a -> ProgInfo b
 mapProgInfo func (ProgInfo map1 map2) = 
   ProgInfo (mapFM (\_ b->func b) map1) (mapFM (\_ b->func b) map2)
 
+--- Transforms a program information into a program information
+--- about interface entities only.
 publicProgInfo :: ProgInfo a -> ProgInfo a
 publicProgInfo (ProgInfo pub _) = ProgInfo pub (emptyFM (<))
 
