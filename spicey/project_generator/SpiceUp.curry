@@ -71,19 +71,12 @@ spiceyStructure =
 
 resourceDirectoryLocal = "resource_files" -- script directory gets prepended
 
--- Replace every occurrence of
--- "XXXCURRYBINXXX" by installDir++"/bin"
--- "XXXCURRYSYSTEMXXX" by curryCompiler
--- "XXXCURRYEXECXXX" by installDir++"/bin"++curryCompiler
+-- Replace every occurrence of "XXXCURRYBINXXX" by installDir++"/bin"
 replaceCurryDir :: String -> String
 replaceCurryDir [] = []
 replaceCurryDir (c:cs)
   | c=='X' && take 13 cs == "XXCURRYBINXXX"
     = installDir ++ "/bin" ++ replaceCurryDir (drop 13 cs)
-  | c=='X' && take 16 cs == "XXCURRYSYSTEMXXX"
-    = curryCompiler ++ replaceCurryDir (drop 16 cs)
-  | c=='X' && take 14 cs == "XXCURRYEXECXXX"
-    = installDir ++ "/bin/" ++ curryCompiler ++ replaceCurryDir (drop 14 cs)
   | otherwise = c : replaceCurryDir cs
 
 prependPath :: String -> String -> String

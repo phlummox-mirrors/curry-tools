@@ -5,7 +5,7 @@
 # - root location of the Curry System specified by variable ROOT
 
 # binaries
-REPL       = $(ROOT)/bin/$(CURRYSYSTEM)
+REPL       = $(ROOT)/bin/curry
 CLEANCURRY = $(ROOT)/bin/cleancurry
 INSTALLBIN = $(ROOT)/bin/erd2curry
 

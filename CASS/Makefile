@@ -9,7 +9,7 @@ METADIR    = $(LIBDIR)/meta
 ANADIR     = ../analysis
 
 # binaries
-REPL       = $(ROOT)/bin/$(CURRYSYSTEM)
+REPL       = $(ROOT)/bin/curry
 CLEANCURRY = $(ROOT)/bin/cleancurry
 INSTALLBIN = $(ROOT)/bin/cass
 

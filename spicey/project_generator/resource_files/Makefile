@@ -6,8 +6,6 @@ WEBSERVERDIR = $(error "Define variable WEBSERVERDIR!")
 
 # Definition of the Curry installation bin directory to be used:
 export CURRYBIN=XXXCURRYBINXXX
-# Definition of the Curry system executable to be used:
-export CURRYSYSTEM=XXXCURRYSYSTEMXXX
 
 # The root directory of the sources of the Spicey application:
 SRCDIR := $(CURDIR)
@@ -21,19 +19,19 @@ all:
 # Compile the generated Spicey application:
 .PHONY: compile
 compile:
-	$(CURRYBIN)/$(CURRYSYSTEM) :load Main :quit
+	$(CURRYBIN)/curry :load Main :quit
 
 # Load the generated Spicey application into the Curry system so that
 # one can evaluate some expressions:
 .PHONY: load
 load:
-	$(CURRYBIN)/$(CURRYSYSTEM) :load Main
+	$(CURRYBIN)/curry :load Main
 
 # Runs the generated Spicey application by evaluating the main expression.
 # This might be useful to test only the initial web page without a web server
 .PHONY: run
 run:
-	$(CURRYBIN)/$(CURRYSYSTEM) :load Main :eval main :quit
+	$(CURRYBIN)/curry :load Main :eval main :quit
 
 # Deploy the generated Spicey application, i.e., install it in the
 # web directory WEBSERVERDIR:
