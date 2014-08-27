@@ -291,7 +291,8 @@ execTestFunctions prtmsg portnum modname fs@(_:_) = do
          (if portnum/=0 then " >> showTestEnd "++show portnum
                         else " >>= exitWith")
       execCall = case curryCompiler of
-        "pakcs" -> "echo ':l "++modname++"\n"++testgoal++" ' | \"" ++
+        "pakcs" -> "echo ':l "++modname++"\n:add Assertion\n:add System\n"++
+                   testgoal++" ' | \"" ++
                    installDir++"/bin/pakcs\" -quiet -Dshowfcyload=no 2>&1"
         "kics2" -> "echo ':l "++modname++"\n:add Assertion\n:add System\n"++
                    ":save "++testgoal++"\n:q\n' | \""++
