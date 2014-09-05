@@ -18,4 +18,6 @@ createmakefile/CreateMakefile
 erd2curry/erd2curry
 genint/GenInt
 importcalls/ImportCalls
+optimize/bindingopt
+optimize/binding_optimization/BindingOpt
 spicey/spiceup

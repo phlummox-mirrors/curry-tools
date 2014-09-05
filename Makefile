@@ -7,11 +7,11 @@
 export BINDIR     = $(ROOT)/bin
 export LIBDIR     = $(ROOT)/lib
 export METADIR    = $(LIBDIR)/meta
-export REPL       = $(BINDIR)/$(CURRYSYSTEM)
 export CLEANCURRY = $(BINDIR)/cleancurry
 
 .PHONY: all
 all:
+	@cd optimize       && $(MAKE)
 	@cd addtypes       && $(MAKE)
 	@cd browser        && $(MAKE)
 	@cd CASS           && $(MAKE)
@@ -36,6 +36,7 @@ typeinference:
 
 .PHONY: clean
 clean:
+	cd optimize       && $(MAKE) clean
 	cd addtypes       && $(MAKE) clean
 	cd analysis       && $(CLEANCURRY)
 	cd browser        && $(MAKE) clean
