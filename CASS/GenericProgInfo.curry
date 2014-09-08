@@ -2,12 +2,13 @@
 --- This module defines a datatype to represent the analysis information.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2013
+--- @version September 2014
 -----------------------------------------------------------------------
 
 module GenericProgInfo where
 
 import Configuration(debugMessageLevel)
+import Directory(removeFile)
 import FiniteMap
 import FlatCurry
 import XML
@@ -75,16 +76,31 @@ writeAnalysisFiles basefname (ProgInfo pub priv) = do
 readAnalysisFiles :: String -> IO (ProgInfo _)
 readAnalysisFiles basefname = do
   debugMessageLevel 3 $ "Reading analysis files '"++basefname++"'..."
-  pubcont  <- readFile (basefname++".pub")
-  privcont <- readFile (basefname++".priv")
-  return (ProgInfo (readFM (<) pubcont) (readFM (<) privcont))
+  let pubcontfile  = basefname++".pub"
+      privcontfile = basefname++".priv"
+  pubcont  <- readFile pubcontfile
+  privcont <- readFile privcontfile
+  let pinfo = ProgInfo (readFM (<) pubcont) (readFM (<) privcont)
+  catch (return $!! pinfo)
+        (\err -> do
+           putStrLn ("Buggy analysis files detected and removed:\n"++
+                     basefname)
+           mapIO_ removeFile [pubcontfile,privcontfile]
+           putStrLn "Please try to re-run the analysis!"
+           ioError err)
 
 --- Reads the public ProgInfo from the public analysis file.
 readAnalysisPublicFile :: String -> IO (ProgInfo _)
 readAnalysisPublicFile fname = do
   debugMessageLevel 3 $ "Reading public analysis file '"++fname++"'..."
   fcont <- readFile fname
-  return (ProgInfo (readFM (<) fcont) (emptyFM (<)))
+  let pinfo = ProgInfo (readFM (<) fcont) (emptyFM (<))
+  catch (return $!! pinfo)
+        (\err -> do
+           putStrLn ("Buggy analysis files detected and removed:\n"++fname)
+           removeFile fname
+           putStrLn "Please try to re-run the analysis!"
+           ioError err)
 
 --- Show a ProgInfo as a string (used for debugging only).
 showProgInfo :: ProgInfo _ -> String
