@@ -25,6 +25,7 @@ all:
 	@cd importcalls    && $(MAKE)
 	@cd spicey         && $(MAKE)
 	@cd typeinference  && $(MAKE)
+	@cd xmldata        && $(MAKE)
 
 .PHONY: currydoc
 currydoc:
@@ -51,3 +52,4 @@ clean:
 	cd importcalls    && $(MAKE) clean
 	cd spicey         && $(MAKE) clean
 	cd typeinference  && $(MAKE) clean
+	cd xmldata        && $(MAKE) clean

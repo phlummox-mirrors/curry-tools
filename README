@@ -52,3 +52,9 @@ This directory contains the implementation of a type
 inferencer for FlatCurry programs which annotates
 each expression occurring in a FlatCurry program with its
 actual type.
+
+`xmldata`:
+This directory contains a tool to generate conversion functions
+between data types and XML representations. The corresponding
+tool is called by the command `data2xml` in the binary directory
+of the Curry system.
