@@ -299,8 +299,9 @@ readFun "Float"  = app (sym ("ReadShowTerm","readQTerm")) [toVar 0]
 readFun "String" = toVar 0
 
 writeFun s = case s of
-              "String" -> app (CSymbol ("XML","xtxt")) [toVar 0]
-              _        -> app (CSymbol ("XML","xtxt")) [cShow (toVar 0)]
+  "String" -> app (CSymbol ("XML","xtxt")) [toVar 0]
+  "Char"   -> app (CSymbol ("XML","xtxt")) [cList [toVar 0]]
+  _        -> app (CSymbol ("XML","xtxt")) [cShow (toVar 0)]
 
 
 
