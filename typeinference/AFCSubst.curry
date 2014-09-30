@@ -1,8 +1,8 @@
 --- ----------------------------------------------------------------------------
---- Type Substitutions on AnnotatedFlatCurry
+--- Type Substitutions on type-annotated AnnotatedFlatCurry
 ---
 --- @author Björn Peemöller
---- @version July 2013
+--- @version September 2014
 --- ----------------------------------------------------------------------------
 module AFCSubst where
 
@@ -67,7 +67,7 @@ substExpr sub (AOr   ty    a b) = AOr    (subst sub ty) (substExpr sub a)
                                                         (substExpr sub b)
 substExpr sub (ALet  ty   bs e) = ALet   (subst sub ty) (map substBinding bs)
                                          (substExpr sub e)
-  where substBinding (v, b) = (v, substExpr sub b)
+  where substBinding (v, b) = (substSnd sub v, substExpr sub b)
 substExpr sub (AFree ty   vs e) = AFree  (subst sub ty) (map (substSnd sub) vs)
                                          (substExpr sub e)
 substExpr sub (ATyped ty e ty') = ATyped (subst sub ty) (substExpr sub e)

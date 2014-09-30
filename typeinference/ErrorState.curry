@@ -2,10 +2,13 @@
 --- A combination of Error and state monad like `ErrorT State` in Haskell
 ---
 --- @author Björn Peemöller
---- @version July 2013
+--- @version September 2014
 --- ----------------------------------------------------------------------------
 
 module ErrorState where
+
+infixl 1 >+, >+=
+infixl 4 <$>, <*>
 
 --- Error state monad.
 type ES e s a = s -> Either e (a, s)
@@ -20,6 +23,10 @@ evalES m s = case m s of
 returnES :: a -> ES e s a
 returnES x s = Right (x, s)
 
+--- Failing computation in the `ES` monad
+failES :: e -> ES e s a
+failES e _ = Left e
+
 --- Bind of the `ES` monad
 (>+=) :: ES e s a -> (a -> ES e s b) -> ES e s b
 (m >+= f) s = case m s of
@@ -30,9 +37,13 @@ returnES x s = Right (x, s)
 (>+) :: ES e s a -> ES e s b -> ES e s b
 m >+ n = m >+= \_ -> n
 
---- Failing computation in the `ES` monad
-failES :: e -> ES e s a
-failES e _ = Left e
+--- Apply a pure function onto a monadic value.
+(<$>) :: (a -> b) -> ES e s a -> ES e s b
+f <$> act = act >+= \x -> returnES (f x)
+
+--- Apply a function yielded by a monadic action to a monadic value.
+(<*>) :: ES e s (a -> b) -> ES e s a -> ES e s b
+sf <*> sx = sf >+= \f -> sx >+= \x -> returnES (f x)
 
 --- Retrieve the current state
 gets :: ES e s s
@@ -46,18 +57,6 @@ puts s _ = Right ((), s)
 modify :: (s -> s) -> ES e s ()
 modify f s = Right ((), f s)
 
---- Lift the given unary function into the monad.
-liftES :: (a -> b) -> ES e s a -> ES e s b
-liftES f m = m >+= (returnES . f)
-
---- Lift the given binary function into the monad.
-liftES2 :: (a -> b -> c) -> ES e s a -> ES e s b -> ES e s c
-liftES2 f m n = m >+= \x -> n >+= \y -> returnES (f x y)
-
---- Lift the given ternary function into the monad.
-liftES3 :: (a -> b -> c -> d) -> ES e s a -> ES e s b -> ES e s c -> ES e s d
-liftES3 f m n o = m >+= \x -> n >+= \y -> o >+= \z -> returnES (f x y z)
-
 --- Map a monadic function on all elements of a list by sequencing
 --- the effects.
 mapES :: (a -> ES e s b) -> [a] -> ES e s [b]
@@ -68,9 +67,9 @@ mapES f (x : xs) = f x        >+= \y  ->
 
 --- Same as `concatMap`, but for a monadic function.
 concatMapES :: (a -> ES e s [b]) -> [a] -> ES e s [b]
-concatMapES f xs = concat `liftES` mapES f xs
+concatMapES f xs = concat <$> mapES f xs
 
---- Same as `mapES` but with an additional accumulator threaded.
+--- Same as `mapES` but with an additional accumulator threaded through.
 mapAccumES :: (a -> b -> ES e s (a, c)) -> a -> [b] -> ES e s (a, [c])
 mapAccumES _ s []       = returnES (s, [])
 mapAccumES f s (x : xs) = f s x >+= \(s', y) ->

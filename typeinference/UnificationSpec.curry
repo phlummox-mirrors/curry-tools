@@ -6,7 +6,7 @@
 --- it serves as a specification for more elaborate implementations.
 ---
 --- @author  Jonas Oberschweiber, Björn Peemöller
---- @version February 2013
+--- @version September 2014
 ------------------------------------------------------------------------------
 module UnificationSpec
   ( VarIdx, Term (..), TermEq, TermEqs, Subst, UnificationError (..)
@@ -16,7 +16,7 @@ module UnificationSpec
 import FiniteMap
 
 -- ---------------------------------------------------------------------------
--- representation of terms
+-- Representation of terms
 -- ---------------------------------------------------------------------------
 
 --- Variable index, identifying a variable.
@@ -36,12 +36,13 @@ type TermEq = (Term, Term)
 type TermEqs = [TermEq]
 
 -- ---------------------------------------------------------------------------
--- substitution
+-- Substitution on terms
 -- ---------------------------------------------------------------------------
 
 --- The (abstract) data type for substitutions.
 type Subst = FM VarIdx Term
 
+--- Pretty string representation of a substitution.
 showSubst :: Subst -> String
 showSubst = unlines . map showOne . fmToList
   where showOne (k, v) = show k ++ " -> " ++ show v
@@ -181,6 +182,6 @@ substituteSingle' i t (a, b) = (termSubstitute' i t a, termSubstitute' i t b)
 --- @param b - the term to search in
 --- @return whether the first term is found in the second term
 dependsOn :: Term -> Term -> Bool
-dependsOn a b = and [(not (a == b)), dependsOnRecurse a b]
- where dependsOnRecurse c v@(TermVar _) = c == v
-       dependsOnRecurse c (TermCons _ vars) = any id (map (dependsOnRecurse c) vars)
+dependsOn a b = and [(not (a == b)), dependsOn' a b]
+ where dependsOn' c v@(TermVar _) = c == v
+       dependsOn' c (TermCons _ vars) = any id (map (dependsOn' c) vars)

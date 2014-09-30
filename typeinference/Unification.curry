@@ -1,3 +1,12 @@
+------------------------------------------------------------------------------
+--- Library for general unification - implementation
+---
+--- This library implements a unification algorithm using reference tables.
+---
+--- @author  Jonas Oberschweiber, Björn Peemöller
+--- @version September 2014
+------------------------------------------------------------------------------
+
 module Unification
   ( module UnificationSpec
   , unify
@@ -17,12 +26,12 @@ import List (mapAccumL)
 --- represent references into a RefTable.
 data RTerm
   = RTermCons String [RTerm]
-  | RTermVar VarIdx
-  | Ref VarIdx
+  | RTermVar  VarIdx
+  | Ref       VarIdx
 
 --- Type of the reference table used to store the values referenced
 --- by Ref RTerms.
-type RefTable = FM Int RTerm
+type RefTable = FM VarIdx RTerm
 
 --- An equation of RTerms.
 type REq = (RTerm, RTerm)
@@ -35,7 +44,7 @@ type REqs = [REq]
 --- @param eqs - the equations to unify
 --- @return either an UnificationError or a substitution
 unify :: TermEqs -> Either UnificationError Subst
-unify ts = let (r, rts) = termEqsToREqs ts in case unify' r rts [] of
+unify ts = let (r, rts) = termEqsToREqs ts in case unify' r [] rts of
   Right (r', ts') -> Right (eqsToSubst r' ts')
   Left err        -> Left err
 
@@ -129,41 +138,36 @@ deref _ a@(RTermCons _ _) = a
 --- Internal unification function, the core of the algorithm.
 unify' :: RefTable -> REqs -> REqs -> Either UnificationError (RefTable, REqs)
 -- No equations left, we are done.
-unify' r []                                    s = Right (r, s)
--- Substitute the constructor for the variable.
-unify' r (((RTermVar i), b@(RTermCons _ _)):e) s = elim r i b e s
--- Substitute the constructor for the variable.
-unify' r ((a@(RTermCons _ _), (RTermVar i)):e) s = elim r i a e s
--- If both vars are equal, simply remove the equation. Otherwise substitute
--- the second var for the first var.
-unify' r ((RTermVar i, b@(RTermVar i')):e)     s | i == i'   = unify' r e s
-                                                 | otherwise = elim r i b e s
--- If both constructors have the same name, build equations between their arguments.
--- Otherwise fail with clash.
-unify' r ((a@(RTermCons aname as), b@(RTermCons bname bs)):e) s
-  | aname == bname = unify' r ((zip as bs) ++ e) s
-  | otherwise      = Left (Clash (rTermToTerm r a) (rTermToTerm r b))
--- If we encounter a Ref, simply dereference it and try again.
-unify' r ((a@(Ref _), b@(RTermVar _)):e)       s = unify' r ((deref r a, b):e) s
-unify' r ((a@(Ref _), b@(RTermCons _ _)):e)    s = unify' r ((deref r a, b):e) s
-unify' r ((a@(Ref _), b@(Ref _)):e)            s = unify' r ((deref r a, deref r b):e) s
-unify' r ((a@(RTermVar _), b@(Ref _)):e)       s = unify' r ((a, deref r b):e) s
-unify' r ((a@(RTermCons _ _), b@(Ref _)):e)    s = unify' r ((a, deref r b):e) s
+unify' r s []             = Right (r, s)
+unify' r s ((a, b) : eqs) = case (a, b) of
+  -- Substitute the constructor for the variable.
+  (RTermVar    i, RTermCons _ _) -> elim r s i b eqs
+  (RTermCons _ _, RTermVar    i) -> elim r s i a eqs
+  -- If both vars are equal, simply remove the equation.
+  -- Otherwise substitute the second var for the first var.
+  (RTermVar    i, RTermVar   i') | i == i'   -> unify' r s eqs
+                                 | otherwise -> elim   r s i b eqs
+  -- If both constructors have the same name, equate their arguments.
+  -- Otherwise fail with a clash.
+  (RTermCons ca as, RTermCons cb bs)
+    | ca == cb  -> unify' r s (zip as bs ++ eqs)
+    | otherwise -> Left $ Clash (rTermToTerm r a) (rTermToTerm r b)
+  -- If we encounter a Ref, simply dereference it and try again.
+  _  -> unify' r s ((deref r a, deref r b) : eqs)
 
 --- Substitutes a term for a variable inside the list of equations
 --- that have yet to be unified and the right-hand sides of all
 --- equations of the result list. Also adds a mapping from that
 --- variable to that term to the result list.
-elim :: RefTable -> VarIdx -> RTerm -> REqs -> REqs
+elim :: RefTable -> REqs -> VarIdx -> RTerm -> REqs
      -> Either UnificationError (RefTable, REqs)
-elim r i t e s
-  | dependsOn r (RTermVar i) t
-  = Left (OccurCheck i (rTermToTerm r t))
-  | otherwise = case t of
-    -- Make sure to place a Ref in the RefTable and Subst, not the RTermVar
-    -- itself.
-    RTermVar i'   -> unify' (addToFM r i (Ref i')) e ((RTermVar i, Ref i'):s)
-    RTermCons _ _ -> unify' (addToFM r i t       ) e ((RTermVar i, t)     :s)
+elim r s i t eqs
+  | dependsOn r (RTermVar i) t = Left (OccurCheck i (rTermToTerm r t))
+  | otherwise                  = case t of
+    -- Make sure to place a Ref in the RefTable and Subst,
+    -- not the RTermVar itself.
+    RTermVar i'   -> unify' (addToFM r i (Ref i')) ((RTermVar i, Ref i'):s) eqs
+    RTermCons _ _ -> unify' (addToFM r i t       ) ((RTermVar i,      t):s) eqs
     _             -> error "Unification.elim"
 
 --- Checks wether the first term occurs as a subterm of the second term.
@@ -171,8 +175,8 @@ elim r i t e s
 --- @param b - the term to search
 --- @return whether the first term is found in the second term
 dependsOn :: RefTable -> RTerm -> RTerm -> Bool
-dependsOn t a b = a /= b && dependsOnRecurse b
+dependsOn r a b = a /= b && dependsOn' b
  where
-  dependsOnRecurse v@(RTermVar   _) = a == v
-  dependsOnRecurse (RTermCons _ vs) = or (map dependsOnRecurse vs)
-  dependsOnRecurse r@(Ref        _) = deref t r == a
+  dependsOn' v@(RTermVar   _) = a == v
+  dependsOn' (RTermCons _ vs) = or (map dependsOn' vs)
+  dependsOn' x@(Ref        _) = deref r x == a
