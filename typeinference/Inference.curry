@@ -161,7 +161,6 @@ depGraph mid = scc def use
   called (Or      a b) = concatMap called [a, b]
   called (Case _ e bs) = concatMap called (e : map branchExpr bs)
   called (Typed   e _) = called e
-  called (SQ        e) = called e
 
 -- ---------------------------------------------------------------------------
 -- 1. Type environment
@@ -360,7 +359,6 @@ annExpr (Let    ds e) = ALet <$> nextTVar <*> annBindings ds <*> annExpr e
 annExpr (Free   vs e) = AFree <$> nextTVar <*> mapES annFree vs <*> annExpr e
   where annFree v     = checkShadowing v >+ annVar v
 annExpr (Typed  e ty) = ATyped <$> nextTVar <*> annExpr e <*> freshVariant ty
-annExpr (SQ        _) = failES "Inference.annExpr: SQ"
 
 --- Annotate a variable with a fresh type variable.
 annVar :: VarIndex -> TIM (VarIndex, TypeExpr)
