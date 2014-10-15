@@ -15,12 +15,13 @@ module AnalysisServer(main, initializeAnalysisSystem,
 
 import ReadNumeric(readNat)
 import Char(isSpace)
+import Directory
 import FlatCurry(QName)
 import Socket(Socket(..),listenOn,listenOnFresh,sClose,waitForSocketAccept)
 import IO
 import ReadShowTerm(readQTerm,showQTerm)
 import System(system,sleep,setEnviron,getArgs)
-import FileGoodies(stripSuffix)
+import FileGoodies(stripSuffix,splitDirectoryBaseName)
 import AnalysisCollection
 import ServerFormats
 import ServerFunctions(WorkerMessage(..))
@@ -136,19 +137,25 @@ analyzeFunctionForBrowser ananame qn@(mname,_) aoutformat = do
 analyzeModule :: String -> String -> AOutFormat
               -> IO (Either (ProgInfo String) String)
 analyzeModule ananame moduleName aoutformat = do
-  getDefaultPath >>= setEnviron "CURRYPATH" 
+  let (mdir,mname) = splitDirectoryBaseName moduleName
+  getDefaultPath >>= setEnviron "CURRYPATH"
+  curdir <- getCurrentDirectory
+  unless (mdir==".") $ setCurrentDirectory mdir
   numworkers <- numberOfWorkers
-  if numworkers>0
-   then do
-    serveraddress <- getServerAddress
-    (port,socket) <- listenOnFresh
-    handles <- startWorkers numworkers socket serveraddress port []
-    result <- runAnalysisWithWorkers ananame aoutformat handles moduleName
-    stopWorkers handles
-    sClose socket
-    return result
-   else runAnalysisWithWorkers ananame aoutformat [] moduleName
-   
+  aresult <-
+   if numworkers>0
+     then do
+      serveraddress <- getServerAddress
+      (port,socket) <- listenOnFresh
+      handles <- startWorkers numworkers socket serveraddress port []
+      result <- runAnalysisWithWorkers ananame aoutformat handles mname
+      stopWorkers handles
+      sClose socket
+      return result
+     else runAnalysisWithWorkers ananame aoutformat [] mname
+  setCurrentDirectory curdir
+  return aresult
+
 --- Start the analysis system with a particular analysis.
 --- The analysis must be a registered one if workers are used.
 --- If it is a combined analysis, the base analysis must be also
@@ -156,20 +163,26 @@ analyzeModule ananame moduleName aoutformat = do
 analyzeGeneric :: Analysis a -> String -> IO (Either (ProgInfo a) String)
 analyzeGeneric analysis moduleName = do
   initializeAnalysisSystem
+  let (mdir,mname) = splitDirectoryBaseName moduleName
   getDefaultPath >>= setEnviron "CURRYPATH" 
+  curdir <- getCurrentDirectory
+  unless (mdir==".") $ setCurrentDirectory mdir
   numworkers <- numberOfWorkers
-  if numworkers>0
-   then do
-    serveraddress <- getServerAddress
-    (port,socket) <- listenOnFresh
-    handles <- startWorkers numworkers socket serveraddress port []
-    result <- analyzeMain analysis moduleName handles True
-    stopWorkers handles
-    sClose socket
-    return result
-   else
-    analyzeMain analysis moduleName [] True
-
+  aresult <-
+    if numworkers>0
+     then do
+      serveraddress <- getServerAddress
+      (port,socket) <- listenOnFresh
+      handles <- startWorkers numworkers socket serveraddress port []
+      result <- analyzeMain analysis mname handles True
+      stopWorkers handles
+      sClose socket
+      return result
+     else
+      analyzeMain analysis mname [] True
+  setCurrentDirectory curdir
+  return aresult
+ 
 --- Start the analysis system with a given analysis to compute properties
 --- of a module interface.
 --- The analysis must be a registered one if workers are used.
