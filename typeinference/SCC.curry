@@ -18,11 +18,14 @@
 --- so that the declarations can be used as set elements.
 --- ----------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module SCC (scc) where
 
 import SetRBT (emptySetRBT, elemRBT, insertRBT)
 
 data Node a b = Node Int [b] [b] a
+  deriving Eq
 
 cmpNode :: Node a b -> Node a b -> Bool
 cmpNode n1 n2 = key n1 < key n2
@@ -39,14 +42,14 @@ fvs (Node _ _ fs _) = fs
 node :: Node a b -> a
 node (Node _ _ _ n) = n
 
-scc :: (a -> [b]) -- ^ entities defined by node
-    -> (a -> [b]) -- ^ entities used by node
-    -> [a]        -- ^ list of nodes
-    -> [[a]]      -- ^ strongly connected components
+scc :: (Eq a, Eq b) => (a -> [b]) -- ^ entities defined by node
+                    -> (a -> [b]) -- ^ entities used by node
+                    -> [a]        -- ^ list of nodes
+                    -> [[a]]      -- ^ strongly connected components
 scc bvs' fvs' = map (map node) . tsort' . tsort . zipWith wrap [0 ..]
   where wrap i n = Node i (bvs' n) (fvs' n) n
 
-tsort :: [Node a b] -> [Node a b]
+tsort :: (Eq a, Eq b) => [Node a b] -> [Node a b]
 tsort xs = snd (dfs xs (emptySetRBT cmpNode) [])
   where
   dfs []        marks stack = (marks, stack)
@@ -57,7 +60,7 @@ tsort xs = snd (dfs xs (emptySetRBT cmpNode) [])
     (marks', stack') = dfs (defs x) (x `insertRBT` marks) stack
     defs x1          = filter (any (`elem` fvs x1) . bvs) xs
 
-tsort' :: [Node a b] -> [[Node a b]]
+tsort' :: (Eq a, Eq b) => [Node a b] -> [[Node a b]]
 tsort' xs = snd (dfs xs (emptySetRBT cmpNode) [])
   where
   dfs []        marks stack = (marks, stack)

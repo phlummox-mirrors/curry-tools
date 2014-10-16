@@ -8,6 +8,9 @@
 --- @author  Jonas Oberschweiber, Björn Peemöller
 --- @version September 2014
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module UnificationSpec
   ( VarIdx, Term (..), TermEq, TermEqs, Subst, UnificationError (..)
   , showSubst, emptySubst, extendSubst, lookupSubst, applySubst, unify
@@ -28,6 +31,7 @@ type VarIdx = Int
 --- @cons TermCons name args - The constructor with constructor `name`
 ---                            and argument terms `args`
 data Term = TermVar VarIdx | TermCons String [Term]
+  deriving (Eq, Show)
 
 --- The type of an equation.
 type TermEq = (Term, Term)

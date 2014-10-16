@@ -7,6 +7,8 @@
 --- @version September 2014
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Unification
   ( module UnificationSpec
   , unify
@@ -28,6 +30,7 @@ data RTerm
   = RTermCons String [RTerm]
   | RTermVar  VarIdx
   | Ref       VarIdx
+  deriving Eq
 
 --- Type of the reference table used to store the values referenced
 --- by Ref RTerms.
