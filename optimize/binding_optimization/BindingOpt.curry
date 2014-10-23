@@ -201,8 +201,7 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformExp tst (Var i) _ = (Var i, tst)
   transformExp tst (Lit v) _ = (Lit v, tst)
   transformExp tst0 (Comb ct qf es) reqval =
-    let reqtype     = maybe AnyFunc id (lookupreqinfo qf)
-        reqargtypes = argumentTypesFor reqtype reqval
+    let reqargtypes = argumentTypesFor (lookupreqinfo qf) reqval
         (tes,tst1)  = transformExps tst0 (zip es reqargtypes)
      in if (qf == pre "==" && reqval == RequiredValues.Cons (pre "True")) ||
            (qf == pre "/=" && reqval == RequiredValues.Cons (pre "False"))
@@ -270,9 +269,10 @@ caseArgType branches =
 
 --- Compute the argument types for a given abstract function type
 --- and required value.
-argumentTypesFor :: AFType -> AType -> [AType]
-argumentTypesFor AnyFunc _ = repeat Any
-argumentTypesFor (AFType rtypes) reqval =
+argumentTypesFor :: Maybe AFType -> AType -> [AType]
+argumentTypesFor Nothing _ = repeat Any
+argumentTypesFor (Just EmptyFunc) _ = repeat Any
+argumentTypesFor (Just (AFType rtypes)) reqval =
   maybe (-- no exactly matching type, look for Any type:
          maybe (-- no Any type: if reqtype==Any, try lub of all other types:
                 if reqval==Any && not (null rtypes)
@@ -313,7 +313,7 @@ loadPreludeBoolReqValues = do
                                                 return . either id error
   return (filter (hasBoolReqValue . snd) maininfo)
  where
-  hasBoolReqValue AnyFunc = False
+  hasBoolReqValue EmptyFunc = False
   hasBoolReqValue (AFType rtypes) =
     maybe False (const True) (find (isBoolReqValue . snd) rtypes)
 

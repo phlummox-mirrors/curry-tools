@@ -45,26 +45,27 @@ main = do
   debugMessageLevel 1 systemBanner
   initializeAnalysisSystem
   args <- getArgs
-  processArgs args
+  processArgs False args
 
-processArgs args = case args of
+processArgs enforce args = case args of
   [] -> mainServer Nothing
-  ["-p",port] -> maybe showError
-                       (\ (p,r) -> if all isSpace r
-                                   then mainServer (Just p)
-                                   else showError )
-                       (readNat port)
-  ["-h"]      -> showHelp
-  ["-?"]      -> showHelp
-  ["--help"]  -> showHelp
+  ["-p",port]  -> maybe showError
+                        (\ (p,r) -> if all isSpace r
+                                    then mainServer (Just p)
+                                    else showError )
+                        (readNat port)
+  ["-h"]       -> showHelp
+  ["-?"]       -> showHelp
+  ["--help"]   -> showHelp
+  ("-r":rargs) -> processArgs True rargs
   (('-':'D':kvs):rargs) -> let (key,eqvalue) = break (=='=') kvs
                             in if null eqvalue
                                then showError
                                else do updateCurrentProperty key (tail eqvalue)
-                                       processArgs rargs
+                                       processArgs enforce rargs
   [ananame,mname] ->
       if ananame `elem` registeredAnalysisNames
-      then analyzeModule ananame (stripSuffix mname) AText >>=
+      then analyzeModule ananame (stripSuffix mname) enforce AText >>=
              putStrLn . formatResult mname "Text" Nothing True
       else showError
   _ -> showError
@@ -84,8 +85,9 @@ showHelp = putStrLn $
   "Usage: cass <options> <analysis name> <module name> :\n"++
   "       analyze a module with a given analysis\n\n"++
   "where <options> can contain:\n"++
-  "-Dname=val : set property (of ~/.curryanalysisrc) 'name' as 'val'\n\n"++
-  "Registered analyses names:\n" ++
+  "-Dname=val : set property (of ~/.curryanalysisrc) 'name' as 'val'\n"++
+  "-r         : force re-analysis (i.e., ignore old analysis information)\n"++
+  "\nRegistered analyses names:\n" ++
   unlines registeredAnalysisNames
 
 --- Start the analysis server on a socket.
@@ -116,7 +118,7 @@ mainServer mbport = do
 --- by 'initializeAnalysisSystem'.
 analyzeModuleForBrowser :: String -> String -> AOutFormat -> IO [(QName,String)]
 analyzeModuleForBrowser ananame moduleName aoutformat =
-  analyzeModule ananame moduleName aoutformat >>=
+  analyzeModule ananame moduleName False aoutformat >>=
     return . either pinfo2list (const [])
  where
    pinfo2list pinfo = let (pubinfo,privinfo) = progInfo2Lists pinfo
@@ -128,15 +130,17 @@ analyzeModuleForBrowser ananame moduleName aoutformat =
 --- by 'initializeAnalysisSystem'.
 analyzeFunctionForBrowser :: String -> QName -> AOutFormat -> IO String
 analyzeFunctionForBrowser ananame qn@(mname,_) aoutformat = do
-  analyzeModule ananame mname aoutformat >>=
+  analyzeModule ananame mname False aoutformat >>=
     return . either (maybe "" id . lookupProgInfo qn) (const "")
 
 --- Analyze a complete module for a given analysis result format.
+--- The third argument is a flag indicating whether the
+--- (re-)analysis should be enforced.
 --- Note that before its first use, the analysis system must be initialized
 --- by 'initializeAnalysisSystem'.
-analyzeModule :: String -> String -> AOutFormat
+analyzeModule :: String -> String -> Bool -> AOutFormat
               -> IO (Either (ProgInfo String) String)
-analyzeModule ananame moduleName aoutformat = do
+analyzeModule ananame moduleName enforce aoutformat = do
   let (mdir,mname) = splitDirectoryBaseName moduleName
   getDefaultPath >>= setEnviron "CURRYPATH"
   curdir <- getCurrentDirectory
@@ -148,11 +152,11 @@ analyzeModule ananame moduleName aoutformat = do
       serveraddress <- getServerAddress
       (port,socket) <- listenOnFresh
       handles <- startWorkers numworkers socket serveraddress port []
-      result <- runAnalysisWithWorkers ananame aoutformat handles mname
+      result <- runAnalysisWithWorkers ananame aoutformat enforce handles mname
       stopWorkers handles
       sClose socket
       return result
-     else runAnalysisWithWorkers ananame aoutformat [] mname
+     else runAnalysisWithWorkers ananame aoutformat enforce [] mname
   setCurrentDirectory curdir
   return aresult
 
@@ -174,12 +178,12 @@ analyzeGeneric analysis moduleName = do
       serveraddress <- getServerAddress
       (port,socket) <- listenOnFresh
       handles <- startWorkers numworkers socket serveraddress port []
-      result <- analyzeMain analysis mname handles True
+      result <- analyzeMain analysis mname handles False True
       stopWorkers handles
       sClose socket
       return result
      else
-      analyzeMain analysis mname [] True
+      analyzeMain analysis mname [] False True
   setCurrentDirectory curdir
   return aresult
  
@@ -265,6 +269,7 @@ serverLoopOnHandle socket1 whandles handle = do
    else do
      string <- hGetLineUntilEOF handle
      debugMessageLevel 2 ("SERVER got message: "++string)
+     let force = False
      case parseServerMessage string of
        ParseError -> do
          sendServerError handle ("Illegal message received: "++string)
@@ -273,12 +278,12 @@ serverLoopOnHandle socket1 whandles handle = do
          sendServerResult handle showAnalysisNamesAndFormats
          serverLoopOnHandle socket1 whandles handle
        AnalyzeModule ananame outForm modname public ->
-         catch (runAnalysisWithWorkers ananame AText whandles modname >>=
+         catch (runAnalysisWithWorkers ananame AText force whandles modname >>=
                 return . formatResult modname outForm Nothing public >>=
                 sendResult)
                sendAnalysisError
        AnalyzeEntity ananame outForm modname functionName ->
-         catch (runAnalysisWithWorkers ananame AText whandles modname >>=
+         catch (runAnalysisWithWorkers ananame AText force whandles modname >>=
                 return . formatResult modname outForm
                                       (Just functionName) False >>= sendResult)
                sendAnalysisError
