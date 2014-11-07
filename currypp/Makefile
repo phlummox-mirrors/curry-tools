@@ -42,7 +42,7 @@ uninstall:
 	rm -f $(TOOL)
 
 # generate executable of currypp translator:
-Translator: $(MAIN)
+Translator: $(MAIN) $(PARSEDIR)/*.curry $(MLDIR)/*.curry
 	@echo Compiling Curry Integrated Code Translator ...
 	$(REPL) $(REPL_OPTS) :set path $(SRCDIR):$(PARSEDIR):$(MLDIR) \
 	  :load $(MAIN) :save :quit

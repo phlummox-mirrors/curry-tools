@@ -1,10 +1,12 @@
 ------------------------------------------------------------------------------
 --- A printf-like format expression parser
 --- ======================================
---- A format expression is in the form
+--- A format expression is of the form
 ---
 ---     "(Specifier|NonSpecifier)*"(,Var)*
 ---
+--- where `Var` can be any string without a comma.
+--- 
 --- A specifier is in the form
 ---
 ---     %[flags] [width] [.precision] type
@@ -21,8 +23,8 @@
 --- __For further informations see the Format library.
 --- Not all parsable expressions are usable.__
 ---
---- @author Jasper Sikorra
---- @version January 2014
+--- @author Jasper Sikorra (with changes by Michael Hanus)
+--- @version November 2014
 ------------------------------------------------------------------------------
 module FormatParser(parse) where
 
@@ -108,7 +110,7 @@ specToString (SpecV f w p t v) =
   ++ " " ++ show f
   ++ " " ++ show w
   ++ " " ++ show p
-  ++ " " ++ v
+  ++ " " ++ (if all isAlphaNum v then v else '(':v++")")
   ++ ")"
 
 --- Assign variables to the specifiers

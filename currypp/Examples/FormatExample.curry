@@ -16,7 +16,7 @@ ex1 name alter = putStrLn ``format "hello %s. alter %i",name,alter''
 
 -- Format two integers:
 ex2 :: Int -> Int -> IO ()
-ex2 n1 n2 = putStrLn ``format "%+.5d und % 20.4i",n1,n2''
+ex2 n1 n2 = putStrLn ``format "%+.5d and % 20.4i",n1,n2''
 
 -- Format a charater:
 ex3 :: Char -> IO ()
@@ -33,3 +33,7 @@ ex5 f = putStrLn ``format "This is a float: %+10.3f",f''
 -- Format a float with an exponent:
 ex6 :: Float -> IO ()
 ex6 f = ``printf "This formats a float, too: % .4E\n",f''
+
+-- Format the sum of two integers:
+ex7 :: Int -> Int -> IO ()
+ex7 n1 n2 = ``printf "The sum of %+.5d and %+5i is %+6i.\n",n1,n2,n1+n2''
