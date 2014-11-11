@@ -1,3 +1,5 @@
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 import Char
 import Time
 import ERD

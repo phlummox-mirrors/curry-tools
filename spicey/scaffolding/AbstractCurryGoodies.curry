@@ -3,6 +3,8 @@
 --- to generate AbstractCurry programs more compact and readable.
 ------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module AbstractCurryGoodies where
 
 import AbstractCurry

@@ -12,6 +12,8 @@
 --- @version April 2013
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 import FlatCurry
 import FlatCurryShow
 import List

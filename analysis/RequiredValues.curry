@@ -12,6 +12,8 @@
 --- @version August 2014
 -----------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module RequiredValues(AType(..),showAType,AFType(..),showAFType,lubAType,
                       reqValueAnalysis)
  where
@@ -31,6 +33,7 @@ import Unsafe(trace)
 -- `Any` represents any value, `Cons c` a value rooted by the constructor `c`,
 -- or `Empty` represents no possible value.
 data AType = Any | Cons QName | Empty
+  deriving (Eq, Ord)
 
 --- Is some abstract type a constructor?
 isConsValue :: AType -> Bool
@@ -67,6 +70,7 @@ showAType _ Empty = "_|_"
 --- If is either `AnyFunc`, i.e., contains no information about the function,
 --- or a list of possible argument/result type pairs.
 data AFType = AnyFunc | AFType [([AType],AType)]
+  deriving Eq
 
 -- Shows an abstract value.
 showAFType :: AOutFormat -> AFType -> String
@@ -110,6 +114,7 @@ sortEnvTypes = mergeSort (\ (e1,t1) (e2,t2) -> (t1,e1) <= (t2,e2))
 --- required value analysis. If a type has more constructors than
 --- specified here, it will not be analyzed for individual required
 --- constructor values.
+maxReqValues :: Int
 maxReqValues = 3
 
 --- Required value analysis.

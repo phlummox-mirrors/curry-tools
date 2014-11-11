@@ -5,6 +5,8 @@
 --- @version September 2014
 -----------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module GenericProgInfo where
 
 import Configuration(debugMessageLevel)
@@ -108,6 +110,6 @@ showProgInfo (ProgInfo fm1 fm2) =
   "Public: "++showFM fm1++"\nPrivate: "++showFM fm2
 
 -- Equality on ProgInfo
-equalProgInfo :: ProgInfo a -> ProgInfo a -> Bool
+equalProgInfo :: Eq a => ProgInfo a -> ProgInfo a -> Bool
 equalProgInfo (ProgInfo pi1p pi1v) (ProgInfo pi2p pi2v) =
   eqFM pi1p pi2p && eqFM pi1v pi2v

@@ -4,6 +4,9 @@
 --- @author Jasper Sikorra - jsi@informatik.uni-kiel.de
 --- @version January 2014
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module ParsePos where
 
 -- Tab width

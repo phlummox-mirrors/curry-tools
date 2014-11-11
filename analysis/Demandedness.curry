@@ -7,6 +7,8 @@
 --- @version May 2013
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Demandedness
  where
 
@@ -29,6 +31,7 @@ showDemand fmt (x:xs) =
 
 -- Abstract demand domain.
 data DemandDomain = Bot | Top
+  deriving Eq
 
 -- Least upper bound on abstract demand domain.
 lub :: DemandDomain -> DemandDomain -> DemandDomain

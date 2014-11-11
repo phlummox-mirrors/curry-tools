@@ -11,6 +11,8 @@
 -- @version July 2013
 ---------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 import Socket
 import ReadShowTerm
 import GUI

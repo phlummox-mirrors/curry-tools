@@ -6,6 +6,8 @@
 --- @version August 2007
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module ERDGoodies(erdName,entityName,isEntityNamed,entityAttributes,
                   hasForeignKey,foreignKeyAttributes,
                   attributeName,attributeDomain,hasDefault,

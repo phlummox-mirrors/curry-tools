@@ -8,6 +8,8 @@
 --- @version August 2014
 --------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module AnalysisServer(main, initializeAnalysisSystem,
                       analyzeModuleForBrowser, analyzeFunctionForBrowser,
                       analyzeGeneric, analyzePublic, analyzeInterface)
@@ -295,7 +297,7 @@ serverLoopOnHandle socket1 whandles handle = do
 -- is the number of lines of the <result text>.
 sendServerResult handle resultstring = do
   let resultlines = lines resultstring
-  hPutStrLn handle ("ok " ++ show (length resultlines))
+  hPutStrLn handle ("ok " ++ show (length resultlines :: Int))
   hPutStr handle (unlines resultlines)
   hFlush handle
 

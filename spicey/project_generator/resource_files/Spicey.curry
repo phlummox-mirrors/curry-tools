@@ -3,6 +3,8 @@
 --- generic implementation of the Spicey entities.
 --------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Spicey (
   module System, 
   module HTML, 

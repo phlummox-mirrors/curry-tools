@@ -6,6 +6,8 @@
 --- @version April 2013
 ------------------------------------------------------------------------------
 
+-- {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module RightLinearity(rlinAnalysis,hasRightLinearRules,linearExpr,
                       showRightLinear) where
 

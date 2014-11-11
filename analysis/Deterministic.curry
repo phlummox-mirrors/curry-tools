@@ -8,6 +8,8 @@
 --- @version September 2013
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Deterministic(overlapAnalysis,showOverlap,showDet,
                      Deterministic(..),nondetAnalysis) where
 
@@ -53,6 +55,7 @@ showOverlap ANote False = ""
 
 --- Data type to represent determinism information.
 data Deterministic = NDet | Det
+  deriving Eq
 
 -- Show determinism information as a string.
 showDet :: AOutFormat -> Deterministic -> String

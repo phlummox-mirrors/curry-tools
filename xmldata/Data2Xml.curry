@@ -29,6 +29,8 @@
 --- @version September 2014
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Data2Xml where
 
 import AbstractCurry
@@ -40,7 +42,8 @@ import List
 import System
  
 data Options = LowCase | FileName String
-
+  deriving Eq
+  
 main = do
   args <- getArgs
   let opts = reverse (argsToOptions args)
@@ -88,7 +91,7 @@ transModName mn = mn ++ "DataToXml"
 toXmlName (m,s) = case (isPrelude m,s,isTupleName s) of 
   (True,"[]",_)  -> (nm,"list_To_Xml")
   (True,"()",_)  -> (nm,"unitToXml")
-  (True,_,True)  -> (nm,"tuple"++show (length s-1)++"ToXml")
+  (True,_,True)  -> (nm,"tuple"++show (length s-(1 :: Int))++"ToXml")
   (_,c:cs,_)     -> (nm,toLower c:cs ++ "ToXml")
  where nm = transModName m
                   
@@ -96,7 +99,7 @@ toXmlName (m,s) = case (isPrelude m,s,isTupleName s) of
 fromXmlName (m,s) = case (isPrelude m,s,isTupleName s) of
   (True,"[]",_)  -> (nm,"xml_To_List")
   (True,"()",_)  -> (nm,"xmlToUnit")
-  (True,_,True)  -> (nm,"xmlToTuple"++show (length s-1))
+  (True,_,True)  -> (nm,"xmlToTuple"++show (length s-(1 :: Int)))
   _              -> (nm,"xmlTo"++s)
  where nm = transModName m
                  
@@ -116,7 +119,7 @@ isTupleName (n:name) = n=='(' && isTuple name
 tag opts s = if elem LowCase opts then map toLower s else s
 
 tagNameForCons (mname,cname)
-  | isTupleName cname = "Tuple" ++ show (length cname - 1)
+  | isTupleName cname = "Tuple" ++ show (length cname - (1 :: Int))
   | mname=="Prelude"  = cname
   | otherwise         = mname++"_"++cname
 

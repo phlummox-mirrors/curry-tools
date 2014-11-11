@@ -4,6 +4,8 @@
 --- relationships and inserting foreign keys for simple relationships.
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Transformation(transform) where
 
 import ERD 
@@ -149,5 +151,6 @@ uniqueNames oldattrs (attr@(Attribute aname dom key nll) : attrs) =
  where
   names = map attributeName (oldattrs++attrs)
 
+  makeUnique :: Int -> String -> String
   makeUnique i name = let newname = name++show i in
     if newname `elem` names then makeUnique (i+1) name else newname

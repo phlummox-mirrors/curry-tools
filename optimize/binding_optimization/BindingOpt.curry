@@ -6,6 +6,8 @@
 --- @version September 2014
 -------------------------------------------------------------------------
 
+-- {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module BindingOpt(main,transformFlatProg) where
 
 import AnalysisServer(analyzeGeneric,analyzePublic,analyzeInterface)

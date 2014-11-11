@@ -9,6 +9,8 @@
 -- Michael Hanus, June 2006
 -----------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module PatternComplete(CompletenessType(..),
                        analyseCompleteness,
                        analyseTotallyDefined) where
@@ -45,7 +47,7 @@ analyseCompleteness types fdecl = anaFun fdecl
 isComplete _ (Var _)      = Complete
 isComplete _ (Lit _)      = Complete
 isComplete types (Comb _ f es) =
-  if f==("Prelude","commit") && length es == 1
+  if f==("Prelude","commit") && length es == (1 :: Int)
   then isComplete types (head es)
   else Complete
 isComplete _ (Free _ _) = Complete

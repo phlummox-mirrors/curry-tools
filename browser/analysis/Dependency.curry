@@ -4,6 +4,8 @@
 -- Michael Hanus, June 2005
 -----------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Dependency(analyseWithDependencies, indirectlyDependent,
                   funcsInExpr, callsDirectly, externalDependent,
                   dependencyGraphs, localDependencyGraphs) where

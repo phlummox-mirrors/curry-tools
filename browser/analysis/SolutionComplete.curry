@@ -6,6 +6,8 @@
 -- Michael Hanus, January 2004
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module SolutionComplete(analyseSolutionComplete)   where
 
 import FlatCurry

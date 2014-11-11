@@ -4,6 +4,9 @@
 --- @author Max Deppert
 --- @version March 2014
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module MLParser (lex,layout,parse) where
 
 import ParseTypes

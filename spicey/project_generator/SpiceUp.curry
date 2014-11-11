@@ -1,5 +1,7 @@
 -- Main module to generate the initial Spicey application
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 import Directory
 import List(last)
 import System(system, getArgs, exitWith)
@@ -12,7 +14,8 @@ systemBanner =
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
 data FileMode = Exec | NoExec
-
+  deriving Eq
+  
 setFileMode fmode filename =
   if fmode==Exec then system ("chmod +x \"" ++ filename ++ "\"") >> done
                  else done

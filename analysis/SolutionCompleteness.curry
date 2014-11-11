@@ -7,6 +7,8 @@
 --- @version April 2013
 ------------------------------------------------------------------------------
 
+-- {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module SolutionCompleteness(solcompAnalysis,showSolComplete)  where
 
 import Analysis

@@ -3,6 +3,8 @@
 --- to support the database code generated from ERDs
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module ERDGeneric where
 
 import KeyDatabase

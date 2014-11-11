@@ -2,6 +2,8 @@
 --- module to convert Umbrello 1.5.52 output to datatype ERD 
 --------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module XML2ERD(convert) where
 
 import XML
@@ -72,7 +74,7 @@ convert xml =
 
 uniqueNames :: [Entity] -> [Relationship] -> Bool
 uniqueNames es rs = 
-  length es + length rs == length (nub ((map eName es)++(concatMap rNames rs)))
+  length es + length rs == (length (nub ((map eName es)++(concatMap rNames rs))) :: Int)
 
 eName :: Entity -> String
 eName (Entity n _) = n

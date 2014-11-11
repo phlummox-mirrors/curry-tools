@@ -1,3 +1,5 @@
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 import AbstractCurry
 import AbstractCurryGoodies
 import ERD

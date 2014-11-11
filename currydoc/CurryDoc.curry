@@ -26,6 +26,8 @@
 -- * Current restriction: doesn't properly work for infix operator definitions
 --   without a type definition (so it should be always included)
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module CurryDoc where
 
 import Directory

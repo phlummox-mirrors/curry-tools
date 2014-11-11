@@ -4,6 +4,8 @@
 --- @author Sandra Dylus
 ----------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module CurryDocCDoc where
 
 import CurryDocParams

@@ -1,4 +1,7 @@
 -- Simple graph visualization
+
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module ShowGraph(viewDependencyGraph,getDotViewCmd,setDotViewCmd) where
 
 import IO

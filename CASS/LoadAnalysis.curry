@@ -6,6 +6,8 @@
 --- @version March 2013
 --------------------------------------------------------------------------
 
+-- {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module LoadAnalysis where
 
 import Directory

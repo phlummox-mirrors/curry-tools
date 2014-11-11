@@ -5,6 +5,8 @@
 -- add access to a new analysis here and recompile the browser.
 -----------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module BrowserAnalysis(moduleAnalyses,allFunctionAnalyses,functionAnalyses) where
 
 import AnalysisTypes

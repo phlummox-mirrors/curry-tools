@@ -5,6 +5,8 @@
 --- @version October 2012
 -----------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module CreateMakefile where
 
 import FlatCurry

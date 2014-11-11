@@ -4,6 +4,8 @@
 --- @author Michael Hanus
 ----------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module CurryDocTeX where
 
 import CurryDocParams

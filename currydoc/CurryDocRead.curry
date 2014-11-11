@@ -4,6 +4,8 @@
 --- @author Michael Hanus
 ----------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module CurryDocRead where
 
 import FlatCurry
@@ -29,6 +31,7 @@ data SourceLine = Comment String  -- a comment for CurryDoc
                 | DataDef String  -- a definition of a datatype
                 | ModDef          -- a line containing a module definition
                 | OtherLine       -- a line not relevant for CurryDoc
+  deriving Eq
 
 -- classify a line of the source program:
 -- here we replace blank line comments by a "breakline" tag

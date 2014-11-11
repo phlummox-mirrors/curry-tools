@@ -13,6 +13,8 @@
 --- @version May 2013
 -------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Analysis(Analysis(..),
                 simpleFuncAnalysis,simpleTypeAnalysis,
                 simpleConstructorAnalysis,
@@ -227,5 +229,6 @@ startValue (CombinedDependencyTypeAnalysis _ _ _ startval _) = startval
 --- to get a quick overview of the analysis results of all operations
 --- in a module.
 data AOutFormat = AText | ANote
+  deriving Eq
 
 -------------------------------------------------------------------------

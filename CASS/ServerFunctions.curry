@@ -1,5 +1,7 @@
 -- analysis computations on the server side
 
+-- {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module ServerFunctions where
 
 import FlatCurry(QName,readFlatCurryInt)

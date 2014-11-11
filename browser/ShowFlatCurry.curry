@@ -12,6 +12,8 @@
 --- @version April 2013
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module ShowFlatCurry(showInterface,showCurryMod,showFlatProg,
                      showFuncDeclAsCurry,showFuncDeclAsFlatCurry,leqFunc,
                      funcModule)
@@ -136,7 +138,7 @@ showCurryRule tf ascase fname (Rule lhs rhs) =
 
 -- format rule as case expression:
 showCurryRuleAsCase tf fname (Rule lhs rhs)
- | length lhs == 2 && not (isAlpha (head (snd fname))) -- infix op
+ | length lhs == (2 :: Int) && not (isAlpha (head (snd fname))) -- infix op
   = showCurryVar (head lhs) ++ " " ++ tf fname ++ " " ++ showCurryVar (lhs!!1) ++
     " = " ++ showCurryExpr tf False 0 rhs ++ "\n\n"
  | otherwise

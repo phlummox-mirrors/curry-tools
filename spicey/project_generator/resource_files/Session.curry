@@ -7,6 +7,8 @@
 --- to hold some session-specific data.
 --------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Session (
   sessionCookie,
   SessionStore, emptySessionStore,

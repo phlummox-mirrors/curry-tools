@@ -5,6 +5,8 @@
 -- Michael Hanus, June 2005
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Linearity(analyseRightLinearity,hasRightLinearRules,linearExpr) where
 
 import FlatCurry
@@ -43,7 +45,7 @@ linearVariables :: Expr -> Maybe [Int]
 linearVariables (Var i) = Just [i]
 linearVariables (Lit _) = Just []
 linearVariables (Comb _ f es)
- | f==("Prelude","?") && length es == 2  -- treat "?" as Or:
+ | f==("Prelude","?") && length es == (2 :: Int)  -- treat "?" as Or:
   = linearVariables (Or (head es) (head (tail es)))
  | otherwise
   = mapMMaybe linearVariables es >>- \esvars ->

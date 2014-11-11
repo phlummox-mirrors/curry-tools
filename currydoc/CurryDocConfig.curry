@@ -6,6 +6,8 @@
 --- @version January 2014
 ----------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module CurryDocConfig where
 
 import Distribution(curryCompiler)

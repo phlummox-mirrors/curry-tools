@@ -8,6 +8,8 @@
 -- Possible extensions: Use type synonyms to reduce annotations
 ------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module AddTypes(main,addTypeSignatures) where
 
 import AbstractCurry
@@ -34,7 +36,7 @@ import AllSolutions
 
 main :: IO ()
 main = do args <- getArgs
-          if length args /= 1 then putStrLn "Usage: addtypes <Curry program>"
+          if length args /= (1 :: Int) then putStrLn "Usage: addtypes <Curry program>"
             else do let fileName = stripSuffix (head args)
                     writeWithTypeSignatures fileName
                     putStrLn $ "Signatures added.\nA backup of the original "
@@ -156,7 +158,7 @@ tvars (CFuncType t1 t2) (CFuncType t1' t2')
 --- give a list of variables names depending on whether they are singletons
 --- or not
 
-varNames :: Int -> [(_,CTypeExpr)] -> Success
+varNames :: Eq a => Int -> [(a,CTypeExpr)] -> Success
 varNames _ [] = success
 varNames n ((i,v):ivs) 
   | null is =   (v=:=(CTVar (0,"_"))) &> (varNames n others)

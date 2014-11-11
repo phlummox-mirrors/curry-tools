@@ -1,3 +1,5 @@
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 import AbstractCurry
 import AbstractCurryGoodies
 import GenerationHelper
@@ -726,7 +728,7 @@ newSuffix eName attrs rels =
   in
     concatMap ("With"++)
               (map attributeName (filter isForeignKey attrs)) ++
-    if (length (exactRs ++ maxRs ++ minMaxRs))==0
+    if null (exactRs ++ maxRs ++ minMaxRs)
     then ""
     else concatMap (\k->"With"++k++"Keys")
                    (map (relatedRelation eName)

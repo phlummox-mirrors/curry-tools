@@ -4,6 +4,8 @@
 --- relationships and inserting foreign keys for simple relationships.
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Transformation(transform) where
 
 import ERD 

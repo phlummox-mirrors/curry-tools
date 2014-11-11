@@ -9,6 +9,8 @@
 --- @version May 2013
 -----------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module TotallyDefined(siblingCons,showSibling,
                       Completeness(..),showComplete,showTotally,
                       patCompAnalysis,totalAnalysis) where
@@ -51,6 +53,7 @@ data Completeness =
      Complete       -- completely defined
    | InComplete     -- incompletely defined
    | InCompleteOr   -- incompletely defined in each branch of an "Or"
+  deriving Eq
 
 --- A function is totally defined if it is pattern complete and depends
 --- only on totally defined functions.
@@ -93,7 +96,7 @@ isComplete :: ProgInfo [QName] -> Expr -> Completeness
 isComplete _ (Var _)      = Complete
 isComplete _ (Lit _)      = Complete
 isComplete consinfo (Comb _ f es) =
-  if f==("Prelude","commit") && length es == 1
+  if f==("Prelude","commit") && length es == (1 :: Int)
   then isComplete consinfo (head es)
   else Complete
 isComplete _ (Free _ _) = Complete

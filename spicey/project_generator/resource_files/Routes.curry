@@ -3,6 +3,8 @@
 --- to controllers.
 --------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Routes(
   getControllerReference,
   getRouteMenu

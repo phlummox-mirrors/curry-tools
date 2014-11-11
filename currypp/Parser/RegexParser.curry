@@ -5,6 +5,8 @@
 --- @version January 2014
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module RegexParser(parse) where
 
 import Parser
@@ -70,6 +72,7 @@ data ORegex = Nil
            | Start Regex
            | End Regex
            | Times (Int,Int) Regex
+  deriving Show
 
 --- Possible regex operators
 operators       = ['|','*','.','[',']','^','$','{','}','(',')','?','+']
@@ -130,6 +133,7 @@ data Token = TokenStar
            | TokenOABracket
            | TokenCABracket
            | TokenLiteral Char
+  deriving (Eq, Ord)
 
 --- Assigning Tokens to Chars
 tokenToChar :: Token -> Char
@@ -319,11 +323,11 @@ extractChars (t:ts) = case t of
   _                -> ""
 
 -- | Helper
-cntUntilClosed :: a -> a -> [a] -> Int
+cntUntilClosed :: Ord a => a -> a -> [a] -> Int
 cntUntilClosed c1 c2 li = cUCB 0 0 li
   where
     cUCB n c l =
-      if (c < 0) then n else
+      if (c < (0 :: Int)) then n else
         if (l == []) then failed else
           if ((head l) == c1) then cUCB (n+1) (c+1) (tail l) else
             if ((head l) == c2) then cUCB (n+1) (c-1) (tail l)

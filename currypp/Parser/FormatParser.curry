@@ -24,6 +24,9 @@
 --- @author Jasper Sikorra
 --- @version January 2014
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module FormatParser(parse) where
 
 import Parser

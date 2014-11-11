@@ -1,3 +1,5 @@
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module AbstractGoodies where
 import AbstractCurry
 

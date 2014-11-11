@@ -5,6 +5,8 @@
 --- @version April 2013
 -----------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module ImportCalls(main,showImportCalls) where
 
 import FlatCurry
@@ -21,7 +23,7 @@ m1 = showAllImportedCalls "ImportCalls"
 -- Check arguments and call main function:
 main = do
   args <- getArgs
-  if length args /= 1
+  if length args /= (1 :: Int)
    then putStrLn $ "ERROR: Illegal arguments: " ++
                    concat (intersperse " " args) ++ "\n" ++
                    "Usage: importcalls <module_name>"

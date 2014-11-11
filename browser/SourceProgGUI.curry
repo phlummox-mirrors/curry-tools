@@ -12,6 +12,8 @@
 --- @version June 2011
 ------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 import IO
 import GUI
 import ReadNumeric

@@ -3,6 +3,8 @@
 --- in the browser.
 -------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module AnalysisTypes(FunctionAnalysis(..),AnalysisResult(..),
                      ModuleAnalysis(..),ModuleAnalysisResult(..),
                      ContentsKind(..)) where
@@ -17,6 +19,7 @@ data FunctionAnalysis a =
  | LocalDataAnalysis  ([TypeDecl] -> FuncDecl -> a)
  | GlobalAnalysis     ([FuncDecl] -> [(QName,a)])
  | GlobalDataAnalysis ([TypeDecl] -> [FuncDecl] -> [(QName,a)])
+  deriving Eq
 
 -- The possible results of a function analysis:
 data AnalysisResult =
@@ -46,4 +49,4 @@ data ContentsKind =
   | LCurryProg     -- Literate Curry source code
   | FlatCurryExp   -- FlatCurry expression
   | OtherText      -- some other text
-
+  deriving Eq

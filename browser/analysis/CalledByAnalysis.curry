@@ -4,6 +4,8 @@
 -- Michael Hanus, April 2005
 -----------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module CalledByAnalysis(calledBy) where
 
 import FlatCurry

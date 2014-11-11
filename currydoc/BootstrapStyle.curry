@@ -3,6 +3,8 @@
 --- rendered with [Bootstrap](http://twitter.github.com/bootstrap/)
 -------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module BootstrapStyle(bootstrapForm,bootstrapPage,titledSideMenu) where
 
 import HTML

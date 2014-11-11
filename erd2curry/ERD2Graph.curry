@@ -2,6 +2,8 @@
 --- This module defines an operation to visualize an ERD term with dot.
 ---------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module ERD2Graph(viewERD) where
 
 import IO

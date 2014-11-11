@@ -27,6 +27,9 @@
 --- @author Jasper Sikorra (with changes by Michael Hanus)
 --- @version May 2014
 ------------------------------------------------------------------------------
+
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Translator where
 
 import List

@@ -7,6 +7,8 @@
 --- @version September 2010
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module ERD(ERD(..),ERDName,Entity(..),EName,Entity(..),
            Attribute(..),AName,Key(..),Null,Domain(..),
            Relationship(..),REnd(..),RName,Role,Cardinality(..),MaxValue(..),
@@ -17,21 +19,25 @@ import ReadShowTerm(readUnqualifiedTerm)
 
 --- Data type to represent entity/relationship diagrams.
 data ERD = ERD ERDName [Entity] [Relationship]
+  deriving Show
 
 type ERDName = String -- used as the name of the generated module
 
 
 data Entity = Entity EName [Attribute]
+  deriving Show
 
 type EName = String
 
 data Attribute = Attribute AName Domain Key Null
-
+  deriving Show
+  
 type AName = String
 
 data Key = NoKey
          | PKey
          | Unique
+  deriving (Eq,Show)
 
 type Null = Bool
 
@@ -43,13 +49,15 @@ data Domain = IntDom      (Maybe Int)
             | DateDom     (Maybe CalendarTime)
             | UserDefined String (Maybe String)
             | KeyDom      String   -- later used for foreign keys
-
+  deriving Show
 
 data Relationship = Relationship RName [REnd]
+  deriving Show
 
 type RName = String
 
 data REnd = REnd EName Role Cardinality
+  deriving Show
 
 type Role = String
 
@@ -62,11 +70,12 @@ type Role = String
 data Cardinality = Exactly Int
                  | Between Int MaxValue
                  | Range Int (Maybe Int) -- for backward compatibility
+  deriving Show
 
 --- The upper bound of a cardinality which is either a finite number
 --- or infinite.
 data MaxValue = Max Int | Infinite
-
+  deriving Show
 
 --- Read an ERD specification from a file containing a single ERD term.
 readERDTermFile :: String -> IO ERD

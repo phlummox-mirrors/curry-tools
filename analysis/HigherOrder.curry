@@ -2,6 +2,8 @@
 --- Analysis of higher-order properties of types and operations.
 ------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module HigherOrder(Order(..),showOrder,hiOrdType,hiOrdCons,hiOrdFunc) where
 
 import Analysis
@@ -12,6 +14,7 @@ import GenericProgInfo
 
 -- datatype order: higher-order or first-order
 data Order = HO | FO
+  deriving Eq
 
 -- Show higher-order information as a string.
 showOrder :: AOutFormat -> Order -> String

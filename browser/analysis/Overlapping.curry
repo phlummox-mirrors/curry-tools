@@ -6,6 +6,8 @@
 -- Michael Hanus, February 2012
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Overlapping(isOverlappingFunction,orInExpr) where
 
 import FlatCurry

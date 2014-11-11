@@ -6,6 +6,8 @@
 --- @version May 2013
 ---------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module BrowserGUI where
 
 import GUI
@@ -592,7 +594,7 @@ browserGUI gstate rmod rtxt names =
     self <- getValue rfun gp
     fana <- getCurrentFunctionAnalysis gstate
     funs <- getFuns gstate
-    if mod==Nothing || null self || fana==Nothing then done else do
+    if isNothing mod || null self || isNothing fana then done else do
       result <- performAnalysis (fromJust fana) (showDoing gp)
                                 (funs!!readNat self)
       showAnalysisResult result gp

@@ -9,6 +9,8 @@
 --- @version May 2013
 --------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Configuration
  (systemBanner,baseDir,getServerAddress,updateRCFile,updateCurrentProperty,
   getFPMethod,getWithPrelude,

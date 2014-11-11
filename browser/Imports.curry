@@ -1,6 +1,8 @@
 -----------------------------------------------------------------
 -- A library to get the import structures of a program.
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module Imports(getImportedInterfaces,moduleImports,readFlatCurryFileInLoadPath,
                findFileInLoadPath,InterfaceOrFlatProg(..),ifOrProg,progOfIFFP)
   where

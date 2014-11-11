@@ -1,3 +1,5 @@
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module ERD2Curry where
 
 import PrettyAbstract

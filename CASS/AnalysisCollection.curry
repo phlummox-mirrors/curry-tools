@@ -8,6 +8,8 @@
 --- @version August 2014
 --------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+
 module AnalysisCollection(
   functionAnalysisInfos,registeredAnalysisNames,
   lookupRegAnaWorker,runAnalysisWithWorkers,analyzeMain) where
@@ -73,7 +75,7 @@ registeredAnalysis =
 --- by the server/client analysis tool from a given analysis and
 --- analysis show function. The first argument is a short title for the
 --- analysis.
-cassAnalysis :: String -> Analysis a -> (AOutFormat -> a -> String)
+cassAnalysis :: Eq a => String -> Analysis a -> (AOutFormat -> a -> String)
              -> RegisteredAnalysis
 cassAnalysis title analysis showres =
   RegAna (analysisName analysis)
@@ -184,7 +186,7 @@ analyzeMain analysis modname handles load = do
   let ananame = analysisName analysis
   debugMessage 2 ("start analysis "++modname++"/"++ananame)
   modulesToDo <- getModulesToAnalyze analysis modname
-  let numModules = length modulesToDo
+  let numModules = length modulesToDo :: Int
   workresult <-
     if numModules==0
     then return Nothing
