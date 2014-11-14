@@ -14,7 +14,9 @@ import GenericProgInfo
 import RequiredValues
 
 import Directory         (renameFile)
-import Distribution      (installDir, curryCompiler, inCurrySubdir, currySubdir)
+import Distribution      ( installDir, curryCompiler, inCurrySubdir, currySubdir
+                         , splitModuleFileName
+                         )
 import FileGoodies
 import FilePath          ((</>), normalise, pathSeparator)
 import List
@@ -50,7 +52,7 @@ main = getArgs >>= checkArgs defaultOptions
 mainCallError :: [String] -> IO ()
 mainCallError args = do
   putStrLn $ systemBanner
-    ++ "\nIllegal arguments: " ++unwords args
+    ++ "\nIllegal arguments: " ++ unwords args
     ++ "\n" ++ usageComment
   exitWith 1
 
@@ -104,8 +106,9 @@ stripCurrySubdir s = let (dir, base) = splitDirectoryBaseName s
 
 transformAndStoreFlatProg :: Options -> String -> Prog -> IO ()
 transformAndStoreFlatProg opts@(verb, _, load) modname prog = do
-  let oldprogfile = inCurrySubdir (modname ++ ".fcy")
-      newprogfile = inCurrySubdir (modname ++ "_O.fcy")
+  let (dir, name) = splitModuleFileName (progName prog) modname
+  let oldprogfile = normalise $ addCurrySubdir dir </>  name         <.> "fcy"
+      newprogfile = normalise $ addCurrySubdir dir </>  name ++ "_O" <.> "fcy"
   starttime <- getCPUTime
   (newprog, transformed) <- transformFlatProg opts modname prog
   when transformed $ writeFCY newprogfile newprog
