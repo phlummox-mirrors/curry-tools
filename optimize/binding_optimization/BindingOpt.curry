@@ -14,11 +14,11 @@ import GenericProgInfo
 import RequiredValues
 
 import Directory         (renameFile)
-import Distribution      ( installDir, curryCompiler, inCurrySubdir, currySubdir
-                         , splitModuleFileName
+import Distribution      ( installDir, curryCompiler, currySubdir
+                         , addCurrySubdir, splitModuleFileName
                          )
 import FileGoodies
-import FilePath          ((</>), normalise, pathSeparator)
+import FilePath          ((</>), (<.>), normalise, pathSeparator)
 import List
 import System            (getArgs,system,exitWith,getCPUTime)
 import FlatCurry hiding  (Cons)
