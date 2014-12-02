@@ -44,6 +44,8 @@ import FormatParser  as FormatParser
 import RegexParser   as RegexParser
 import MLTranslate   as MLTranslate
 
+cppTitle = "Curry Preprocessor (version of 07/11/2014)"
+
 -- Parser for Curry with Integrated Code
 ciparser :: Filename -> String -> IO (PM [StandardToken])
 ciparser = CIParser.parse
@@ -100,27 +102,39 @@ main = do
   args <- getArgs
   case args of
     (orgSourceFile:inFile:outFile:options) ->
-       let (save,optError) = checkOptions options
+       let (save,version,optError) = processOptions (False,False,False) options
         in if optError
            then showUsage args
            else do
+             when version (putStrLn cppTitle)
              translateFile inFile outFile
              when save (saveFile orgSourceFile outFile)
     _ -> showUsage args
  where
-  checkOptions opts = case opts of
-                        []     -> (False,False)
-                        ["-o"] -> (True ,False)
-                        _      -> (False,True )
+  processOptions (save,version,opterror) opts = case opts of
+     []        -> (save,version,opterror)
+     ("-o":os) -> processOptions (True,version,opterror) os
+     ("-v":os) -> processOptions (save,True,opterror) os
+     _         -> (False,False,True)
+
   saveFile orgSourceFile outFile = do
     let sFile = orgSourceFile++".CURRYPP"
     system ("cp "++outFile++" "++sFile)
     putStrLn $ "Translated Curry file written to '"++sFile++"'"
 
   showUsage args = do
-    putStrLn $ "ERROR: Illegal arguments: " ++ unwords args
-    putStrLn "Usage: currypp OrgFileName InputFilePath OutputFilePath [-o]"
+    putStrLn cppTitle
+    putStrLn $ "\nERROR: Illegal arguments: " ++ unwords args ++ "\n"
+    putStrLn usageText
     exitWith 1
+
+usageText = 
+  "Usage: currypp <OrgFileName> <InputFilePath> <OutputFilePath> [-o] [-v]\n\n"++
+  "<OrgFileName>   : name of original program source file\n" ++
+  "<InputFilePath> : name of the actual input file\n" ++
+  "<OutputFilePath>: name of the file where output should be written\n" ++
+  "-o              : store output also in file <OrgFileName>.CURRYPP\n" ++
+  "-v              : show preprocessor version on stdout\n"
 
 --- Translates a file with Curry with Integrated Code to a file with Curry Code.
 --- @param in_fp - The filepath to the input file
@@ -130,7 +144,6 @@ translateFile in_fp out_fp =
   do in_st  <- readFile in_fp
      out_st <- translateString in_fp in_st
      writeFile out_fp out_st
-     --putStr ("File saved as " ++ out_fp ++ "\n")
 
 --- Translates a string with Curry with Integrated Code to a string with Curry
 --- Code.

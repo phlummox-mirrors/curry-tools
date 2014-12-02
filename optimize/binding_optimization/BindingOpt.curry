@@ -6,64 +6,75 @@
 --- @version September 2014
 -------------------------------------------------------------------------
 
--- {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 
-module BindingOpt(main,transformFlatProg) where
+module BindingOpt (main, transformFlatProg) where
 
-import AnalysisServer(analyzeGeneric,analyzePublic,analyzeInterface)
+import AnalysisServer    (analyzeGeneric, analyzePublic, analyzeInterface)
 import Analysis
 import GenericProgInfo
 import RequiredValues
 
-import List
-import System(getArgs,system,exitWith,getCPUTime)
+import Directory         (renameFile)
+import Distribution      ( installDir, curryCompiler, currySubdir
+                         , addCurrySubdir, splitModuleFileName
+                         )
 import FileGoodies
-import FlatCurry hiding (Cons)
+import FilePath          ((</>), (<.>), normalise, pathSeparator)
+import List
+import System            (getArgs,system,exitWith,getCPUTime)
+import FlatCurry hiding  (Cons)
 import FlatCurryGoodies
-import Distribution(installDir,curryCompiler,inCurrySubdir,currySubdir)
-import FilePath(pathSeparator,(</>))
 
+type Options = (Int, Bool, Bool) -- (verbosity, use analysis?, auto-load?)
+
+defaultOptions :: Options
+defaultOptions = (1, True, False)
+
+systemBanner :: String
 systemBanner =
   let bannerText = "Curry Binding Optimizer (version of 05/09/2014)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
-usageComment =
-  "Usage: bindingopt [-v<n>] [-l] <module or FlatCurry file names>\n" ++
-  "       -v<n> : verbosity level (n=0|1|2|3)\n" ++
-  "       -f    : fast transformation without analysis\n" ++
-  "               (uses only infos about the standard prelude)\n" ++
-  "       -l    : load optimized module into Curry system\n"
+usageComment :: String
+usageComment = unlines
+  [ "Usage: bindingopt [option] ... [module or FlatCurry file] ..."
+  , "       -v<n>  : set verbosity level (n=0|1|2|3)"
+  , "       -f     : fast transformation without analysis"
+  , "                (uses only information about the standard prelude)"
+  , "       -l     : load optimized module into Curry system"
+  , "       -h, -? : show this help text"
+  ]
 
 -- main function to call the optimizer:
-main = do
-  args <- getArgs
-  checkArgs (1,True,False,"") args
+main :: IO ()
+main = getArgs >>= checkArgs defaultOptions
 
+mainCallError :: [String] -> IO ()
 mainCallError args = do
-  putStrLn $
-    systemBanner ++
-    "\nIllegal arguments: " ++ concat (intersperse " " args) ++ "\n" ++
-    usageComment
+  putStrLn $ systemBanner
+    ++ "\nIllegal arguments: " ++ unwords args
+    ++ "\n" ++ usageComment
   exitWith 1
 
-checkArgs :: (Int,Bool,Bool,String) -> [String] -> IO ()
-checkArgs (verbosity,withana,load,prog) args = case args of
-  [] -> mainCallError []
-  (('-':'v':d:[]):margs) -> let v = ord d - ord '0'
-                             in if v>=0 && v<=4
-                                then checkArgs (v,withana,load,prog) margs
-                                else mainCallError args
-  ("-f":margs) -> checkArgs (verbosity,False,load,prog) margs
-  ("-l":margs) -> checkArgs (verbosity,withana,True,prog) margs
-  ("-h":_)     -> putStr (systemBanner++'\n':usageComment)
-  ("-?":_)     -> putStr (systemBanner++'\n':usageComment)
-  modnames     -> if null modnames
-                  then mainCallError args
-                  else do
-                    printVerbose verbosity 1 systemBanner
-                    mapIO_ (\mn -> transformBoolEq verbosity withana load mn)
-                           modnames
+checkArgs :: Options -> [String] -> IO ()
+checkArgs opts@(verbosity, withana, load) args = case args of
+  []                   -> mainCallError []
+  -- verbosity option
+  ('-':'v':d:[]):margs -> let v = ord d - ord '0'
+                          in if v >= 0 && v <= 4
+                              then checkArgs (v, withana, load) margs
+                              else mainCallError args
+  -- fast option
+  "-f":margs           -> checkArgs (verbosity, False, load) margs
+  -- auto-loading
+  "-l":margs           -> checkArgs (verbosity, withana, True) margs
+  "-h":_               -> putStr (systemBanner++'\n':usageComment)
+  "-?":_               -> putStr (systemBanner++'\n':usageComment)
+  mods                 -> do
+                          printVerbose verbosity 1 systemBanner
+                          mapIO_ (transformBoolEq opts) mods
 
 -- Verbosity level:
 -- 0 : show nothing
@@ -75,51 +86,49 @@ checkArgs (verbosity,withana,load,prog) args = case args of
 -- Output a string w.r.t. verbosity level
 printVerbose :: Int -> Int -> String -> IO ()
 printVerbose verbosity printlevel message =
-  if null message || verbosity < printlevel then done else putStrLn message
+  unless (null message || verbosity < printlevel) $ putStrLn message
 
-transformBoolEq :: Int -> Bool -> Bool -> String -> IO ()
-transformBoolEq verb withanalysis load name = do
+transformBoolEq :: Options -> String -> IO ()
+transformBoolEq opts@(verb, _, _) name = do
   let isfcyname = fileSuffix name == "fcy"
-      modname   = if isfcyname then stripCurrySubdir (stripSuffix name)
-                               else stripSuffix name
-  printVerbose verb 1 $ "Reading and analyzing module '"++modname++"'..."
+      modname   = stripCurrySubdir (stripSuffix name)
+  printVerbose verb 1 $ "Reading and analyzing module '" ++ modname ++ "'..."
   flatprog <- if isfcyname then readFlatCurryFile name
-                           else readFlatCurry modname
-  transformAndStoreFlatProg verb withanalysis load modname flatprog
+                           else readFlatCurry     modname
+  transformAndStoreFlatProg opts modname flatprog
+
+-- Drop a suffix from a list if present or leave the list as is otherwise.
+dropSuffix :: [a] -> [a] -> [a]
+dropSuffix sfx s | sfx `isSuffixOf` s = take (length s - length sfx) s
+                 | otherwise          = s
 
 stripCurrySubdir :: String -> String
-stripCurrySubdir s =
- let (dirname,basename) = splitDirectoryBaseName s
-     lcsd = length currySubdir
-     rs   = reverse dirname
-     swoc = reverse (drop lcsd rs)
-  in if take lcsd rs == reverse currySubdir
-     then if swoc==['.',pathSeparator] then basename else swoc </> basename
-     else s
+stripCurrySubdir s = let (dir, base) = splitDirectoryBaseName s
+                     in normalise $ dropSuffix currySubdir dir </> base
 
-transformAndStoreFlatProg :: Int -> Bool -> Bool -> String -> Prog -> IO ()
-transformAndStoreFlatProg verb withanalysis load modname prog = do
-  let oldprogfile = inCurrySubdir (modname++".fcy")
-      newprogfile = inCurrySubdir (modname++"_O.fcy")
+transformAndStoreFlatProg :: Options -> String -> Prog -> IO ()
+transformAndStoreFlatProg opts@(verb, _, load) modname prog = do
+  let (dir, name) = splitModuleFileName (progName prog) modname
+  let oldprogfile = normalise $ addCurrySubdir dir </>  name         <.> "fcy"
+      newprogfile = normalise $ addCurrySubdir dir </>  name ++ "_O" <.> "fcy"
   starttime <- getCPUTime
-  (newprog,transformed) <- transformFlatProg verb withanalysis modname prog
+  (newprog, transformed) <- transformFlatProg opts modname prog
   when transformed $ writeFCY newprogfile newprog
   stoptime <- getCPUTime
   printVerbose verb 2 $ "Transformation time for " ++ modname ++ ": " ++
                         show (stoptime-starttime) ++ " msecs"
   when transformed $ do
-    printVerbose verb 2 $ "Transformed program stored in "++newprogfile
-    system $ "mv "++newprogfile++" "++oldprogfile
-    printVerbose verb 2 $ " ...and moved to "++oldprogfile
-  if load
-   then system (installDir++"/bin/"++curryCompiler++" :l "++modname) >> done
-   else done
+    printVerbose verb 2 $ "Transformed program stored in " ++ newprogfile
+    renameFile newprogfile oldprogfile
+    printVerbose verb 2 $ " ...and moved to " ++ oldprogfile
+  when load $ system (curryComp ++ " :l " ++ modname) >> done
+ where curryComp = installDir </> "bin" </> curryCompiler
 
 -- Perform the binding optimization on a FlatCurry program.
 -- Return the new FlatCurry program and a flag indicating whether
 -- something has been changed.
-transformFlatProg :: Int -> Bool -> String -> Prog -> IO (Prog,Bool)
-transformFlatProg verb withanalysis modname
+transformFlatProg :: Options -> String -> Prog -> IO (Prog, Bool)
+transformFlatProg (verb, withanalysis, _) modname
                   (Prog mname imports tdecls fdecls opdecls)= do
   lookupreqinfo <-
     if withanalysis
@@ -132,10 +141,10 @@ transformFlatProg verb withanalysis modname
     else return (flip lookup preludeBoolReqValues)
   let (ons,cmts,newfdecls) = unzip3 (map (transformFuncDecl verb lookupreqinfo)
                                          fdecls)
-      numtrans = foldr (+) 0 ons
+      numtrans = sum ons
   printVerbose verb 1 $ unlines (filter (not . null) cmts)
   printVerbose verb 1 $ "Total number of transformations: " ++ show numtrans
-  return (Prog mname imports tdecls newfdecls opdecls, numtrans>0)
+  return (Prog mname imports tdecls newfdecls opdecls, numtrans > 0)
 
 loadAnalysisWithImports :: Analysis a -> String -> [String]
                         -> IO (ProgInfo a,ProgInfo a)
@@ -176,10 +185,13 @@ transformFuncDecl verb lookupreqinfo fdecl@(Func qf ar vis texp rule) =
 -- * number of occurrences of (==) that are replaced by (=:=)
 data TState = TState QName Int
 
+initTState :: QName -> TState
 initTState qf = TState qf 0
 
+occNumber :: TState -> Int
 occNumber (TState _ on) = on
 
+incOccNumber :: TState -> TState
 incOccNumber (TState qf on) = TState qf (on+1)
 
 -------------------------------------------------------------------------
@@ -203,8 +215,7 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformExp tst (Var i) _ = (Var i, tst)
   transformExp tst (Lit v) _ = (Lit v, tst)
   transformExp tst0 (Comb ct qf es) reqval =
-    let reqtype     = maybe AnyFunc id (lookupreqinfo qf)
-        reqargtypes = argumentTypesFor reqtype reqval
+    let reqargtypes = argumentTypesFor (lookupreqinfo qf) reqval
         (tes,tst1)  = transformExps tst0 (zip es reqargtypes)
      in if (qf == pre "==" && reqval == RequiredValues.Cons (pre "True")) ||
            (qf == pre "/=" && reqval == RequiredValues.Cons (pre "False"))
@@ -253,14 +264,18 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
      in (Branch pat tbe, tstb)
 
 --- Reduce an application of Prelude.$ to a combination:
-reduceDollar [Comb (FuncPartCall n) qf es, arg2] =
-  Comb (if n==1 then FuncCall else (FuncPartCall (n-1))) qf (es++[arg2])
-reduceDollar [Comb (ConsPartCall n) qf es, arg2] =
-  Comb (if n==1 then ConsCall else (ConsPartCall (n-1))) qf (es++[arg2])
+reduceDollar :: [Expr] -> Expr
+reduceDollar args = case args of
+  [Comb (FuncPartCall n) qf es, arg2]
+    -> Comb (if n==1 then FuncCall else (FuncPartCall (n-1))) qf (es++[arg2])
+  [Comb (ConsPartCall n) qf es, arg2]
+    -> Comb (if n==1 then ConsCall else (ConsPartCall (n-1))) qf (es++[arg2])
+  _ -> error "reduceDollar"
 
 --- Try to compute the required value of a case argument expression.
 --- If the case expression has one non-failing branch, the branch
 --- constructor is chosen, otherwise it is `Any`.
+caseArgType :: [BranchExpr] -> AType
 caseArgType branches =
   let nfbranches = filter (\ (Branch _ be) ->
                                    be /= Comb FuncCall (pre "failed") [])
@@ -272,9 +287,10 @@ caseArgType branches =
 
 --- Compute the argument types for a given abstract function type
 --- and required value.
-argumentTypesFor :: AFType -> AType -> [AType]
-argumentTypesFor AnyFunc _ = repeat Any
-argumentTypesFor (AFType rtypes) reqval =
+argumentTypesFor :: Maybe AFType -> AType -> [AType]
+argumentTypesFor Nothing                _      = repeat Any
+argumentTypesFor (Just EmptyFunc)       _      = repeat Any
+argumentTypesFor (Just (AFType rtypes)) reqval =
   maybe (-- no exactly matching type, look for Any type:
          maybe (-- no Any type: if reqtype==Any, try lub of all other types:
                 if reqval==Any && not (null rtypes)
@@ -306,16 +322,18 @@ containsBeqRule (Rule _ rhs) = containsBeqExp rhs
 
   containsBeqBranch (Branch _ be) = containsBeqExp be
 
-pre n = ("Prelude",n)
+pre :: String -> QName
+pre n = ("Prelude", n)
 
 -------------------------------------------------------------------------
 -- Loading prelude analysis result:
+loadPreludeBoolReqValues :: IO [(QName, AFType)]
 loadPreludeBoolReqValues = do
   maininfo <- analyzeInterface reqValueAnalysis "Prelude" >>=
                                                 return . either id error
   return (filter (hasBoolReqValue . snd) maininfo)
  where
-  hasBoolReqValue AnyFunc = False
+  hasBoolReqValue EmptyFunc = False
   hasBoolReqValue (AFType rtypes) =
     maybe False (const True) (find (isBoolReqValue . snd) rtypes)
 
@@ -324,6 +342,7 @@ loadPreludeBoolReqValues = do
     _       -> False
 
 -- Current relevant Boolean functions of the prelude:
+preludeBoolReqValues :: [(QName, AFType)]
 preludeBoolReqValues =
  [((pre "&&"),(AFType [([Any,Any],(Cons (pre "False"))),
            ([(Cons (pre "True")),(Cons (pre "True"))],(Cons (pre "True")))]))

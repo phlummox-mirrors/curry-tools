@@ -19,7 +19,6 @@ data FunctionAnalysis a =
  | LocalDataAnalysis  ([TypeDecl] -> FuncDecl -> a)
  | GlobalAnalysis     ([FuncDecl] -> [(QName,a)])
  | GlobalDataAnalysis ([TypeDecl] -> [FuncDecl] -> [(QName,a)])
-  deriving Eq
 
 -- The possible results of a function analysis:
 data AnalysisResult =

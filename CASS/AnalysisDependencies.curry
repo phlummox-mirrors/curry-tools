@@ -27,15 +27,17 @@ debugMessage dl message = debugMessageLevel dl ("Dependencies: "++message)
 -----------------------------------------------------------------------
 --- Compute the modules and their imports which must be analyzed
 --- w.r.t. a given analysis and main module.
-getModulesToAnalyze :: Analysis a -> String -> IO [(String,[String])]
-getModulesToAnalyze analysis moduleName =
+--- If the first argument is true, then the analysis is enforced
+--- (even if analysis information exists).
+getModulesToAnalyze :: Bool -> Analysis a -> String -> IO [(String,[String])]
+getModulesToAnalyze enforce analysis moduleName =
   if isSimpleAnalysis analysis
   then do
     ananewer <- isAnalysisFileNewer ananame moduleName
-    return (if ananewer then [] else [(moduleName,[])])
+    return (if ananewer && not enforce then [] else [(moduleName,[])])
   else do
    valid <- isAnalysisValid ananame moduleName
-   if valid 
+   if valid && not enforce
     then do
      debugMessage 3 ("Analysis file for '"++moduleName++"' up-to-date")
      return []
@@ -51,7 +53,7 @@ getModulesToAnalyze analysis moduleName =
             findModulesToAnalyze moduleList anaTimeList sourceTimeList ([],[])
      --debugMessage 3 ("Modules up-to-date: "++ show modulesUpToDate)
      withprelude <- getWithPrelude
-     let modulesToAnalyze =
+     let modulesToAnalyze = if enforce then moduleList else 
            if withprelude=="no"
            then let reduced = reduceDependencies modulesToDo 
                                               (modulesUpToDate ++ ["Prelude"])
@@ -64,12 +66,15 @@ getModulesToAnalyze analysis moduleName =
    ananame = analysisName analysis
 
 -- Check whether the analysis file is newer than the source file.
+isAnalysisFileNewer :: String -> String -> IO Bool
 isAnalysisFileNewer ananame modname = do
   atime <- getAnaFileTime ananame modname
   stime <- getSourceFileTime modname
   return (snd atime >= Just (snd stime))
 
--- Read current import dependencies.
+-- Read current import dependencies and checks whether the current analysis
+-- file is valud.
+isAnalysisValid :: String -> String -> IO Bool
 isAnalysisValid ananame modname =
   getImportModuleListFile modname >>= maybe
     (return False)

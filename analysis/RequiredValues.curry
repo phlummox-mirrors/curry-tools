@@ -1,7 +1,7 @@
 -----------------------------------------------------------------------------
 --- Required value analysis for Curry programs
 ---
---- This analysis checks for each function in a Curry program  whether
+--- This analysis checks for each function in a Curry program whether
 --- the arguments of a function must have a particular shape in order to
 --- compute some value of this function.
 --- For instance, the negation operation `not` requires the argument
@@ -9,7 +9,7 @@
 --- the argument `True` to compute the result `False`.
 ---
 --- @author Michael Hanus
---- @version August 2014
+--- @version October 2014
 -----------------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
@@ -67,14 +67,15 @@ showAType _ (Cons (_,n)) = n --q++"."++n
 showAType _ Empty = "_|_"
 
 --- The abstract type of a function.
---- If is either `AnyFunc`, i.e., contains no information about the function,
+--- It is either `EmptyFunc`, i.e., contains no information about
+--- the possible result of the function,
 --- or a list of possible argument/result type pairs.
 data AFType = AnyFunc | AFType [([AType],AType)]
   deriving Eq
 
 -- Shows an abstract value.
 showAFType :: AOutFormat -> AFType -> String
-showAFType _ AnyFunc = "AnyFunc"
+showAFType _ EmptyFunc = "EmptyFunc"
 showAFType aof (AFType fts) = intercalate " | " (map showFType fts)
  where
   showFType (targs,tres) =
@@ -121,22 +122,24 @@ maxReqValues = 3
 reqValueAnalysis :: Analysis AFType
 reqValueAnalysis =
   combinedDependencyFuncAnalysis "RequiredValue"
-                                 siblingCons AnyFunc analyseReqVal
+                                 siblingCons EmptyFunc analyseReqVal
 
 analyseReqVal :: ProgInfo [QName] -> FuncDecl -> [(QName,AFType)] -> AFType
-analyseReqVal consinfo (Func (m,f) _ _ _ rule) calledfuncs
- | m==prelude = maybe anaresult id (lookup f preludeFuncs)
+analyseReqVal consinfo (Func (m,f) arity _ _ rule) calledfuncs
+ | m==prelude = maybe (anaresult rule) id (lookup f preludeFuncs)
  | otherwise  = --trace ("Analyze "++f++"\n"++showCalledFuncs calledfuncs++
                 --       "\nRESULT: "++showAFType _ anaresult) $
-                anaresult
+                anaresult rule
  where
-  anaresult = analyseReqValRule consinfo calledfuncs rule
+  anaresult (External _) = AFType [(take arity (repeat Any),Any)]
+  anaresult (Rule args rhs) = analyseReqValRule consinfo calledfuncs args rhs
 
-  preludeFuncs = [] -- add special results for prelude functions here
+  -- add special results for prelude functions here:
+  preludeFuncs = [("failed",AFType [([],Empty)])]
 
-analyseReqValRule :: ProgInfo [QName] -> [(QName,AFType)] -> Rule -> AFType
-analyseReqValRule _ _ (External _) = AnyFunc
-analyseReqValRule consinfo calledfuncs (Rule args rhs) =
+analyseReqValRule :: ProgInfo [QName] -> [(QName,AFType)] -> [Int] -> Expr
+                  -> AFType
+analyseReqValRule consinfo calledfuncs args rhs =
   let initenv = extendEnv [] args
       envtypes = reqValExp initenv rhs Any
       rtypes = map snd envtypes
@@ -164,24 +167,28 @@ analyseReqValRule consinfo calledfuncs (Rule args rhs) =
     Lit _ -> [(env, Any)] -- too many literal constants...
     Comb ConsCall c _ -> [(env, Cons c)] -- analysis of arguments superfluous
     Comb FuncCall qf funargs ->
-      maybe [(env, Any)]
-            (\ftype -> case ftype of
-               AnyFunc -> [(env, Any)] -- no information available
-               AFType ftypes ->
-                 let matchingtypes =
-                                 filter (compatibleType reqtype . snd) ftypes
-                     -- for all matching types analyze arguments
-                     -- where a constructor value is required:
-                     matchingenvs =
-                       map (\ (ts,rt) ->
-                            let argenvs =  concatMap (envForConsArg env)
-                                                     (zip ts funargs)
-                             in (foldr joinEnv env argenvs, rt))
-                           matchingtypes
-                  in if null matchingtypes
-                     then [(env, Empty)]
-                     else matchingenvs )
-            (lookup qf calledfuncs)
+      if qf==(prelude,"?") && length funargs == 2
+      then -- use intended definition of Prelude.? for more precise analysis:
+           reqValExp env (Or (head funargs) (funargs!!1)) reqtype
+      else
+        maybe [(env, Any)]
+              (\ftype -> case ftype of
+                 EmptyFunc -> [(env, Empty)] -- no information available
+                 AFType ftypes ->
+                   let matchingtypes = filter (compatibleType reqtype . snd)
+                                              ftypes
+                       -- for all matching types analyze arguments
+                       -- where a constructor value is required:
+                       matchingenvs =
+                         map (\ (ts,rt) ->
+                              let argenvs =  concatMap (envForConsArg env)
+                                                       (zip ts funargs)
+                               in (foldr joinEnv env argenvs, rt))
+                             matchingtypes
+                    in if null matchingtypes
+                       then [(env, Empty)]
+                       else matchingenvs )
+              (lookup qf calledfuncs)
     Comb _ _ _ -> [(env, Any)] -- no reasonable info for partial applications
     Or e1 e2 -> lubEnvTypes (reqValExp env e1 reqtype)
                             (reqValExp env e2 reqtype)
@@ -226,10 +233,14 @@ analyseReqValRule consinfo calledfuncs (Rule args rhs) =
                          caseenvs)
          in map (dropEnv (length pvars)) branchenvs
 
+--- "lub" two environment lists. All environment lists are ordered
+--- by the result type.
 lubEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)] -> [(AEnv,AType)]
 lubEnvTypes []         ets2 = ets2
 lubEnvTypes ets1@(_:_) []   = ets1
 lubEnvTypes ((env1,t1):ets1) ((env2,t2):ets2)
+  | t1==Empty = lubEnvTypes ets1 ((env2,t2):ets2) -- ignore "empty" infos
+  | t2==Empty = lubEnvTypes ((env1,t1):ets1) ets2
   | t1==t2    = (lubEnv env1 env2, t1) : lubEnvTypes ets1 ets2
   | t1<t2     = (env1,t1) : lubEnvTypes ets1 ((env2,t2):ets2)
   | otherwise = (env2,t2) : lubEnvTypes ((env1,t1):ets1) ets2

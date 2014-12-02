@@ -96,7 +96,7 @@ data RegisteredAnalysis =
   RegAna String
          Bool
          String
-         (String -> [Handle] -> Maybe AOutFormat
+         (String -> Bool -> [Handle] -> Maybe AOutFormat
                  -> IO (Either (ProgInfo String) String))
          ([String] -> IO ())
 
@@ -104,7 +104,7 @@ regAnaName :: RegisteredAnalysis -> String
 regAnaName (RegAna n _ _ _ _) = n
 
 regAnaServer :: RegisteredAnalysis
-                -> (String -> [Handle] -> Maybe AOutFormat
+                -> (String -> Bool -> [Handle] -> Maybe AOutFormat
                     -> IO (Either (ProgInfo String) String))
 regAnaServer (RegAna _ _ _ a _) = a
 
@@ -127,10 +127,10 @@ lookupRegAna aname (ra@(RegAna raname _ _ _ _) : ras) =
   if aname==raname then Just ra else lookupRegAna aname ras
 
 -- Look up a registered analysis server with a given analysis name.
-lookupRegAnaServer :: String -> (String -> [Handle] -> Maybe AOutFormat
+lookupRegAnaServer :: String -> (String -> Bool -> [Handle] -> Maybe AOutFormat
                                         -> IO (Either (ProgInfo String) String))
 lookupRegAnaServer aname =
-  maybe (\_ _ _ -> return (Right ("unknown analysis: "++aname)))
+  maybe (\_ _ _ _ -> return (Right ("unknown analysis: "++aname)))
         regAnaServer
         (lookupRegAna aname registeredAnalysis)
 
@@ -147,28 +147,31 @@ debugMessage dl message =
 --------------------------------------------------------------------
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles and return the analysis results.
-runAnalysisWithWorkers :: String -> AOutFormat -> [Handle] -> String
+runAnalysisWithWorkers :: String -> AOutFormat -> Bool -> [Handle] -> String
                        -> IO (Either (ProgInfo String) String)
-runAnalysisWithWorkers ananame aoutformat handles moduleName =
-  (lookupRegAnaServer ananame) moduleName handles (Just aoutformat)
+runAnalysisWithWorkers ananame aoutformat enforce handles moduleName =
+  (lookupRegAnaServer ananame) moduleName enforce handles (Just aoutformat)
 
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles but do not load analysis results.
 runAnalysisWithWorkersNoLoad :: String -> [Handle] -> String -> IO ()
 runAnalysisWithWorkersNoLoad ananame handles moduleName =
-  (lookupRegAnaServer ananame) moduleName handles Nothing >> done
+  (lookupRegAnaServer ananame) moduleName False handles Nothing >> done
 
 --- Generic operation to analyze a module.
 --- The parameters are the analysis, the show operation for analysis results,
---- the name of the main module to be analyzed, the handles for the workers,
+--- the name of the main module to be analyzed,
+--- a flag indicating whether the (re-)analysis should be enforced,
+--- the handles for the workers,
 --- and a flag indicating whether the analysis results should be loaded
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeAsString :: Analysis a -> (AOutFormat->a->String) -> String -> [Handle]
-                -> Maybe AOutFormat -> IO (Either (ProgInfo String) String)
-analyzeAsString analysis showres modname handles mbaoutformat = do
-  analyzeMain analysis modname handles (mbaoutformat /= Nothing) >>=
+analyzeAsString :: Analysis a -> (AOutFormat->a->String) -> String -> Bool
+                -> [Handle] -> Maybe AOutFormat
+                -> IO (Either (ProgInfo String) String)
+analyzeAsString analysis showres modname enforce handles mbaoutformat = do
+  analyzeMain analysis modname handles enforce (mbaoutformat /= Nothing) >>=
     return . either (Left . mapProgInfo (showres aoutformat)) Right
  where
   aoutformat = maybe AText id mbaoutformat
@@ -176,17 +179,18 @@ analyzeAsString analysis showres modname handles mbaoutformat = do
 --- Generic operation to analyze a module.
 --- The parameters are the analysis, the name of the main module
 --- to be analyzed, the handles for the workers,
+--- a flag indicating whether the (re-)analysis should be enforced,
 --- and a flag indicating whether the analysis results should be loaded
 --- and returned (if the flag is false, the result contains the empty
 --- program information).
 --- An error occurred during the analysis is returned as `(Right ...)`.
-analyzeMain :: Analysis a -> String -> [Handle] -> Bool
+analyzeMain :: Analysis a -> String -> [Handle] -> Bool -> Bool
             -> IO (Either (ProgInfo a) String)
-analyzeMain analysis modname handles load = do
+analyzeMain analysis modname handles enforce load = do
   let ananame = analysisName analysis
   debugMessage 2 ("start analysis "++modname++"/"++ananame)
-  modulesToDo <- getModulesToAnalyze analysis modname
-  let numModules = length modulesToDo :: Int
+  modulesToDo <- getModulesToAnalyze enforce analysis modname
+  let numModules = length modulesToDo
   workresult <-
     if numModules==0
     then return Nothing

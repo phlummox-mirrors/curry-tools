@@ -9,10 +9,13 @@
 --- generated from a FlatCurry program.
 ---
 --- @author Michael Hanus
---- @version April 2013
+--- @version November 2014
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+{-# OPTIONS_CYMAKE -Wno-incomplete-patterns -Wno-missing-signatures #-}
+
+import FilePath (takeFileName, (</>))
 
 import FlatCurry
 import FlatCurryShow
@@ -22,15 +25,16 @@ import System(getArgs,getEnviron,system)
 import Directory
 import FileGoodies
 import Sort(mergeSort,leqString)
-import Distribution(getLoadPathForFile)
+import Distribution(getLoadPathForFile,stripCurrySuffix,modNameToPath
+                   ,lookupModuleSourceInLoadPath)
 
 main = do
   args <- getArgs
   case args of
-    ["-mod",mod] -> showCurryMod mod
-    ["-int",mod] -> showInterface mod
-    ["-mod",mod,target] -> writeCurryMod target mod
-    ["-int",mod,target] -> writeInterface target mod
+    ["-mod",mod] -> showCurryMod (stripCurrySuffix mod)
+    ["-int",mod] -> showInterface (stripCurrySuffix mod)
+    ["-mod",mod,target] -> writeCurryMod target (stripCurrySuffix mod)
+    ["-int",mod,target] -> writeInterface target (stripCurrySuffix mod)
     _ -> putStrLn $ "ERROR: Illegal arguments for genint: " ++
                     intercalate " " args ++ "\n" ++
                     "Usage: [-mod|-int] module_name [targetfile]"
@@ -56,30 +60,19 @@ writeInterface targetfile progname =
 -- Get a FlatCurry program (parse only if necessary):
 getFlatProg :: String -> IO Prog
 getFlatProg modname = do
-  progname <- findSourceFileInLoadPath modname
-  let fcyprogname = flatCurryFileName progname
+  mbdirfn <- lookupModuleSourceInLoadPath modname
+  let progname = maybe modname snd mbdirfn
+  let fcyprogname = flatCurryFileName
+                        (maybe modname (\ (d,_) -> d </> takeFileName modname)
+                                       mbdirfn)
   fcyexists <- doesFileExist fcyprogname
   if not fcyexists
-    then readFlatCurry progname
-    else do ctime <- getSourceModificationTime progname
+    then readFlatCurry modname
+    else do ctime <- getModificationTime progname
             ftime <- getModificationTime fcyprogname
             if ctime>ftime
-             then readFlatCurry progname
+             then readFlatCurry modname
              else readFlatCurryFile fcyprogname
-
-getSourceModificationTime progname = do
-  lexists <- doesFileExist (progname++".lcurry")
-  if lexists then getModificationTime (progname++".lcurry")
-             else getModificationTime (progname++".curry")
-
--- add a directory name for a Curry source file by looking up the
--- current load path (CURRYPATH):
-findSourceFileInLoadPath modname = do
-  loadpath <- getLoadPathForFile modname
-  mbfname <- lookupFileInPath (baseName modname) [".lcurry",".curry"] loadpath
-  maybe (error ("Curry file for module \""++modname++"\" not found!"))
-        (return . stripSuffix)
-        mbfname
 
 -----------------------------------------------------------------------
 -- Generate interface description for a program:
@@ -88,7 +81,8 @@ findSourceFileInLoadPath modname = do
 genInt :: Bool -> String -> IO String
 genInt genstub progname = do
  (Prog mod imports types funcs ops) <- getFlatInt progname
- return $ concatMap showInterfaceImport imports ++ "\n" ++
+ return $ "module " ++ mod ++ " where\n" ++
+          concatMap showInterfaceImport imports ++ "\n" ++
           concatMap showInterfaceOpDecl (mergeSort leqOp ops) ++
           (if null ops then "" else "\n") ++
           concatMap (showInterfaceType (showQNameInModule mod))
@@ -99,15 +93,18 @@ genInt genstub progname = do
 -- Get a FlatCurry program (parse only if necessary):
 getFlatInt :: String -> IO Prog
 getFlatInt modname = do
-  progname <- findSourceFileInLoadPath modname
-  let fintprogname = flatCurryIntName progname
+  mbdirfn <- lookupModuleSourceInLoadPath modname
+  let progname = maybe modname snd mbdirfn
+  let fintprogname = flatCurryIntName
+                        (maybe modname (\ (d,_) -> d </> takeFileName modname)
+                                       mbdirfn)
   fintexists <- doesFileExist fintprogname
   if not fintexists
-    then readFlatCurryInt progname
-    else do ctime <- getSourceModificationTime progname
+    then readFlatCurryInt modname
+    else do ctime <- getModificationTime progname
             ftime <- getModificationTime fintprogname
             if ctime>ftime
-             then readFlatCurryInt progname
+             then readFlatCurryInt modname
              else readFlatCurryFile fintprogname
 
 -- write import declaration
