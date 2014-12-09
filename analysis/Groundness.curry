@@ -35,7 +35,7 @@ showGround AText A      = "possibly non-ground result"
 showGround ANote (P ps) = show ps
 showGround AText (P ps) =
   "ground if argument" ++
-  (if length ps == (1 :: Int) then ' ' : show (head ps) ++ " is ground"
+  (if length ps == 1 then ' ' : show (head ps) ++ " is ground"
                               else "s " ++ show ps ++ " are ground")
 
 -- Lowest upper bound on groundness information.
@@ -138,7 +138,7 @@ showNDEffect AText (NDEffect ornd narr ifs) = intercalate " / " $
   (if narr then ["possibly non-deterministic narrowing steps"] else []) ++
   (if not (null ifs)
    then ["non-deterministic narrowing if argument" ++
-         (if length ifs == (1 :: Int) then ' ' : show (head ifs) ++ " is non-ground"
+         (if length ifs == 1 then ' ' : show (head ifs) ++ " is non-ground"
                             else "s " ++ show ifs ++ " are non-ground")]
    else [])
 
@@ -196,7 +196,7 @@ ndEffectFuncRule groundinfo calledFuncs (Rule args rhs) =
      in (lubG g1 g2, lubE orEffect (lubE nd1 nd2))
   absEvalExpr env (Typed e _) = absEvalExpr env e
   absEvalExpr env (Case ctype e bs) =
-    if ctype==Rigid {- not really for KiCS2 -} || gcase==G || length bs == (1 :: Int)
+    if ctype==Rigid {- not really for KiCS2 -} || gcase==G || length bs == 1
     then (gbrs, lubE ndbrs ndcase)
     else (gbrs, lubE (ground2nondet gcase) (lubE ndbrs ndcase))
    where

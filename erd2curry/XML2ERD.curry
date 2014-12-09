@@ -74,7 +74,7 @@ convert xml =
 
 uniqueNames :: [Entity] -> [Relationship] -> Bool
 uniqueNames es rs = 
-  length es + length rs == (length (nub ((map eName es)++(concatMap rNames rs))) :: Int)
+  length es + length rs == length (nub ((map eName es)++(concatMap rNames rs)))
 
 eName :: Entity -> String
 eName (Entity n _) = n

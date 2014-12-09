@@ -128,7 +128,7 @@ tuple2Entity erdname (Entity entityName attrlist) relationships allEntities =
            (
             (map (\ ((Attribute name _ _ _), varId) ->
                        CPVar (varId,lowerFirst name)))
-                 (zip (filter notKey attrlist) [(1 :: Int)..]) ++
+                 (zip (filter notKey attrlist) [1..]) ++
             (map (\ (name, varId) -> CPVar(varId,lowerFirst name))
                  (zip manyToOneEntities [1..])) ++
             (map (\ (name, varId) -> CPVar(varId,lowerFirst $ name++"s"))
@@ -422,7 +422,7 @@ blankView _ (Entity entityName attrlist) relationships allEntities =
          CPVar infovar :
          (if withCTime then [CPVar (0,"ctime")] else []) ++
          (map (\ (name, varId) -> CPVar(varId,("possible"++name++"s")))
-              (zip (manyToOneEntities++manyToManyEntities) [(2 :: Int)..])) ++
+              (zip (manyToOneEntities++manyToManyEntities) [2..])) ++
          [CPVar (1, "controller"), CPVar (2, "cancelcontroller")]
         )
         [noGuard (
@@ -432,8 +432,8 @@ blankView _ (Entity entityName attrlist) relationships allEntities =
                (map (\ (name, varId) ->
                            applyF (pre "head")
                                   [CVar (varId,("possible"++name++"s"))])
-                    (zip manyToOneEntities [(2 :: Int)..])) ++
-               (map (\_ -> list2ac []) (zip manyToManyEntities [(2 :: Int)..])) ++
+                    (zip manyToOneEntities [2..])) ++
+               (map (\_ -> list2ac []) (zip manyToManyEntities [2..])) ++
                (map (\ (name, varId) -> CVar (varId,("possible"++name++"s")))
                     (zip (manyToOneEntities++manyToManyEntities) [2..])) ++
                [CVar (1, "controller"), CVar (1, "cancelcontroller")]
@@ -492,7 +492,7 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
           (map (\ (name, varId) -> CPVar (varId,"related"++name))
                (zip manyToOneEntities [3..])) ++
           (map (\ (name, varId) -> CPVar (varId, lowerFirst name ++ "s"))
-               (zip manyToManyEntities [(length manyToOneEntities + (3 :: Int))..]))
+               (zip manyToManyEntities [(length manyToOneEntities + 3)..]))
         )
         [
           noGuard (
@@ -504,7 +504,7 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
                        (zip manyToOneEntities [3..]) ++
                    map (\ (name, varId) -> CVar (varId, lowerFirst name++"s"))
                        (zip manyToManyEntities
-                            [(length manyToOneEntities + (3 :: Int))..])
+                            [(length manyToOneEntities + 3)..])
                   ),
                list2ac [applyF ("Spicey","spHref")
                          [string2ac ("?"++entityName++"/list"),

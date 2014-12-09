@@ -736,12 +736,12 @@ newEntity (str,eName) attrs ens rels v esAll rsAll =
       newFunType = newType (str,eName) (filter notPKey attrs)
                            exactRs maxRs minMaxRs rsAll
 
-      l = length (exactRs ++ maxRs ++ minMaxRs) :: Int
+      l = length (exactRs ++ maxRs ++ minMaxRs)
       attributeP = map ((++"_p") . lowerFirst . attributeName)
                        (filter notPKey attrs)
-      exactP = duplicate exactRs (map (("k"++) . show) [(1 :: Int) .. length exactRs])
+      exactP = duplicate exactRs (map (("k"++) . show) [1 .. length exactRs])
       maxP = map (("ks"++) . show)
-                 [length exactRs + 1 .. (length (exactRs ++ maxRs) :: Int)]
+                 [length exactRs + 1 .. length (exactRs ++ maxRs)]
       minMaxP = duplicate' minMaxRs 
                   (map (("k" ++) . show) [length (exactRs ++ maxRs) + 1 .. l])
                   (map (("ks"++) . show) [length (exactRs ++ maxRs) + 1 .. l])
@@ -910,8 +910,8 @@ newEntity (str,eName) attrs ens rels v esAll rsAll =
              -> [Relationship] -> [Relationship] -> CTypeExpr
    newType (m,n) [] exactRs maxRs minMaxRs rs 
      | null exactRs && null maxRs && null minMaxRs = CTCons transTC [baseType (m,n)] 
-     | length exactRs > (0 :: Int) = nTExact (m,n) exactRs maxRs minMaxRs rs
-     | length maxRs > (0 :: Int) = nTMax (m,n) maxRs minMaxRs rs
+     | length exactRs > 0 = nTExact (m,n) exactRs maxRs minMaxRs rs
+     | length maxRs > 0 = nTMax (m,n) maxRs minMaxRs rs
      | otherwise = nTMinMax (m,n) minMaxRs rs
    newType n (a@(Attribute _ d _ nu):ats) exactRs maxRs minMaxRs rs = 
      let t = case d of KeyDom s -> if nu 

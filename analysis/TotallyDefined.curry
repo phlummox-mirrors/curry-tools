@@ -96,7 +96,7 @@ isComplete :: ProgInfo [QName] -> Expr -> Completeness
 isComplete _ (Var _)      = Complete
 isComplete _ (Lit _)      = Complete
 isComplete consinfo (Comb _ f es) =
-  if f==("Prelude","commit") && length es == (1 :: Int)
+  if f==("Prelude","commit") && length es == 1
   then isComplete consinfo (head es)
   else Complete
 isComplete _ (Free _ _) = Complete

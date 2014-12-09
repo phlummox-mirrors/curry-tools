@@ -47,7 +47,7 @@ analyseCompleteness types fdecl = anaFun fdecl
 isComplete _ (Var _)      = Complete
 isComplete _ (Lit _)      = Complete
 isComplete types (Comb _ f es) =
-  if f==("Prelude","commit") && length es == (1 :: Int)
+  if f==("Prelude","commit") && length es == 1
   then isComplete types (head es)
   else Complete
 isComplete _ (Free _ _) = Complete

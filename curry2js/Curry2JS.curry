@@ -172,8 +172,8 @@ flatExp2JS decls maxo maxn patvars retvar (Let bindings exp) =
         (trySequentializeLetBindings bindings)
 
 flatExp2JS decls maxo maxn patvars retvar (Case _ cexp branches) =
-  if length branches == (2 :: Int) && hasConstPattern "True"  (branches!!0)
-                                   && hasConstPattern "False" (branches!!1)
+  if length branches == 2 && hasConstPattern "True"  (branches!!0)
+                          && hasConstPattern "False" (branches!!1)
   then ite2JS decls maxo maxn patvars retvar cexp
               (expOfBranch (branches!!0)) (expOfBranch (branches!!1))
   else case2JS decls maxo maxn patvars retvar cexp branches
@@ -207,7 +207,7 @@ case2JS decls maxo maxn patvars retvar cexp branches =
   in [JSVarDecl casevar] ++
      flatExp2JS decls casevar max1 patvars casevar cexp ++
      caseStringProlog casevar ++
-     if optimizeUniqueCase && length branches == (1 :: Int)
+     if optimizeUniqueCase && length branches == 1
                            && branchWithUniqueCase (head branches)
      then let [JSCase _ cstats] =
 
@@ -249,7 +249,7 @@ isUniqueConstructor [] c =
 isUniqueConstructor (TypeSyn _ _ _ _ : tdecls) c = isUniqueConstructor tdecls c
 isUniqueConstructor (Type _ _ _ cdecls : tdecls) c =
   if c `elem` (map (\ (Cons cname _ _ _) -> cname) cdecls)
-  then length cdecls == (1 :: Int)
+  then length cdecls == 1
   else isUniqueConstructor tdecls c
 
 -- Translate if-then-else

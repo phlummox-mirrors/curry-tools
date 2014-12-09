@@ -259,7 +259,7 @@ genHtmlFunc docparams progname progcmts anainfo ops
          ]
 
   showCall f params =
-    if isAlpha (head f) || length params /= (2 :: Int)
+    if isAlpha (head f) || length params /= 2
     then "(" ++ showId f ++ concatMap (" "++) params ++ ")"
     else "(" ++ params!!0 ++ " " ++ f ++ " " ++ params!!1 ++ ")"
 
@@ -418,7 +418,7 @@ genMainIndexPage docdir modnames =
  do putStrLn ("Writing index page to \""++docdir++"/index.html\"...")
     simplePage "Documentation of Curry modules"
       (Just $
-       if length modnames == (1 :: Int)
+       if length modnames == 1
        then [htxt "Documentation of the Curry program ",
              href (head modnames++".html") [htxt (head modnames++".curry")]]
        else [htxt "Documentation of Curry programs"])
@@ -430,7 +430,7 @@ allConsFuncsMenu =
    [href "cindex.html" [htxt "All constructors"]]]
 
 indexPage modnames =
-  (if length modnames == (1 :: Int)
+  (if length modnames == 1
    then []
    else [ulist (map (\m->[href (m++".html") [htxt (m++".curry ")]])
                     (mergeSort leqStringIgnoreCase modnames))]) ++

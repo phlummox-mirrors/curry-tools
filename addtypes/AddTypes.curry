@@ -36,7 +36,7 @@ import AllSolutions
 
 main :: IO ()
 main = do args <- getArgs
-          if length args /= (1 :: Int) then putStrLn "Usage: addtypes <Curry program>"
+          if length args /= 1 then putStrLn "Usage: addtypes <Curry program>"
             else do let fileName = stripSuffix (head args)
                     writeWithTypeSignatures fileName
                     putStrLn $ "Signatures added.\nA backup of the original "

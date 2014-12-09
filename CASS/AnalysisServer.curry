@@ -315,7 +315,7 @@ serverLoopOnHandle socket1 whandles handle = do
 -- is the number of lines of the <result text>.
 sendServerResult handle resultstring = do
   let resultlines = lines resultstring
-  hPutStrLn handle ("ok " ++ show (length resultlines :: Int))
+  hPutStrLn handle ("ok " ++ show (length resultlines))
   hPutStr handle (unlines resultlines)
   hFlush handle
 

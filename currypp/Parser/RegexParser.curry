@@ -327,7 +327,7 @@ cntUntilClosed :: Ord a => a -> a -> [a] -> Int
 cntUntilClosed c1 c2 li = cUCB 0 0 li
   where
     cUCB n c l =
-      if (c < (0 :: Int)) then n else
+      if (c < 0) then n else
         if (l == []) then failed else
           if ((head l) == c1) then cUCB (n+1) (c+1) (tail l) else
             if ((head l) == c2) then cUCB (n+1) (c-1) (tail l)
