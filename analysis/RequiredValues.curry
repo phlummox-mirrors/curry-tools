@@ -70,7 +70,7 @@ showAType _ Empty = "_|_"
 --- It is either `EmptyFunc`, i.e., contains no information about
 --- the possible result of the function,
 --- or a list of possible argument/result type pairs.
-data AFType = AnyFunc | AFType [([AType],AType)]
+data AFType = EmptyFunc | AFType [([AType],AType)]
   deriving Eq
 
 -- Shows an abstract value.
