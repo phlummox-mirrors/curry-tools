@@ -232,7 +232,7 @@ genHtmlFunc docparams progname progcmts anainfo ops
          docComment2HTML docparams funcmt ++
          genParamComment paramcmts ++
          -- show further infos for this function, if present:
-         (if furtherInfos == []
+         (if null furtherInfos
           then []
           else [dlist [([explainCat "Further infos:"],
                         [ulist furtherInfos])]] )]]]
@@ -301,7 +301,7 @@ genFuncPropIcons anainfo fname rule =
 --- of a function. The result is a list of HTML expressions to be
 --- formatted (if not empty) as some HTML list.
 genFuncPropComments anainfo fname rule ops =
-   filter (/=[]) [genFixityInfo fname ops,
+   filter (not . null) [genFixityInfo fname ops,
                   completenessInfo,
                   indeterminismInfo,
                   opcompleteInfo,
