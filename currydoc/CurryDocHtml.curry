@@ -241,7 +241,7 @@ genHtmlFunc docparams progname progcmts anainfo ops
 
   genParamComment paramcmts =
     let params = map (span isIdChar) (getCommentType "param" paramcmts)
-     in (if params==[]
+     in (if null params
          then []
          else [par [explainCat "Example call:", nbsp,
                     code [htxt (showCall fname (map fst params))]],
@@ -302,10 +302,10 @@ genFuncPropIcons anainfo fname rule =
 --- formatted (if not empty) as some HTML list.
 genFuncPropComments anainfo fname rule ops =
    filter (not . null) [genFixityInfo fname ops,
-                  completenessInfo,
-                  indeterminismInfo,
-                  opcompleteInfo,
-                  externalInfo rule]
+                        completenessInfo,
+                        indeterminismInfo,
+                        opcompleteInfo,
+                        externalInfo rule]
  where
    -- comment about the definitional completeness of a function:
    completenessInfo = let ci = getCompleteInfo anainfo fname in
