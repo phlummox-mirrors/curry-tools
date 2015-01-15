@@ -9,18 +9,15 @@ import FlatCurry
 import FlatCurryGoodies
 import FlatCurryRead
 import FileGoodies
-import System(getArgs)
-import Distribution(getLoadPath,getLoadPathForModule,addCurrySubdir)
+import Distribution(getLoadPathForModule)
 import Directory
 import Maybe
 
--- Get all interfaces (i.e., main and all indirectly imported modules) of a program:
+--- Get all interfaces (i.e., main and all indirectly imported modules)
+--- of a program:
 getImportedInterfaces :: String -> IO [(String,InterfaceOrFlatProg)]
 getImportedInterfaces mod = do
-  args <- getArgs
-  imps <- readFlatCurryIntWithImports (if null args
-                                       then mod
-                                       else dirName(head args)++"/"++mod)
+  imps <- readFlatCurryIntWithImports mod
   return (map (\prog -> (progName prog, IF prog)) imps)
 
 -- Extract a module and its imports:
@@ -39,8 +36,7 @@ progOfIFFP (FP prog) = prog
 
 --------------------------------------------------------------------------
 -- Read an existing(!) FlatCurry file w.r.t. current load path:
-readFlatCurryFileInLoadPath prt mod = do
-  loadpath  <- getLoadPathForModule mod
+readFlatCurryFileInLoadPath prt mod loadpath = do
   mbfcyfile <- lookupFileInPath (flatCurryFileName mod) [""] loadpath
   maybe (error $ "FlatCurry file of module "++mod++" not found!")
         (readFlatCurryFileAndReport prt mod)

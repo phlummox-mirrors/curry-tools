@@ -3,7 +3,7 @@
 --- programs.
 ---
 --- @author Michael Hanus
---- @version May 2013
+--- @version January 2015
 ---------------------------------------------------------------------
 
 module BrowserGUI where
@@ -28,8 +28,7 @@ import ShowGraph
 import ImportCalls
 import Directory
 import Time(toCalendarTime,calendarTimeToString)
-import Distribution(installDir,curryCompiler,getLoadPathForModule
-                   ,lookupModuleSourceInLoadPath)
+import Distribution
 
 import Analysis(AOutFormat(..))
 import AnalysisServer(initializeAnalysisSystem,analyzeModuleForBrowser)
@@ -57,9 +56,9 @@ patchReadmeVersion = do
 main = do
   args <- getArgs
   case args of
-   [a] -> start (baseName (stripSuffix a))
+   [a] -> start (stripCurrySuffix a)
    _ -> putStrLn $ "ERROR: Illegal arguments for CurryBrowser: " ++
-                   concat (intersperse " " args) ++ "\n" ++
+                   unwords args ++ "\n" ++
                    "Usage: currybrowser <module_name>"
 
 start mod = do
@@ -163,6 +162,10 @@ getModuleFileName gs mod = do
   (_,mods,_,_,_,_) <- readIORef gs
   return (fst (fromJust (lookup mod mods)))
 
+-- get load path w.r.t. main module:
+getMainLoadPath gs = do
+  (_,mods,_,_,_,_) <- readIORef gs
+  getLoadPathForModule (fst (snd (head mods)))
 
 getTrees gs = readIORef gs >>= \(trees,_,_,_,_,_) -> return trees
 
@@ -244,7 +247,8 @@ getAllFunctions :: IORef GuiState -> (String->IO ()) -> String -> IO [FuncDecl]
 getAllFunctions gs prt mod = do
   imps <- getAllImportsOfModule gs mod
   (_,mods,_,_,_,_) <- readIORef gs
-  mapIO_ (readProgAndStoreIfNecessary gs prt) (filter ((`elem` imps) . fst) mods)
+  mapIO_ (readProgAndStoreIfNecessary gs prt)
+         (filter ((`elem` imps) . fst) mods)
   (_,newmods,_,_,_,_) <- readIORef gs
   return (concatMap (progFuncs . progOfIFFP . snd . snd)
                     (filter ((`elem` imps) . fst) newmods))
@@ -274,7 +278,8 @@ setCurrentFunctionAnalysis gs fana = do
 -- read a FlatCurry program and store if not already done
 readProgAndStore gs prt mod = do
   (ts,mods,fs,ct,flag,fana) <- readIORef gs
-  prog <- readFlatCurryFileInLoadPath prt (fst (fromJust (lookup mod mods)))
+  loadpath <- getMainLoadPath gs
+  prog <- readFlatCurryFileInLoadPath prt mod loadpath
   writeIORef gs (ts,update mod prog mods,fs,ct,flag,fana)
   return prog
  where
@@ -474,10 +479,11 @@ browserGUI gstate rmod rtxt names =
 
   -- show module source code:
   showSource mod gp = do
-    fmod <- getModuleFileName gstate mod
-    mbprogname <- lookupModuleSourceInLoadPath fmod
-    maybe (putMainMessage gp ("Source file of '"++fmod++"' does not exist!"))
-          (\ (_,filename) -> do
+    loadpath <- getMainLoadPath gstate
+    mbprogname <- lookupFileInPath (modNameToPath mod)
+                                   [".lcurry",".curry"] loadpath
+    maybe (putMainMessage gp ("Source file of '"++mod++"' does not exist!"))
+          (\filename -> do
                 source <- readFile filename
                 setValue rtxt source gp
                 setMainContentsModule gstate mod
@@ -488,11 +494,11 @@ browserGUI gstate rmod rtxt names =
 
   -- show information about a module:
   showModuleInfo mod gp = do
-    fmod <- getModuleFileName gstate mod
-    loadpath <- getLoadPathForModule fmod
-    mbsrcfile <- lookupModuleSourceInLoadPath mod
-    mbfcyfile <- lookupFileInPath (flatCurryFileName fmod) [""] loadpath
-    srcinfo   <- getFileInfo 2 (maybe Nothing (Just . snd) mbsrcfile)
+    loadpath <- getMainLoadPath gstate
+    mbsrcfile <- lookupFileInPath (modNameToPath mod)
+                                  [".lcurry",".curry"] loadpath
+    mbfcyfile <- lookupFileInPath (flatCurryFileName mod) [""] loadpath
+    srcinfo   <- getFileInfo 2 mbsrcfile
     fcyinfo   <- getFileInfo 4 mbfcyfile
     let msg = "Source file:    " ++ srcinfo ++
             "\nFlatCurry file: " ++ fcyinfo
@@ -568,7 +574,8 @@ browserGUI gstate rmod rtxt names =
       let mainfun = funcName (funs!!(readNat self)) in
       getAllFunctions gstate (showDoing gp) (fromJust mod) >>= \allfuns ->
       let qfnames = mergeSort leqQName
-             (union [mainfun] (fromJust (lookup mainfun (indirectlyDependent allfuns))))
+              (union [mainfun]
+                     (fromJust (lookup mainfun (indirectlyDependent allfuns))))
        in storeSelectedFunctions gstate (map (findDecl4name allfuns) qfnames) >>
           setFunctionListKind gstate False >>
           setConfig rfun (List (map showQNameWithMod qfnames)) gp
@@ -667,10 +674,12 @@ browserGUI gstate rmod rtxt names =
     prog <- getProgWithName gstate prt mod
     return (ana prog)
   performModuleAnalysis (SourceCodeAnalysis ana) _ mod = do
-    mbfilename <- lookupModuleSourceInLoadPath mod
+    loadpath <- getMainLoadPath gstate
+    mbfilename <- lookupFileInPath (modNameToPath mod)
+                                   [".lcurry",".curry"] loadpath
     maybe (return (ContentsResult
                    OtherText ("Curry source file for module \""++mod++"\" not found!")))
-          (\ (_,filename) -> ana filename)
+          (\filename -> ana filename)
           mbfilename
 
   -- Perform an analysis to a single function declaration:
@@ -700,18 +709,19 @@ browserGUI gstate rmod rtxt names =
     types <- getAllTypes gstate prt mod
     prt "Analyzing..."
     return (map (ana types) fdecls)
-  performAllAnalysis (GlobalAnalysis ana) prt mod fdecls =
-    getAllFunctions gstate prt mod >>= \funcs ->
-    prt "Analyzing..." >>
-    let anaresults = ana funcs in
+  performAllAnalysis (GlobalAnalysis ana) prt mod fdecls = do
+    funcs <- getAllFunctions gstate prt mod
+    prt "Analyzing..."
+    let anaresults = ana funcs
     return (map (\fd->fromJust (lookup (funcName fd) anaresults)) fdecls)
-  performAllAnalysis (GlobalDataAnalysis ana) prt mod fdecls =
-    getAllTypes gstate prt mod >>= \types ->
-    getAllFunctions gstate prt mod >>= \funcs ->
-    prt "Analyzing..." >>
-    let anaresults = ana types funcs in
+  performAllAnalysis (GlobalDataAnalysis ana) prt mod fdecls = do
+    types <- getAllTypes gstate prt mod
+    funcs <- getAllFunctions gstate prt mod
+    prt "Analyzing..."
+    let anaresults = ana types funcs
     return (map (\fd->fromJust (lookup (funcName fd) anaresults)) fdecls)
 
+isPublic :: FuncDecl -> Bool
 isPublic fd = funcVisibility fd == Public
 
 ---------------------------------------------------------------------
@@ -727,6 +737,7 @@ findFunDeclInProgText FlatCurryExp progtext fname =
 findFunDeclInProgText OtherText _ _ = 0
 
 -- finds first declaration line:
+findFirstDeclLine :: [a] -> [[a]] -> Int -> Int
 findFirstDeclLine _ [] _ = 0 -- not found
 findFirstDeclLine f (l:ls) n =
      if isPrefixOf f l then n else findFirstDeclLine f ls (n+1)
