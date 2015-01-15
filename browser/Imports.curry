@@ -4,7 +4,7 @@
 {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 
 module Imports(getImportedInterfaces,moduleImports,readFlatCurryFileInLoadPath,
-               findFileInLoadPath,InterfaceOrFlatProg(..),ifOrProg,progOfIFFP)
+               InterfaceOrFlatProg(..),ifOrProg,progOfIFFP)
   where
 
 import FlatCurry
@@ -12,7 +12,7 @@ import FlatCurryGoodies
 import FlatCurryRead
 import FileGoodies
 import System(getArgs)
-import Distribution(getLoadPath,addCurrySubdir)
+import Distribution(getLoadPath,getLoadPathForModule,addCurrySubdir)
 import Directory
 import Maybe
 
@@ -42,31 +42,16 @@ progOfIFFP (FP prog) = prog
 --------------------------------------------------------------------------
 -- Read an existing(!) FlatCurry file w.r.t. current load path:
 readFlatCurryFileInLoadPath prt mod = do
-  mbfilename <- findFileInLoadPath mod [".fcy"]
+  loadpath  <- getLoadPathForModule mod
+  mbfcyfile <- lookupFileInPath (flatCurryFileName mod) [""] loadpath
   maybe (error $ "FlatCurry file of module "++mod++" not found!")
         (readFlatCurryFileAndReport prt mod)
-        mbfilename
+        mbfcyfile
 
 readFlatCurryFileAndReport prt mod filename = do
   size <- fileSize filename
   prt $ "Reading FlatCurry file of module '"++mod++"' ("++show size++" bytes)..."
   prog <- readFlatCurryFile filename
   seq (prog==prog) (return prog)
-
---------------------------------------------------------------------------
---- Finds the first file with a possible suffix in the load path:
-findFileInLoadPath :: String -> [String] -> IO (Maybe String)
-findFileInLoadPath file suffixes = do
-    loadpath <- getLocalLoadPath suffixes
-    lookupFileInPath file suffixes loadpath
-
--- computes real load path in case of non-local first program argument:
-getLocalLoadPath _ = do
-  loadpath <- getLoadPath
-  args <- getArgs
-  if null args
-   then return loadpath
-   else let dir = dirName (head args)
-         in return (dir : addCurrySubdir dir : tail loadpath)
 
 --------------------------------------------------------------------------

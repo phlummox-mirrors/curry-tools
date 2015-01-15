@@ -30,7 +30,8 @@ import ShowGraph
 import ImportCalls
 import Directory
 import Time(toCalendarTime,calendarTimeToString)
-import Distribution(installDir,curryCompiler)
+import Distribution(installDir,curryCompiler,getLoadPathForModule
+                   ,lookupModuleSourceInLoadPath)
 
 import Analysis(AOutFormat(..))
 import AnalysisServer(initializeAnalysisSystem,analyzeModuleForBrowser)
@@ -476,21 +477,24 @@ browserGUI gstate rmod rtxt names =
   -- show module source code:
   showSource mod gp = do
     fmod <- getModuleFileName gstate mod
-    mbprogname <- Imports.findFileInLoadPath fmod [".lcurry",".curry"]
-    maybe (putMainMessage gp "Source file does not exist!")
-          (\filename -> readFile filename >>= \source ->
-                        setValue rtxt source gp >>
-                        setMainContentsModule gstate mod
-                            (if take 7 (reverse filename) == "yrrucl."
-                             then LCurryProg else CurryProg) source)
+    mbprogname <- lookupModuleSourceInLoadPath fmod
+    maybe (putMainMessage gp ("Source file of '"++fmod++"' does not exist!"))
+          (\ (_,filename) -> do
+                source <- readFile filename
+                setValue rtxt source gp
+                setMainContentsModule gstate mod
+                  (if take 7 (reverse filename) == "yrrucl."
+                  then LCurryProg else CurryProg) source
+          )
           mbprogname
 
   -- show information about a module:
   showModuleInfo mod gp = do
     fmod <- getModuleFileName gstate mod
-    mbsrcfile <- Imports.findFileInLoadPath fmod [".lcurry",".curry"]
-    mbfcyfile <- Imports.findFileInLoadPath fmod [".fcy"]
-    srcinfo   <- getFileInfo 2 mbsrcfile
+    loadpath <- getLoadPathForModule fmod
+    mbsrcfile <- lookupModuleSourceInLoadPath mod
+    mbfcyfile <- lookupFileInPath (flatCurryFileName fmod) [""] loadpath
+    srcinfo   <- getFileInfo 2 (maybe Nothing (Just . snd) mbsrcfile)
     fcyinfo   <- getFileInfo 4 mbfcyfile
     let msg = "Source file:    " ++ srcinfo ++
             "\nFlatCurry file: " ++ fcyinfo
@@ -665,10 +669,10 @@ browserGUI gstate rmod rtxt names =
     prog <- getProgWithName gstate prt mod
     return (ana prog)
   performModuleAnalysis (SourceCodeAnalysis ana) _ mod = do
-    mbfilename <- Imports.findFileInLoadPath mod [".lcurry",".curry"]
+    mbfilename <- lookupModuleSourceInLoadPath mod
     maybe (return (ContentsResult
                    OtherText ("Curry source file for module \""++mod++"\" not found!")))
-          (\filename -> ana filename)
+          (\ (_,filename) -> ana filename)
           mbfilename
 
   -- Perform an analysis to a single function declaration:
@@ -731,14 +735,18 @@ findFirstDeclLine f (l:ls) n =
 
 ---------------------------------------------------------------------
 -- directory with browser sources:
+browserDir :: String
 browserDir = installDir++"/currytools/browser"
 
 -- order qualified names by basename first:
+leqQName :: QName -> QName -> Bool
 leqQName (mod1,n1) (mod2,n2) = leqString n1 n2 || n1==n2 && leqString mod1 mod2
 
 -- show qualified name with module:
+showQNameWithMod :: QName -> String
 showQNameWithMod (m,n) = n++" ("++m++")"
 
+noAnalysisText :: String
 noAnalysisText = "*** no analysis ***"
 
 ---------------------------------------------------------------------
