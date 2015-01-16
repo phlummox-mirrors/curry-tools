@@ -39,14 +39,18 @@ import AnalysisCollection(functionAnalysisInfos)
 ---------------------------------------------------------------------
 -- Set this constant to True if the execution times of the main operations
 -- should be shown in the status line:
+showExecTime :: Bool
 showExecTime = True
 
 ---------------------------------------------------------------------
 -- Title and version
+title :: String
 title = "CurryBrowser"
 
-version = "Version of 03/05/2013"
+version :: String
+version = "Version of 16/01/2015"
 
+patchReadmeVersion :: IO ()
 patchReadmeVersion = do
   readmetxt <- readCompleteFile "README"
   writeFile "README" (unlines . map replaceVersion . lines $ readmetxt)
@@ -55,6 +59,7 @@ patchReadmeVersion = do
 
 ---------------------------------------------------------------------
 -- Main program: check arguments, read interfaces, and run GUI:
+main :: IO ()
 main = do
   args <- getArgs
   case args of
@@ -63,40 +68,37 @@ main = do
                    unwords args ++ "\n" ++
                    "Usage: currybrowser <module_name>"
 
-start mod = do
+start :: String -> IO ()
+start modpath = do
   initializeAnalysisSystem
   putStrLn "Please be patient, reading all interfaces..."
   helptxt <- readFile (browserDir++"/README")
-  mods <- getImportedInterfaces mod
+  mods <- getImportedInterfaces modpath
   let mainmod = progName (progOfIFFP (snd (head mods)))
-      trees = [Leaf (if mainmod==mod then mod else mod++"(module: "++mainmod++")")
+      trees = [Leaf mainmod
                     (mainmod,map (moduleImports . progOfIFFP . snd) mods)]
-  stateref <- newIORef (trees,
-                        (mainmod,(mod,snd (head mods)))
-                         : map (\ (m,p)->(m,(m,p))) (tail mods),
-                        [],("",OtherText,""),False,Nothing)
+  stateref <- newIORef (GS trees modpath mods
+                           [] ("",OtherText,"") False Nothing)
   runInitGUI (title++" ("++version++")")
              (browserGUI stateref rmod rtxt (trees2strings trees))
              (\gp -> setValue rtxt helptxt gp >> setValue rmod "0" gp >>
                      return [])
  where rmod,rtxt free
 
-m1 = start "BrowserGUI"
-m2 = start "Imports"
-m3 = start "demo"
-m4 = start "rev"
-
 -----------------------------------------------------------------------------
 -- Structure of import tree to be shown:
 data Tree a = Leaf String a          -- leaves have a name and a value
-            | Node String a [Tree a] -- nodes have a name, value and a list of subtrees
+            | Node String a [Tree a] -- nodes have name, value and subtrees
 
+trees2strings :: [Tree a] -> [String]
 trees2strings trees = concatMap (tree2strings 0) trees
 
+tree2strings :: Int -> Tree a -> [String]
 tree2strings n (Leaf t _)       = [blanks n ++ "+ "++t]
 tree2strings n (Node t _ trees) = (blanks n ++"- "++t)
                                   : concatMap (tree2strings (n+2)) trees
 
+blanks :: Int -> String
 blanks n = take n (repeat ' ')
 
 
@@ -140,6 +142,7 @@ changeTrees n (Node t v subtrees : trees) =
                     return (Node t v nsts : trees)
                else changeTrees (n-l) trees >>= \nts -> return (Node t v subtrees : nts)
 
+openNode :: (a, [(a, [String])]) -> IO [Tree (String, [(a, [String])])]
 openNode (mod,modimps) = let mbimps = lookup mod modimps in
   return $  maybe [] (map (\m->Leaf m (m,modimps))) mbimps
 
@@ -147,7 +150,8 @@ openNode (mod,modimps) = let mbimps = lookup mod modimps in
 -- Operations on the state of the GUI:
 -- The GUI state consists of
 -- * the import tree
--- * the list of all modules (module name, file name, FlatCurry interface or program)
+-- * the name of the main module (possibly including directory prefix)
+-- * the list of all modules (module name, FlatCurry interface or program)
 -- * the list of all currently shown functions of the module
 -- * the name and contents of the module currently shown in the contents window
 -- * flag: True if function list shows functions of currently selected module
@@ -156,28 +160,32 @@ openNode (mod,modimps) = let mbimps = lookup mod modimps in
 type ImportTree = [Tree (String,[(String,[String])])]
 
 
-type GuiState = (ImportTree,[(String,(String,InterfaceOrFlatProg))],
-                 [FuncDecl],(String,ContentsKind,String),Bool,
-                 Maybe (FunctionAnalysis AnalysisResult))
-
-getModuleFileName gs mod = do
-  (_,mods,_,_,_,_) <- readIORef gs
-  return (fst (fromJust (lookup mod mods)))
+data GuiState = GS ImportTree
+                   String
+                   [(String,InterfaceOrFlatProg)]
+                   [FuncDecl]
+                   (String,ContentsKind,String)
+                   Bool
+                   (Maybe (FunctionAnalysis AnalysisResult))
 
 -- get load path w.r.t. main module:
+getMainLoadPath :: IORef GuiState -> IO [String]
 getMainLoadPath gs = do
-  (_,mods,_,_,_,_) <- readIORef gs
-  getLoadPathForModule (fst (snd (head mods)))
+  (GS _ mainmod _ _ _ _ _) <- readIORef gs
+  getLoadPathForModule mainmod
 
-getTrees gs = readIORef gs >>= \(trees,_,_,_,_,_) -> return trees
+getTrees :: IORef GuiState -> IO ImportTree
+getTrees gs = readIORef gs >>= \ (GS trees _ _ _ _ _ _) -> return trees
 
+storeTrees :: IORef GuiState -> ImportTree -> IO ()
 storeTrees gs trees = do
-  (_,ms,_,ct,_,fana) <- readIORef gs
-  writeIORef gs (trees,ms,[],ct,False,fana)
+  (GS _ mm ms _ ct _ fana) <- readIORef gs
+  writeIORef gs (GS trees mm ms [] ct False fana)
 
 -- extract all reflexive-transitive imports for a module from GUI state:
+getAllImportsOfModule :: IORef GuiState -> String -> IO [String]
 getAllImportsOfModule gs mod = do
-  (trees,_,_,_,_,_) <- readIORef gs
+  (GS trees _ _ _ _ _ _) <- readIORef gs
   return (collectImports (importsOfRoot trees) [mod] [])
  where
    importsOfRoot ((Leaf _ (_,imps)) :_)   = imps
@@ -189,109 +197,120 @@ getAllImportsOfModule gs mod = do
     then collectImports modimps ms doneimps
     else collectImports modimps (ms ++ fromJust (lookup m modimps)) (m:doneimps)
 
-getFuns gs = readIORef gs >>= \(_,_,funs,_,_,_) -> return funs
+getFuns :: IORef GuiState -> IO [FuncDecl]
+getFuns gs = readIORef gs >>= \ (GS _ _ _ funs _ _ _) -> return funs
 
+storeSelectedFunctions :: IORef GuiState -> [FuncDecl] -> IO ()
 storeSelectedFunctions gs funs = do
-  (t,ms,_,ct,flag,fana) <- readIORef gs
-  writeIORef gs (t,ms,mergeSort leqFunc funs,ct,flag,fana)
+  (GS t mm ms _ ct flag fana) <- readIORef gs
+  writeIORef gs (GS t mm ms (mergeSort leqFunc funs) ct flag fana)
 
-setMainContentsModule :: IORef GuiState -> String -> ContentsKind -> String -> IO ()
+setMainContentsModule :: IORef GuiState -> String -> ContentsKind -> String
+                      -> IO ()
 setMainContentsModule gs cntmod cntkind contents = do
-  (t,ms,fs,_,flag,fana) <- readIORef gs
-  writeIORef gs (t,ms,fs,
-                 (if cntkind==OtherText then "" else cntmod,cntkind,contents),
-                 flag,fana)
+  (GS t mm ms fs _ flag fana) <- readIORef gs
+  writeIORef gs (GS t mm ms fs 
+                   (if cntkind==OtherText then "" else cntmod,cntkind,contents) 
+                    flag fana)
 
 getContentsModule :: IORef GuiState -> IO String
 getContentsModule gs = do
-  (_,_,_,(cntmod,_,_),_,_) <- readIORef gs
+  (GS _ _ _ _ (cntmod,_,_) _ _) <- readIORef gs
   return cntmod
 
 getMainContents :: IORef GuiState -> IO (ContentsKind,String)
 getMainContents gs = do
-  (_,_,_,(_,cntkind,contents),_,_) <- readIORef gs
+  (GS _ _ _ _ (_,cntkind,contents) _ _) <- readIORef gs
   return (cntkind,contents)
 
 getFunctionListKind :: IORef GuiState -> IO Bool
 getFunctionListKind gs = do
-  (_,_,_,_,flag,_) <- readIORef gs
+  (GS _ _ _ _ _ flag _) <- readIORef gs
   return flag
 
 setFunctionListKind :: IORef GuiState -> Bool -> IO ()
 setFunctionListKind gs flag = do
-  (t,ms,fs,cnttype,_,fana) <- readIORef gs
-  writeIORef gs (t,ms,fs,cnttype,flag,fana)
+  (GS t mm ms fs cnttype _ fana) <- readIORef gs
+  writeIORef gs (GS t mm ms fs cnttype flag fana)
 
 -- get the interfaces (or FlatCurry programs) of all modules:
+getAllModules :: IORef GuiState -> IO [Prog]
 getAllModules gs = do
-  (_,mods,_,_,_,_) <- readIORef gs
-  return (map (progOfIFFP . snd . snd) mods)
+  (GS _ _ mods _ _ _ _) <- readIORef gs
+  return (map (progOfIFFP . snd) mods)
 
 -- get the interface (or FlatCurry program) of a specific module:
+getIntWithName :: IORef GuiState -> String -> IO Prog
 getIntWithName gs name = do
-  (_,mods,_,_,_,_) <- readIORef gs
-  return (progOfIFFP . snd . fromJust . lookup name $ mods)
+  (GS _ _ mods _ _ _ _) <- readIORef gs
+  return (progOfIFFP . fromJust . lookup name $ mods)
 
 -- get the FlatCurry program of a specific module (read, if necessary):
+getProgWithName :: IORef GuiState -> (String->IO ()) -> String -> IO Prog
 getProgWithName gs prt name = do
-  (_,mods,_,_,_,_) <- readIORef gs
-  ifOrProg (\_->readProgAndStore gs prt name) return (snd (fromJust (lookup name mods)))
+  (GS _ _ mods _ _ _ _) <- readIORef gs
+  ifOrProg (\_->readProgAndStore gs prt name) return
+           (fromJust (lookup name mods))
 
 -- Get all data type declarations (also imported) of a module:
+getAllTypes :: IORef GuiState -> (String->IO ()) -> String -> IO [TypeDecl]
 getAllTypes gs _ mod =
   getAllImportsOfModule gs mod >>= \imps ->
-  readIORef gs >>= \(_,mods,_,_,_,_) ->
-  return (concatMap (progTypes . progOfIFFP . snd . snd)
+  readIORef gs >>= \ (GS _ _ mods _ _ _ _) ->
+  return (concatMap (progTypes . progOfIFFP . snd)
                     (filter ((`elem` imps) . fst) mods))
 
 -- Get all function declarations (also imported) of a module:
 getAllFunctions :: IORef GuiState -> (String->IO ()) -> String -> IO [FuncDecl]
 getAllFunctions gs prt mod = do
   imps <- getAllImportsOfModule gs mod
-  (_,mods,_,_,_,_) <- readIORef gs
+  (GS _ _ mods _ _ _ _) <- readIORef gs
   mapIO_ (readProgAndStoreIfNecessary gs prt)
          (filter ((`elem` imps) . fst) mods)
-  (_,newmods,_,_,_,_) <- readIORef gs
-  return (concatMap (progFuncs . progOfIFFP . snd . snd)
+  (GS _ _ newmods _ _ _ _) <- readIORef gs
+  return (concatMap (progFuncs . progOfIFFP . snd)
                     (filter ((`elem` imps) . fst) newmods))
 
 -- Get all function names (also imported) of a module:
 getAllFunctionNames :: IORef GuiState -> String -> IO [QName]
 getAllFunctionNames gs mod =
   getAllImportsOfModule gs mod >>= \imps ->
-  readIORef gs >>= \(_,mods,_,_,_,_) ->
-  return (map funcName (concatMap (progFuncs . progOfIFFP . snd . snd)
+  readIORef gs >>= \ (GS _ _ mods _ _ _ _) ->
+  return (map funcName (concatMap (progFuncs . progOfIFFP . snd)
                                   (filter ((`elem` imps) . fst) mods)))
 
 -- Get currently selected function analysis:
 getCurrentFunctionAnalysis :: IORef GuiState ->
                               IO (Maybe (FunctionAnalysis AnalysisResult))
 getCurrentFunctionAnalysis gs = do
-  (_,_,_,_,_,fana) <- readIORef gs
+  (GS _ _ _ _ _ _ fana) <- readIORef gs
   return fana
 
 -- Set current function analysis:
 setCurrentFunctionAnalysis :: IORef GuiState ->
                               (Maybe (FunctionAnalysis AnalysisResult)) -> IO ()
 setCurrentFunctionAnalysis gs fana = do
-  (ts,mods,fs,ct,flag,_) <- readIORef gs
-  writeIORef gs (ts,mods,fs,ct,flag,fana)
+  (GS ts mm mods fs ct flag _) <- readIORef gs
+  writeIORef gs (GS ts mm mods fs ct flag fana)
 
 -- read a FlatCurry program and store if not already done
+readProgAndStore :: IORef GuiState -> (String -> IO ()) -> String -> IO Prog
 readProgAndStore gs prt mod = do
-  (ts,mods,fs,ct,flag,fana) <- readIORef gs
+  (GS ts mm mods fs ct flag fana) <- readIORef gs
   loadpath <- getMainLoadPath gs
   prog <- readFlatCurryFileInLoadPath prt mod loadpath
-  writeIORef gs (ts,update mod prog mods,fs,ct,flag,fana)
+  writeIORef gs (GS ts mm (update mod prog mods) fs ct flag fana)
   return prog
  where
   update _ _ [] = []
-  update nm pr ((n,(f,p)):ms) = if n==nm then (n,(f,FP pr)):ms
-                                         else (n,(f,p)) : update nm pr ms
+  update nm pr ((n,p):ms) = if n==nm then (n,FP pr):ms
+                                     else (n,p) : update nm pr ms
 
 -- read a FlatCurry program and store if not already done
-readProgAndStoreIfNecessary _ _ (_,(_,FP _)) = done
-readProgAndStoreIfNecessary gs prt (name,(_,IF _)) =
+readProgAndStoreIfNecessary :: IORef GuiState -> (String -> IO ()) ->
+                               (String,InterfaceOrFlatProg) -> IO ()
+readProgAndStoreIfNecessary _ _ (_,FP _) = done
+readProgAndStoreIfNecessary gs prt (name,IF _) =
    readProgAndStore gs prt name >> done
 
 -- find a function declaration in a list of fdecls for a given name:
