@@ -3,7 +3,7 @@
 --- persistently in files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2013
+--- @version January 2015
 --------------------------------------------------------------------------
 
 module LoadAnalysis where
@@ -17,8 +17,9 @@ import IO
 import FiniteMap
 import ReadShowTerm(readQTerm,showQTerm)
 import FlatCurry(QName)
-import CurryFiles(findSourceFileInLoadPath)
+import CurryFiles(findModuleSourceInLoadPath)
 
+debugMessage :: Int -> String -> IO ()
 debugMessage n message = debugMessageLevel n ("LoadAnalysis: "++message)
 
 --- Get the file name in which analysis results are stored
@@ -27,9 +28,8 @@ debugMessage n message = debugMessageLevel n ("LoadAnalysis: "++message)
 getAnalysisBaseFile :: String -> String -> IO String
 getAnalysisBaseFile moduleName anaName = do
   analysisDirectory <- getAnalysisDirectory
-  fileName <- findSourceFileInLoadPath moduleName
-  let (fileDir,_) = splitDirectoryBaseName fileName
-  if fileDir == "."
+  (fileDir,_) <- findModuleSourceInLoadPath moduleName
+  if fileDir == "." || fileDir == "./"
     then do
       currentDir <- getCurrentDirectory
       return (analysisDirectory++currentDir++"/"++moduleName++"."++anaName)
@@ -76,7 +76,7 @@ getInterfaceInfos anaName (mod:mods) =
 --- and the second component is an analysis value.
 loadDefaultAnalysisValues :: String -> String -> IO [(QName,a)]
 loadDefaultAnalysisValues anaName moduleName = do
-  fileName <- findSourceFileInLoadPath moduleName
+  (_,fileName) <- findModuleSourceInLoadPath moduleName
   let defaultFileName = stripSuffix fileName ++ ".defaults."++anaName
   fileExists <- doesFileExist defaultFileName
   if fileExists
@@ -142,6 +142,7 @@ createDirectoryRHelp dirname (dir:restList) = do
 
 
 -- delete all savefiles of analysis
+deleteAnalysisFiles :: String -> IO Int
 deleteAnalysisFiles ananame = do
    analysisDir <- getAnalysisDirectory
    system ("find "++analysisDir++" -name '*."++ananame++"' -type f -delete")

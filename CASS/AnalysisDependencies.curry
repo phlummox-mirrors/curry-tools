@@ -2,7 +2,7 @@
 --- Operations to handle dependencies of analysis files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2013
+--- @version January 2015
 -----------------------------------------------------------------------
 
 module AnalysisDependencies(getModulesToAnalyze,reduceDependencies,
@@ -65,12 +65,15 @@ getModulesToAnalyze enforce analysis moduleName =
  where
    ananame = analysisName analysis
 
--- Check whether the analysis file is newer than the source file.
+-- Checks whether the analysis file is up-to-date.
+-- Returns True if the analysis file is newer than the source file
+-- and the FlatCurry file (if is exists).
 isAnalysisFileNewer :: String -> String -> IO Bool
 isAnalysisFileNewer ananame modname = do
   atime <- getAnaFileTime ananame modname
   stime <- getSourceFileTime modname
-  return (snd atime >= Just (snd stime))
+  ftime <- getFlatCurryFileTime modname
+  return (snd atime >= Just (snd stime) && snd atime >= snd ftime)
 
 -- Read current import dependencies and checks whether the current analysis
 -- file is valud.
