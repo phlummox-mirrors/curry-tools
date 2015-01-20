@@ -15,7 +15,7 @@ module Configuration
  (systemBanner,baseDir,getServerAddress,updateRCFile,updateCurrentProperty,
   getFPMethod,getWithPrelude,
   storeServerPortNumber,removeServerPortNumber,getServerPortNumber,
-  getDefaultPath,waitTime,numberOfWorkers,debugMessageLevel) where
+  getDefaultPath,waitTime,numberOfWorkers,debugMessage) where
 
 import System
 import Distribution(installDir,curryCompiler)
@@ -30,7 +30,7 @@ import Char(isSpace)
 
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System ("++
-                   "version of 22/10/2014 for "++curryCompiler++")"
+                   "version of 20/01/2015 for "++curryCompiler++")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -143,7 +143,7 @@ getServerPortNumber = do
             then return portnum
             else do removeFile serverPortFileName
                     getServerPortNumber
-   else do debugMessageLevel 2 "Starting analysis server..."
+   else do debugMessage 2 "Starting analysis server..."
            tcmd <- getTerminalCommand
            let serverCmd = baseDir++"/cass"
            if all isSpace tcmd
@@ -156,7 +156,7 @@ getServerPortNumber = do
     exfile <- doesFileExist serverPortFileName
     if exfile
      then readServerPortPid >>= return . fst
-     else do debugMessageLevel 2 "Waiting for server start..."
+     else do debugMessage 2 "Waiting for server start..."
              sleep 1
              waitForServerPort serverPortFileName
 
@@ -206,8 +206,8 @@ numberOfWorkers = do
 
 --- Prints a message if debugging level (as specified in the Config file)
 --- is at least n:
-debugMessageLevel :: Int -> String -> IO ()
-debugMessageLevel n message = do
+debugMessage :: Int -> String -> IO ()
+debugMessage n message = do
   properties <- getProperties
   let number = lookup "debugLevel" properties
   case number of

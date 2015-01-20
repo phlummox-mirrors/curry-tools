@@ -20,7 +20,7 @@ import Analysis(Analysis(..),isSimpleAnalysis,isCombinedAnalysis,
 import GenericProgInfo(ProgInfo,combineProgInfo,emptyProgInfo,publicProgInfo,
                        lookupProgInfo,lists2ProgInfo,equalProgInfo,showProgInfo)
 import FlatCurryDependency(callsDirectly,dependsDirectlyOnTypes)
-import AnalysisDependencies(readNewestFlatCurry)
+import CurryFiles(readNewestFlatCurry)
 import LoadAnalysis
 import System(getCPUTime)
 import Configuration
@@ -65,7 +65,7 @@ analysisClientWithStore store analysis fpmethod moduleName = do
      else runAnalysis analysis prog importInfos startvals fpmethod
   storeAnalysisResult ananame moduleName result
   stoptime <- getCPUTime
-  debugMessageLevel 1
+  debugMessage 1
     ("Analysis time for " ++ ananame ++ "/" ++ moduleName ++ " " ++
      show (stoptime-starttime) ++ " msecs")
   loadinfos <- readIORef store

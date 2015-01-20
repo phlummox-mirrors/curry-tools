@@ -2,16 +2,17 @@
 --- This module defines a datatype to represent the analysis information.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version September 2014
+--- @version January 2015
 -----------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 
 module GenericProgInfo where
 
-import Configuration(debugMessageLevel)
+import Configuration(debugMessage)
 import Directory(removeFile)
 import FiniteMap
+import FilePath((<.>))
 import FlatCurry
 import XML
 
@@ -70,16 +71,16 @@ publicProgInfo (ProgInfo pub _) = ProgInfo pub (emptyFM (<))
 --- Writes a ProgInfo into a file.
 writeAnalysisFiles :: String -> ProgInfo _ -> IO ()
 writeAnalysisFiles basefname (ProgInfo pub priv) = do
-  writeFile (basefname++".priv") (showFM priv)
-  writeFile (basefname++".pub")  (showFM pub)
-  debugMessageLevel 3 $ "Analysis file '"++basefname++"' written."
+  debugMessage 3 $ "Writing analysis files '"++basefname++"'..."
+  writeFile (basefname <.> "priv") (showFM priv)
+  writeFile (basefname <.> "pub")  (showFM pub)
 
 --- Reads a ProgInfo from the analysis files where the base file name is given.
 readAnalysisFiles :: String -> IO (ProgInfo _)
 readAnalysisFiles basefname = do
-  debugMessageLevel 3 $ "Reading analysis files '"++basefname++"'..."
-  let pubcontfile  = basefname++".pub"
-      privcontfile = basefname++".priv"
+  debugMessage 3 $ "Reading analysis files '"++basefname++"'..."
+  let pubcontfile  = basefname <.> "pub"
+      privcontfile = basefname <.> "priv"
   pubcont  <- readFile pubcontfile
   privcont <- readFile privcontfile
   let pinfo = ProgInfo (readFM (<) pubcont) (readFM (<) privcont)
@@ -94,7 +95,7 @@ readAnalysisFiles basefname = do
 --- Reads the public ProgInfo from the public analysis file.
 readAnalysisPublicFile :: String -> IO (ProgInfo _)
 readAnalysisPublicFile fname = do
-  debugMessageLevel 3 $ "Reading public analysis file '"++fname++"'..."
+  debugMessage 3 $ "Reading public analysis file '"++fname++"'..."
   fcont <- readFile fname
   let pinfo = ProgInfo (readFM (<) fcont) (emptyFM (<))
   catch (return $!! pinfo)

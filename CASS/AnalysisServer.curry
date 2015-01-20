@@ -44,7 +44,7 @@ data AnalysisServerMessage =
 --- Without any program arguments, the server is started on a socket.
 --- Otherwise, it is started in batch mode to analyze a module.
 main = do
-  debugMessageLevel 1 systemBanner
+  debugMessage 1 systemBanner
   initializeAnalysisSystem
   args <- getArgs
   processArgs False args
@@ -107,7 +107,7 @@ mainServer mbport = do
    then do
     serveraddress <- getServerAddress
     (workerport,workersocket) <- listenOnFresh
-    debugMessageLevel 2 ("SERVER: port to workers: "++show workerport)
+    debugMessage 2 ("SERVER: port to workers: "++show workerport)
     handles <- startWorkers numworkers workersocket serveraddress workerport []
     serverLoop socket1 handles
     sClose workersocket
@@ -215,14 +215,14 @@ startWorkers:: Int -> Socket -> String -> Int -> [Handle] -> IO [Handle]
 startWorkers number workersocket serveraddress workerport handles = do
   if number>0
     then do
-      debugMessageLevel 4 ("Number:"++(show number))
+      debugMessage 4 ("Number:"++(show number))
       let command = baseDir++"/cass_worker "++serveraddress++" "
                                             ++(show workerport)++" &"
-      debugMessageLevel 4 ("system command: "++command)
+      debugMessage 4 ("system command: "++command)
       system command
-      debugMessageLevel 4 ("Wait for socket accept for client "++show number)
+      debugMessage 4 ("Wait for socket accept for client "++show number)
       connection <- waitForSocketAccept workersocket waitTime
-      debugMessageLevel 4 ("Socket accept for client "++show number)
+      debugMessage 4 ("Socket accept for client "++show number)
       case connection of
         Just (_,handle) -> do
           startWorkers (number-1) workersocket serveraddress workerport
@@ -242,7 +242,7 @@ stopWorkers (handle:whandles) = do
 --------------------------------------------------------------------------
 -- server loop to answer analysis requests over network
 serverLoop socket1 whandles = do
-  --debugMessageLevel 3 "SERVER: serverLoop"
+  --debugMessage 3 "SERVER: serverLoop"
   connection <- waitForSocketAccept socket1 waitTime
   case connection of 
     Just (_,handle) -> serverLoopOnHandle socket1 whandles handle
@@ -266,11 +266,11 @@ serverLoopOnHandle socket1 whandles handle = do
   eof <- hIsEOF handle
   if eof
    then do hClose handle
-           debugMessageLevel 2 "SERVER connection: eof"
+           debugMessage 2 "SERVER connection: eof"
            serverLoop socket1 whandles
    else do
      string <- hGetLineUntilEOF handle
-     debugMessageLevel 2 ("SERVER got message: "++string)
+     debugMessage 2 ("SERVER got message: "++string)
      let force = False
      case parseServerMessage string of
        ParseError -> do
@@ -303,7 +303,7 @@ serverLoopOnHandle socket1 whandles handle = do
          removeServerPortNumber
  where
   sendResult resultstring = do
-    debugMessageLevel 4 ("formatted result:\n"++resultstring)
+    debugMessage 4 ("formatted result:\n"++resultstring)
     sendServerResult handle resultstring
     serverLoopOnHandle socket1 whandles handle
 
@@ -321,7 +321,7 @@ sendServerResult handle resultstring = do
 
 -- Send a server error in the format "error <error message>\n".
 sendServerError handle errstring = do
-  debugMessageLevel 1 errstring
+  debugMessage 1 errstring
   hPutStrLn handle ("error "++errstring)
   hFlush handle
 
