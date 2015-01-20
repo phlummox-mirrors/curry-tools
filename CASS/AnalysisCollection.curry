@@ -19,7 +19,7 @@ import IOExts
 import XML
 
 import Analysis
-import Configuration(debugMessageLevel,numberOfWorkers)
+import Configuration(debugMessage,numberOfWorkers)
 import CurryFiles(getImports)
 import GenericProgInfo
 import AnalysisDependencies(getModulesToAnalyze)
@@ -138,11 +138,6 @@ lookupRegAnaWorker aname =
   maybe (const done) regAnaWorker (lookupRegAna aname registeredAnalysis)
 
 --------------------------------------------------------------------
-
-debugMessage dl message =
-  debugMessageLevel dl ("AnalysisCollection: "++message)
-
---------------------------------------------------------------------
 -- Run an analysis with a given name on a given module with a list
 -- of workers identified by their handles and return the analysis results.
 runAnalysisWithWorkers :: String -> AOutFormat -> Bool -> [Handle] -> String
@@ -186,7 +181,7 @@ analyzeMain :: Analysis a -> String -> [Handle] -> Bool -> Bool
             -> IO (Either (ProgInfo a) String)
 analyzeMain analysis modname handles enforce load = do
   let ananame = analysisName analysis
-  debugMessage 2 ("start analysis "++modname++"/"++ananame)
+  debugMessage 2 ("Start analysis: "++modname++"/"++ananame)
   modulesToDo <- getModulesToAnalyze enforce analysis modname
   let numModules = length modulesToDo
   workresult <-
@@ -194,11 +189,12 @@ analyzeMain analysis modname handles enforce load = do
     then return Nothing
     else do
      when (numModules>1) $
-       debugMessage 1 ("Number of modules to be analyzed: " ++ show numModules)
+       debugMessage 1
+         ("Number of modules to be analyzed: " ++ show numModules)
      prepareCombinedAnalysis analysis modname (map fst modulesToDo) handles
      numworkers <- numberOfWorkers
      if numworkers>0
-       then do debugMessage 2 "start MasterLoop"
+       then do debugMessage 2 "Starting master loop"
                masterLoop handles [] ananame modname modulesToDo []
        else analyzeLocally ananame (map fst modulesToDo)
   result <-
@@ -208,7 +204,7 @@ analyzeMain analysis modname handles enforce load = do
            else return (Left emptyProgInfo))
           (return . Right)
           workresult
-  debugMessage 4 ("result: " ++ either showProgInfo id result)
+  debugMessage 4 ("Result: " ++ either showProgInfo id result)
   return result
 
 -- Analyze a module and all its imports locally without worker processes.

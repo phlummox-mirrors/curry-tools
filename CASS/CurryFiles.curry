@@ -15,13 +15,13 @@ import FlatCurryGoodies(progImports)
 import Directory(doesFileExist,getModificationTime)
 import Distribution(lookupFileInLoadPath,lookupModuleSourceInLoadPath)
 import Time(ClockTime)
-import Configuration(debugMessageLevel)
+import Configuration(debugMessage)
 
 
 -- Get the imports of a module.
 getImports :: String -> IO [String]
 getImports moduleName = do
-  debugMessageLevel 3 ("Reading interface of module "++moduleName)
+  debugMessage 3 ("Reading interface of module "++moduleName)
   readNewestFlatCurryInt moduleName >>= return . progImports
 
 --- Returns a directory name and the actual source file name for a module

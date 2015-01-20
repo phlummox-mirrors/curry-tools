@@ -9,55 +9,40 @@
 module LoadAnalysis where
 
 import Directory
-import FileGoodies(separatorChar,splitDirectoryBaseName,stripSuffix)
+import Distribution(stripCurrySuffix)
+import FilePath
 import System(system,getArgs,getEnviron)
 import GenericProgInfo
-import Configuration(debugMessageLevel,getWithPrelude)
+import Configuration(debugMessage,getWithPrelude)
 import IO
 import FiniteMap
 import ReadShowTerm(readQTerm,showQTerm)
 import FlatCurry(QName)
 import CurryFiles(findModuleSourceInLoadPath)
 
-debugMessage :: Int -> String -> IO ()
-debugMessage n message = debugMessageLevel n ("LoadAnalysis: "++message)
 
 --- Get the file name in which analysis results are stored
 --- (without suffix ".pub" or ".priv")
--- TODO: does not work for Windows
 getAnalysisBaseFile :: String -> String -> IO String
 getAnalysisBaseFile moduleName anaName = do
   analysisDirectory <- getAnalysisDirectory
+  currentDir        <- getCurrentDirectory >>= return . dropDrive
+  let modAnaName = moduleName <.> anaName
   (fileDir,_) <- findModuleSourceInLoadPath moduleName
-  if fileDir == "." || fileDir == "./"
-    then do
-      currentDir <- getCurrentDirectory
-      return (analysisDirectory++currentDir++"/"++moduleName++"."++anaName)
-    else
-     if head fileDir /= '/' -- TODO: does not work for Windows
-     then do -- is relative path name
-       currentDir <- getCurrentDirectory
-       return (analysisDirectory++currentDir++"/"++fileDir++"/"++
-               moduleName++"."++anaName)
-     else return (analysisDirectory++fileDir++"/"++moduleName++"."++anaName)
+  if isAbsolute fileDir
+   then return (analysisDirectory </> dropDrive fileDir </> modAnaName)
+   else return (analysisDirectory </> currentDir </> fileDir </> modAnaName)
 
 --- Get the file name in which public analysis results are stored.
 getAnalysisPublicFile :: String -> String -> IO String
 getAnalysisPublicFile modname ananame = do
-  getAnalysisBaseFile modname ananame >>= return . (++".pub")
+  getAnalysisBaseFile modname ananame >>= return . (<.> "pub")
 
 -- directory where analysis info files are stored ($HOME has to be set) 
 getAnalysisDirectory :: IO String
 getAnalysisDirectory = do
   homeDir <- getHomeDirectory
-  return (homeDir++"/.curry/Analysis/")
-
--- splits directory path in hierarchic list of folders of path
-splitDirectories :: String -> [String]
-splitDirectories dir = 
-  let (rbase,rdir) = break (==separatorChar) (reverse dir) in
-    if null rdir then []
-    else (splitDirectories (reverse (tail rdir)))++[(reverse rbase)]
+  return (homeDir </> ".curry" </> "Analysis")
 
 -- loads analysis results for a list of modules
 getInterfaceInfos :: String -> [String] -> IO (ProgInfo a)
@@ -77,7 +62,7 @@ getInterfaceInfos anaName (mod:mods) =
 loadDefaultAnalysisValues :: String -> String -> IO [(QName,a)]
 loadDefaultAnalysisValues anaName moduleName = do
   (_,fileName) <- findModuleSourceInLoadPath moduleName
-  let defaultFileName = stripSuffix fileName ++ ".defaults."++anaName
+  let defaultFileName = stripCurrySuffix fileName ++ ".defaults."++anaName
   fileExists <- doesFileExist defaultFileName
   if fileExists
     then do debugMessage 3 ("Load default values from " ++ defaultFileName)
@@ -102,8 +87,7 @@ loadPublicAnalysis anaName moduleName = do
 storeImportModuleList :: String -> [String] -> IO ()
 storeImportModuleList modname modlist = do
   importListFile <- getAnalysisBaseFile modname "IMPORTLIST"
-  let (dir,_) = splitDirectoryBaseName importListFile
-  createDirectoryR dir
+  createDirectoryR (dropFileName importListFile)
   writeFile importListFile (showQTerm modlist)
 
 --- Gets the file containing import dependencies for a main module
@@ -116,30 +100,27 @@ getImportModuleListFile modname = do
 
 --- Store an analysis results in a file and create directories if neccesssary.
 --- The first argument is the analysis name.
-storeAnalysisResult:: String -> String -> ProgInfo a -> IO ()
+storeAnalysisResult :: String -> String -> ProgInfo a -> IO ()
 storeAnalysisResult ananame moduleName result = do
    baseFileName <- getAnalysisBaseFile moduleName ananame
-   let (dir,_) = splitDirectoryBaseName baseFileName
-   createDirectoryR dir
+   createDirectoryR (dropFileName baseFileName)
    debugMessage 4 ("Analysis result: " ++ showProgInfo result)
    writeAnalysisFiles baseFileName result
 
 -- creates directory (and all needed root-directories) recursively
-createDirectoryR::String->IO()
-createDirectoryR dir = do
-  let dirList = splitDirectories dir
-  createDirectoryRHelp "" dirList
-
-createDirectoryRHelp::String->[String]->IO()
-createDirectoryRHelp _ [] = done  
-createDirectoryRHelp dirname (dir:restList) = do
-  let createdDir = dirname++"/"++dir
-  dirExists <- doesDirectoryExist createdDir
-  if (dirExists)
-    then done 
-    else createDirectory createdDir
-  createDirectoryRHelp createdDir restList
-
+createDirectoryR :: String -> IO ()
+createDirectoryR maindir = 
+  let (drv,dir) = splitDrive maindir
+   in createDirectories drv (splitDirectories dir)
+ where
+  createDirectories _ [] = done  
+  createDirectories dirname (dir:dirs) = do
+    let createdDir = dirname </> dir
+    dirExists <- doesDirectoryExist createdDir
+    unless dirExists $ do
+      debugMessage 3 ("Creating directory '"++createdDir++"'...")
+      createDirectory createdDir
+    createDirectories createdDir dirs
 
 -- delete all savefiles of analysis
 deleteAnalysisFiles :: String -> IO Int
