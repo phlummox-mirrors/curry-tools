@@ -2,6 +2,7 @@
 --- Some auxiliary operations of CurryDoc to read programs.
 ---
 --- @author Michael Hanus
+--- @version January 2015
 ----------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}

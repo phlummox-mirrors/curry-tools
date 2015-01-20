@@ -2,6 +2,7 @@
 --- Functions to generate documentation in TeX format.
 ---
 --- @author Michael Hanus
+--- @version January 2015
 ----------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
@@ -10,6 +11,7 @@ module CurryDocTeX where
 
 import CurryDocParams
 import CurryDocRead
+import Distribution
 import FlatCurry
 import HTML
 import HtmlParser
@@ -22,15 +24,15 @@ import Markdown
 -- are already analyzed.
 generateTexDocs :: DocParams -> AnaInfo -> String -> String
                 -> [(SourceLine,String)] -> IO String
-generateTexDocs docparams anainfo progname modcmts progcmts = do
-  let fcyname = flatCurryFileName progname
+generateTexDocs docparams anainfo modname modcmts progcmts = do
+  fcyname <- findFileInLoadPath (flatCurryFileName modname)
   putStrLn $ "Reading FlatCurry program \""++fcyname++"\"..."
   (Prog _ _ types functions _) <- readFlatCurryFile fcyname
   let textypes = concatMap (genTexType docparams progcmts) types
       texfuncs = concatMap (genTexFunc docparams progcmts anainfo) functions
       modcmt   = fst (splitComment modcmts)
   return $
-     "\\currymodule{"++getLastName progname++"}\n" ++
+     "\\currymodule{"++modname++"}\n" ++
      htmlString2Tex docparams modcmt ++ "\n" ++
      (if null textypes then ""
       else "\\currytypesstart\n" ++ textypes ++ "\\currytypesstop\n") ++

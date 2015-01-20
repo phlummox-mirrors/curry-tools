@@ -10,14 +10,17 @@ module CurryDocCDoc where
 
 import CurryDocParams
 import CurryDocRead
+import Distribution(findFileInLoadPath)
 import FlatCurry
 import FlexRigid
 import ReadShowTerm
 import List
 
-generateCDoc :: String  -> String -> [(SourceLine,String)] -> AnaInfo -> IO String
-generateCDoc progName modCmts progCmts anaInfo = do
-  Prog modName _ types functions _ <- readFlatCurryFile fcyName
+generateCDoc :: String  -> String -> [(SourceLine,String)] -> AnaInfo
+             -> IO String
+generateCDoc modName modCmts progCmts anaInfo = do
+  fcyName <- findFileInLoadPath (flatCurryFileName modName)
+  Prog _ _ types functions _ <- readFlatCurryFile fcyName
   let modInfo = ModuleInfo modName (author avCmts) mCmts
       funcInfo (Func qName@(mName, fName) _ _ tExpr rule) =
         FunctionInfo fName
@@ -45,9 +48,9 @@ generateCDoc progName modCmts progCmts anaInfo = do
       typeInfos = map typeInfo (concatMap filterT types)
   putStrLn $ "Writing " ++ modName ++ ".cdoc file"
   return $ showTerm (CurryInfo modInfo funcInfos typeInfos)
- where fcyName  = flatCurryFileName progName
-       filterT f@(Type _ vis _ _) = if vis == Public then [f] else []
-       filterT f@(TypeSyn _ vis _ _) = if vis == Public then [f] else []
+ where
+   filterT f@(Type _ vis _ _) = if vis == Public then [f] else []
+   filterT f@(TypeSyn _ vis _ _) = if vis == Public then [f] else []
 
 funcComment :: String -> [(SourceLine,String)] -> String
 funcComment str = fst . splitComment . getFuncComment str

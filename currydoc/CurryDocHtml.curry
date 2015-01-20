@@ -2,7 +2,7 @@
 --- Operations to generate documentation in HTML format.
 ---
 --- @author Michael Hanus
---- @version January 2014
+--- @version January 2015
 ----------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
@@ -13,6 +13,7 @@ import CurryDocParams
 import CurryDocRead
 import CurryDocConfig
 import TotallyDefined(Completeness(..))
+import FilePath
 import FlatCurry
 import FlexRigid
 import HTML
@@ -32,8 +33,8 @@ infixl 0 `withTitle`
 -- are already analyzed.
 generateHtmlDocs :: DocParams -> AnaInfo -> String -> String
                  -> [(SourceLine,String)] -> IO String
-generateHtmlDocs docparams anainfo progname modcmts progcmts = do
-  let fcyname = flatCurryFileName progname
+generateHtmlDocs docparams anainfo modname modcmts progcmts = do
+  fcyname <- findFileInLoadPath (flatCurryFileName modname)
   putStrLn $ "Reading FlatCurry program \""++fcyname++"\"..."
   (Prog _ imports types functions ops) <- readFlatCurryFile fcyname
   let exptypes = filter isExportedType types
@@ -57,13 +58,13 @@ generateHtmlDocs docparams anainfo progname modcmts progcmts = do
                concatMap (genHtmlType docparams progcmts) exptypes) ++
         [anchored "exported_operations"
                   [h2 [htxt "Exported operations:"]]] ++
-        (map (genHtmlFunc docparams progname progcmts anainfo ops) expfuns)))
+        (map (genHtmlFunc docparams modname progcmts anainfo ops) expfuns)))
  where
-   title = "Module "++getLastName progname
+   title = "Module "++modname
 
    htmltitle = [h1 [htxt "Module ",
-                    href (getLastName progname++"_curry.html")
-                         [htxt (getLastName progname++".curry")]]]
+                    href (modname++"_curry.html")
+                         [htxt (modname++".curry")]]]
 
    lefttopmenu types =
      [[href "?" [htxt title]],
@@ -217,14 +218,14 @@ genHtmlFuncShort docparams progcmts anainfo
 -- generate HTML documentation for a function:
 genHtmlFunc :: DocParams -> String -> [(SourceLine,String)] -> AnaInfo
             -> [OpDecl] -> FuncDecl -> HtmlExp
-genHtmlFunc docparams progname progcmts anainfo ops
+genHtmlFunc docparams modname progcmts anainfo ops
             (Func (fmod,fname) _ _ ftype rule) =
   let (funcmt,paramcmts) = splitComment (getFuncComment fname progcmts)
    in anchored fname
        [borderedTable [[
          [par $
            [code [opnameDoc
-                   [href (getLastName progname++"_curry.html#"++fname)
+                   [href (modname++"_curry.html#"++fname)
                          [htxt (showId fname)]],
                   HtmlText (" :: "++ showType fmod False ftype)],
             nbsp, nbsp] ++
@@ -380,19 +381,19 @@ showTypeCons mod (mtc,tc) =
 --------------------------------------------------------------------------
 -- translate source file into HTML file with syntax coloring
 translateSource2ColoredHtml :: String -> String -> IO ()
-translateSource2ColoredHtml docdir progname = do
-    let output = docdir++"/"++getLastName progname++"_curry.html"         
+translateSource2ColoredHtml docdir modname = do
+    let output = docdir </> modname++"_curry.html"         
     putStrLn ("Writing source file as HTML to \""++output++"\"...") 
     callFrontendWithParams HTML
-      (setQuiet True (setHtmlDir docdir defaultParams)) progname
+      (setQuiet True (setHtmlDir docdir defaultParams)) modname
 
 -- translate source file into HTML file with anchors for each function:
 translateSource2AnchoredHtml :: String -> String -> IO ()
-translateSource2AnchoredHtml docdir progname =
- do putStrLn ("Writing source file as HTML to \""++docdir++"/"++getLastName progname++"_curry.html\"...")
-    prog <- readFile (progname++".curry")
-    writeFile (docdir++"/"++getLastName progname++"_curry.html")
-              (showPageWithDocStyle (progname++".curry")
+translateSource2AnchoredHtml docdir modname =
+ do putStrLn ("Writing source file as HTML to \""++docdir++"/"++modname++"_curry.html\"...")
+    prog <- readFile (modname++".curry")
+    writeFile (docdir </> modname++"_curry.html")
+              (showPageWithDocStyle (modname++".curry")
                   [HtmlStruct "pre" []
                      [HtmlText (addFuncAnchors [] (lines prog))]])
 
