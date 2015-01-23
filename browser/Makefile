@@ -4,10 +4,9 @@
 # - installed Curry System (PAKCS or KiCS2) specified by variable REPL
 # - root location of the Curry System specified by variable ROOT
 
-TOOLS=$(ROOT)/tools
-CURRYTOOLS=$(ROOT)/currytools
-CASS=$(CURRYTOOLS)/CASS
-ANADIR=$(CURRYTOOLS)/analysis
+CURRYTOOLS = $(ROOT)/currytools
+CASS       = $(CURRYTOOLS)/CASS
+ANADIR     = $(CURRYTOOLS)/analysis
 
 # binaries
 TOOL = $(BINDIR)/currybrowse
