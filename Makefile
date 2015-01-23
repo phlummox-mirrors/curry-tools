@@ -1,13 +1,15 @@
 # Generate various tools for Curry
 
 # Required:
-# - installed Curry System (PAKCS or KiCS2) specified by variable REPL
 # - root location of the Curry System specified by variable ROOT
+
+ROOT = $(error Please specify the variable ROOT)
 
 export BINDIR     = $(ROOT)/bin
 export LIBDIR     = $(ROOT)/lib
 export METADIR    = $(LIBDIR)/meta
 export CLEANCURRY = $(BINDIR)/cleancurry
+export REPL       = $(BINDIR)/curry
 
 .PHONY: all
 all:
@@ -39,7 +41,7 @@ typeinference:
 clean:
 	cd optimize       && $(MAKE) clean
 	cd addtypes       && $(MAKE) clean
-	cd analysis       && $(CLEANCURRY)
+	cd analysis       && $(MAKE) clean
 	cd browser        && $(MAKE) clean
 	cd CASS           && $(MAKE) clean
 	cd currydoc       && $(MAKE) clean
