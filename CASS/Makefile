@@ -4,14 +4,10 @@
 # - root location of the Curry System specified by variable ROOT
 
 # directories
-LIBDIR     = $(ROOT)/lib
-METADIR    = $(LIBDIR)/meta
-ANADIR     = ../analysis
+ANADIR = ../analysis
 
-# binaries
-REPL       = $(ROOT)/bin/curry
-CLEANCURRY = $(ROOT)/bin/cleancurry
-INSTALLBIN = $(ROOT)/bin/cass
+# binary
+TOOL   = $(BINDIR)/cass
 
 # Source modules of CASS:
 DEPS = Analysis.curry AnalysisCollection.curry AnalysisDependencies.curry \
@@ -27,14 +23,22 @@ DEPS = Analysis.curry AnalysisCollection.curry AnalysisDependencies.curry \
        $(ANADIR)/Demandedness.curry $(ANADIR)/Groundness.curry \
        $(ANADIR)/RequiredValues.curry
 
-.PHONY: install
-install: cass_worker cass
-	$(MAKE) uninstall
-	ln -s $(CURDIR)/cass $(INSTALLBIN)
+.PHONY: all compile install clean uninstall
 
-.PHONY: uninstall
+all: compile install clean
+
+compile: cass_worker cass
+
+install: cass
+	rm -f $(TOOL)
+	ln -s $(CURDIR)/cass $(TOOL)
+
+clean:
+	$(CLEANCURRY) -r
+
 uninstall:
-	rm -f $(INSTALLBIN)
+	rm -f $(TOOL)
+	rm -f cass_worker cass
 
 # generate executable for analysis worker:
 cass_worker: $(DEPS)
@@ -50,8 +54,3 @@ cass: $(DEPS)
 .PHONY: load
 load: $(DEPS)
 	$(REPL) $(REPL_OPTS) :set path $(ANADIR) :l AnalysisServer
-
-.PHONY: clean
-clean: uninstall
-	$(CLEANCURRY) -r
-	rm -f cass_worker cass

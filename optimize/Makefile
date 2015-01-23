@@ -3,10 +3,19 @@
 # Required:
 # - root location of the Curry System specified by variable ROOT
 
-.PHONY: all
-all:
-	@cd binding_optimization && $(MAKE)
+.PHONY: all compile install clean uninstall
 
-.PHONY: clean
+all:
+	@cd binding_optimization && $(MAKE) all
+
+compile:
+	@cd binding_optimization && $(MAKE) compile
+
+install:
+	@cd binding_optimization && $(MAKE) install
+
 clean:
 	@cd binding_optimization && $(MAKE) clean
+
+uninstall:
+	@cd binding_optimization && $(MAKE) uninstall

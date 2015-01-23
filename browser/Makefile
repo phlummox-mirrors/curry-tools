@@ -4,12 +4,12 @@
 # - installed Curry System (PAKCS or KiCS2) specified by variable REPL
 # - root location of the Curry System specified by variable ROOT
 
-CURRYTOOLS = $(ROOT)/currytools
+CURRYTOOLS = ..
 CASS       = $(CURRYTOOLS)/CASS
 ANADIR     = $(CURRYTOOLS)/analysis
 
-# binaries
-TOOL = $(BINDIR)/currybrowse
+# binary
+TOOL       = $(BINDIR)/currybrowse
 
 # source modules of the Curry Browser:
 DEPS = BrowserGUI.curry ShowFlatCurry.curry Imports.curry \
@@ -23,29 +23,32 @@ DEPS = BrowserGUI.curry ShowFlatCurry.curry Imports.curry \
 
 LOADPATH = analysis:$(CASS):$(ANADIR):$(CURRYTOOLS)/importcalls:$(CURRYTOOLS)/addtypes
 
-.PHONY: install
-install: BrowserGUI SourceProgGUI
-	$(MAKE) uninstall
-	ln -s $(CURDIR)/BrowserGUI $(TOOL)
+.PHONY: all compile install clean uninstall
 
-.PHONY: uninstall
+all: compile install clean
+
+compile: BrowserGUI SourceProgGUI
+
+install: BrowserGUI
+	rm -f $(TOOL)
+	ln -s BrowserGUI $(TOOL)
+
+clean:
+	$(CLEANCURRY) -r
+
 uninstall:
 	rm -f $(TOOL)
+	rm -f BrowserGUI SourceProgGUI
 
 # generate executable for Curry Browser:
 BrowserGUI: $(DEPS)
 	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) \
 	  :load BrowserGUI :eval "patchReadmeVersion" :save :quit
 
+SourceProgGUI: SourceProgGUI.curry $(LIBDIR)/GUI.curry
+	$(REPL) $(REPL_OPTS) :load SourceProgGUI :save :quit
+
 # load the Curry Browser program into the Curry system:
 .PHONY: load
 load: $(DEPS)
 	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) :load BrowserGUI
-
-SourceProgGUI: SourceProgGUI.curry $(LIBDIR)/GUI.curry
-	$(REPL) $(REPL_OPTS) :load SourceProgGUI :save :quit
-
-.PHONY: clean
-clean: uninstall
-	$(CLEANCURRY) -r
-	rm -f BrowserGUI SourceProgGUI
