@@ -20,14 +20,13 @@ compile: erd2curry
 
 install: erd2curry
 	rm -f $(TOOL)
-	ln -s erd2curry $(TOOL)
+	ln -s $(CURDIR)/erd2curry $(TOOL)
 
 clean:
 	$(CLEANCURRY)
-	rm -f erd2curry
 
 uninstall:
-	rm -f $(TOOL)
+	rm -f erd2curry $(TOOL)
 
 erd2curry: $(DEPS)
 	# create saved state for top-level function "main":

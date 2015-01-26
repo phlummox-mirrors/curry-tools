@@ -7,12 +7,11 @@ CASS     = ../CASS
 
 all: compile install clean
 
-compile:
-	for a in $(ANALYSES); do $(REPL) $(REPL_OPTS) :set path $(CASS) :load $$a :quit; done
+compile: # nothing to do
 
 install: # nothing to do
 
-clean:
-	$(CLEANCURRY)
+clean: # nothing to do
 
 uninstall: # nothing to do
+	$(CLEANCURRY)

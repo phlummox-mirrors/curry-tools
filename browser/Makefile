@@ -31,7 +31,7 @@ compile: BrowserGUI SourceProgGUI
 
 install: BrowserGUI
 	rm -f $(TOOL)
-	ln -s BrowserGUI $(TOOL)
+	ln -s $(CURDIR)/BrowserGUI $(TOOL)
 
 clean:
 	$(CLEANCURRY) -r

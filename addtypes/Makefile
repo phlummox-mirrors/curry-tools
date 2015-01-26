@@ -9,14 +9,14 @@ all: compile install clean
 compile: AddTypes
 
 install: AddTypes
-	mv AddTypes $(TOOL)
+	rm -f $(TOOL)
+	ln -s $(CURDIR)/AddTypes $(TOOL)
 
 clean:
 	$(CLEANCURRY)
-	rm -f AddTypes
 
 uninstall:
-	rm -f $(TOOL)
+	rm -f AddTypes $(TOOL)
 
 AddTypes: AddTypes.curry $(METADIR)/AbstractCurry.curry \
 	  $(LIBDIR)/List.curry $(LIBDIR)/AllSolutions.curry

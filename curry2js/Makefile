@@ -4,7 +4,7 @@
 # - installed Curry System (PAKCS or KiCS2) specified by variable REPL
 # - root location of the Curry System specified by variable ROOT
 
-TOOL = $(BINDIR)/Curry2JS
+TOOL = Curry2JS
 
 .PHONY: all compile install clean uninstall
 
@@ -13,11 +13,9 @@ all: compile install clean
 compile: Curry2JS
 
 install: Curry2JS
-	mv Curry2JS $(TOOL)
 
 clean:
 	$(CLEANCURRY) -r
-	rm -f Curry2JS
 
 uninstall:
 	rm -f $(TOOL)

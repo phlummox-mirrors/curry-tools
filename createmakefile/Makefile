@@ -9,14 +9,14 @@ all: compile install clean
 compile: CreateMakefile
 
 install: CreateMakefile
-	mv CreateMakefile $(TOOL)
+	rm -f $(TOOL)
+	ln -s $(CURDIR)/CreateMakefile $(TOOL)
 
 clean:
 	$(CLEANCURRY)
-	rm -f CreateMakefile
 
 uninstall:
-	rm -f $(TOOL)
+	rm -f CreateMakefile $(TOOL)
 
 # generate executable for CreateMakefile program
 CreateMakefile:  CreateMakefile.curry \

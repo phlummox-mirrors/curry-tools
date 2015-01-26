@@ -32,14 +32,14 @@ all: compile install clean
 compile: CurryDoc
 
 install: CurryDoc
-	mv CurryDoc $(TOOL)
+	rm -f $(TOOL)
+	ln -s $(CURDIR)/CurryDoc $(TOOL)
 
 clean:
 	$(CLEANCURRY)
-	rm -f CurryDoc
 
 uninstall:
-	rm -f $(TOOL)
+	rm -f CurryDoc $(TOOL)
 
 # generate executable for currydoc program
 CurryDoc: $(DEPS)

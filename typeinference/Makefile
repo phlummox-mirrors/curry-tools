@@ -6,12 +6,14 @@
 
 all: compile install clean
 
-compile: Inference.curry $(wildcard *.curry)
-	$(REPL) $(REPL_OPTS) :load Inference :quit
+compile: .curry/Inference.fcy
 
 install: # nothing to do
 
-clean:
+clean: # nothing to do since we want to keep the pre-compiled programs
+
+uninstall:
 	$(CLEANCURRY)
 
-uninstall: # nothing to do
+.curry/Inference.fcy: $(wildcard *.curry)
+	$(REPL) $(REPL_OPTS) :load Inference :quit

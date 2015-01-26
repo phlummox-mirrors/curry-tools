@@ -40,14 +40,13 @@ compile: Translator
 
 install: Translator
 	rm -f $(TOOL)
-	ln -s Translator $(TOOL)
+	ln -s $(CURDIR)/Translator $(TOOL)
 
 clean:
 	$(CLEANCURRY) -r
-	rm -f Translator
 
 uninstall:
-	rm -f $(TOOL)
+	rm -f Translator $(TOOL)
 
 # generate executable of currypp translator:
 Translator: $(MAIN) $(PARSEDIR)/*.curry $(MLDIR)/*.curry

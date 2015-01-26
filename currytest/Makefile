@@ -9,14 +9,14 @@ all: compile install clean
 compile: CurryTest
 
 install: CurryTest
-	mv CurryTest $(TOOL)
+	rm -f $(TOOL)
+	ln -s $(CURDIR)/CurryTest $(TOOL)
 
 clean:
 	$(CLEANCURRY)
-	rm -f CurryTest
 
 uninstall:
-	rm -f $(TOOL)
+	rm -f CurryTest $(TOOL)
 
 CurryTest:  CurryTest.curry         $(METADIR)/FlatCurry.curry   \
 	  $(LIBDIR)/System.curry    $(LIBDIR)/Assertion.curry    \

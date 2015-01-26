@@ -1,6 +1,6 @@
 # Makefile for generating GenInt tool
 
-TOOL = $(BINDIR)/GenInt
+TOOL = GenInt
 
 .PHONY: all compile install clean uninstall
 
@@ -9,11 +9,9 @@ all: compile install clean
 compile: GenInt
 
 install: GenInt
-	mv GenInt $(TOOL)
 
 clean:
 	$(CLEANCURRY)
-	rm -f GenInt
 
 uninstall:
 	rm -f $(TOOL)

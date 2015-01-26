@@ -19,10 +19,9 @@ install: BindingOpt
 
 clean:
 	$(CLEANCURRY) -r
-	rm -f BindingOpt
 
 uninstall:
-	rm -f $(TOOL)
+	rm -f BindingOpt $(TOOL)
 
 BindingOpt: BindingOpt.curry
 	# create executable for top-level function "main":

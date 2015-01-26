@@ -12,10 +12,9 @@ install: ImportCalls
 
 clean:
 	$(CLEANCURRY)
-	rm -f ImportCalls
 
 uninstall:
-	rm -f $(TOOL)
+	rm -f ImportCalls $(TOOL)
 
 # generate executable for import calls tools:
 ImportCalls: ImportCalls.curry $(METADIR)/FlatCurry.curry \

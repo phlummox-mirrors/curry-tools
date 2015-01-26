@@ -23,14 +23,13 @@ compile: spiceup
 
 install: spiceup
 	rm -f $(TOOL)
-	ln -s spiceup $(TOOL)
+	ln -s $(CURDIR)/spiceup $(TOOL)
 
 clean:
 	$(CLEANCURRY) -r
-	rm -f spiceup
 
 uninstall:
-	rm -f $(TOOL)
+	rm -f spiceup $(TOOL)
 
 # generate executable for Spicey generator:
 spiceup: $(DEPS)
