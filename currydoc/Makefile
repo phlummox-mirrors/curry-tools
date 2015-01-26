@@ -35,6 +35,7 @@ install: CurryDoc
 	mv CurryDoc $(TOOL)
 
 clean:
+	$(CLEANCURRY)
 	rm -f CurryDoc
 
 uninstall:

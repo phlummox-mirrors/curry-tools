@@ -17,14 +17,14 @@ compile: Data2Xml
 
 install: Data2Xml
 	rm -f $(TOOL)
-	ln -s Data2Xml $(TOOL)
+	mv Data2Xml $(TOOL)
 
 clean:
 	$(CLEANCURRY)
+	rm -f Data2Xml
 
 uninstall:
 	rm -f $(TOOL)
-	rm -f Data2Xml
 
 # generate executable for Data2Xml program:
 Data2Xml: $(DEPS)
