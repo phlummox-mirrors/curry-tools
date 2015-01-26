@@ -25,7 +25,7 @@ install: spiceup
 	rm -f $(TOOL)
 	ln -s spiceup $(TOOL)
 
-clean: uninstall
+clean:
 	$(CLEANCURRY)
 	rm -f spiceup
 

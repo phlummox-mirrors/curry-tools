@@ -22,7 +22,7 @@ install: erd2curry
 	rm -f $(TOOL)
 	ln -s erd2curry $(TOOL)
 
-clean: uninstall
+clean:
 	$(CLEANCURRY)
 	rm -f erd2curry
 
