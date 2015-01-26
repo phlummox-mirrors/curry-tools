@@ -4,16 +4,16 @@
 
 .PHONY: all compile install clean uninstall
 
-all: compile install clean
+all: compile install
 
 compile: .curry/Inference.fcy
 
 install: # nothing to do
 
-clean: # nothing to do since we want to keep the pre-compiled programs
-
-uninstall:
+clean:
 	$(CLEANCURRY)
+
+uninstall: # nothing to do
 
 .curry/Inference.fcy: $(wildcard *.curry)
 	$(REPL) $(REPL_OPTS) :load Inference :quit

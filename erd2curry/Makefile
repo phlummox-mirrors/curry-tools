@@ -14,19 +14,19 @@ DEPS = ERD2Curry.curry CodeGeneration.curry Transformation.curry \
 
 .PHONY: all compile install clean uninstall
 
-all: compile install clean
+all: compile install
 
 compile: erd2curry
 
-install: erd2curry
-	rm -f $(TOOL)
+install: erd2curry uninstall
 	ln -s $(CURDIR)/erd2curry $(TOOL)
 
-clean:
+clean: uninstall
 	$(CLEANCURRY)
+	rm -f erd2curry
 
 uninstall:
-	rm -f erd2curry $(TOOL)
+	rm -f $(TOOL)
 
 erd2curry: $(DEPS)
 	# create saved state for top-level function "main":

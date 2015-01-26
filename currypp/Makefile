@@ -34,19 +34,19 @@ MAIN = $(SRCDIR)/Translator.curry
 
 .PHONY: all compile install clean uninstall
 
-all: compile install clean
+all: compile install
 
 compile: Translator
 
-install: Translator
-	rm -f $(TOOL)
+install: Translator uninstall
 	ln -s $(CURDIR)/Translator $(TOOL)
 
-clean:
+clean: uninstall
 	$(CLEANCURRY) -r
+	rm -f Translator
 
 uninstall:
-	rm -f Translator $(TOOL)
+	rm -f $(TOOL)
 
 # generate executable of currypp translator:
 Translator: $(MAIN) $(PARSEDIR)/*.curry $(MLDIR)/*.curry

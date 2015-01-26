@@ -4,19 +4,19 @@ TOOL = $(BINDIR)/currycreatemake
 
 .PHONY: all compile install clean uninstall
 
-all: compile install clean
+all: compile install
 
 compile: CreateMakefile
 
-install: CreateMakefile
-	rm -f $(TOOL)
+install: CreateMakefile uninstall
 	ln -s $(CURDIR)/CreateMakefile $(TOOL)
 
-clean:
+clean: uninstall
 	$(CLEANCURRY)
+	rm -f CreateMakefile
 
 uninstall:
-	rm -f CreateMakefile $(TOOL)
+	rm -f $(TOOL)
 
 # generate executable for CreateMakefile program
 CreateMakefile:  CreateMakefile.curry \

@@ -8,13 +8,13 @@ TOOL = Curry2JS
 
 .PHONY: all compile install clean uninstall
 
-all: compile install clean
+all: compile install
 
 compile: Curry2JS
 
 install: Curry2JS
 
-clean:
+clean: uninstall
 	$(CLEANCURRY) -r
 
 uninstall:

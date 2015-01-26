@@ -4,19 +4,19 @@ TOOL = $(BINDIR)/addtypes
 
 .PHONY: all compile install clean uninstall
 
-all: compile install clean
+all: compile install
 
 compile: AddTypes
 
-install: AddTypes
-	rm -f $(TOOL)
+install: AddTypes uninstall
 	ln -s $(CURDIR)/AddTypes $(TOOL)
 
-clean:
+clean: uninstall
 	$(CLEANCURRY)
+	rm -f AddTypes
 
 uninstall:
-	rm -f AddTypes $(TOOL)
+	rm -f $(TOOL)
 
 AddTypes: AddTypes.curry $(METADIR)/AbstractCurry.curry \
 	  $(LIBDIR)/List.curry $(LIBDIR)/AllSolutions.curry

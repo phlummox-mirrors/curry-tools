@@ -9,19 +9,19 @@ TOOL = ../bindingopt
 
 .PHONY: all compile install clean uninstall
 
-all: compile install clean
+all: compile install
 
 compile: BindingOpt
 
-install: BindingOpt
-	rm -f $(TOOL)
+install: BindingOpt uninstall
 	ln -s BindingOpt $(TOOL)
 
-clean:
+clean: uninstall
 	$(CLEANCURRY) -r
+	rm -f BindingOpt
 
 uninstall:
-	rm -f BindingOpt $(TOOL)
+	rm -f $(TOOL)
 
 BindingOpt: BindingOpt.curry
 	# create executable for top-level function "main":

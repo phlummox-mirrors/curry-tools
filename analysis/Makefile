@@ -5,13 +5,13 @@ CASS     = ../CASS
 
 .PHONY: all compile install clean uninstall
 
-all: compile install clean
+all: compile install
 
 compile: # nothing to do
 
 install: # nothing to do
 
-clean: # nothing to do
+clean: uninstall
+	$(CLEANCURRY)
 
 uninstall: # nothing to do
-	$(CLEANCURRY)

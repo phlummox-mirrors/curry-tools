@@ -4,17 +4,18 @@ TOOL = $(BINDIR)/ImportCalls
 
 .PHONY: all compile install clean uninstall
 
-all: compile install clean
+all: compile install
 
 compile: ImportCalls
 
 install: ImportCalls
 
-clean:
+clean: uninstall
 	$(CLEANCURRY)
+	rm -f ImportCalls
 
 uninstall:
-	rm -f ImportCalls $(TOOL)
+	rm -f $(TOOL)
 
 # generate executable for import calls tools:
 ImportCalls: ImportCalls.curry $(METADIR)/FlatCurry.curry \

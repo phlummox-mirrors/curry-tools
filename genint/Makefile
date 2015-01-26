@@ -4,13 +4,13 @@ TOOL = GenInt
 
 .PHONY: all compile install clean uninstall
 
-all: compile install clean
+all: compile install
 
 compile: GenInt
 
 install: GenInt
 
-clean:
+clean: uninstall
 	$(CLEANCURRY)
 
 uninstall:
