@@ -3,7 +3,7 @@
 # Required:
 # - root location of the Curry System specified by variable ROOT
 
-ROOT = $(error Please specify the variable ROOT)
+ROOT ?= $(error Please specify the variable ROOT)
 
 export BINDIR     = $(ROOT)/bin
 export LIBDIR     = $(ROOT)/lib
