@@ -6,8 +6,7 @@
 
 all: install
 
-compile:
-	$(REPL) $(REPL_OPTS) :load Inference :quit
+compile: .curry/Inference.fcy
 
 install: compile
 
@@ -15,3 +14,6 @@ clean:
 	$(CLEANCURRY)
 
 uninstall: clean
+
+.curry/Inference.fcy: $(wildcard *.curry)
+	$(REPL) $(REPL_OPTS) :load Inference :quit
