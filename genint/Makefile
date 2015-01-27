@@ -4,17 +4,17 @@ TOOL = GenInt
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: GenInt
 
-install: GenInt
+install: compile # no further installation required
 
-clean: uninstall
+clean:
 	$(CLEANCURRY)
+	rm -f GenInt
 
-uninstall:
-	rm -f $(TOOL)
+uninstall: clean
 
 # generate executable for currydoc program:
 GenInt: GenInt.curry $(METADIR)/FlatCurry.curry \

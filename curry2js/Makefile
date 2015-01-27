@@ -4,21 +4,21 @@
 # - installed Curry System (PAKCS or KiCS2) specified by variable REPL
 # - root location of the Curry System specified by variable ROOT
 
-TOOL = Curry2JS
+TOOL =  Curry2JS
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: Curry2JS
 
-install: Curry2JS
+install: compile # no further installation required
 
-clean: uninstall
+clean:
 	$(CLEANCURRY) -r
+	rm -f Curry2JS
 
-uninstall:
-	rm -f $(TOOL)
+uninstall: clean
 
 # generate executable for the Curry2JavaScript translator
 Curry2JS:  Curry2JS.curry $(LIBDIR)/JavaScript.curry \

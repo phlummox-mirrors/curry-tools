@@ -27,18 +27,19 @@ DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: CurryDoc
 
-install: CurryDoc uninstall
+install: compile
+	rm -f $(TOOL)
 	ln -s $(CURDIR)/CurryDoc $(TOOL)
 
-clean: uninstall
+clean:
 	$(CLEANCURRY)
 	rm -f CurryDoc
 
-uninstall:
+uninstall: clean
 	rm -f $(TOOL)
 
 # generate executable for currydoc program

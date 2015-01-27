@@ -4,18 +4,19 @@ TOOL = $(BINDIR)/currytest
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: CurryTest
 
-install: CurryTest uninstall
+install: compile
+	rm -f $(TOOL)
 	ln -s $(CURDIR)/CurryTest $(TOOL)
 
-clean: uninstall
+clean:
 	$(CLEANCURRY)
 	rm -f CurryTest
 
-uninstall:
+uninstall: clean
 	rm -f $(TOOL)
 
 CurryTest:  CurryTest.curry         $(METADIR)/FlatCurry.curry   \

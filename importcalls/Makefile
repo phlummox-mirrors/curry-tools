@@ -1,21 +1,20 @@
 # Makefile for generating ImportCalls tool
 
-TOOL = $(BINDIR)/ImportCalls
+TOOL = ImportCalls
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: ImportCalls
 
-install: ImportCalls
+install: compile # no further installation required
 
-clean: uninstall
+clean:
 	$(CLEANCURRY)
 	rm -f ImportCalls
 
-uninstall:
-	rm -f $(TOOL)
+uninstall: clean
 
 # generate executable for import calls tools:
 ImportCalls: ImportCalls.curry $(METADIR)/FlatCurry.curry \

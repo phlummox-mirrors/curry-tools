@@ -17,18 +17,19 @@ DEPS = $(PROJECT_GEN_DIR)/SpiceUp.curry scaffolding/*.curry
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: spiceup
 
-install: spiceup uninstall
+install: compile
+	rm -f $(TOOL)
 	ln -s $(CURDIR)/spiceup $(TOOL)
 
-clean: uninstall
+clean:
 	$(CLEANCURRY) -r
 	rm -f spiceup
 
-uninstall:
+uninstall: clean
 	rm -f $(TOOL)
 
 # generate executable for Spicey generator:
