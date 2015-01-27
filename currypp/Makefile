@@ -32,12 +32,19 @@ PARSEDIR = $(SRCDIR)/Parser
 MLDIR = $(PARSEDIR)/ML
 MAIN = $(SRCDIR)/Translator.curry
 
-.PHONY: install
-install: Translator
-	$(MAKE) uninstall
+.PHONY: all compile install clean uninstall
+
+all: compile install
+
+compile: Translator
+
+install: Translator uninstall
 	ln -s $(CURDIR)/Translator $(TOOL)
 
-.PHONY: uninstall
+clean: uninstall
+	$(CLEANCURRY) -r
+	rm -f Translator
+
 uninstall:
 	rm -f $(TOOL)
 
@@ -48,13 +55,3 @@ Translator: $(MAIN) $(PARSEDIR)/*.curry $(MLDIR)/*.curry
 	  :load $(MAIN) :save :quit
 	@echo Compilation finished ...
 	@echo Version: $(VERSION)
-
-
-# clean project
-.PHONY: clean
-clean: uninstall
-	@echo Cleaning the Curry Integrated Code Translator Project Folder ...
-	$(CLEANCURRY) -r
-	rm -f Translator
-
-

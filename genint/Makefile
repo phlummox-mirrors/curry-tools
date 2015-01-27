@@ -2,13 +2,22 @@
 
 TOOL = GenInt
 
+.PHONY: all compile install clean uninstall
+
+all: compile install
+
+compile: GenInt
+
+install: GenInt
+
+clean: uninstall
+	$(CLEANCURRY)
+
+uninstall:
+	rm -f $(TOOL)
+
 # generate executable for currydoc program:
-$(TOOL): GenInt.curry $(METADIR)/FlatCurry.curry \
+GenInt: GenInt.curry $(METADIR)/FlatCurry.curry \
 	  $(METADIR)/FlatCurryShow.curry $(METADIR)/FlexRigid.curry \
 	  $(LIBDIR)/List.curry
 	$(REPL) $(REPL_OPTS) :load GenInt :save :quit
-
-.PHONY: clean
-clean:
-	$(CLEANCURRY)
-	rm -f $(TOOL)

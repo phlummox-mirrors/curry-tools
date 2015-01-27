@@ -119,12 +119,16 @@ groundApply (P ps) gargs =
 data NDEffect = NDEffect Bool Bool [Int]
   deriving Eq
 
+noEffect :: NDEffect
 noEffect = NDEffect False False []
 
+orEffect :: NDEffect
 orEffect = NDEffect True False []
 
+narrEffect :: NDEffect
 narrEffect = NDEffect False True []
 
+narrIfEffect :: [Int] -> NDEffect
 narrIfEffect = NDEffect False False
 
 -- Show non-determinitic effect information as a string.
@@ -226,6 +230,7 @@ ndEffectApply (fgd,fnd) argsgnd =
        foldr lubE (ndEffectReplace argsgd fnd) argsnd)
 
 -- replace (narrIf i) by i-th ground value
+ndEffectReplace :: [(Int,Ground)] -> NDEffect -> NDEffect
 ndEffectReplace argsgd (NDEffect ornd narrnd ifs) = replaceProjs [] ifs
  where
   -- replace i by i-th ground value
@@ -246,6 +251,7 @@ mergeInts (x:xs) (y:ys) | x==y = x : mergeInts xs ys
                         | x<y  = x : mergeInts xs (y:ys)
                         | x>y  = y : mergeInts (x:xs) ys
 
+prelude :: String
 prelude = "Prelude"
 
 -----------------------------------------------------------------------

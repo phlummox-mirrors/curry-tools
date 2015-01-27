@@ -26,21 +26,27 @@ import ReadNumeric(readNat)
 
 -- Should higher-order calls (i.e., "apply") be implemented as an explicit
 -- apply function? Otherwise, they are implemented as anonymous functions.
+explicitApply :: Bool
 explicitApply = False
 
 
 -- Optimization options:
 
 -- Optimize single occurrences of variables in JavaScript code?
+optimizeSingleVars :: Bool
 optimizeSingleVars = True
 -- Optimize cases on data types containing only a single constructor?
+optimizeUniqueCase :: Bool
 optimizeUniqueCase = True
 -- Should strings be lazily converted into character lists?
+lazyStringConversion :: Bool
 lazyStringConversion = True
 
 -- The name of the prelude module:
+prelude :: String
 prelude = "Prelude"
 -- The name of the WUI module:
+wuiModName :: String
 wuiModName = "WUIjs"
 
 ------------------------------------------------------------------------------
@@ -54,6 +60,7 @@ flatprog2JS (Prog _ _ tdecls allfdecls _) =
  where
    fdecls = filter isRelevantFunction allfdecls
 
+isRelevantFunction :: FuncDecl -> Bool
 isRelevantFunction (Func fname _ _ _ (External _))
  | fname `elem` ignoredFunctions = False
  | otherwise = error $ "External function "++show fname++" not handled!"
@@ -61,6 +68,7 @@ isRelevantFunction (Func fname _ _ _ (Rule _ _)) =
   fname `notElem` ignoredFunctions
 
 
+genApply :: [(QName,Int)] -> JSFDecl
 genApply fs =
   JSFDecl "fullapply" [1,2]
     [JSSwitch (JSIArrayIdx 1 0)
@@ -192,6 +200,7 @@ flatExp2JS _ _ _ _ _ (Or _ _) =
 
 
 -- Translate list of FlatCurry expressions:
+flatExps2JS :: [TypeDecl] -> Int -> Int -> [(Int,(Int,Int))] -> [(Int,Expr)] -> [JSStat]
 flatExps2JS _ maxo maxn _ [] | maxn=:=maxo = []
 flatExps2JS decls maxo maxn patvars ((retvar,exp):retvarexps) =
   JSVarDecl retvar : flatExp2JS decls maxo maxe patvars retvar exp ++
@@ -201,6 +210,7 @@ flatExps2JS decls maxo maxn patvars ((retvar,exp):retvarexps) =
 
 
 -- Translate case expressions:
+case2JS :: [TypeDecl] -> Int -> Int -> [(Int,(Int,Int))] -> Int -> Expr -> [BranchExpr] -> [JSStat]
 case2JS decls maxo maxn patvars retvar cexp branches =
  let casevar = maxo+1
      max1 free
@@ -231,6 +241,7 @@ case2JS decls maxo maxn patvars retvar cexp branches =
   branchWithUniqueCase (Branch (Pattern cname _) _) =
     isUniqueConstructor decls cname
 
+branch2JS :: [TypeDecl] -> Int -> Int -> [(Int,(Int,Int))] -> Int -> Int -> [BranchExpr] -> [JSBranch]
 branch2JS _ maxo maxn _ _ _ [] | maxn=:=maxo = []
 branch2JS decls maxo maxn patvars casevar retvar
           (Branch (Pattern cname cargs) bexp : branches) =
@@ -253,6 +264,7 @@ isUniqueConstructor (Type _ _ _ cdecls : tdecls) c =
   else isUniqueConstructor tdecls c
 
 -- Translate if-then-else
+ite2JS :: [TypeDecl] -> Int -> Int -> [(Int,(Int,Int))] -> Int -> Expr -> Expr -> Expr -> [JSStat]
 ite2JS decls maxo maxn patvars retvar bexp exp1 exp2 =
  let ifretvar = maxo+1
      max1,max2 free
@@ -264,6 +276,7 @@ ite2JS decls maxo maxn patvars retvar bexp exp1 exp2 =
 
 -- translates a function call into the corresponding JavaScript operator
 -- or function call:
+curryFunc2JSFunc :: QName -> [JSExp] -> JSExp
 curryFunc2JSFunc fname args = case args of
   [a1,a2] -> maybe (let jsfname = qname2JS fname in
                     if jsfname/="apply" || explicitApply
@@ -273,6 +286,7 @@ curryFunc2JSFunc fname args = case args of
                    (lookup fname jsOperators)
   _       -> JSFCall (qname2JS fname) args
 
+consQName2JS :: QName -> String
 consQName2JS qname@(md,f)
   | take 2 f == "(," = f
   | otherwise = maybe (md ++ "_" ++ encodeCurryId f)
@@ -280,12 +294,14 @@ consQName2JS qname@(md,f)
                       (lookup qname jsConstructors)
 
 
+qname2JS :: QName -> String
 qname2JS qname@(md,f) =
   maybe (md ++ "_" ++ encodeCurryId f)
         id
         (lookup qname (jsFunctions++jsOperators))
 
 -- encode a Curry identifier into a form allowed in JavaScript:
+encodeCurryId :: String -> String
 encodeCurryId [] = []
 encodeCurryId (c:cs)
   | isAlphaNum c = c : encodeCurryId cs
@@ -295,6 +311,7 @@ encodeCurryId (c:cs)
    int2hex i = if i<10 then chr (ord '0' + i)
                        else chr (ord 'A' + i - 10)
 
+jsFunctions :: [(QName,String)]
 jsFunctions =
   [((prelude,"apply"),"apply"),
    ((prelude,"$#"),"apply"),
@@ -307,11 +324,13 @@ jsFunctions =
    ((prelude,"failed"),"alertFailed"),
    ((prelude,"=="),"boolEq")]
 
+jsConstructors :: [(QName,String)]
 jsConstructors =
   [((prelude,":"),":"),
    ((prelude,"[]"),"[]")
   ]
 
+jsOperators :: [(QName,String)]
 jsOperators =
   [((prelude,"+"),"+"),
    ((prelude,"-"),"-"),
@@ -326,6 +345,7 @@ jsOperators =
    ((prelude,"<"),"<")
   ]
 
+ignoredFunctions :: [QName]
 ignoredFunctions =
   map fst (jsFunctions ++ jsOperators) ++
   [(prelude,"prim_Int_plus"),(prelude,"prim_Int_minus"),
@@ -363,6 +383,7 @@ freeVarsInExp (Let bs e) = let (bvs,bes) = unzip bs in
 freeVarsInExp (Free vs exp) = filter (`notElem` vs) (freeVarsInExp exp)
 freeVarsInExp (Case _ e bs) = freeVarsInExp e ++ concatMap freeVarsInBranch bs
 
+freeVarsInBranch :: BranchExpr -> [Int]
 freeVarsInBranch (Branch (Pattern _ vs) e) =
                                         filter (`notElem` vs) (freeVarsInExp e)
 freeVarsInBranch (Branch (LPattern _) e) = freeVarsInExp e
@@ -387,14 +408,18 @@ maxVarIndexInExp exp = let allvars = allVarsInExp exp in
 
 ------------------------------------------------------------------------------
 -- compute all partially applied functions in a program:
+pafsOfProg :: Prog -> [(QName,Int)]
 pafsOfProg (Prog _ _ _ fdecls _) =
   pafsOfFuncs (filter isRelevantFunction fdecls)
 
+pafsOfFuncs :: [FuncDecl] -> [(QName,Int)]
 pafsOfFuncs fdecls = mapUnion (map pafsOfFunc fdecls)
 
+pafsOfFunc :: FuncDecl -> [(QName,Int)]
 pafsOfFunc (Func _ _ _ _ (External _)) = []
 pafsOfFunc (Func _ _ _ _ (Rule _ exp)) = pafsOfExpr exp
 
+pafsOfExpr :: Expr -> [(QName,Int)]
 pafsOfExpr (Var _) = []
 pafsOfExpr (Lit _) = []
 pafsOfExpr (Comb FuncCall _ args) = mapUnion (map pafsOfExpr args)
@@ -409,6 +434,7 @@ pafsOfExpr (Let defs exp) =
 pafsOfExpr (Free _ exp) = pafsOfExpr exp
 pafsOfExpr (Or exp1 exp2) = union (pafsOfExpr exp1) (pafsOfExpr exp2)
 
+mapUnion :: Eq a => [[a]] -> [a]
 mapUnion = foldr union []
 
 ------------------------------------------------------------------------------
@@ -419,11 +445,14 @@ mapUnion = foldr union []
 jscOfProg :: Prog -> [(QName,Bool)]
 jscOfProg (Prog _ _ _ fdecls _) = jscOfFuncs fdecls
 
+jscOfFuncs :: [FuncDecl] -> [(QName,Bool)]
 jscOfFuncs fdecls = mapUnion (map jscOfFunc fdecls)
 
+jscOfFunc :: FuncDecl -> [(QName,Bool)]
 jscOfFunc (Func _ _ _ _ (External _)) = []
 jscOfFunc (Func _ _ _ _ (Rule _ exp)) = jscOfExpr exp
 
+jscOfExpr :: Expr -> [(QName,Bool)]
 jscOfExpr (Var _) = []
 jscOfExpr (Lit _) = []
 jscOfExpr (Comb ct (m,f) args)
@@ -473,10 +502,12 @@ replaceJscOfProg :: Prog -> Prog
 replaceJscOfProg (Prog mname imps ddecls fdecls ops) =
   Prog mname imps ddecls (map replaceJscOfFunc fdecls) ops
 
+replaceJscOfFunc :: FuncDecl -> FuncDecl
 replaceJscOfFunc fdecl@(Func _ _ _ _ (External _)) = fdecl
 replaceJscOfFunc (Func f ar vis typ (Rule lhs exp)) =
   Func f ar vis typ (Rule lhs (replaceJscOfExpr exp))
 
+replaceJscOfExpr :: Expr -> Expr
 replaceJscOfExpr (Var i) = Var i
 replaceJscOfExpr (Lit l) = Lit l
 replaceJscOfExpr (Comb ct (m,f) args)
@@ -526,11 +557,13 @@ replaceJscOfExpr (Or exp1 exp2) =
   Or (replaceJscOfExpr exp1) (replaceJscOfExpr exp2)
 
 -- is a FlatCurry expression the representation of an empty list:
+flatEmptyList :: Expr -> Bool
 flatEmptyList e = case e of
   Comb ConsCall ("Prelude","[]") [] -> True
   _ -> False
 
 -- generate FlatCurry representation of a string:
+flatString :: String -> Expr
 flatString []     = Comb ConsCall (prelude,"[]") []
 flatString (c:cs) = Comb ConsCall (prelude,":") [Lit (Charc c), flatString cs]
 
@@ -553,6 +586,7 @@ uniqueDefsOfStats defs (stat:stats) =
   uniqueDefsOfStats (uniqueDefsOfStat defs stat) stats
 
 
+uniqueDefsOfStat :: [(Int,Maybe VarDef)] -> JSStat -> [(Int,Maybe VarDef)]
 uniqueDefsOfStat defs (JSAssign lhs rhs) =
   case lhs of
     JSIVar i -> maybe ((i,Just (rhs2vardef rhs)):rdefs)
@@ -582,6 +616,7 @@ uniqueDefsOfStat defs (JSReturn exp) = uniqueDefsOfExp defs exp
 uniqueDefsOfStat defs (JSVarDecl _) = defs
 
 
+uniqueDefsOfExp :: [(Int,Maybe VarDef)] -> JSExp -> [(Int,Maybe VarDef)]
 uniqueDefsOfExp defs (JSString _) = defs
 uniqueDefsOfExp defs (JSInt _) = defs
 uniqueDefsOfExp defs (JSBool _) = defs
@@ -610,10 +645,12 @@ uniqueDefsOfExp defs (JSApply exp1 exp2) =
   uniqueDefsOfExp (uniqueDefsOfExp defs exp1) exp2
 uniqueDefsOfExp defs (JSLambda _ body) = uniqueDefsOfStats defs body
 
+uniqueDefsOfExps :: [(Int,Maybe VarDef)] -> [JSExp] -> [(Int,Maybe VarDef)]
 uniqueDefsOfExps defs [] = defs
 uniqueDefsOfExps defs (exp:exps) =
   uniqueDefsOfExps (uniqueDefsOfExp defs exp) exps
 
+updateAssoc :: Eq a => a -> b -> [(a,b)] -> [(a,b)]
 updateAssoc r newval ((i,val):assocs) =
   if r==i then (i,newval) : assocs
           else (i,val) : updateAssoc r newval assocs
@@ -627,14 +664,17 @@ removeSingleVarsJSStatements stats =
   else --trace (show (uniqueDefsOfStats [] $## stats) ++ "\n")
        stats
 
+removeSingleVarsInStats :: [(Int,Maybe VarDef)] -> [JSStat] -> [JSStat]
 removeSingleVarsInStats defs stats =
   concatMap (removeSingleVarsInStat defs) stats
 
 
+maybeReplaceVar :: a -> a -> VarDef -> a
 maybeReplaceVar rep _ (SimpleVar _) = rep
 maybeReplaceVar rep notrep (ComplexDef _ occ) =
   if occ<=1 then rep else notrep
 
+removeSingleVarsInStat :: [(Int,Maybe VarDef)] -> JSStat -> [JSStat]
 removeSingleVarsInStat defs (JSAssign lhs rhs) =
   case lhs of
     JSIVar i -> maybe [JSAssign lhs newrhs]
@@ -669,6 +709,7 @@ removeSingleVarsInStat defs stat@(JSVarDecl i) =
         (lookup i defs)
 
 
+removeSingleVarsInExp :: [(Int,Maybe VarDef)] -> JSExp -> JSExp
 removeSingleVarsInExp _ (JSString s) = JSString s
 removeSingleVarsInExp _ (JSInt i) = JSInt i
 removeSingleVarsInExp _ (JSBool b) = JSBool b
@@ -762,6 +803,7 @@ generateJavaScript mainmodname imports mainfuns target = do
   done
 
 -- Does newfile exists and is it newer than oldfile?
+fileExistsAndNewerThan :: String -> String -> IO Bool
 fileExistsAndNewerThan newfile oldfile = do
   nfexists <- doesFileExist newfile
   ofexists <- doesFileExist oldfile
@@ -771,10 +813,12 @@ fileExistsAndNewerThan newfile oldfile = do
            return (nftime > oftime)
    else return False
 
+showQName :: QName -> String
 showQName (m,f) = m++'.':f
 
 
 -- Check arguments and call main function:
+main :: IO ()
 main = do
   args <- getArgs
   case args of
@@ -791,8 +835,10 @@ main = do
 
 -- Testing:
 
+mp :: IO ()
 mp = curry2js "test" >>= putStrLn
 
+mo :: IO ()
 mo = do
   jscode <- curry2js "test"
   writeFile "test.js" (jscode ++ "\nalert(test_main());\n")

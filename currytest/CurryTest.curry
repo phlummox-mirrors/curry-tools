@@ -30,6 +30,7 @@ import FilePath     ((</>))
 
 ---------------------------------------------------------------------
 -- Check arguments and call main function:
+main :: IO ()
 main = do
   args <- getArgs
   case args of
@@ -56,6 +57,7 @@ main = do
 
 -- This operation creates a new socket to receive messages that are forwarded
 -- to a continues connection to a socket with the argument port number:
+forwardMessages :: Int -> IO ()
 forwardMessages guiportnum = do
   (portnum,socket) <- listenOnFresh
   putStrLn $ "Forwarding messages from port "++show portnum++
@@ -75,11 +77,13 @@ forwardMessages guiportnum = do
        hFlush guihandle
        acceptAndForwardMessage guihandle socket
 
+terminateForwardMessages :: Int -> IO ()
 terminateForwardMessages portnum = do
   h <- connectToSocket "localhost" portnum
   hPutStrLn h "TERMINATE"
   hClose h
 
+startGUI :: [String] -> IO ()
 startGUI modnames = do
   (guiportnum,socket) <- listenOnFresh
   system (installDir++"/bin/currytest -f "++show guiportnum++" &")
@@ -95,6 +99,7 @@ startGUI modnames = do
   terminateForwardMessages portnum
 
 -- A text edit widget with vertical scrollbar.
+TextEditVScroll :: [ConfItem] -> Widget
 TextEditVScroll confs =
    Row []
      [TextEdit ([WRef txtref, Fill]++confs),
@@ -105,25 +110,30 @@ TextEditVScroll confs =
 -- module index):
 
 -- add a module name:
+addModule :: IORef ((Int,[String])) -> String -> IO ()
 addModule ref modname = do
   (_,mods) <- readIORef ref
   writeIORef ref (length mods+1,mods++[modname])
 
 -- delete all modules:
+deleteModules :: IORef ((Int,[String])) -> IO ()
 deleteModules ref = writeIORef ref (0,[])
 
 -- get list of modules as string representation:
+getModules :: IORef ((Int,[String])) -> IO (String)
 getModules ref = do
   (i,mods) <- readIORef ref
   return (concatMap (\ (c,n)->c++n++"\n")
                     (zip (replace "==>" i (repeat "   ")) mods))
 
 -- intialize module index for testing:
+initModuleIndex :: IORef ((Int,[String])) -> IO ()
 initModuleIndex ref = do
   (_,mods) <- readIORef ref
   writeIORef ref (0,mods)
 
 -- get next module to be tested (or Nothing):
+getNextTestModule :: IORef ((Int,[String])) -> IO (Maybe String)
 getNextTestModule ref = do
   (i,mods) <- readIORef ref
   if i >= length mods
@@ -131,6 +141,7 @@ getNextTestModule ref = do
    else writeIORef ref (i+1,mods) >> return (Just (mods!!i))
 
 -- get name of current test module:
+getCurrentTestModule :: IORef ((Int,[String])) -> IO String
 getCurrentTestModule ref = do
   (i,mods) <- readIORef ref
   return (mods!!(i-1))
@@ -140,6 +151,7 @@ getCurrentTestModule ref = do
 -- The definition of the protocol GUI together with a handler
 -- "ext_handler" that is responsible to handle the external messages
 -- sent during running the test on the program:
+protocolGUI :: Int -> String -> IORef ((Int,[String])) -> (Widget,[Handle -> GuiPort -> IO ([_])])
 protocolGUI portnum initmods stateref =
  (Row []
    [Col [LeftAlign]
@@ -245,10 +257,12 @@ protocolGUI portnum initmods stateref =
       appendValue rprot s gp
 
 -- Curry file types:
+curryFileTypes :: [(String,String)]
 curryFileTypes = [("Curry Files",".curry"),
                   ("Literate Curry files",".lcurry")]
 
 -- increment number text string:
+incrText :: String -> String
 incrText s = show (readInt s + 1)
 
 
@@ -265,6 +279,7 @@ testModule prtmsg portnum modname = do
   prog_or_error <- tryReadFlatCurry modname
   testModuleIfPossible prtmsg portnum modname prog_or_error
 
+testModuleIfPossible :: (String -> IO _) -> Int -> String -> Either Prog (String) -> IO Int
 testModuleIfPossible prtmsg portnum _ (Right errmsg) = do
   prtmsg ("ERROR: compilation not successful:\n\n"++errmsg++"\n")
   if portnum==0 then done else showTestCompileError portnum
@@ -272,6 +287,7 @@ testModuleIfPossible prtmsg portnum _ (Right errmsg) = do
 testModuleIfPossible prtmsg portnum modname (Left prog) =
   execTestFunctions prtmsg portnum modname (getTestFunctionNames prog)
 
+execTestFunctions :: (String -> IO _) -> Int -> String -> [String] -> IO Int
 execTestFunctions prtmsg portnum _ [] = do
   prtmsg "No test functions found.\n\n"
   if portnum==0 then done else showTestEnd portnum
@@ -307,6 +323,7 @@ execTestFunctions prtmsg portnum modname fs@(_:_) = do
 
 
 -- Extract all test functions from a module:
+getTestFunctionNames :: Prog -> [String]
 getTestFunctionNames (Prog _ _ _ funs _) =
    map funcname . filter isExportedFunc . filter hasAssertType $ funs
  where
@@ -315,6 +332,7 @@ getTestFunctionNames (Prog _ _ _ funs _) =
    funcname (Func (_,fname) _ _ _ _) = fname
 
 
+hasAssertType :: FuncDecl -> Bool
 hasAssertType (Func _ _ _ texp _) =
  case texp of
    TCons tc _ -> tc==("Assertion","Assertion")

@@ -201,6 +201,7 @@ genHtmlType docparams progcmts (TypeSyn (tcmod,tcons) _ tvars texp) =
        hrule]
 
 -- generate short HTML documentation for a function:
+genHtmlFuncShort :: DocParams -> [(SourceLine,String)] -> AnaInfo -> FuncDecl -> [[HtmlExp]]
 genHtmlFuncShort docparams progcmts anainfo
                  (Func (fmod,fname) _ _ ftype rule) =
  [[code [opnameDoc
@@ -265,17 +266,20 @@ genHtmlFunc docparams modname progcmts anainfo ops
     else "(" ++ params!!0 ++ " " ++ f ++ " " ++ params!!1 ++ ")"
 
 -- remove initial dash sign (of a parameter comment)
+removeDash :: String -> String
 removeDash s = let ds = dropWhile isSpace s in
   if take 2 ds == "- " then dropWhile isSpace (drop 2 ds)
                        else ds
 
 -- remove a single top-level paragraph in HTML expressions:
+removeTopPar :: [HtmlExp] -> [HtmlExp]
 removeTopPar hexps = case hexps of
   [HtmlStruct "p" [] hs] -> hs
   _ -> hexps
 
 --------------------------------------------------------------------------
 --- Generates icons for particular properties of functions.
+genFuncPropIcons :: AnaInfo -> QName -> Rule -> [HtmlExp]
 genFuncPropIcons anainfo fname rule =
    [detPropIcon, nbsp, flexRigidIcon rule]
  where
@@ -301,6 +305,7 @@ genFuncPropIcons anainfo fname rule =
 --- Generates further textual infos about particular properties
 --- of a function. The result is a list of HTML expressions to be
 --- formatted (if not empty) as some HTML list.
+genFuncPropComments :: AnaInfo -> QName -> Rule -> [OpDecl] -> [[HtmlExp]]
 genFuncPropComments anainfo fname rule ops =
    filter (not . null) [genFixityInfo fname ops,
                         completenessInfo,
@@ -335,6 +340,7 @@ genFuncPropComments anainfo fname rule ops =
 
 --- Generates a comment about the associativity and precedence
 --- if the name is defined as an infix operator.
+genFixityInfo :: QName -> [OpDecl] -> [HtmlExp]
 genFixityInfo fname ops =
     concatMap (\(Op n fix prec)->
                   if n==fname
@@ -369,6 +375,7 @@ showType mod nested (TCons tc ts)
       (showTypeCons mod tc ++ " " ++
        concat (intersperse " " (map (showType mod True) ts)))
 
+showTypeCons :: String -> QName -> String
 showTypeCons mod (mtc,tc) =
   if mtc == "Prelude"
   then tc --"<a href=\"Prelude.html#"++tc++"\">"++tc++"</a>"
@@ -415,6 +422,7 @@ addFuncAnchors ancs (sl : sls) = let id1 = getFirstId sl in
 
 --------------------------------------------------------------------------
 -- generate the index page for the documentation directory:
+genMainIndexPage :: String -> [String] -> IO ()
 genMainIndexPage docdir modnames =
  do putStrLn ("Writing index page to \""++docdir++"/index.html\"...")
     simplePage "Documentation of Curry modules"
@@ -426,10 +434,12 @@ genMainIndexPage docdir modnames =
       allConsFuncsMenu (indexPage modnames)
      >>= writeFile (docdir++"/index.html")
 
+allConsFuncsMenu :: [[HtmlExp]]
 allConsFuncsMenu =
   [[href "findex.html" [htxt "All operations"]],
    [href "cindex.html" [htxt "All constructors"]]]
 
+indexPage :: [String] -> [HtmlExp]
 indexPage modnames =
   (if length modnames == 1
    then []
@@ -452,21 +462,28 @@ indexPage modnames =
      ]
    ]
    
+detIcon :: HtmlExp
 detIcon       = italic [] `addClass` "fa fa-long-arrow-down"
                   `withTitle` "This operation is deterministic"
+nondetIcon :: HtmlExp
 nondetIcon    = italic [] `addClass` "fa fa-arrows-alt"
                   `withTitle` "This operation might be non-deterministic"
+rigidIcon :: HtmlExp
 rigidIcon     = italic [] `addClass` "fa fa-cogs"
                   `withTitle` "This operation is rigid"
+flexibleIcon :: HtmlExp
 flexibleIcon  = italic [] `addClass` "fa fa-pagelines"
                   `withTitle` "This operation is flexible"
+flexrigidIcon :: HtmlExp
 flexrigidIcon = italic [] `addClass` "fa fa-exclamation-triangle"
     `withTitle` "This operation is partially flexible and partially rigid"
 
+withTitle :: HtmlExp -> String -> HtmlExp
 withTitle he t = he `addAttr` ("title",t)
 
 --------------------------------------------------------------------------
 -- generate the function index page for the documentation directory:
+genFunctionIndexPage :: String -> [FuncDecl] -> IO ()
 genFunctionIndexPage docdir funs = do
   putStrLn ("Writing operation index page to \""++docdir++"/findex.html\"...")
   simplePage "Index to all operations" Nothing allConsFuncsMenu
@@ -476,21 +493,23 @@ genFunctionIndexPage docdir funs = do
    expfuns = map (\(Func name _ _ _ _)->name)
                  (filter (\(Func _ _ vis _ _)->vis==Public) funs)
 
-htmlFuncIndex :: [(String,String)] -> [HtmlExp]
+htmlFuncIndex :: [QName] -> [HtmlExp]
 htmlFuncIndex qnames = categorizeByItemKey (map showModNameRef qnames)
    
-showModNameRef :: (String,String) -> (String,[HtmlExp])
+showModNameRef :: QName -> (String,[HtmlExp])
 showModNameRef (modname,name) =
   (name,
    [href (modname++".html#"++name) [htxt name], nbsp, nbsp,
     htxt "(", href (getLastName modname++".html") [htxt modname], htxt ")"]
   )
 
+sortNames :: [(a,String)] -> [(a,String)]
 sortNames names = mergeSort (\(_,n1) (_,n2)->leqStringIgnoreCase n1 n2) names
 
 
 --------------------------------------------------------------------------
 -- generate the constructor index page for the documentation directory:
+genConsIndexPage :: String -> [TypeDecl] -> IO ()
 genConsIndexPage docdir types = do
   putStrLn ("Writing constructor index page to \""++docdir++"/cindex.html\"...")
   simplePage "Index to all constructors" Nothing allConsFuncsMenu
@@ -504,6 +523,7 @@ genConsIndexPage docdir types = do
    getCons (Type _ _ _ cdecls) = cdecls
    getCons (TypeSyn _ _ _ _) = []
 
+htmlConsIndex :: [QName] -> [HtmlExp]
 htmlConsIndex qnames = categorizeByItemKey (map showModNameRef qnames)
 
 
@@ -525,6 +545,7 @@ mainPage title htmltitle lefttopmenu sidemenu maindoc = do
                     title lefttopmenu rightTopMenu 3 sidemenu htmltitle maindoc
                     (curryDocFooter time)
 
+cssIncludes :: [String]
 cssIncludes = ["bootstrap","bootstrap-responsive","font-awesome.min","currydoc"]
 
 --- Generate a page with the default documentation style.
@@ -538,6 +559,7 @@ showPageWithDocStyle title body =
              body
 
 --- The standard right top menu.
+rightTopMenu :: [[HtmlExp]]
 rightTopMenu =
   [[ehref "http://www.curry-language.org/"
           [extLinkIcon, htxt " Curry Homepage"]],
@@ -550,6 +572,7 @@ rightTopMenu =
 
 
 -- Standard footer information for generated web pages:
+curryDocFooter :: CalendarTime -> [HtmlExp]
 curryDocFooter time =
   [italic [htxt "Generated by ",
            bold [htxt "CurryDoc"],
@@ -603,6 +626,7 @@ sortStrings :: [String] -> [String]
 sortStrings strings = mergeSort leqStringIgnoreCase strings
 
 -- Returns the first sentence in a string:
+firstSentence :: String -> String
 firstSentence s = let (fs,ls) = break (=='.') s in
   if ls==""
   then fs

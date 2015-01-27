@@ -44,6 +44,7 @@ import FormatParser  as FormatParser
 import RegexParser   as RegexParser
 import MLTranslate   as MLTranslate
 
+cppTitle :: String
 cppTitle = "Curry Preprocessor (version of 07/11/2014)"
 
 -- Parser for Curry with Integrated Code
@@ -128,6 +129,7 @@ main = do
     putStrLn usageText
     exitWith 1
 
+usageText :: String
 usageText = 
   "Usage: currypp <OrgFileName> <InputFilePath> <OutputFilePath> [-o] [-v]\n\n"++
   "<OrgFileName>   : name of original program source file\n" ++

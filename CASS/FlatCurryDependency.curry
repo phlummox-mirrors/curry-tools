@@ -21,6 +21,7 @@ dependsDirectlyOnTypes (Type _ _ _ consDeclList) =
 dependsDirectlyOnTypes (TypeSyn _ _ _ typeExpr) = nub (tconsOf typeExpr)
 
 
+tconsOf :: TypeExpr -> [(String,String)]
 tconsOf (TVar _) = []
 tconsOf (FuncType a b) =  tconsOf a ++ tconsOf b
 tconsOf (TCons qName _) = [qName]
@@ -53,13 +54,17 @@ funcSetOfExpr (Case _ e bs) = unionRBT (funcSetOfExpr e)
  where funcSetOfBranch (Branch _ be) = funcSetOfExpr be
 funcSetOfExpr (Typed e _) = funcSetOfExpr e
 
+isConstructorComb :: CombType -> Bool
 isConstructorComb ct = case ct of
   ConsCall       -> True
   ConsPartCall _ -> True
   _              -> False
 
+unionMap :: (a -> SetRBT QName) -> [a] -> SetRBT QName
 unionMap f = foldr unionRBT emptySet . map f
 
+emptySet :: SetRBT QName
 emptySet = emptySetRBT leqQName
 
+leqQName :: QName -> QName -> Bool
 leqQName (m1,n1) (m2,n2) = m1++('.':n1) <= m2++('.':n2)

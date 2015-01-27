@@ -56,14 +56,19 @@ type Type = Char
 type Variable = String
 
 --- Possible flags
+flags :: String
 flags      = ['-','+','0',' ','#']
 --- Possible types
+types :: String
 types      = ['c','d','i','o','x','X','e','E','f','s']
 --- Escapable characters
+escapable :: String
 escapable  = ['a','b','f','n','r','t','v','\"','\'','?','\\','0','x']
 --- Possible starting letters for variables
+isVarStartLetter :: Char -> Bool
 isVarStartLetter c = c /= ','
 --- Possible inner letters for variables
+isVarInnerLetter :: Char -> Bool
 isVarInnerLetter c = c /= ','
 
 --- Map each type on a function in the Format library
@@ -166,55 +171,79 @@ readExpression p st =
      return $ maybe (throwPM p "Parse error in format expression.") cleanPM x
 
 -- The whole expression
+expression :: ([Either (String) Specifier],[String]) -> String -> String
 expression   =  quoted q <*> vars v                                             >>> (q,v)                   where q,v free
 -- The quote part of the expression
+quoted :: [Either (String) Specifier] -> String -> String
 quoted       = terminal '\"' <*> strsAndSpecs s <*> terminal '\"'               >>> s                        where s free
+strsAndSpecs :: [Either (String) Specifier] -> String -> String
 strsAndSpecs = empty                                                            >>> []
           <||> str st                                                           >>> [Left st]
           <||> spec sp <*> strsAndSpecs stsps                                   >>> (Right sp:stsps)
           <||> str st <*> spec sp <*> strsAndSpecs stsps                        >>> (Left st:Right sp:stsps) where st,sp,stsps free
 -- -- A normal string
+str :: String -> String -> String
 str          = noescp c <*> eorstr st                                           >>> (c:st)
           <||> terminal '\\' <*> escp e <*> eorstr st                           >>> ('\\':e:st)              where c,e,st free
+eorstr :: String -> String -> String
 eorstr       = empty                                                            >>> ""
           <||> str s                                                            >>> s                        where s free
+noescp :: Char -> String -> String
 noescp       = satisfy (\d -> d /= '\\' && d /= '%' && d /= '\"') c             >>> c                        where c free
+escp :: Char -> String -> String
 escp         = satisfy (\c -> elem c escapable) e                               >>> e                        where e free
 -- -- A format specification
+spec :: Specifier -> String -> String
 spec         = terminal '%' <*> flgs f <*> wid w <*> prc p <*> typ t            >>> (Spec f w p t)
           <||> terminal '%' <*> terminal '%'
             >>> (Spec Nothing Nothing Nothing '%')                                                           where f,w,p,t free
 -- -- -- flags
+flgs :: Maybe (String) -> String -> String
 flgs         = empty                                                            >>> Nothing
    <||> flag f <*> someflags fl                                                 >>> (Just (f:fl))            where f,fl free
+someflags :: String -> String -> String
 someflags    = empty                                                            >>> ""
        <||> flag f <*> someflags fl                                             >>> (f:fl)                   where f,fl free
+flag :: Char -> String -> String
 flag         = satisfy (\x -> elem x flags) c                                   >>> c                        where c free
 -- -- -- width
+wid :: Maybe (Either Int Char) -> String -> String
 wid          = empty                                                            >>> Nothing
           <||> posInt s                                                         >>> (Just (Left (extractNat s)))
           <||> terminal '*'                                                     >>> (Just (Right '*'))       where s free
+posInt :: String -> String -> String
 posInt       = nonzerodigit d <*> digits ds                                     >>> (d:ds)                   where d,ds free
+nonzerodigit :: Char -> String -> String
 nonzerodigit = satisfy (\c -> isDigit c && c /= '0') d                          >>> d                        where d free
+digits :: String -> String -> String
 digits       = empty                                                            >>> ""
           <||> digit d <*> digits ds                                            >>> (d:ds)                   where d,ds free
+digit :: Char -> String -> String
 digit        = satisfy (\c -> isDigit c) ch                                     >>> ch                       where ch free
 -- -- -- precision
+prc :: Maybe (Either Int Char) -> String -> String
 prc          = empty                                                            >>> Nothing
           <||> terminal '.' <*> posZeroInt p                                    >>> (Just (Left (extractNat p)))
           <||> terminal '.'                                                     >>> (Just (Left 0))
           <||> terminal '*' <*> terminal '*'                                    >>> (Just (Right '*'))       where p free
+posZeroInt :: String -> String -> String
 posZeroInt   = digit d <*> digits ds                                            >>> (d:ds)                   where d,ds free
 -- -- -- type
+typ :: Char -> String -> String
 typ          = satisfy (\c -> elem c types) t                                   >>> t                        where t free
 -- The variables of the expression
+vars :: [String] -> String -> String
 vars         = empty                                                            >>> []
           <||> terminal ',' <*> var v <*> vars vs                               >>> (v:vs)                   where v,vs free
+var :: String -> String -> String
 var          = posInt i                                                         >>> i
           <||> varStart s <*> varInners i                                       >>> (s:i)                    where s,i free
+varStart :: Char -> String -> String
 varStart     = satisfy (\c -> isVarStartLetter c) s                             >>> s                        where s free
+varInners :: String -> String -> String
 varInners    = empty                                                            >>> ""
           <||> varInner v <*> varInners i                                       >>> (v:i)                    where v,i free
+varInner :: Char -> String -> String
 varInner     = satisfy (\c -> isVarInnerLetter c) i                             >>> i                        where i free
 
 extractNat :: String -> Int

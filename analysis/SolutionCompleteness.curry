@@ -60,6 +60,7 @@ showSolComplete _ True  = "solution complete"
 showSolComplete _ False = "maybe suspend"
 
 
+pre :: String -> QName
 pre n = ("Prelude",n)
 
 -- end of SolutionCompleteness
