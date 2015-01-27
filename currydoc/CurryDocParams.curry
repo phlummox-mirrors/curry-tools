@@ -2,7 +2,7 @@
 
 module CurryDocParams where
 
-import System(system)
+import System (system)
 
 --------------------------------------------------------------------------
 -- The kind of documentations which can be generated.
@@ -18,7 +18,7 @@ docType :: DocParams -> DocType
 docType (DocParams dt _ _) = dt
 
 setDocType :: DocType -> DocParams -> DocParams
-setDocType dt (DocParams _ _ wmd) = DocParams dt (dt==HtmlDoc) wmd
+setDocType dt (DocParams _ _ wmd) = DocParams dt (dt == HtmlDoc) wmd
 
 withIndex :: DocParams -> Bool
 withIndex (DocParams _ windex _) = windex
@@ -33,4 +33,5 @@ setMarkDown :: Bool -> DocParams -> DocParams
 setMarkDown wmd (DocParams dt windex _) = DocParams dt windex wmd
 
 -- Default parameters
+defaultCurryDocParams :: DocParams
 defaultCurryDocParams = DocParams HtmlDoc True True

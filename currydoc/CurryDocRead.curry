@@ -70,21 +70,25 @@ groupLines sls =
       else (concatMap getComment modcmts,
             groupProgLines (filter (/=ModDef) (tail progcmts)))
  where
-   getComment (Comment cmt) = cmt++"\n"
-   getComment (FuncDef _)   = ""  -- this case should usually not occur
-   getComment (DataDef _)   = ""  -- this case should usually not occur
+   getComment src = case src of
+      Comment cmt -> cmt ++ "\n"
+      _           -> "" -- this case should usually not occur
 
 groupProgLines :: [SourceLine] -> [(SourceLine,String)]
-groupProgLines [] = []
+groupProgLines []                  = []
 groupProgLines (Comment cmt : sls) = groupComment cmt sls
-groupProgLines (FuncDef f : sls) = (FuncDef f, "") : skipFuncDefs f sls
-groupProgLines (DataDef d : sls) = (DataDef d, "") : skipDataDefs d sls
+groupProgLines (FuncDef f   : sls) = (FuncDef f, "") : skipFuncDefs f sls
+groupProgLines (DataDef d   : sls) = (DataDef d, "") : skipDataDefs d sls
+groupProgLines (ModDef      : sls) = groupProgLines sls
+groupProgLines (OtherLine   : sls) = groupProgLines sls
 
 groupComment :: String -> [SourceLine] -> [(SourceLine,String)]
 groupComment _ [] = []  -- comment not followed by definition -> ignore
 groupComment cmt (Comment cmt1 : sls) = groupComment (cmt++"\n"++cmt1) sls
-groupComment cmt (FuncDef f : sls) = (FuncDef f, cmt) : skipFuncDefs f sls
-groupComment cmt (DataDef d : sls) = (DataDef d, cmt) : skipDataDefs d sls
+groupComment cmt (FuncDef f    : sls) = (FuncDef f, cmt) : skipFuncDefs f sls
+groupComment cmt (DataDef d    : sls) = (DataDef d, cmt) : skipDataDefs d sls
+groupComment cmt (ModDef       : sls) = groupComment cmt sls
+groupComment cmt (OtherLine    : sls) = groupComment cmt sls
 
 skipFuncDefs :: String -> [SourceLine] -> [(SourceLine,String)]
 skipFuncDefs _ [] = []
@@ -93,6 +97,8 @@ skipFuncDefs _ (DataDef d   : sls) = groupProgLines (DataDef d   : sls)
 skipFuncDefs f (FuncDef f1  : sls) =
   if f==f1 then skipFuncDefs f sls
            else groupProgLines (FuncDef f1 : sls)
+skipFuncDefs f (ModDef      : sls) = skipFuncDefs f sls
+skipFuncDefs f (OtherLine   : sls) = skipFuncDefs f sls
 
 skipDataDefs :: String -> [SourceLine] -> [(SourceLine,String)]
 skipDataDefs _ [] = []
@@ -101,17 +107,16 @@ skipDataDefs _ (FuncDef f   : sls) = groupProgLines (FuncDef f   : sls)
 skipDataDefs d (DataDef d1  : sls) =
   if d==d1 then skipDataDefs d sls
            else groupProgLines (DataDef d1 : sls)
-
+skipDataDefs d (ModDef      : sls) = skipDataDefs d sls
+skipDataDefs d (OtherLine   : sls) = skipDataDefs d sls
 
 --------------------------------------------------------------------------
 -- get comment for a function name:
 getFuncComment :: String -> [(SourceLine,String)] -> String
 getFuncComment _ [] = ""
-getFuncComment fname ((FuncDef f, cmt):fdcmts) =
-  if fname == f
-  then cmt
-  else getFuncComment fname fdcmts
-getFuncComment fname ((DataDef _,_):fdcmts) = getFuncComment fname fdcmts
+getFuncComment fname ((def, cmt):fdcmts) = case def of
+  FuncDef f -> if fname == f then cmt else getFuncComment fname fdcmts
+  _         -> getFuncComment fname fdcmts
 
 getConsComment :: [String] -> String -> Maybe ((String,String))
 getConsComment [] _ = Nothing
@@ -126,10 +131,9 @@ getConsComment (conscmt:conscmts) cname =
 -- get comment for a type name:
 getDataComment :: String -> [(SourceLine,String)] -> String
 getDataComment _ [] = ""
-getDataComment n ((DataDef d, cmt):fdcmts) =
-  if n == d then cmt
-            else getDataComment n fdcmts 
-getDataComment n ((FuncDef _,_):fdcmts) = getDataComment n fdcmts
+getDataComment n ((def, cmt):fdcmts) = case def of
+  DataDef d -> if n == d then cmt else getDataComment n fdcmts
+  _         -> getDataComment n fdcmts
 
 
 -- get all comments of a particular type (e.g., "param", "cons"):
