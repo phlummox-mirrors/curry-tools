@@ -4,8 +4,8 @@
 ANADIRS = ../../analysis:../../CASS
 
 # binaries
-# TODO: move to $(BINDIR)
-TOOL = ../bindingopt
+# TODO: move to $(BINDIR)/.local
+TOOL = $(ROOT)/currytools/optimize/bindingopt
 
 .PHONY: all compile install clean uninstall
 
@@ -15,7 +15,7 @@ compile: BindingOpt
 
 install: compile
 	rm -f $(TOOL)
-	ln -s BindingOpt $(TOOL)
+	ln -s $(CURDIR)/BindingOpt $(TOOL)
 
 clean:
 	$(CLEANCURRY) -r
