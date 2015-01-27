@@ -66,6 +66,7 @@ replaceIdLinks str = case str of
               else "<code>"++s++"</code>"
 
 -- generate short HTML documentation for a function if it is exported:
+genTexFunc :: DocParams -> [(SourceLine,String)] -> _ -> FuncDecl -> String
 genTexFunc docparams progcmts _ (Func (_,fname) _ fvis ftype _) =
   if fvis==Public
   then "\\curryfunctionstart{" ++ string2tex fname ++ "}{" ++
@@ -77,6 +78,7 @@ genTexFunc docparams progcmts _ (Func (_,fname) _ fvis ftype _) =
   else ""
 
 --- generate TeX documentation for a datatype if it is exported:
+genTexType :: DocParams -> [(SourceLine,String)] -> TypeDecl -> String
 genTexType docparams progcmts (Type (_,tcons) tvis tvars constrs) =
   if tvis==Public
   then

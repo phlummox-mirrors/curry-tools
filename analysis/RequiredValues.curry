@@ -100,6 +100,7 @@ updateVarInEnv ((i,ov):env) v nv =
 
 --- Drop the first n elements from the environment component
 --- of an environment/type pair:
+dropEnv :: Int -> ([a],b) -> ([a],b)
 dropEnv n (env,rtype) = (drop n env, rtype)
 
 -- Sorts a list of environment/type pairs by the type.
@@ -111,6 +112,7 @@ sortEnvTypes = mergeSort (\ (e1,t1) (e2,t2) -> (t1,e1) <= (t2,e2))
 --- required value analysis. If a type has more constructors than
 --- specified here, it will not be analyzed for individual required
 --- constructor values.
+maxReqValues :: Int
 maxReqValues = 3
 
 --- Required value analysis.
@@ -268,4 +270,5 @@ joinEnv ((i1,v1):env1) env2@(_:_) =
         (lookup i1 env2)
 
 -- Name of the standard prelude:
+prelude :: String
 prelude = "Prelude"

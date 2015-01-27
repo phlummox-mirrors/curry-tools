@@ -42,6 +42,7 @@ showRightLinear ANote False = ""
 hasRightLinearRules :: FuncDecl -> Bool
 hasRightLinearRules (Func _ _ _ _ rule) = isRightLinearRule rule
 
+isRightLinearRule :: Rule -> Bool
 isRightLinearRule (Rule _ e)   = linearExpr e
 isRightLinearRule (External _) = True
 

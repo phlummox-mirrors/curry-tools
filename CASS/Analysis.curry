@@ -207,6 +207,7 @@ analysisName (CombinedDependencyFuncAnalysis _ nameB _ _ _) = nameB
 analysisName (CombinedDependencyTypeAnalysis _ nameB _ _ _) = nameB
 
 --- Name of the base analysis of a combined analysis.
+baseAnalysisName :: Analysis a -> String
 baseAnalysisName (CombinedSimpleFuncAnalysis     bName _ _ _) = bName
 baseAnalysisName (CombinedSimpleTypeAnalysis     bName _ _ _) = bName
 baseAnalysisName (CombinedDependencyFuncAnalysis bName _ _ _ _) = bName

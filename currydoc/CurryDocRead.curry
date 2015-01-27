@@ -49,12 +49,14 @@ classifyLine line
    getDatatypeName = takeWhile isIdChar . dropWhile (==' ') . dropWhile isIdChar
 
 -- get the first identifier (name or operator in brackets) in a string:
+getFirstId :: String -> String
 getFirstId [] = ""
 getFirstId (c:cs) | isAlpha c = takeWhile isIdChar (c:cs)
                   | c=='('    = takeWhile (/=')') cs
                   | otherwise = ""
 
 -- is an alphanumeric character, underscore, or apostroph?
+isIdChar :: Char -> Bool
 isIdChar c = isAlphaNum c || c=='_' || c=='\''
 
 
@@ -78,11 +80,13 @@ groupProgLines (Comment cmt : sls) = groupComment cmt sls
 groupProgLines (FuncDef f : sls) = (FuncDef f, "") : skipFuncDefs f sls
 groupProgLines (DataDef d : sls) = (DataDef d, "") : skipDataDefs d sls
 
+groupComment :: String -> [SourceLine] -> [(SourceLine,String)]
 groupComment _ [] = []  -- comment not followed by definition -> ignore
 groupComment cmt (Comment cmt1 : sls) = groupComment (cmt++"\n"++cmt1) sls
 groupComment cmt (FuncDef f : sls) = (FuncDef f, cmt) : skipFuncDefs f sls
 groupComment cmt (DataDef d : sls) = (DataDef d, cmt) : skipDataDefs d sls
 
+skipFuncDefs :: String -> [SourceLine] -> [(SourceLine,String)]
 skipFuncDefs _ [] = []
 skipFuncDefs _ (Comment cmt : sls) = groupProgLines (Comment cmt : sls)
 skipFuncDefs _ (DataDef d   : sls) = groupProgLines (DataDef d   : sls)
@@ -90,6 +94,7 @@ skipFuncDefs f (FuncDef f1  : sls) =
   if f==f1 then skipFuncDefs f sls
            else groupProgLines (FuncDef f1 : sls)
 
+skipDataDefs :: String -> [SourceLine] -> [(SourceLine,String)]
 skipDataDefs _ [] = []
 skipDataDefs _ (Comment cmt : sls) = groupProgLines (Comment cmt : sls)
 skipDataDefs _ (FuncDef f   : sls) = groupProgLines (FuncDef f   : sls)
@@ -100,6 +105,7 @@ skipDataDefs d (DataDef d1  : sls) =
 
 --------------------------------------------------------------------------
 -- get comment for a function name:
+getFuncComment :: String -> [(SourceLine,String)] -> String
 getFuncComment _ [] = ""
 getFuncComment fname ((FuncDef f, cmt):fdcmts) =
   if fname == f
@@ -107,6 +113,7 @@ getFuncComment fname ((FuncDef f, cmt):fdcmts) =
   else getFuncComment fname fdcmts
 getFuncComment fname ((DataDef _,_):fdcmts) = getFuncComment fname fdcmts
 
+getConsComment :: [String] -> String -> Maybe ((String,String))
 getConsComment [] _ = Nothing
 getConsComment (conscmt:conscmts) cname =
   let (consname,rconscmt) = span isIdChar conscmt
@@ -117,6 +124,7 @@ getConsComment (conscmt:conscmts) cname =
       else getConsComment conscmts cname
 
 -- get comment for a type name:
+getDataComment :: String -> [(SourceLine,String)] -> String
 getDataComment _ [] = ""
 getDataComment n ((DataDef d, cmt):fdcmts) =
   if n == d then cmt
@@ -125,6 +133,7 @@ getDataComment n ((FuncDef _,_):fdcmts) = getDataComment n fdcmts
 
 
 -- get all comments of a particular type (e.g., "param", "cons"):
+getCommentType :: a -> [(a,b)] -> [b]
 getCommentType ctype cmts = map snd (filter (\c->fst c==ctype) cmts)
 
 
@@ -137,6 +146,7 @@ getCommentType ctype cmts = map snd (filter (\c->fst c==ctype) cmts)
 splitComment :: String -> (String,[(String,String)])
 splitComment cmt = splitCommentMain (lines cmt)
 
+splitCommentMain :: [String] -> (String,[(String,String)])
 splitCommentMain [] = ("",[])
 splitCommentMain (l:ls) =
   if l=="" || head l /= '@'
@@ -145,6 +155,7 @@ splitCommentMain (l:ls) =
   else ([],splitCommentParams (takeWhile isAlpha (tail l))
                               (dropWhile isAlpha (tail l)) ls)
 
+splitCommentParams :: String -> String -> [String] -> [(String,String)]
 splitCommentParams param paramcmt [] = [(param,skipWhiteSpace paramcmt)]
 splitCommentParams param paramcmt (l:ls) =
   if l=="" || head l /= '@'
@@ -184,13 +195,16 @@ getFunctionInfo ((fn,fi):fnis) n = if fn==n then fi
 --------------------------------------------------------------------------
 -- auxiliaries:
 
+isFunctionType :: TypeExpr -> Bool
 isFunctionType (TVar _)       = False
 isFunctionType (FuncType _ _) = True
 isFunctionType (TCons _ _)    = False
 
 -- skip leading blanks or CRs in a string:
+skipWhiteSpace :: String -> String
 skipWhiteSpace = dropWhile isWhiteSpace
 
+isWhiteSpace :: Char -> Bool
 isWhiteSpace c = c==' ' || c=='\n'
 
 -- enclose a non-letter identifier in brackets:
@@ -204,6 +218,7 @@ brackets False s = s
 brackets True  s = "("++s++")"
 
 -- extract last name from a path name:
+getLastName :: String -> String
 getLastName = reverse . takeWhile (/='/') . reverse
 
 --------------------------------------------------------------------------

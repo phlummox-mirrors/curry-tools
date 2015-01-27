@@ -56,6 +56,7 @@ choiceInExpr (Case _  e bs) = choiceInExpr e || any choiceInBranch bs
                 where choiceInBranch (Branch _ be) = choiceInExpr be
 choiceInExpr (Typed e _) = choiceInExpr e
 
+indetFuns :: [QName]
 indetFuns = [("Prelude","commit"),
              ("Ports","send"),("Ports","doSend"),
              ("SetFunctions","select")]

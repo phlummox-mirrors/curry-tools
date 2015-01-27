@@ -40,18 +40,22 @@ showInterface genstub (Prog mod imports types funcs ops) =
             (mergeSort leqFunc funcs) ++ "\n"
 
 -- show import declaration
+showInterfaceImport :: String -> String
 showInterfaceImport impmod = if impmod=="Prelude" then ""
                                            else "import "++impmod++"\n"
 
 -- show operator declaration
+showInterfaceOpDecl :: OpDecl -> String
 showInterfaceOpDecl (Op op InfixOp  prec) = "infix "++show prec++" "++showOp op++"\n"
 showInterfaceOpDecl (Op op InfixlOp prec) = "infixl "++show prec++" "++showOp op++"\n"
 showInterfaceOpDecl (Op op InfixrOp prec) = "infixr "++show prec++" "++showOp op++"\n"
 
+showOp :: (_,String) -> String
 showOp (_,on) = if isAlpha (head on) then '`':on++"`"
                                      else on
 
 -- show type declaration
+showInterfaceType :: (QName -> String) -> TypeDecl -> String
 showInterfaceType tt (Type (_,tcons) vis tvars constrs) =
   if vis==Public
   then "data " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
@@ -68,10 +72,12 @@ showInterfaceType tt (TypeSyn (_,tcons) vis tvars texp) =
        " = " ++ showCurryType tt True texp ++ "\n"
   else ""
 
+showExportConsDecl :: (QName -> String) -> ConsDecl -> String
 showExportConsDecl tt (Cons (_,cname) _ _ argtypes) =
   cname ++ concatMap (\t->" "++showCurryType tt True t) argtypes
 
 -- show function type declaration
+showInterfaceFunc :: (QName -> String) -> Bool -> FuncDecl -> String
 showInterfaceFunc ttrans genstub (Func (_,fname) _ vis ftype _) =
   if vis==Public
   then showCurryId fname ++ " :: " ++
@@ -96,6 +102,7 @@ showCurryMod ascase (Prog mod imports types funcs ops) =
                                (showQNameInModule mod) ascase) funcs
   ++ "\n-- end of module " ++ mod ++ "\n"
 
+showTypeExports :: [TypeDecl] -> String
 showTypeExports types = concatMap (++",") (concatMap exptype types)
  where
    exptype (Type tcons vis _ cdecls) =
@@ -107,10 +114,12 @@ showTypeExports types = concatMap (++",") (concatMap exptype types)
    expcons cds = "(" ++ intercalate "," (concatMap expc cds) ++ ")"
    expc (Cons cname _ vis _) = if vis==Public then [snd cname] else []
 
+showFuncExports :: [FuncDecl] -> String
 showFuncExports funcs = intercalate "," (concatMap expfun funcs)
  where
    expfun (Func fname _ vis _ _) = if vis==Public then [snd fname] else []
 
+showCurryDataDecl :: (QName -> String) -> TypeDecl -> String
 showCurryDataDecl tt (Type tcons _ tvars constrs) =
   "data " ++ snd tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
   (if null constxt then "" else " = " ++ constxt)
@@ -120,21 +129,25 @@ showCurryDataDecl tt (TypeSyn tcons _ tvars texp) =
   "type " ++ snd tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
   " = " ++ showCurryType tt True texp ++ "\n"
 
+showCurryConsDecl :: (QName -> String) -> ConsDecl -> String
 showCurryConsDecl tt (Cons cname _ _ argtypes) =
   snd cname ++ concatMap (\t->" "++showCurryType tt True t) argtypes
 
 
 -- generate function definitions:
+showCurryFuncDecl :: (QName -> String) -> (QName -> String) -> Bool -> FuncDecl -> String
 showCurryFuncDecl tt tf ascase (Func fname _ _ ftype frule) =
   showCurryId (snd fname) ++" :: "++ showCurryType tt False ftype ++ "\n" ++
   showCurryRule tf ascase fname frule
 
+showCurryRule :: (QName -> String) -> Bool -> QName -> Rule -> String
 showCurryRule _ _ fname (External _) = showCurryId (snd fname) ++ " external\n\n"
 showCurryRule tf ascase fname (Rule lhs rhs) =
   if ascase then showCurryRuleAsCase tf fname (Rule lhs rhs)
             else showCurryRuleAsPatterns tf fname (Rule lhs rhs)
 
 -- format rule as case expression:
+showCurryRuleAsCase :: (QName -> String) -> QName -> Rule -> String
 showCurryRuleAsCase tf fname (Rule lhs rhs)
  | length lhs == 2 && not (isAlpha (head (snd fname))) -- infix op
   = showCurryVar (head lhs) ++ " " ++ tf fname ++ " " ++ showCurryVar (lhs!!1) ++
@@ -145,15 +158,18 @@ showCurryRuleAsCase tf fname (Rule lhs rhs)
 showCurryRuleAsCase _ fname (External _) = showCurryId (snd fname) ++ " external\n"
 
 -- format rule as set of pattern matching rules:
+showCurryRuleAsPatterns :: (QName -> String) -> QName -> Rule -> String
 showCurryRuleAsPatterns tf fname (Rule lhs rhs) =
   concatMap (\ (l,r) -> showCurryPatternRule tf l r)
             (rule2equations (shallowPattern2Expr fname lhs) rhs)
    ++ "\n"
 
+splitFreeVars :: Expr -> ([Int],Expr)
 splitFreeVars exp = case exp of
   Free vars e -> (vars,e)
   _ -> ([],exp)
 
+showCurryPatternRule :: (QName -> String) -> Expr -> Expr -> String
 showCurryPatternRule tf l r = let (vars,e) = splitFreeVars r in
    showCurryExpr tf False 0 l ++
    showCurryCRHS tf e ++
@@ -161,6 +177,7 @@ showCurryPatternRule tf l r = let (vars,e) = splitFreeVars r in
     " where " ++ intercalate "," (map showCurryVar vars) ++ " free")
    ++ "\n"
 
+showCurryCRHS :: (QName -> String) -> Expr -> String
 showCurryCRHS tf r =
    if isGuardedExpr r
    then " | " ++ showCurryCondRule r
@@ -178,6 +195,7 @@ rule2equations lhs rhs = case rhs of
   Or e1 e2 -> rule2equations lhs e1 ++ rule2equations lhs e2
   _        -> [(lhs,rhs)]
 
+caseIntoLhs :: Expr -> Int -> [BranchExpr] -> [(Expr,Expr)]
 caseIntoLhs _ _ [] = []
 caseIntoLhs lhs vi (Branch (Pattern c vs) e : bs) =
   rule2equations (substitute [vi] [shallowPattern2Expr c vs] lhs) e
@@ -186,6 +204,7 @@ caseIntoLhs lhs vi (Branch (LPattern lit) e : bs) =
   rule2equations (substitute [vi] [Lit lit] lhs) e
   ++ caseIntoLhs lhs vi bs
 
+shallowPattern2Expr :: QName -> [Int] -> Expr
 shallowPattern2Expr name vars =
                Comb ConsCall name (map (\i->Var i) vars)
 
@@ -193,6 +212,7 @@ shallowPattern2Expr name vars =
 -- (substitute vars exps expr) = expr[vars/exps]
 -- i.e., replace all occurrences of vars by corresponding exps in the
 -- expression expr
+substitute :: [Int] -> [Expr] -> Expr -> Expr
 substitute vars exps expr = substituteAll vars exps 0 expr
 
 -- (substituteAll vars exps base expr):
@@ -222,6 +242,7 @@ substituteAll vs es b (Or e1 e2) =
 substituteAll vs es b (Case ctype e cases) =
    Case ctype (substituteAll vs es b e) (map (substituteAllCase vs es b) cases)
 
+substituteAllCase :: [Int] -> [Expr] -> Int -> BranchExpr -> BranchExpr
 substituteAllCase vs es b (Branch (Pattern l pvs) e) =
                  Branch (Pattern l (map (+b) pvs)) (substituteAll vs es b e)
 substituteAllCase vs es b (Branch (LPattern l) e) =
@@ -238,23 +259,29 @@ isGuardedExpr e = case e of
 
 
 -------- Definition of some orderings:
+leqOp :: OpDecl -> OpDecl -> Bool
 leqOp (Op (_,op1) _ p1) (Op (_,op2) _ p2) = p1>p2 || p1==p2 && op1<=op2
 
+leqType :: TypeDecl -> TypeDecl -> Bool
 leqType t1 t2 = (tname t1) <= (tname t2)
  where tname (Type    (_,tn) _ _ _) = tn
        tname (TypeSyn (_,tn) _ _ _) = tn
 
+leqFunc :: FuncDecl -> FuncDecl -> Bool
 leqFunc (Func (_,f1) _ _ _ _) (Func (_,f2) _ _ _ _) = f1 <= f2
 
 ---------------------------------------------------------------------------
 -- Show individual functions:
 
+showFuncDeclAsCurry :: FuncDecl -> String
 showFuncDeclAsCurry fd =
   showCurryFuncDecl (showQNameInModule (funcModule fd))
                     (showQNameInModule (funcModule fd)) False fd
 
+showFuncDeclAsFlatCurry :: FuncDecl -> String
 showFuncDeclAsFlatCurry fd =
   showCurryFuncDecl (showQNameInModule (funcModule fd))
                     (showQNameInModule (funcModule fd)) True fd
 
+funcModule :: FuncDecl -> String
 funcModule fd = fst (funcName fd)

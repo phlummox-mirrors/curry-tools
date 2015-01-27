@@ -26,6 +26,7 @@ import Sort(mergeSort)
 import Global
 import Char(isSpace)
 
+systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System ("++
                    "version of 20/01/2015 for "++curryCompiler++")"
@@ -36,18 +37,23 @@ systemBanner =
 --- The base directory of the analysis tool containing all programs.
 --- Required to copy the configuration file and to the find executables
 --- of the server and the workers.
+baseDir :: String
 baseDir = installDir ++ "/currytools/CASS"
 
 --- The address of the server when it is connected from the worker clients.
+getServerAddress :: IO String
 getServerAddress = return "127.0.0.1" -- run only on local machine
 
 --------------------------------------------------------------------------
 -- Name of user property file:
+propertyFileName :: IO String
 propertyFileName = getHomeDirectory >>= return . (</> ".curryanalysisrc")
 
+defaultPropertyFileName :: String
 defaultPropertyFileName = baseDir </> "curryanalysisrc"
 
 --- Install user property file if it does not exist.
+installPropertyFile :: IO ()
 installPropertyFile = do
   fname <- propertyFileName
   pfexists <- doesFileExist fname
@@ -101,6 +107,7 @@ updateCurrentProperty pn pv = do
   currprops <- getProperties
   writeGlobal currProps (Just (replaceKeyValue pn pv currprops))
 
+replaceKeyValue :: a -> b -> [(a,b)] -> [(a,b)]
 replaceKeyValue k v [] = [(k,v)]
 replaceKeyValue k v ((k1,v1):kvs) =
   if k==k1 then (k,v):kvs else (k1,v1) : replaceKeyValue k v kvs
@@ -109,6 +116,7 @@ replaceKeyValue k v ((k1,v1):kvs) =
 --------------------------------------------------------------------------
 --- Gets the name of file containing the current server port and pid
 --- ($HOME has to be set) 
+getServerPortFileName :: IO String
 getServerPortFileName = do
   homeDir <- getHomeDirectory
   return $ homeDir++"/.curryanalysis.port"
@@ -160,28 +168,34 @@ getServerPortNumber = do
 
 --------------------------------------------------------------------------
 -- Get terminalCommand from Config file
+getTerminalCommand :: IO String
 getTerminalCommand = do
   properties <- getProperties
   let tcmd = lookup "terminalCommand" properties
   return (maybe "" id tcmd)
 
 -- Get the fixpoint computation method from Config file
+getFPMethod :: IO String
 getFPMethod =
   getProperties >>= return . maybe "simple" id . lookup "fixpoint"
 
 -- Get the option to analyze also the prelude from Config file
+getWithPrelude :: IO String
 getWithPrelude =
   getProperties >>= return . maybe "yes" id . lookup "prelude"
 
 -- timeout for network message passing: -1 is wait time infinity
+waitTime :: Int
 waitTime = -1  
 
 -- Default number of workers (if the number is not found in the
 -- configuration file).
+defaultWorkers :: Int
 defaultWorkers=0
 
 --- Gets the default load path from the property file (added at the end
 --- of CURRYPATH).
+getDefaultPath :: IO String
 getDefaultPath = do
   currypath <- getEnviron "CURRYPATH"
   properties <- getProperties
@@ -192,6 +206,7 @@ getDefaultPath = do
     Nothing -> currypath
 
 -- number of worker threads running at the same time
+numberOfWorkers :: IO Int
 numberOfWorkers = do
   properties <- getProperties
   let number = lookup "numberOfWorkers" properties

@@ -26,6 +26,7 @@ import Maybe(isJust)
 ---------------------------------------------------------------------
 -- add a directory name for a Curry source file by looking up the
 -- current load path (CURRYPATH):
+findSourceFileInLoadPath :: String -> IO (String)
 findSourceFileInLoadPath modname = do
   loadpath <- getLoadPathForFile modname
   mbfname <- lookupFileInPath (baseName modname) [".lcurry",".curry"] loadpath
@@ -39,6 +40,7 @@ findFunDeclInProgText progtext fname =
   findFirstDeclLine (showCurryId fname) (lines progtext) 1
 
 -- finds first declaration line:
+findFirstDeclLine :: String -> [String] -> Int -> Int
 findFirstDeclLine _ [] _ = 0 -- not found
 findFirstDeclLine f (l:ls) n =
      if isPrefixOf f l then n else findFirstDeclLine f ls (n+1)
@@ -80,6 +82,7 @@ sourceProgGUI cnt progdefs =
      return []
 
 -- start the counter GUI:
+startGUI :: String -> IO ()
 startGUI prog = do
   filename <- findSourceFileInLoadPath prog
   contents <- readFile filename
@@ -87,6 +90,7 @@ startGUI prog = do
      (sourceProgGUI contents (splitProgDefs contents))
      [stdin]
 
+main :: IO ()
 main = do
   args <- getArgs
   startGUI (head args)
@@ -101,6 +105,7 @@ splitProgDefs ptxt =
       (\ (mb,i) -> maybe [] (\s->if s `elem` keywords then [] else [(s,i)]) mb)
       (zip (map funDefOfLine (lines ptxt)) [1..]))))
 
+groupFuns :: [(String,Int)] -> [(String,(Int,Int))]
 groupFuns [] = []
 groupFuns [(f,i)] = [(f,(i,i))]
 groupFuns [(f1,i1),(f2,i2)] = 
@@ -113,14 +118,17 @@ groupFuns ((f1,i1):(f2,i2):(f3,i3):fis)
  | otherwise = (f1,(i1,i2-1)) : groupFuns ((f2,i2):(f3,i3):fis)
 
 -- delete subsequent function definitions
+deleteAdjacentFuns :: [(String,Int)] -> [(String,Int)]
 deleteAdjacentFuns [] = []
 deleteAdjacentFuns [x] = [x]
 deleteAdjacentFuns ((f1,i1):(f2,i2):xs) =
   if f1==f2 then deleteAdjacentFuns ((f1,i1):xs)
             else (f1,i1) : deleteAdjacentFuns ((f2,i2):xs)
 
+keywords :: [String]
 keywords = ["module","import","data","infix","infixr","infixl"]
 
+funDefOfLine :: String -> Maybe (String)
 funDefOfLine l
   | all isSpace l = Nothing
   | isAlpha (head l) = Just (head (words l))
@@ -128,10 +136,12 @@ funDefOfLine l
   | isCommentLine l = Just ""
   | otherwise = Nothing
 
+isCommentLine :: String -> Bool
 isCommentLine l = take 2 (dropWhile isSpace l) == "--"
   
 ----------------------------------------------------------------------------
 
+m :: String -> IO ()
 m prog = do
   filename <- findSourceFileInLoadPath prog
   contents <- readFile filename
