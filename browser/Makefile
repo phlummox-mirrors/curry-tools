@@ -25,18 +25,19 @@ LOADPATH = analysis:$(CASS):$(ANADIR):$(CURRYTOOLS)/importcalls:$(CURRYTOOLS)/ad
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: BrowserGUI SourceProgGUI
 
-install: BrowserGUI uninstall
+install: compile
+	rm -f $(TOOL)
 	ln -s $(CURDIR)/BrowserGUI $(TOOL)
 
-clean: uninstall
+clean:
 	$(CLEANCURRY) -r
 	rm -f BrowserGUI SourceProgGUI
 
-uninstall:
+uninstall: clean
 	rm -f $(TOOL)
 
 # generate executable for Curry Browser:

@@ -5,13 +5,14 @@ CASS     = ../CASS
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
-compile: # nothing to do
+compile:
+	for a in $(ANALYSES); do $(REPL) $(REPL_OPTS) :set path $(CASS) :load $$a :quit; done
 
-install: # nothing to do
+install: compile
 
-clean: uninstall
+clean:
 	$(CLEANCURRY)
 
-uninstall: # nothing to do
+uninstall: clean

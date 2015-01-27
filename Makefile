@@ -94,3 +94,22 @@ clean:
 	@cd spicey         && $(MAKE) clean
 	@cd typeinference  && $(MAKE) clean
 	@cd xmldata        && $(MAKE) clean
+
+.PHONY: uninstall
+uninstall:
+	@cd addtypes       && $(MAKE) uninstall
+	@cd analysis       && $(MAKE) uninstall
+	@cd browser        && $(MAKE) uninstall
+	@cd CASS           && $(MAKE) uninstall
+	@cd createmakefile && $(MAKE) uninstall
+	@cd curry2js       && $(MAKE) uninstall
+	@cd currydoc       && $(MAKE) uninstall
+	@cd currypp        && $(MAKE) uninstall
+	@cd currytest      && $(MAKE) uninstall
+	@cd erd2curry      && $(MAKE) uninstall
+	@cd genint         && $(MAKE) uninstall
+	@cd importcalls    && $(MAKE) uninstall
+	@cd optimize       && $(MAKE) uninstall
+	@cd spicey         && $(MAKE) uninstall
+	@cd typeinference  && $(MAKE) uninstall
+	@cd xmldata        && $(MAKE) uninstall

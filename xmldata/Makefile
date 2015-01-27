@@ -11,18 +11,19 @@ TOOL = $(ROOT)/bin/data2xml
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: Data2Xml
 
-install: Data2Xml uninstall
+install: compile
+	rm -f $(TOOL)
 	ln -s $(CURDIR)/Data2Xml $(TOOL)
 
-clean: uninstall
+clean:
 	$(CLEANCURRY)
 	rm -f Data2Xml
 
-uninstall:
+uninstall: clean
 	rm -f $(TOOL)
 
 # generate executable for Data2Xml program:

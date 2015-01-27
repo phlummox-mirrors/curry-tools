@@ -4,17 +4,19 @@ TOOL = $(BINDIR)/ImportCalls
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: ImportCalls
 
-install: ImportCalls
+install: compile
+	rm -f $(TOOL)
+	ln -s ImportCalls $(TOOL)
 
-clean: uninstall
+clean:
 	$(CLEANCURRY)
 	rm -f ImportCalls
 
-uninstall:
+uninstall: clean
 	rm -f $(TOOL)
 
 # generate executable for import calls tools:

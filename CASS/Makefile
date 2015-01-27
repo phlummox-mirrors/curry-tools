@@ -25,18 +25,19 @@ DEPS = Analysis.curry AnalysisCollection.curry AnalysisDependencies.curry \
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: cass_worker cass
 
-install: cass uninstall
+install: compile
+	rm -f $(TOOL)
 	ln -s $(CURDIR)/cass $(TOOL)
 
-clean: uninstall
+clean:
 	$(CLEANCURRY) -r
 	rm -f cass_worker cass
 
-uninstall:
+uninstall: clean
 	rm -f $(TOOL)
 
 # generate executable for analysis worker:

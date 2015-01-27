@@ -14,18 +14,19 @@ DEPS = ERD2Curry.curry CodeGeneration.curry Transformation.curry \
 
 .PHONY: all compile install clean uninstall
 
-all: compile install
+all: install
 
 compile: erd2curry
 
-install: erd2curry uninstall
+install: compile
+	rm -f $(TOOL)
 	ln -s $(CURDIR)/erd2curry $(TOOL)
 
-clean: uninstall
+clean:
 	$(CLEANCURRY)
 	rm -f erd2curry
 
-uninstall:
+uninstall: clean
 	rm -f $(TOOL)
 
 erd2curry: $(DEPS)
