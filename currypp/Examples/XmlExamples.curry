@@ -1,4 +1,4 @@
-{-# OPTIONS_CYMAKE -F --pgmF=/net/medoc/home/mh/pakcs/bin/currypp #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=-o --optF=-v #-}
 
 ------------------------------------------------------------------------------
 --- This program contains examples for integrated code to support
