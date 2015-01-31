@@ -70,7 +70,7 @@ isVarInnerLetter c = c /= ','
 
 --- Map each type on a function in the Format library
 maptypes :: Char -> String
-maptypes c = case c of
+maptypes c = "Format." ++ case c of
   'c' -> "showChar"
   'd' -> "showInt"
   'i' -> "showInt"
@@ -111,12 +111,13 @@ genString (x1:x2:xs) = case x1 of
 specToString :: SpecifierWVar -> String
 specToString (SpecV f w p t v) =
   "("    ++ maptypes t
-  ++ " " ++ show t
-  ++ " " ++ show f
-  ++ " " ++ show w
-  ++ " " ++ show p
+  ++ " " ++ showBr t
+  ++ " " ++ showBr f
+  ++ " " ++ showBr w
+  ++ " " ++ showBr p
   ++ " " ++ (if all isAlphaNum v then v else '(':v++")")
   ++ ")"
+ where showBr x = '(' : show x ++ ")"
 
 --- Assign variables to the specifiers
 addVarsToSpecs :: Pos -> IO (PM Expression)
