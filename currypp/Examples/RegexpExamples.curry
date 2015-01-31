@@ -26,10 +26,10 @@ check5 s = s ``regex [a-z]+''
 
 -- Examples with parameterized regular expressions:
 
-pregexp1 :: [a] -> a -> a -> Bool
+pregexp1 :: Ord a => [a] -> a -> a -> Bool
 pregexp1 s v1 v2 = s ``regex [<v1>-<v2>]*''
 
-pregexp2 :: [a] -> a -> a -> Bool
+pregexp2 :: Ord a => [a] -> a -> a -> Bool
 pregexp2 s v1 v2 = s ``regex (<v1>|<v2>)*''
 
 -- A regular expression containing a complex Curry expression:
