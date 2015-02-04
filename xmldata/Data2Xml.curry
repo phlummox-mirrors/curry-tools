@@ -26,7 +26,7 @@
 ---     readXmlFile "Nat.xml" >>= return . xmlToNat
 ---
 --- @author Bernd Brassel, Michael Hanus
---- @version September 2014
+--- @version February 2015
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
@@ -34,7 +34,7 @@
 module Data2Xml where
 
 import AbstractCurry
-import AbstractGoodies
+import AbstractCurryGoodies
 import AbstractCurryPrinter
 import Char
 import FileGoodies
@@ -86,10 +86,9 @@ derive (FileName fn:opts) = do
 
 maybeString :: [QName] -> [QName]
 maybeString xs 
-  = if not (elem (p "String") xs) && elem (p "[]") xs && elem (p "Char") xs
-       then (p "String":xs) else xs
-  where
-    p s = ("Prelude",s)
+  = if notElem (pre "String") xs && elem (pre "[]") xs && elem (pre "Char") xs
+    then (pre "String" : xs)
+    else xs
 
 -- Transform original module name into name of the transformation module:
 transModName :: String -> String
@@ -137,7 +136,7 @@ tag opts s = if elem LowCase opts then map toLower s else s
 tagNameForCons :: QName -> String
 tagNameForCons (mname,cname)
   | isTupleName cname = "Tuple" ++ show (length cname - 1)
-  | mname=="Prelude"  = cname
+  | isPrelude mname   = cname
   | otherwise         = mname++"_"++cname
 
 -------------------------------------------------
@@ -164,7 +163,7 @@ mkConsDecl2Xml opts patVars (CCons name arity _ args)
              (xml opts (tagNameForCons name) []
                   (map call2xml (zip args [0..])))] []
   where
-    newPatVars = renameUnused (map renVar $ concatMap allTVars args) patVars
+    newPatVars = renameUnused (map renVar $ concatMap tvarsOfType args) patVars
 
 type2XmlType :: [(Int,String)] -> CTypeExpr -> CTypeExpr
 type2XmlType vars t 
@@ -176,10 +175,10 @@ call2xml (t,i) = CApply (call2xmlType t) (toVar i)
 call2xmlType :: CTypeExpr -> CExpr
 call2xmlType (CTVar v) = CVar (renVar v)
 call2xmlType (CTCons name args) 
-  | snd name == "[]" &&  args==[CTCons ("Prelude","Char") []]
-  = sym $ toXmlName ("Prelude","String")
+  | snd name == "[]" &&  args==[CTCons (pre "Char") []]
+  = CSymbol $ toXmlName (pre "String")
   | otherwise 
-  = app (CSymbol $ toXmlName name) (map call2xmlType args)
+  = applyF (toXmlName name) (map call2xmlType args)
 call2xmlType (CFuncType _ _) = error "unable to transform functions to XML"
 
 -- Compute the types that cannot be converted to XML.
@@ -206,7 +205,8 @@ ignoredTypes = computeIgnoredTypes []
   
 xml :: [Options] -> String -> [CExpr] -> [CExpr] -> CExpr
 xml opts name attrs elems 
-  = app (sym ("XML","XElem")) [cString (tag opts name),cList attrs,cList elems]
+  = applyF ("XML","XElem")
+           [string2ac (tag opts name), list2ac attrs, list2ac elems]
 
 xmlType :: CTypeExpr
 xmlType = CTCons ("XML","XmlExp") []
@@ -239,9 +239,9 @@ xml2typeType vars t
 mkXml2ConsDecl :: [Options] -> [CPattern] -> CConsDecl -> CRule
 mkXml2ConsDecl opts patVars (CCons name arity _ args)
   = CRule (newPatVars++[pxml opts (tagNameForCons name) [] (pVars arity)])
-          [noGuard (app (sym name) (map callXml2 (zip args [0..])))] []
+          [noGuard (applyF name (map callXml2 (zip args [0..])))] []
   where
-    newPatVars = renameUnused (map renVar $ concatMap allTVars args) patVars 
+    newPatVars = renameUnused (map renVar $ concatMap tvarsOfType args) patVars 
 
 renameUnused :: [(Int,String)] -> [CPattern] -> [CPattern]
 renameUnused _ [] = []
@@ -252,7 +252,8 @@ renameUnused usedVars (CPVar (i,v):vs)
 
 pxml :: [Options] -> String -> [CPattern] -> [CPattern] -> CPattern
 pxml opts name attrs elems 
-  = CPComb ("XML","XElem") [pString (tag opts name),pList attrs,pList elems]
+  = CPComb ("XML","XElem")
+           [stringPattern (tag opts name), listPattern attrs, listPattern elems]
 
 callXml2 :: (CTypeExpr,Int) -> CExpr
 callXml2 (t,i) = CApply (callXml2Type t) (toVar i)
@@ -260,10 +261,10 @@ callXml2 (t,i) = CApply (callXml2Type t) (toVar i)
 callXml2Type :: CTypeExpr -> CExpr
 callXml2Type (CTVar v) = CVar (renVar v)
 callXml2Type (CTCons name args)
-  | snd name=="[]" && args==[CTCons ("Prelude","Char") []]
-  = sym (fromXmlName ("Prelude","String"))
+  | snd name=="[]" && args==[CTCons (pre "Char") []]
+  = CSymbol (fromXmlName (pre "String"))
   | otherwise 
-  = app (CSymbol $ fromXmlName name) (map callXml2Type args)
+  = applyF (fromXmlName name) (map callXml2Type args)
 callXml2Type (CFuncType _ _) = error "unable to transform functions from XML"
 
 -----------------------------
@@ -315,66 +316,87 @@ specialFuncs opts =
 -- make tuple type of arity n:
 mkTupleType :: Int -> CTypeDecl
 mkTupleType n =
-  CType ("Prelude",tcons) Public tvars
-        [CCons ("Prelude",tcons) n Public (map CTVar tvars)]
+  CType (pre tcons) Public tvars
+        [CCons (pre tcons) n Public (map CTVar tvars)]
  where tcons = "(" ++ take (n-1) (repeat ',') ++ ")"
        tvars = map (\i -> (i,'a':show i)) [1..n]
 
 mkList2xml :: [Options] -> CFuncDecl
 mkList2xml opts = 
-   CFunc (toXmlName ("Prelude","[]")) 2 Public
+   CFunc (toXmlName (pre "[]")) 2 Public
      (CFuncType (CFuncType (CTVar (0,"a")) xmlType)
-                (CFuncType (CTCons ("Prelude","[]") [CTVar (0,"a")]) xmlType))
+                (CFuncType (CTCons (pre "[]") [CTVar (0,"a")]) xmlType))
      (CRules CFlex 
         [CRule (pVars 2)
-             [noGuard (app (sym ("XML","XElem")) [cString (listTag opts),nil, 
-                            app (app (preSym "map") [toVar 0]) [toVar 1]])] []])
+               [noGuard (applyF ("XML","XElem")
+	                   [string2ac (listTag opts), list2ac [], 
+                            applyE (applyF (pre "map") [toVar 0]) [toVar 1]])]
+	       []])
 
 mkXml2List :: [Options] -> CFuncDecl
 mkXml2List opts = 
-   CFunc (fromXmlName ("Prelude","[]")) 2 Public
+   CFunc (fromXmlName (pre "[]")) 2 Public
      (CFuncType (CFuncType xmlType (CTVar (0,"a")))
-                (CFuncType xmlType (CTCons ("Prelude","[]") [CTVar (0,"a")])))
+                (CFuncType xmlType (CTCons (pre "[]") [CTVar (0,"a")])))
      (CRules CFlex 
-        [CRule [x, CPComb ("XML","XElem") [pString (listTag opts),pNil,y]]
-             [noGuard  (app (preSym "map") [toVar 0,toVar 1])] []])
+        [CRule [x, CPComb ("XML","XElem") [stringPattern (listTag opts),pNil,y]]
+             [noGuard  (applyF (pre "map") [toVar 0,toVar 1])] []])
   where
     [x,y] = pVars 2
 
 baseType2xml :: [Options] -> String -> CFuncDecl
 baseType2xml opts s 
-  = CFunc (toXmlName ("Prelude",s)) 1 Public
-     (CFuncType (CTCons ("Prelude",s) []) xmlType)
+  = CFunc (toXmlName (pre s)) 1 Public
+     (CFuncType (CTCons (pre s) []) xmlType)
      (CRules CFlex 
        [CRule (pVars 1) 
          [noGuard (xml opts s [] [writeFun s])] []])
 
 baseTypeXml2 :: [Options] -> String -> CFuncDecl
 baseTypeXml2 opts s 
-  = CFunc (fromXmlName ("Prelude",s)) 1 Public
-     (CFuncType xmlType (CTCons ("Prelude",s) []))
+  = CFunc (fromXmlName (pre s)) 1 Public
+     (CFuncType xmlType (CTCons (pre s) []))
      (CRules CFlex 
         (CRule [pxml opts s [] [CPComb ("XML","XText") (pVars 1)]]
            [noGuard (readFun s)] []:
          if s=="String" 
            then [CRule [pxml opts s [] []]
-                       [noGuard (cString "")] []]
+                       [noGuard (string2ac "")] []]
            else []))
 
 readFun :: String -> CExpr
-readFun "Int"    = app (sym ("Read","readInt")) [toVar 0]
-readFun "Char"   = app (preSym "head") [toVar 0]
-readFun "Float"  = app (sym ("ReadShowTerm","readQTerm")) [toVar 0]
+readFun "Int"    = applyF ("Read","readInt") [toVar 0]
+readFun "Char"   = applyF (pre "head") [toVar 0]
+readFun "Float"  = applyF ("ReadShowTerm","readQTerm") [toVar 0]
 readFun "String" = toVar 0
 
 writeFun :: String -> CExpr
 writeFun s = case s of
-  "String" -> app (CSymbol ("XML","xtxt")) [toVar 0]
-  "Char"   -> app (CSymbol ("XML","xtxt")) [cList [toVar 0]]
-  _        -> app (CSymbol ("XML","xtxt")) [cShow (toVar 0)]
+  "String" -> applyF ("XML","xtxt") [toVar 0]
+  "Char"   -> applyF ("XML","xtxt") [list2ac [toVar 0]]
+  _        -> applyF ("XML","xtxt") [applyF (pre "show") [toVar 0]]
 
 
-typeName (CTypeSyn name _ _ _) = name
-typeName (CType    name _ _ _) = name
+---------------------------------------------------------------------
+-- Auxiliaries:
 
+--- yield list of all types the given type depends on
+requiredTypesTypeDecl :: CTypeDecl -> [QName]
+requiredTypesTypeDecl (CTypeSyn _ _ _ e) = requiredTypesTypeExpr e
+requiredTypesTypeDecl (CType _ _ _ cs) = concatMap requiredTypesConsDecl cs
+
+requiredTypesConsDecl :: CConsDecl -> [QName]
+requiredTypesConsDecl (CCons _ _ _ ts) = concatMap requiredTypesTypeExpr ts
+
+requiredTypesTypeExpr :: CTypeExpr -> [QName]
+requiredTypesTypeExpr (CTVar _) = []
+requiredTypesTypeExpr (CFuncType e1 e2) 
+  = requiredTypesTypeExpr e1 ++ requiredTypesTypeExpr e2
+requiredTypesTypeExpr (CTCons name ts) 
+  | name==(pre "[]") && ts == [CTCons (pre "Char") []]
+  = [pre "String"]
+  | otherwise
+  = name : concatMap requiredTypesTypeExpr ts
+
+---------------------------------------------------------------------
 
