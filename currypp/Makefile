@@ -7,18 +7,6 @@
 #
 #****************************************************************************
 
-# The major version numbers:
-MAJORVERSION=1
-
-# The minor version number:
-MINORVERSION=8
-
-# The revision version number:
-REVISIONVERSION=2
-
-# Complete version:
-VERSION=$(MAJORVERSION).$(MINORVERSION).$(REVISIONVERSION)
-
 #----------------------------------
 # Input and output dirs
 #----------------------------------
@@ -54,5 +42,3 @@ Translator: $(MAIN) $(PARSEDIR)/*.curry $(MLDIR)/*.curry
 	@echo Compiling Curry Integrated Code Translator ...
 	$(REPL) $(REPL_OPTS) :set path $(SRCDIR):$(PARSEDIR):$(MLDIR) \
 	  :load $(MAIN) :save :quit
-	@echo Compilation finished ...
-	@echo Version: $(VERSION)

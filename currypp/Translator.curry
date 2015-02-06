@@ -73,7 +73,7 @@ addRealFname f w = setWarnPos w (setFilename (getWarnPos w) f)
 -- Formatting and terminating with Errors
 errfun :: [PError] -> _
 errfun (e1:es) = error $ "\nERRORS in " ++ getFilename (getPErrorPos e1) ++ ":"
-                                     ++ foldr (++) "" (map formatErr (e1:es))
+                                        ++ concatMap formatErr (e1:es)
   where
     formatErr :: PError -> String
     formatErr e = "\n" ++ "Line " ++ show (getLn (getPErrorPos e))
