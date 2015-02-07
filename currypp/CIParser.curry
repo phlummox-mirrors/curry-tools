@@ -17,7 +17,7 @@ s_ident = '`'
 e_ident = '\''
 min_number = 2
 
--- Identificators for block comments and line comments
+-- Identifiers for block comments and line comments
 s_block_comment = "{-"
 e_block_comment = "-}"
 s_line_comment = "--"
@@ -26,11 +26,9 @@ s_line_comment = "--"
 err_missing_quote = "Missing corresponding closing quote!"
 err_missing_block = "Missing corresponding closing comment block delimiter "
                      ++ e_block_comment ++ " !"
-err_missing_integ = "No terminating identificators " ++ [e_ident] ++
-                    " for integrated expression or number of starting " ++
-                    "identificators " ++ [s_ident] ++ " in the expression " ++
-                    "too high"
-err_no_langtag    = "Missing langtag for integrated code!"
+err_missing_integ = "Integrated code not terminated with correct number " ++
+                    "of " ++ [e_ident] ++ " chars"
+err_no_langtag    = "Missing language tag for integrated code!"
 err_layout_code   = "Bad layout. Check amount of whitespaces!"
 
 --- The parse function is the main function of the Code Integration Parser.
@@ -50,7 +48,7 @@ parse fn input = return $ bindPM (parserL1 (initPos fn) input) parserL2
 -}
 data L1Token = Normal Pos     String
              | Exp    Pos                -- Integrated Expression with Postion
-                      Int                -- number of identificators
+                      Int                -- number of start identifiers
                       String             -- content
 
 --- Function for the first level of the parser
@@ -160,7 +158,7 @@ findUnescapedChar pos ch escaper s = findUnescapedCharHelper pos "" s
         findUnescapedCharHelper (movePosByChar p c) (c:acc) (d:ds)
 
 --- The function parseSingleQuote parses a single quote, but only if
---- it escapes a quote or starting identificator for integrated expressions.
+--- it escapes a quote or starting identifiers for integrated expressions.
 --- @param p1 - The staring position of the single quote
 --- @param p2 - The position after the first single quote
 --- @param s  - The input

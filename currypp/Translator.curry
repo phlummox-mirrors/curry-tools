@@ -29,6 +29,7 @@
 ------------------------------------------------------------------------------
 module Translator where
 
+import IO(stderr,hPutStrLn)
 import List
 import System
 
@@ -71,14 +72,16 @@ addRealFname :: Filename -> Warning -> Warning
 addRealFname f w = setWarnPos w (setFilename (getWarnPos w) f)
 
 -- Formatting and terminating with Errors
-errfun :: [PError] -> _
-errfun (e1:es) = error $ "\nERRORS in " ++ getFilename (getPErrorPos e1) ++ ":"
-                                        ++ concatMap formatErr (e1:es)
-  where
-    formatErr :: PError -> String
-    formatErr e = "\n" ++ "Line " ++ show (getLn (getPErrorPos e))
-                       ++ " Col " ++ show (getCol (getPErrorPos e))
-                       ++ " | "   ++ getPErrorMsg e
+errfun :: [PError] -> IO _
+errfun (e1:es) = do
+  hPutStrLn stderr $ "\nERRORS in " ++ getFilename (getPErrorPos e1) ++ ":"
+                                    ++ concatMap formatErr (e1:es)
+  error "Failure during preprocessing of Curry source file!"
+ where
+  formatErr :: PError -> String
+  formatErr e = "\n" ++ "Line " ++ show (getLn (getPErrorPos e))
+                     ++ " Col " ++ show (getCol (getPErrorPos e))
+                     ++ ": "   ++ getPErrorMsg e
 
 -- Formatting Warnings
 formatWarnings :: [Warning] -> String
@@ -152,7 +155,7 @@ translateString :: String -> String -> IO String
 translateString name s =
   do stw <- concatAllIOPM $ applyLangParsers $ ciparser name s
      putStr (formatWarnings (getWarnings stw))
-     return $ escapePR (discardWarnings stw) errfun
+     escapePR (discardWarnings stw) errfun
 
 --- Handles the IO and PM monads around the StandardTokens for the
 --- concatenation, so they will not disturb in the real concat function

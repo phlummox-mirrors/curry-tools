@@ -39,8 +39,8 @@ bindPR (OK x)     f = f x
 bindPR (Errors p) _ = Errors p
 
 --- Escape the error monad, basically a catch
-escapePR :: PR a -> ([PError] -> a) -> a
-escapePR (OK x)     _ = x
+escapePR :: PR a -> ([PError] -> IO a) -> IO a
+escapePR (OK x)     _ = return x
 escapePR (Errors e) f = f e
 
 --- Lift function
