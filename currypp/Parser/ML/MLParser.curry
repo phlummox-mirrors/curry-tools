@@ -2,7 +2,7 @@
 --- Markup Language Parser.
 ---
 --- @author Max Deppert
---- @version March 2014
+--- @version February 2015
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
@@ -182,28 +182,43 @@ tagTokenizer s pos = (release result,warnings)
         release (EndTag t) = EndTag (reverse t)
         release (Data p) = Data p
 
--- differenciation between raw data and expressions
+-- differentiation between raw data and expressions
 dataTokenizer :: (Symbol,[Warning]) -> (Symbol,[Warning])
-dataTokenizer (sym,ws) =
-  case tok sym of
-       Data [Raw s]   -> ((Data (dtk s [Raw ""]),pos sym),ws)
-       StartTag t a i -> ((StartTag t (map (\(x,[Raw s]) -> (x,dtk s [Raw ""])) a) i,pos sym),ws)
-       VoidTag t a    -> ((VoidTag t (map (\(x,[Raw s]) -> (x,dtk s [Raw ""])) a),pos sym),ws)
-       _              -> (sym,ws)
-  where dtk :: String -> [Text] -> [Text]
-        dtk [] ds = reverse (map reverseText (filter (not . textNull) ds))
-        dtk (c:cs) ys@((Raw s):ds) | c == OB = dtk cs ((Exp ""):ys)
-                                   | c == BS && (not . null) cs && head cs == OB = dtk (tail cs) ((Raw ((head cs):c:s)):ds)
-                                   | otherwise = dtk cs ((Raw (c:s)):ds)
-        dtk (c:cs) ys@((Exp s):ds) | c == CB = dtk cs ((Raw ""):ys)
-                                   | c == BS && (not . null) cs && head cs == CB = dtk (tail cs) ((Exp ((head cs):c:s)):ds)
-                                   | otherwise = dtk cs ((Exp (c:s)):ds)
-        reverseText :: Text -> Text
-        reverseText (Raw s) = Raw (reverse s)
-        reverseText (Exp s) = Exp (reverse s)
-        textNull :: Text -> Bool
-        textNull (Raw s) = null s
-        textNull (Exp s) = null s
+dataTokenizer (sym,ws) = case tok sym of
+  Data [Raw s]   -> ((Data (dtk s [Raw ""]),pos sym), ws)
+  StartTag t a i -> ((StartTag t (map (\ (x,[Raw s]) -> (x,dtk s [Raw ""])) a) i,
+                     pos sym), ws)
+  VoidTag t a    -> ((VoidTag t (map (\ (x,[Raw s]) -> (x,dtk s [Raw ""])) a),
+                     pos sym), ws)
+  _              -> (sym,ws)
+ where
+  dtk :: String -> [Text] -> [Text]
+  dtk [] ds = reverse (map reverseText (filter (not . textNull) ds))
+  dtk (c:cs) ys@((Raw  s):ds) | c == OB && (not . null) cs && head cs == OB
+			       = dtk (tail cs) ((ExpC ""):ys)
+                              | c == OB = dtk cs ((ExpT ""):ys)
+                              | c == BS && (not . null) cs && head cs == OB
+  			       = dtk (tail cs) ((Raw (OB:c:s)):ds)
+                              | otherwise = dtk cs ((Raw (c:s)):ds)
+  dtk (c:cs) ys@((ExpT s):ds) | c == CB = dtk cs ((Raw ""):ys)
+                              | c == BS && (not . null) cs && head cs == CB
+  			       = dtk (tail cs) ((ExpT (CB:c:s)):ds)
+                              | otherwise = dtk cs ((ExpT (c:s)):ds)
+  dtk (c:cs) ys@((ExpC s):ds) | c == CB && (not . null) cs && head cs == CB
+			       = dtk (tail cs) ((Raw ""):ys)
+                              | c == BS && (not . null) cs && head cs == CB
+  			       = dtk (tail cs) ((ExpC (CB:c:s)):ds)
+                              | otherwise = dtk cs ((ExpC (c:s)):ds)
+
+  reverseText :: Text -> Text
+  reverseText (Raw  s) = Raw  (reverse s)
+  reverseText (ExpT s) = ExpT (reverse s)
+  reverseText (ExpC s) = ExpC (reverse s)
+
+  textNull :: Text -> Bool
+  textNull (Raw  s) = null s
+  textNull (ExpT s) = null s
+  textNull (ExpC s) = null s
 
 -- set the right indentation for every StartTag
 layout :: String -> TPos -> ([Symbol],[Warning])
