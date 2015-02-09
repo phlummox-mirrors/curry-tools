@@ -25,7 +25,7 @@
 --- xml    - see the MLParser and XML library
 ---
 --- @author Jasper Sikorra (with changes by Michael Hanus)
---- @version May 2014
+--- @version February 2015
 ------------------------------------------------------------------------------
 module Translator where
 
@@ -41,9 +41,6 @@ import DummyParser   as DummyParser
 import FormatParser  as FormatParser
 import RegexParser   as RegexParser
 import MLTranslate   as MLTranslate
-
-cppTitle :: String
-cppTitle = "Curry Preprocessor (version of 07/11/2014)"
 
 -- Parser for Curry with Integrated Code
 ciparser :: Filename -> String -> IO (PM [StandardToken])
@@ -94,49 +91,6 @@ formatWarnings ws@((p,_):_) = "\nWARNINGS in " ++ getFilename p ++ ":"
     formatW w = "\n" ++ "Line " ++ show (getLn (getWarnPos w))
                      ++ " Col " ++ show (getCol (getWarnPos w))
                      ++ " | "   ++ getWarnMsg w
-
-
---- The main function should be called with three arguments and uses
---- translateFile to translate Curry with Integrated Code to standard Curry.
-main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    (orgSourceFile:inFile:outFile:options) ->
-       let (save,version,optError) = processOptions (False,False,False) options
-        in if optError
-           then showUsage args
-           else do
-             when version (putStrLn cppTitle)
-             translateFile inFile outFile
-             when save (saveFile orgSourceFile outFile)
-    _ -> showUsage args
- where
-  processOptions (save,version,opterror) opts = case opts of
-     []        -> (save,version,opterror)
-     ("-o":os) -> processOptions (True,version,opterror) os
-     ("-v":os) -> processOptions (save,True,opterror) os
-     _         -> (False,False,True)
-
-  saveFile orgSourceFile outFile = do
-    let sFile = orgSourceFile++".CURRYPP"
-    system ("cp "++outFile++" "++sFile)
-    putStrLn $ "Translated Curry file written to '"++sFile++"'"
-
-  showUsage args = do
-    putStrLn cppTitle
-    putStrLn $ "\nERROR: Illegal arguments: " ++ unwords args ++ "\n"
-    putStrLn usageText
-    exitWith 1
-
-usageText :: String
-usageText = 
-  "Usage: currypp <OrgFileName> <InputFilePath> <OutputFilePath> [-o] [-v]\n\n"++
-  "<OrgFileName>   : name of original program source file\n" ++
-  "<InputFilePath> : name of the actual input file\n" ++
-  "<OutputFilePath>: name of the file where output should be written\n" ++
-  "-o              : store output also in file <OrgFileName>.CURRYPP\n" ++
-  "-v              : show preprocessor version on stdout\n"
 
 --- Translates a file with Curry with Integrated Code to a file with Curry Code.
 --- @param in_fp - The filepath to the input file

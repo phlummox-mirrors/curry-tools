@@ -1,4 +1,4 @@
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=-o #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=--foreigncode --optF=-o #-}
 
 ------------------------------------------------------------------------------
 -- Example for CGI programming in Curry:
