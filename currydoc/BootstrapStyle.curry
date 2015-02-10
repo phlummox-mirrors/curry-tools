@@ -112,6 +112,7 @@ bootstrapPage rootdir styles title lefttopmenu righttopmenu
                 [HtmlStruct "header" [("class","hero-unit")] header]
 
 -- Navigation bar at the top:
+topNavigationBar :: [[HtmlExp]] -> [[HtmlExp]] -> [HtmlExp]
 topNavigationBar leftmenu rightmenu =
   [blockstyle "navbar navbar-inverse navbar-fixed-top"
     [blockstyle "navbar-inner"

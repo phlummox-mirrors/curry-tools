@@ -2,8 +2,25 @@
 
 TOOL = $(BINDIR)/currycreatemake
 
+.PHONY: all compile install clean uninstall
+
+all: install
+
+compile: CreateMakefile
+
+install: compile
+	rm -f $(TOOL)
+	ln -s $(CURDIR)/CreateMakefile $(TOOL)
+
+clean:
+	$(CLEANCURRY)
+	rm -f CreateMakefile
+
+uninstall: clean
+	rm -f $(TOOL)
+
 # generate executable for CreateMakefile program
-$(TOOL):  CreateMakefile.curry \
+CreateMakefile:  CreateMakefile.curry \
 	  $(METADIR)/FlatCurry.curry $(METADIR)/FlatCurryRead.curry \
 	  $(LIBDIR)/FilePath.curry \
 	  $(LIBDIR)/PropertyFile.curry \
@@ -21,9 +38,3 @@ $(TOOL):  CreateMakefile.curry \
 	  $(LIBDIR)/System.curry
 	# create saved state for top-level function "main":
 	$(REPL) $(REPL_OPTS) :load CreateMakefile :save :quit
-	mv CreateMakefile $@
-
-.PHONY: clean
-clean:
-	$(CLEANCURRY)
-	rm -f CreateMakefile $(TOOL)

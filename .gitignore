@@ -1,7 +1,6 @@
 # intermediate files
 *~
 .curry
-*.state
 Curry_Main_Goal.curry
 
 # executables
@@ -11,7 +10,7 @@ browser/SourceProgGUI
 CASS/cass
 CASS/cass_worker
 curry2js/Curry2JS
-currypp/Translator
+currypp/Main
 currydoc/CurryDoc
 currytest/CurryTest
 createmakefile/CreateMakefile

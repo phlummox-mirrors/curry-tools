@@ -46,6 +46,7 @@ orderOfType (TypeSyn _ _ _ typeExpr) usedtypes =
 
 -- compute the order of a type expression (ignore the type constructors,
 -- i.e., check whether this expression contains a `FuncType`).
+orderOfTypeExpr :: TypeExpr -> Order
 orderOfTypeExpr (TVar _) = FO
 orderOfTypeExpr (FuncType _ _) = HO
 orderOfTypeExpr (TCons _ typeExprs) =

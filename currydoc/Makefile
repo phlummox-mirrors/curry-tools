@@ -12,7 +12,8 @@ TOOL       = $(BINDIR)/currydoc
 
 # Source modules of currydoc
 DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
-       CurryDocTeX.curry CurryDocParams.curry CurryDocConfig.curry \
+       CurryDocTeX.curry CurryDocCDoc.curry \
+       CurryDocParams.curry CurryDocConfig.curry \
        BootstrapStyle.curry \
        $(LIBDIR)/Markdown.curry \
        $(METADIR)/FlexRigid.curry \
@@ -24,12 +25,23 @@ DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
        $(ANADIR)/Deterministic.curry $(ANADIR)/TotallyDefined.curry \
        $(ANADIR)/Indeterministic.curry $(ANADIR)/SolutionCompleteness.curry
 
-# generate executable for currydoc program
-$(TOOL): $(DEPS)
-	$(REPL) $(REPL_OPTS) :set path $(CASS):$(ANADIR) :load CurryDoc :save :quit
-	mv CurryDoc $@
+.PHONY: all compile install clean uninstall
 
-.PHONY: clean
+all: install
+
+compile: CurryDoc
+
+install: compile
+	rm -f $(TOOL)
+	ln -s $(CURDIR)/CurryDoc $(TOOL)
+
 clean:
 	$(CLEANCURRY)
-	rm -f CurryDoc $(TOOL)
+	rm -f CurryDoc
+
+uninstall: clean
+	rm -f $(TOOL)
+
+# generate executable for currydoc program
+CurryDoc: $(DEPS)
+	$(REPL) $(REPL_OPTS) :set path $(CASS):$(ANADIR) :load CurryDoc :save :quit

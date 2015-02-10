@@ -122,6 +122,7 @@ isComplete consinfo (Case _ _ (Branch (Pattern cons _) bexp : ces)) =
 isComplete consinfo (Typed e _) = isComplete consinfo e
 
 -- Combines the completeness results in different Or branches.
+combineOrResults :: Completeness -> Completeness -> Completeness
 combineOrResults Complete     _            = Complete
 combineOrResults InComplete   Complete     = Complete
 combineOrResults InComplete   InComplete   = InCompleteOr
@@ -131,6 +132,7 @@ combineOrResults InCompleteOr InComplete   = InCompleteOr
 combineOrResults InCompleteOr InCompleteOr = InCompleteOr
 
 -- Combines the completeness results in different case branches.
+combineAndResults :: Completeness -> Completeness -> Completeness
 combineAndResults InComplete   _            = InComplete
 combineAndResults Complete     Complete     = Complete
 combineAndResults Complete     InComplete   = InComplete

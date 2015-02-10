@@ -104,6 +104,7 @@ updateVarInEnv ((i,ov):env) v nv =
 
 --- Drop the first n elements from the environment component
 --- of an environment/type pair:
+dropEnv :: Int -> ([a],b) -> ([a],b)
 dropEnv n (env,rtype) = (drop n env, rtype)
 
 -- Sorts a list of environment/type pairs by the type.
@@ -273,4 +274,5 @@ joinEnv ((i1,v1):env1) env2@(_:_) =
         (lookup i1 env2)
 
 -- Name of the standard prelude:
+prelude :: String
 prelude = "Prelude"

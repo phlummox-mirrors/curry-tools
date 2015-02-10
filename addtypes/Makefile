@@ -1,13 +1,26 @@
 # Makefile for generating AddTypes tool
 
-TOOL=$(BINDIR)/addtypes
+TOOL = $(BINDIR)/addtypes
 
-$(TOOL):  AddTypes.curry       $(METADIR)/AbstractCurry.curry \
-	  $(LIBDIR)/List.curry $(LIBDIR)/AllSolutions.curry
-	$(REPL) $(REPL_OPTS) :load AddTypes :save :quit
-	mv AddTypes $@
+.PHONY: all compile install clean uninstall
 
-.PHONY: clean
+all: install
+
+compile: AddTypes
+
+install: compile
+	rm -f $(TOOL)
+	ln -s $(CURDIR)/AddTypes $(TOOL)
+
 clean:
 	$(CLEANCURRY)
-	rm -f AddTypes $(TOOL)
+	rm -f AddTypes
+
+uninstall: clean
+	rm -f $(TOOL)
+
+AddTypes: AddTypes.curry $(METADIR)/AbstractCurry.curry \
+	  $(LIBDIR)/List.curry $(LIBDIR)/AllSolutions.curry
+	$(REPL) $(REPL_OPTS) :load AddTypes :save :quit
+
+

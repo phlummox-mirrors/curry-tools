@@ -1,3 +1,10 @@
+------------------------------------------------------------------------
+--- Implementation of the analysis computations on the server side
+---
+--- @author Heiko Hoffmann, Michael Hanus
+--- @version January 2015
+------------------------------------------------------------------------
+
 -- analysis computations on the server side
 
 -- {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
@@ -20,11 +27,9 @@ import Analysis
 import GenericProgInfo
 import AnalysisDependencies
 import XML(showXmlDoc,xml)
-import Configuration(debugMessageLevel,waitTime)
+import Configuration(debugMessage,waitTime)
 
 data WorkerMessage = Task String String | ChangePath String | StopWorker
-
-debugMessage dl message = debugMessageLevel dl ("ServerFunctions: "++message)
 
 
 -- Master loop for communication with workers
@@ -39,18 +44,18 @@ debugMessage dl message = debugMessageLevel dl ("ServerFunctions: "++message)
 masterLoop :: [Handle] -> [Handle] -> String -> String
            -> [(String,[String])] -> [String] -> IO (Maybe String)
 masterLoop _ [] _ _ [] [] = do
-  debugMessage 2 "masterLoop terminated"
+  debugMessage 2 "Master loop: terminated"
   return Nothing
 
 masterLoop _ (b:busyWorker) ananame mainModule [] [] = do
-  debugMessage 2 "masterLoop waiting for worker result"
+  debugMessage 2 "Master loop: waiting for worker result"
   inputHandle <- hWaitForInputs (b:busyWorker) waitTime 
   if inputHandle/=0
     then return (Just "No input from any worker received")
     else do
       let handle =  b
       input <- hGetLine handle
-      debugMessage 2 ("got message: "++input)
+      debugMessage 2 ("Master loop: got message: "++input)
       let Task ananame2 moduleName2 = readQTerm input
       if ananame==ananame2 && moduleName2==mainModule
         then return Nothing
@@ -58,19 +63,19 @@ masterLoop _ (b:busyWorker) ananame mainModule [] [] = do
 
 masterLoop idleWorker busyWorker ananame mainModule
            modulesToDo@(_:_) [] = do
-  debugMessage 3 ("modulesToDo: "++(showQTerm modulesToDo))
+  debugMessage 3 ("Master loop: modules to do: "++(showQTerm modulesToDo))
   let modulesToDo2 = filter ((not . null) . snd) modulesToDo
       waitList     = map fst (filter (null . snd) modulesToDo)
   if null waitList
     then do
-      debugMessage 2 "MasterLoop: waiting for workers to finish"
+      debugMessage 2 "Master loop: waiting for workers to finish"
       inputHandle <- hWaitForInputs busyWorker waitTime 
       if inputHandle<0
         then return (Just "No input from any worker received")
         else do
           let handle =  busyWorker !! inputHandle
           input <- hGetLine handle
-          debugMessage 2 ("got message: "++input)
+          debugMessage 2 ("Master loop: got message: "++input)
           let Task ananame2 moduleName2 = readQTerm input
           if ananame==ananame2
             then do
@@ -86,11 +91,11 @@ masterLoop idleWorker busyWorker ananame mainModule
 
 masterLoop (handle:idleWorker) busyWorker ananame mainModule modulesToDo
            (modName:waitList) = do
-  debugMessage 2 "Worker available, send task to a worker..."
+  debugMessage 2 "Master loop: worker available, send task to a worker..."
   let newTask = showQTerm (Task ananame modName)
   hPutStrLn handle newTask
   hFlush handle
-  debugMessage 2 ("send message: "++newTask)
+  debugMessage 2 ("Master loop: send message: "++newTask)
   masterLoop idleWorker (handle:busyWorker) ananame mainModule
              modulesToDo waitList
 
@@ -103,12 +108,12 @@ masterLoop [] busyWorker ananame mainModule modulesToDo
     else do
       let handle = busyWorker !! inputHandle
       input <- hGetLine handle
-      debugMessage 2 ("got message: "++input)
+      debugMessage 2 ("Master loop: got message: "++input)
       let Task _ finishedmodule = readQTerm input
           newTask = showQTerm (Task ananame modName)
       hPutStrLn handle newTask
       hFlush handle
-      debugMessage 2 ("send message: "++newTask)
+      debugMessage 2 ("Master loop: send message: "++newTask)
       let modulesToDo2 = reduceDependencies modulesToDo [finishedmodule]
       masterLoop [] busyWorker ananame mainModule modulesToDo2 waitList
 

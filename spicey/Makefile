@@ -7,9 +7,7 @@
 # - root location of the Curry System specified by variable ROOT
 
 # binaries
-REPL       = $(ROOT)/bin/curry
-CLEANCURRY = $(ROOT)/bin/cleancurry
-INSTALLBIN = $(ROOT)/bin/spiceup
+TOOL = $(ROOT)/bin/spiceup
 
 # The directory containg the project generator
 PROJECT_GEN_DIR=project_generator
@@ -17,14 +15,22 @@ PROJECT_GEN_DIR=project_generator
 # Some modules required by the Spicey implementation:
 DEPS = $(PROJECT_GEN_DIR)/SpiceUp.curry scaffolding/*.curry
 
-.PHONY: install
-install: spiceup
-	$(MAKE) uninstall
-	ln -s $(CURDIR)/spiceup $(INSTALLBIN)
+.PHONY: all compile install clean uninstall
 
-.PHONY: uninstall
-uninstall:
-	rm -f $(INSTALLBIN)
+all: install
+
+compile: spiceup
+
+install: compile
+	rm -f $(TOOL)
+	ln -s $(CURDIR)/spiceup $(TOOL)
+
+clean:
+	$(CLEANCURRY) -r
+	rm -f spiceup
+
+uninstall: clean
+	rm -f $(TOOL)
 
 # generate executable for Spicey generator:
 spiceup: $(DEPS)
@@ -33,8 +39,3 @@ spiceup: $(DEPS)
 	  $(REPL) $(REPL_OPTS) :set path ../scaffolding:../../erd2curry \
 	    :load SpiceUp :save "main \"$(CURDIR)/$(PROJECT_GEN_DIR)\"" :quit
 	mv $(PROJECT_GEN_DIR)/SpiceUp $@
-
-.PHONY: clean
-clean: uninstall
-	$(CLEANCURRY)
-	rm -f spiceup

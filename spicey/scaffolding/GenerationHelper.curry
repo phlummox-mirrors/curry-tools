@@ -7,6 +7,27 @@ import ERDGoodies
 import AbstractCurry
 import AbstractCurryGoodies
 
+------------------------------------------------------------------------
+-- lower the first character in a string
+lowerFirst :: String -> String
+lowerFirst (y:ys) = (toLower y) : ys
+lowerFirst []     = [] -- this case should not occur, but one never knows...
+
+-- upper the first character in a string
+upperFirst :: String -> String
+upperFirst (y:ys) = (toUpper y) : ys
+upperFirst []     = [] -- this case should not occur, but one never knows...
+
+------------------------------------------------------------------------
+--- Converts a string into a qualified name of the module "KeyDatabase".
+db :: String -> QName
+db f = ("KeyDatabase", f)
+
+--- Converts a string into a qualified name of the module "WUI".
+wui :: String -> QName
+wui f = ("WUI", f)
+
+-- Some module names:
 dataModuleName = "RoutesData"
 mappingModuleName = "ControllerMapping"
 

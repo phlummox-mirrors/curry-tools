@@ -1,4 +1,4 @@
-{-# OPTIONS_CYMAKE -F --pgmF=currypp #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=--foreigncode #-}
 
 ------------------------------------------------------------------------------
 --- This program contains some examples for integrated code to format strings.
@@ -12,7 +12,7 @@ import Format -- required in the pre-processed program
 
 -- Format a string and an integer:
 ex1 :: String -> Int -> IO ()
-ex1 name alter = putStrLn ``format "hello %s. alter %i",name,alter''
+ex1 name age = putStrLn ``format "Hello %s. Age %i",name,age''
 
 -- Format two integers:
 ex2 :: Int -> Int -> IO ()

@@ -7,18 +7,6 @@
 #
 #****************************************************************************
 
-# The major version numbers:
-MAJORVERSION=1
-
-# The minor version number:
-MINORVERSION=8
-
-# The revision version number:
-REVISIONVERSION=2
-
-# Complete version:
-VERSION=$(MAJORVERSION).$(MINORVERSION).$(REVISIONVERSION)
-
 #----------------------------------
 # Input and output dirs
 #----------------------------------
@@ -30,31 +18,26 @@ TOOL = $(BINDIR)/currypp
 SRCDIR  = $(CURDIR)
 PARSEDIR = $(SRCDIR)/Parser
 MLDIR = $(PARSEDIR)/ML
-MAIN = $(SRCDIR)/Translator.curry
 
-.PHONY: install
-install: Translator
-	$(MAKE) uninstall
-	ln -s $(CURDIR)/Translator $(TOOL)
+.PHONY: all compile install clean uninstall
 
-.PHONY: uninstall
-uninstall:
+all: install
+
+compile: Main
+
+install: compile
 	rm -f $(TOOL)
+	ln -s $(CURDIR)/Main $(TOOL)
 
-# generate executable of currypp translator:
-Translator: $(MAIN) $(PARSEDIR)/*.curry $(MLDIR)/*.curry
-	@echo Compiling Curry Integrated Code Translator ...
-	$(REPL) $(REPL_OPTS) :set path $(SRCDIR):$(PARSEDIR):$(MLDIR) \
-	  :load $(MAIN) :save :quit
-	@echo Compilation finished ...
-	@echo Version: $(VERSION)
-
-
-# clean project
-.PHONY: clean
-clean: uninstall
-	@echo Cleaning the Curry Integrated Code Translator Project Folder ...
+clean:
 	$(CLEANCURRY) -r
 	rm -f Translator
 
+uninstall: clean
+	rm -f $(TOOL)
 
+# generate executable of currypp translator:
+Main: $(SRCDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry
+	@echo Compiling Curry Integrated Code Translator ...
+	$(REPL) $(REPL_OPTS) :set path $(SRCDIR):$(PARSEDIR):$(MLDIR) \
+	  :load Main :save :quit
