@@ -140,7 +140,7 @@ getDataComment n ((def, cmt):fdcmts) = case def of
 
 
 -- get all comments of a particular type (e.g., "param", "cons"):
-getCommentType :: a -> [(a,b)] -> [b]
+getCommentType :: String -> [(String,String)] -> [String]
 getCommentType ctype cmts = map snd (filter (\c->fst c==ctype) cmts)
 
 

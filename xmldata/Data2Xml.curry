@@ -71,11 +71,16 @@ derive (FileName fn:opts) = do
       progName = transModName fn
       impTypes = maybeString $ nub $ filter ((/=modName) .fst)
                              $ concatMap requiredTypesTypeDecl types
+      ignTypes = ignoredTypes types
+      xmltypes  = filter (\t -> typeName t `notElem` ignTypes) types
+  unless (null ignTypes) $
+    putStrLn ("WARNING: the following types are not translated:\n"++
+              unwords (map snd ignTypes))
   imports <- importTypes modName impTypes
   writeFile (progName++".curry") $ showProg $
    CurryProg progName (nub $ ["XML",fn] ++ imports) [] 
-             (map (mkType2Xml opts) types ++
-              map (mkXml2Type opts) types ++ specials)
+             (map (mkType2Xml opts) xmltypes ++
+              map (mkXml2Type opts) xmltypes ++ specials)
              []
   putStrLn ("You can now import "++progName)
 
@@ -139,17 +144,17 @@ tagNameForCons (mname,cname)
 -------------------------------------------------
  
 mkType2Xml :: [Options] -> CTypeDecl -> CFuncDecl
-mkType2Xml _ (CTypeSyn name vis vars t) 
-  = CFunc (toXmlName name) 1 vis
-          (CFuncType (CTCons name (map CTVar vars)) xmlType)
-          (CRules CFlex [CRule [CPVar (0,"x0")] 
-                               [noGuard (call2xml (t,0))] []])
-mkType2Xml opts (CType name vis vars cs) 
-  = CFunc (toXmlName name) (1+length vars) vis
-          (type2XmlType vars 
-            (CFuncType (CTCons name (map CTVar vars)) xmlType))
-          (CRules CFlex (map (mkConsDecl2Xml opts $ 
-                                map (CPVar . renVar) vars) cs))
+mkType2Xml _ (CTypeSyn name vis vars t) =
+  CFunc (toXmlName name) 1 vis
+        (CFuncType (CTCons name (map CTVar vars)) xmlType)
+        (CRules CFlex [CRule [CPVar (0,"x0")] 
+                             [noGuard (call2xml (t,0))] []])
+mkType2Xml opts (CType name vis vars cs) =
+  CFunc (toXmlName name) (1+length vars) vis
+        (type2XmlType vars 
+             (CFuncType (CTCons name (map CTVar vars)) xmlType))
+        (CRules CFlex (map (mkConsDecl2Xml opts $ 
+                              map (CPVar . renVar) vars) cs))
   
 mkConsDecl2Xml :: [Options] -> [CPattern] -> CConsDecl -> CRule
 mkConsDecl2Xml opts patVars (CCons name arity _ args)
@@ -176,6 +181,28 @@ call2xmlType (CTCons name args)
   = applyF (toXmlName name) (map call2xmlType args)
 call2xmlType (CFuncType _ _) = error "unable to transform functions to XML"
 
+-- Compute the types that cannot be converted to XML.
+-- These are the types containing functional arguments or depending
+-- on such higher-order types.
+ignoredTypes :: [CTypeDecl] -> [QName]
+ignoredTypes = computeIgnoredTypes []
+ where
+  computeIgnoredTypes its types =
+    let newits = map typeName (filter (containsFuncTypes its) types)
+     in if null newits
+        then its
+        else computeIgnoredTypes (newits++its)
+               (filter (\t -> typeName t `notElem` newits) types)
+
+  containsFuncTypes its (CTypeSyn _ _ _ t) = containsFuncType its t
+  containsFuncTypes its (CType _ _ _ cs) =
+    any (\ (CCons _ _ _ cts) -> any (containsFuncType its) cts) cs
+  
+  containsFuncType _ (CTVar _)        = False
+  containsFuncType _ (CFuncType _ _)  = True
+  containsFuncType its (CTCons cn targs) =
+    cn `elem` its || any (containsFuncType its) targs
+  
 xml :: [Options] -> String -> [CExpr] -> [CExpr] -> CExpr
 xml opts name attrs elems 
   = applyF ("XML","XElem")
@@ -189,16 +216,16 @@ xmlType = CTCons ("XML","XmlExp") []
 -------------------------------------------------
 
 mkXml2Type :: [Options] -> CTypeDecl -> CFuncDecl
-mkXml2Type _ (CTypeSyn name vis vars t) 
-  = CFunc (fromXmlName name) 1 vis
-          (CFuncType xmlType (CTCons name (map CTVar vars)))
-          (CRules CFlex [CRule [CPVar (0,"x0")] 
-                               [noGuard (callXml2 (t,0))] []])
-mkXml2Type opts (CType name vis vars cs) 
-  = CFunc (fromXmlName name) (1+length vars) vis
-          (xml2typeType vars 
-             (CFuncType xmlType (CTCons name (map CTVar vars))))
-          (CRules CFlex (map (mkXml2ConsDecl opts $ map (CPVar . renVar) vars) cs))
+mkXml2Type _ (CTypeSyn name vis vars t) =
+  CFunc (fromXmlName name) 1 vis
+        (CFuncType xmlType (CTCons name (map CTVar vars)))
+        (CRules CFlex [CRule [CPVar (0,"x0")] 
+                             [noGuard (callXml2 (t,0))] []])
+mkXml2Type opts (CType name vis vars cs) =
+  CFunc (fromXmlName name) (1+length vars) vis
+        (xml2typeType vars 
+           (CFuncType xmlType (CTCons name (map CTVar vars))))
+        (CRules CFlex (map (mkXml2ConsDecl opts $ map (CPVar . renVar) vars) cs))
   
 renVar :: (a,String) -> (a,String)
 renVar (i,s) = case s of

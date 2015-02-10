@@ -142,7 +142,7 @@ changeTrees n (Node t v subtrees : trees) =
                     return (Node t v nsts : trees)
                else changeTrees (n-l) trees >>= \nts -> return (Node t v subtrees : nts)
 
-openNode :: (a, [(a, [String])]) -> IO [Tree (String, [(a, [String])])]
+openNode :: Eq a => (a, [(a, [String])]) -> IO [Tree (String, [(a, [String])])]
 openNode (mod,modimps) = let mbimps = lookup mod modimps in
   return $  maybe [] (map (\m->Leaf m (m,modimps))) mbimps
 
@@ -758,7 +758,7 @@ findFunDeclInProgText FlatCurryExp progtext fname =
 findFunDeclInProgText OtherText _ _ = 0
 
 -- finds first declaration line:
-findFirstDeclLine :: [a] -> [[a]] -> Int -> Int
+findFirstDeclLine :: String -> [String] -> Int -> Int
 findFirstDeclLine _ [] _ = 0 -- not found
 findFirstDeclLine f (l:ls) n =
      if isPrefixOf f l then n else findFirstDeclLine f ls (n+1)
