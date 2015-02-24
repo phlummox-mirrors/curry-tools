@@ -23,7 +23,7 @@ hoOr HO _ = HO
 hoOr FO x = x
 
 ------------------------------------------------------------------------
--- higher-order datatype analysis 
+-- higher-order data type analysis 
 
 hiOrdType :: Analysis Order
 hiOrdType =  dependencyTypeAnalysis "HiOrderType" FO orderOfType
@@ -69,6 +69,7 @@ orderOfFunc :: ProgInfo Order -> FuncDecl-> Order
 orderOfFunc orderMap func =
   orderOfFuncTypeArity orderMap (funcType func) (funcArity func)
 
+orderOfFuncTypeArity :: ProgInfo Order -> TypeExpr -> Int -> Order
 orderOfFuncTypeArity orderMap functype arity = 
   if arity==0
   then
@@ -76,7 +77,7 @@ orderOfFuncTypeArity orderMap functype arity =
      FuncType _ _   -> HO
      TVar (-42)     -> HO
      TCons x (y:ys) -> hoOr (orderOfFuncTypeArity orderMap y 0) 
-                            (orderOfFuncTypeArity orderMap (TCons x ys) 0) 
+                            (orderOfFuncTypeArity orderMap (TCons x ys) 0)
      TCons tc [] -> fromMaybe FO (lookupProgInfo tc orderMap) 
      _ -> FO
   else let (FuncType x y) = functype 

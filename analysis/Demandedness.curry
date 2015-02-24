@@ -91,6 +91,7 @@ daFuncRule calledFuncs (Rule args rhs) =
         then absEvalBindings bs (i:bvs)
         else absEvalBindings bs bvs
 
+prelude :: String
 prelude = "Prelude"
 
 ------------------------------------------------------------------------------

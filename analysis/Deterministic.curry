@@ -95,6 +95,7 @@ extraVarInExpr (Case _  e bs) = extraVarInExpr e || any extraVarInBranch bs
                 where extraVarInBranch (Branch _ be) = extraVarInExpr be
 extraVarInExpr (Typed e _) = extraVarInExpr e
 
+pre :: String -> QName
 pre n = ("Prelude",n)
 
 ------------------------------------------------------------------------------
