@@ -43,12 +43,14 @@ data AnalysisServerMessage =
 --- Main function to start the server.
 --- Without any program arguments, the server is started on a socket.
 --- Otherwise, it is started in batch mode to analyze a module.
+main :: IO ()
 main = do
   debugMessage 1 systemBanner
   initializeAnalysisSystem
   args <- getArgs
   processArgs False args
 
+processArgs :: Bool -> [String] -> IO ()
 processArgs enforce args = case args of
   [] -> mainServer Nothing
   ["-p",port]  -> maybe showError
@@ -79,6 +81,7 @@ processArgs enforce args = case args of
 initializeAnalysisSystem :: IO ()
 initializeAnalysisSystem = updateRCFile
 
+showHelp :: IO ()
 showHelp = putStrLn $
   "Usage: cass <options> [-p <port>] :\n" ++
   "       start analysis system in server mode\n\n"++
@@ -233,6 +236,7 @@ startWorkers number workersocket serveraddress workerport handles = do
     else return handles
 
 -- stop all workers at server stop
+stopWorkers :: [Handle] -> IO ()
 stopWorkers [] = done
 stopWorkers (handle:whandles) = do
   hPutStrLn handle (showQTerm StopWorker)
@@ -241,6 +245,7 @@ stopWorkers (handle:whandles) = do
 
 --------------------------------------------------------------------------
 -- server loop to answer analysis requests over network
+serverLoop :: Socket -> [Handle] -> IO ()
 serverLoop socket1 whandles = do
   --debugMessage 3 "SERVER: serverLoop"
   connection <- waitForSocketAccept socket1 waitTime
@@ -262,6 +267,7 @@ hGetLineUntilEOF h = do
                       else do cs <- hGetLineUntilEOF h
                               return (c:cs)
 
+serverLoopOnHandle :: Socket -> [Handle] -> Handle -> IO ()
 serverLoopOnHandle socket1 whandles handle = do
   eof <- hIsEOF handle
   if eof
@@ -313,6 +319,7 @@ serverLoopOnHandle socket1 whandles handle = do
 
 -- Send a server result in the format "ok <n>\n<result text>" where <n>
 -- is the number of lines of the <result text>.
+sendServerResult :: Handle -> String -> IO ()
 sendServerResult handle resultstring = do
   let resultlines = lines resultstring
   hPutStrLn handle ("ok " ++ show (length resultlines))
@@ -320,6 +327,7 @@ sendServerResult handle resultstring = do
   hFlush handle
 
 -- Send a server error in the format "error <error message>\n".
+sendServerError :: Handle -> String -> IO ()
 sendServerError handle errstring = do
   debugMessage 1 errstring
   hPutStrLn handle ("error "++errstring)

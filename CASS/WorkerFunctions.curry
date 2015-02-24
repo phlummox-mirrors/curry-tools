@@ -129,7 +129,8 @@ typeInfos2ProgInfo prog infos = lists2ProgInfo $
                     in (tname, fromJust (lookup tname infos)))
         (partition isVisibleType (progTypes prog))
 
-map2 f (list1,list2) = (map f list1,map f list2)
+map2 :: (a -> b) -> ([a], [a]) -> ([b], [b])
+map2 f (xs,ys) = (map f xs, map f ys)
 
 --- Update a given value list (second argument) w.r.t. new values given
 --- in the first argument list.
@@ -242,7 +243,7 @@ executeAnalysis (DependencyFuncAnalysis _ _ anaFunc) prog
                                importInfos sccstartvals)
                 (listToFM (<) startvals)
                 (reverse sccDecls)
-  _ -> errorUnknownFixpoint
+  _ -> error unknownFixpointMessage
 
 executeAnalysis (DependencyTypeAnalysis _ _ anaType) prog
                 importInfos startvals fpmethod = case fpmethod of
@@ -266,10 +267,10 @@ executeAnalysis (DependencyTypeAnalysis _ _ anaType) prog
                                importInfos sccstartvals)
                 (listToFM (<) startvals)
                 (reverse sccDecls)
-  _ -> errorUnknownFixpoint
+  _ -> error unknownFixpointMessage
 
-errorUnknownFixpoint =
-  error "Unknown value for 'fixpoint' in configuration file!"
+unknownFixpointMessage :: String
+unknownFixpointMessage = "Unknown value for 'fixpoint' in configuration file!"
 
 --- Add the directly called functions to each function declaration.
 addCalledFunctions :: FuncDecl -> (FuncDecl,[QName])
@@ -280,6 +281,7 @@ addUsedTypes :: TypeDecl -> (TypeDecl,[QName])
 addUsedTypes tdecl = (tdecl, dependsDirectlyOnTypes tdecl)
 
 --- Gets all constructors of datatype declaration.
+consDeclsOfType :: TypeDecl -> [ConsDecl]
 consDeclsOfType (Type _ _ _ consDecls) = consDecls
 consDeclsOfType (TypeSyn _ _ _ _) = []
 

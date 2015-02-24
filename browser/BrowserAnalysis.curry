@@ -255,6 +255,7 @@ viewFuncDepGraphs fdecls =
   map (\(f,fgraph)->(f,showDGraph f (isExternal fdecls) fgraph))
       (dependencyGraphs fdecls)
 
+isExternal :: [FuncDecl] -> QName -> Bool
 isExternal [] _ = True -- this case should not occur
 isExternal (Func g _ _ _ rule : gs) f = if f==g then isExternalRule rule
                                                 else isExternal gs f
