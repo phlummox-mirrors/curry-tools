@@ -26,7 +26,10 @@ wui :: String -> QName
 wui f = ("WUI", f)
 
 -- Some module names:
+dataModuleName :: String
 dataModuleName = "RoutesData"
+
+mappingModuleName :: String
 mappingModuleName = "ControllerMapping"
 
 relatedRelation :: String -> Relationship -> String

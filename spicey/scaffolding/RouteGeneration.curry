@@ -21,35 +21,28 @@ generateRoutesForERD (ERD _ entities _) =
       1 
       Public 
       (baseType (mappingModuleName, "ControllerReference") ~> controllerType)
-      [
-        CRule [CPVar (1, "fktref")]
-        [
-          noGuard (
-            CCase (CVar (1, "fktref")) 
-              (
-                [CBranch (CPComb (dataModuleName, "ProcessListController") [])
+      [simpleRule [CPVar (1, "fktref")]
+         (CCase CRigid (CVar (1, "fktref")) 
+              ( [cBranch (CPComb (dataModuleName, "ProcessListController") [])
                          (constF (spiceySysCtrl, "processListController")),
-                 CBranch (CPComb (dataModuleName, "LoginController") [])
+                 cBranch (CPComb (dataModuleName, "LoginController") [])
                          (constF (spiceySysCtrl, "loginController"))] ++
                 map branchesForEntity entities ++
-                [CBranch (CPVar (2,"_"))
+                [cBranch (CPVar (2,"_"))
                   (applyF ("Spicey", "displayError")
                           [string2ac "getController: no mapping found"])]
               )
-          )
-        ]
-        []
-      ]
+          )]
   ] -- functions
   [] -- opdecls
   
 -- startpoint controller prefixes
 controllerPrefixes = ["List","New"]
 
-branchesForEntity :: Entity -> CBranchExpr
+branchesForEntity :: Entity -> (CPattern, CRhs)
 branchesForEntity (Entity entityName _) =
   let controllerReference = entityName++"Controller"
-   in CBranch (CPComb ("RoutesData", controllerReference) [])
+   in cBranch (CPComb ("RoutesData", controllerReference) [])
               (constF (controllerReference, "main"++controllerReference))
   
 generateStartpointDataForERD :: ERD -> CurryProg
@@ -58,14 +51,13 @@ generateStartpointDataForERD (ERD _ entities _) = CurryProg
   ["Authentication"] -- imports
   [
     CType (dataModuleName, "ControllerReference") Public []
-          ([CCons (dataModuleName, "ProcessListController") 0 Public [],
-            CCons (dataModuleName, "LoginController") 0 Public []] ++
+          ([CCons (dataModuleName, "ProcessListController") Public [],
+            CCons (dataModuleName, "LoginController") Public []] ++
            map controllerReferencesForEntity entities),
     urlMatchType,
     routeType
   ] -- typedecls
-  [
-   cmtfunc 
+  [cmtfunc 
      ("This constant specifies the association of URLs to controllers.\n"++
       "Controllers are identified here by constants of type\n"++
       "ControllerReference. The actual mapping of these constants\n"++
@@ -75,9 +67,8 @@ generateStartpointDataForERD (ERD _ entities _) = CurryProg
      0
      Public 
      (ioType routeMappingType)
-     [CRule []
-       [noGuard
-         (CDoExpr
+     [simpleRule []
+        (CDoExpr
           [CSPat (CPVar (1,"login"))
                  (constF ("Authentication","getSessionLogin")),
            CSExpr $ applyF (pre "return")
@@ -105,10 +96,7 @@ generateStartpointDataForERD (ERD _ entities _) = CurryProg
              )
             ]
          ]
-        )
-       ]
-       []
-     ]
+        )]
   ] -- functions
   [] -- opdecls
  where
@@ -133,10 +121,10 @@ generateStartpointDataForERD (ERD _ entities _) = CurryProg
   urlMatchType :: CTypeDecl
   urlMatchType =
     CType (dataModuleName, "UrlMatch") Public [] [
-      CCons (dataModuleName, "Exact") 1 Public [stringType],
-      CCons (dataModuleName, "Prefix") 2 Public [stringType,stringType],
-      CCons (dataModuleName, "Matcher") 1 Public [stringType ~> boolType],
-      CCons (dataModuleName, "Always") 0 Public []
+      CCons (dataModuleName, "Exact")   Public [stringType],
+      CCons (dataModuleName, "Prefix")  Public [stringType,stringType],
+      CCons (dataModuleName, "Matcher") Public [stringType ~> boolType],
+      CCons (dataModuleName, "Always")  Public []
     ]
     
   routeMappingType :: CTypeExpr
@@ -151,4 +139,4 @@ generateStartpointDataForERD (ERD _ entities _) = CurryProg
     
   controllerReferencesForEntity :: Entity -> CConsDecl
   controllerReferencesForEntity (Entity entityName _) =
-    CCons (dataModuleName, entityName++"Controller") 0 Public []
+    CCons (dataModuleName, entityName++"Controller") Public []
