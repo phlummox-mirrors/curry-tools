@@ -73,44 +73,39 @@ mainController erdname (Entity entityName _) _ _ =
    " entity according to the URL parameter.")
   entityName "main" 0
     controllerType -- function type
-    [ -- rules
-    CRule
-      [] -- no arguments
-      [noGuard (
-        CDoExpr
+    [simpleRule [] -- no arguments
+      (CDoExpr
          [CSPat (CPVar (1,"args"))
                 (constF ("Spicey","getControllerParams")),
           CSExpr
-           (CCase (CVar (1,"args"))
-            ([CBranch (listPattern [])
+           (CCase CRigid (CVar (1,"args"))
+            ([cBranch (listPattern [])
                       (constF (controllerFunctionName entityName "list")),
-              CBranch (listPattern [stringPattern "list"])
+              cBranch (listPattern [stringPattern "list"])
                       (constF (controllerFunctionName entityName "list")),
-              CBranch (listPattern [stringPattern "new"])
+              cBranch (listPattern [stringPattern "new"])
                       (constF (controllerFunctionName entityName "new")),
-              CBranch (listPattern [stringPattern "show", CPVar (2,"s")])
+              cBranch (listPattern [stringPattern "show", CPVar (2,"s")])
                 (applyF ("Spicey","applyControllerOn")
                   [applyF (erdname,"read"++entityName++"Key") [CVar (2,"s")],
                    constF (erdname,"get"++entityName),
                    constF (controllerFunctionName entityName "show")]),
-              CBranch (listPattern [stringPattern "edit", CPVar (2,"s")])
+              cBranch (listPattern [stringPattern "edit", CPVar (2,"s")])
                 (applyF ("Spicey","applyControllerOn")
                   [applyF (erdname,"read"++entityName++"Key") [CVar (2,"s")],
                    constF (erdname,"get"++entityName),
                    constF (controllerFunctionName entityName "edit")]),
-              CBranch (listPattern [stringPattern "delete", CPVar (2,"s")])
+              cBranch (listPattern [stringPattern "delete", CPVar (2,"s")])
                 (applyF ("Spicey","applyControllerOn")
                   [applyF (erdname,"read"++entityName++"Key") [CVar (2,"s")],
                    constF (erdname,"get"++entityName),
                    constF (controllerFunctionName entityName "delete")]),
-              CBranch (CPVar (3,"_"))
+              cBranch (CPVar (3,"_"))
                  (applyF ("Spicey", "displayError")
                          [string2ac "Illegal URL"])])
           )
          ]
       )]
-      [] -- where clauses
-    ]
 
 -- generates a controller to show a form to create a new entity
 -- the input is then passed to the create controller
@@ -129,11 +124,8 @@ newController erdname (Entity entityName attrList) relationships allEntities =
     entityName "new" 0
       controllerType -- function type
       [ -- rules
-      CRule
-        [] -- no arguments
-        [
-          noGuard (
-           applyF (pre "$")
+       simpleRule [] -- no arguments
+        (applyF (pre "$")
             [applyF checkAuthorizationFunc
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [constF (authModName,"NewEntity")]],
@@ -173,10 +165,7 @@ newController erdname (Entity entityName attrList) relationships allEntities =
               ]
             )
            ]
-          )
-        ]
-        [] -- where clauses
-      ]
+          )]
 
 createTransaction :: ControllerGenerator
 createTransaction erdname (Entity entityName attrList) relationships allEntities =
@@ -198,15 +187,14 @@ createTransaction erdname (Entity entityName attrList) relationships allEntities
                   map ctvar manyToOneEntities ++
                   map (listType . ctvar) manyToManyEntities)
         ~> CTCons (db "Transaction") [baseType (pre "()")])
-      [CRule 
+      [simpleRule 
         [tuplePattern
           (map (\ (param, varId) -> CPVar (varId, param)) 
                (zip (parameterList ++ map lowerFirst manyToOneEntities ++
                      map (\e -> (lowerFirst e) ++ "s") manyToManyEntities)
                      [1..]))
         ] -- parameterlist for controller
-        [noGuard (
-          applyF (db "|>>")
+        (applyF (db "|>>")
            [foldr1 (\a b -> applyF (db "|>>=") [a,b])
               ([applyF (entityConstructorFunction erdname (Entity entityName attrList) relationships) 
                        (map (\ ((Attribute name dom key null), varId) -> 
@@ -223,10 +211,7 @@ createTransaction erdname (Entity entityName attrList) relationships allEntities
                      ] ++ (map (\name -> applyF (controllerModuleName entityName, "add"++(linkTableName entityName name allEntities)) [cvar ((lowerFirst name)++"s")]) manyToManyEntities)
                     ),
             applyF (db "returnT") [constF (pre "()")]]
-           )
-        ]
-        [] -- where clauses
-      ]
+           )]
       
 editController :: ControllerGenerator
 editController erdname (Entity entityName attrList) relationships allEntities =
@@ -241,12 +226,8 @@ editController erdname (Entity entityName attrList) relationships allEntities =
     entityName "edit" 1
       (baseType (erdname,entityName) ~> controllerType
       )
-      [
-      CRule 
-        [CPVar pvar] -- parameterlist for controller
-        [
-          noGuard (
-           applyF (pre "$")
+      [simpleRule [CPVar pvar] -- parameterlist for controller
+        (applyF (pre "$")
             [applyF checkAuthorizationFunc
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [applyF (authModName,"UpdateEntity") [CVar pvar]]],
@@ -319,10 +300,7 @@ editController erdname (Entity entityName attrList) relationships allEntities =
               ]
             )
            ]
-          )
-        ]
-        [] -- where clauses
-      ]
+          )]
 
 updateTransaction :: ControllerGenerator
 updateTransaction erdname (Entity entityName attrList) _ allEntities =
@@ -339,7 +317,7 @@ updateTransaction erdname (Entity entityName attrList) _ allEntities =
                    map (\name -> listType (ctvar name)) manyToManyEntities)
         ~> CTCons (db "Transaction") [baseType (pre "()")]
       )
-      [CRule 
+      [simpleRule 
         [tuplePattern
                ([CPVar (0, lowerFirst entityName)] ++
                 (map (\ (param, varId) -> CPVar (varId, param)) 
@@ -348,8 +326,7 @@ updateTransaction erdname (Entity entityName attrList) _ allEntities =
                                manyToManyEntities)
                           [1..])))
         ] -- parameter list for controller
-        [noGuard (
-           foldr1 (\a b -> applyF (db "|>>") [a,b])
+        (foldr1 (\a b -> applyF (db "|>>") [a,b])
                   ([applyF (erdname, "update"++entityName)
                            [cvar (lowerFirst entityName)]] ++ 
                    (map  (\name -> 
@@ -362,10 +339,7 @@ updateTransaction erdname (Entity entityName attrList) _ allEntities =
                         ) ++
                         (map (\name -> applyF (controllerModuleName entityName, "add"++(linkTableName entityName name allEntities)) [cvar ((lowerFirst name)++"s"++(linkTableName entityName name allEntities)), cvar (lowerFirst entityName)]) manyToManyEntities)
                       )
-          )
-        ]
-        [] -- where clauses
-      ]
+          )]
 
 --- Generates controller to delete an entity after confirmation.
 deleteController :: ControllerGenerator
@@ -378,10 +352,8 @@ deleteController erdname (Entity entityName _) _ _ =
    "and proceeds with the list controller.")
   entityName "delete" 1
   (baseType (erdname, entityName) ~> controllerType)
-  [CRule 
-    [CPVar entvar]
-    [noGuard (
-      applyF (pre "$")
+  [simpleRule [CPVar entvar]
+    (applyF (pre "$")
        [applyF checkAuthorizationFunc
          [applyF (enauthModName,entlc++"OperationAllowed")
                  [applyF (authModName,"DeleteEntity") [CVar entvar]]],
@@ -402,8 +374,6 @@ deleteController erdname (Entity entityName _) _ _ =
              constF (controllerFunctionName entityName "list")],
           applyF (controllerFunctionName entityName "show")
                  [CVar entvar]]])]
-     [] -- where clauses
-    ]
 
 --- Generates a transaction to delete an entity.
 deleteTransaction :: ControllerGenerator
@@ -418,10 +388,9 @@ deleteTransaction erdname (Entity entityName attrList) _ allEntities =
     1 Private
     (baseType (erdname, entityName) ~>
                      CTCons (db "Transaction") [baseType (pre "()")])
-    [CRule 
+    [simpleRule 
       [CPVar entvar] -- entity parameter for controller
-      [noGuard
-        (foldr1 (\a b -> applyF (db "|>>") [a,b])
+      (foldr1 (\a b -> applyF (db "|>>") [a,b])
            (map (\name ->
                   applyF (db "|>>=")
                          [applyF (controllerModuleName entityName,
@@ -435,10 +404,7 @@ deleteTransaction erdname (Entity entityName attrList) _ allEntities =
                         ]
                  )
                  manyToManyEntities ++
-            [applyF (erdname, "delete"++entityName) [CVar entvar]]))
-      ]
-      [] -- where clauses
-    ]
+            [applyF (erdname, "delete"++entityName) [CVar entvar]]))]
 
 listController :: ControllerGenerator
 listController erdname (Entity entityName _) _ _ =
@@ -450,12 +416,8 @@ listController erdname (Entity entityName _) _ _ =
        "or edit an entity.")
       entityName "list" 0
       controllerType
-      [
-      CRule 
-        [] -- no arguments
-        [
-          noGuard (
-           applyF (pre "$")
+      [simpleRule [] -- no arguments
+        (applyF (pre "$")
             [applyF checkAuthorizationFunc
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [applyF (authModName,"ListEntities") []]],
@@ -470,10 +432,7 @@ listController erdname (Entity entityName _) _ _ =
               ]
             )
            ]
-          )
-        ]
-        [] -- where clauses
-      ]
+          )]
 
 showController :: ControllerGenerator
 showController erdname (Entity entityName attrList) relationships allEntities =
@@ -485,13 +444,10 @@ showController erdname (Entity entityName attrList) relationships allEntities =
     controllerFunction
     ("Shows a "++entityName++" entity.")
     entityName "show" 1
-      (baseType (erdname,entityName) ~> controllerType
-      )
-      [
-      CRule 
+      (baseType (erdname,entityName) ~> controllerType)
+      [simpleRule 
         [CPVar pvar] -- parameterlist for controller
-        [noGuard (
-           applyF (pre "$")
+        (applyF (pre "$")
             [applyF checkAuthorizationFunc
               [applyF (enauthModName,lowerFirst entityName++"OperationAllowed")
                 [applyF (authModName,"ShowEntity") [CVar pvar]]],
@@ -540,8 +496,6 @@ showController erdname (Entity entityName attrList) relationships allEntities =
               ])
             ]
           )
-        ]
-        [] -- where clauses
       ]
 
 -- Code to call the list controller of an entity where the current
@@ -566,22 +520,13 @@ manyToManyAddOrRemove erdname (Entity entityName _) entities allEntities =
       Private
       (listType (ctvar e2) ~> ctvar e1 ~> CTCons (db "Transaction")
                                                  [tupleType []])
-      [
-        CRule [CPVar (0, (lowerFirst e2)++"s"), CPVar (1, (lowerFirst e1))]
-        [
-          noGuard (
-          applyF (db "mapT_") [
-            CLambda [CPVar(2, "t")] (applyF (erdname, dbFuncPrefix++(linkTableName e1 e2 allEntities)) [
-                applyF (erdname, (lowerFirst e1)++"Key") [cvar (lowerFirst e1)],
-                applyF (erdname, (lowerFirst e2)++"Key") [cvar "t"]
-              ]
-            ),
-            cvar ((lowerFirst e2)++"s")
-          ]
-          )
-        ]
-        [] -- where clauses
-      ]
+      [simpleRule [CPVar (0, (lowerFirst e2)++"s"), CPVar (1, (lowerFirst e1))]
+        (applyF (db "mapT_")
+           [CLambda [CPVar(2, "t")]
+	     (applyF (erdname, dbFuncPrefix++(linkTableName e1 e2 allEntities))
+               [applyF (erdname, (lowerFirst e1)++"Key") [cvar (lowerFirst e1)],
+                applyF (erdname, (lowerFirst e2)++"Key") [cvar "t"]]),
+            cvar ((lowerFirst e2)++"s")])]
 
 getAll :: String -> Entity -> [String] -> [Entity] -> [CFuncDecl]
 getAll erdname (Entity entityName _) entities _ =
@@ -595,18 +540,17 @@ getAll erdname (Entity entityName _) entities _ =
       0
       Private
       (ioType (listType (ctvar foreignEntity)))
-      [
-        CRule []
-        [
-          noGuard (
-            applyF (db "runQ") [
-              applyF (db "queryAll") [
-                      CLambda [CPVar(0, take 1 (lowerFirst foreignEntity) )] (CLetDecl [(CLocalVar (1,"key"))] (applyF (erdname, lowerFirst foreignEntity) [cvar "key", cvar (take 1 (lowerFirst foreignEntity))]))
-                    ]          
-            ] 
-          )
-        ]
-        []
+      [simpleRule []
+        (applyF (db "runQ")
+          [applyF (db "queryAll")
+	    [CLambda [CPVar(0, take 1 (lowerFirst foreignEntity) )]
+	             (CLetDecl [(CLocalVars [(1,"key")])]
+		        (applyF (erdname, lowerFirst foreignEntity)
+			        [cvar "key",
+			         cvar (take 1 (lowerFirst foreignEntity))]))
+                    ]
+            ]
+       )
       ]
       
 manyToManyGetRelated :: String -> Entity -> [String] -> [Entity] -> [CFuncDecl]
@@ -621,26 +565,22 @@ manyToManyGetRelated erdname (Entity entityName _) entities allEntities =
       0
       Private
       (ctvar entityName ~> CTCons (db "Query") [listType (ctvar foreignEntity)])
-      [
-        CRule [CPVar (1, (take 1 $ lowerFirst entityName)++foreignEntity)]
-        [
-          noGuard (
-            applyF (db "queryAll") [
-                    CLambda [CPVar(0, take 1 (lowerFirst foreignEntity) )] 
-                      (CLetDecl [(CLocalVar (1,(take 1 $ lowerFirst entityName)++"key")), (CLocalVar (2,(take 1 $ lowerFirst foreignEntity)++"key"))]
-                      (
-                        foldr (\a b -> applyF ("Dynamic", "<>") [a,b]) 
-                        (applyF (erdname, lowerFirst (linkTableName entityName foreignEntity allEntities)) [cvar ((take 1 $ lowerFirst entityName)++"key"), cvar ((take 1 $ lowerFirst foreignEntity)++"key")])
-                        [
-                        (applyF (erdname, lowerFirst entityName) [cvar $ (take 1 $ lowerFirst entityName)++"key", cvar ((take 1 $ lowerFirst entityName)++foreignEntity)]),
-                        (applyF (erdname, lowerFirst foreignEntity) [cvar $ (take 1 $ lowerFirst foreignEntity)++"key", cvar (take 1 (lowerFirst foreignEntity))])
-                        ]
-                      )
-                      )
-                  ]
-          )
-        ]
-        []
+      [simpleRule [CPVar (1, (take 1 $ lowerFirst entityName)++foreignEntity)]
+        (applyF (db "queryAll")
+	  [CLambda [CPVar(0, take 1 (lowerFirst foreignEntity) )] 
+            (CLetDecl
+	       [CLocalVars [(1,(take 1 $ lowerFirst entityName)++"key"),
+	                    (2,(take 1 $ lowerFirst foreignEntity)++"key")]]
+               (foldr (\a b -> applyF ("Dynamic", "<>") [a,b]) 
+                 (applyF (erdname, lowerFirst (linkTableName entityName foreignEntity allEntities)) [cvar ((take 1 $ lowerFirst entityName)++"key"), cvar ((take 1 $ lowerFirst foreignEntity)++"key")])
+                 [
+                 (applyF (erdname, lowerFirst entityName) [cvar $ (take 1 $ lowerFirst entityName)++"key", cvar ((take 1 $ lowerFirst entityName)++foreignEntity)]),
+                 (applyF (erdname, lowerFirst foreignEntity) [cvar $ (take 1 $ lowerFirst foreignEntity)++"key", cvar (take 1 (lowerFirst foreignEntity))])
+                 ]
+               )
+            )
+          ]
+        )
       ]
 
 manyToOneGetRelated :: String -> Entity -> [String] -> [Entity]
@@ -662,13 +602,9 @@ manyToOneGetRelated erdname (Entity entityName _) entities _ relationships =
       0
       Private
       ((ctvar entityName) ~> CTCons (db "Transaction") [ctvar foreignEntity])
-      [CRule [CPVar argvar]
-        [noGuard (
-            applyF (erdname,"get"++foreignEntity)
-                   [applyF (erdname,fkeysel) [CVar argvar]])
-        ]
-        []
-      ]
+      [simpleRule [CPVar argvar]
+                  (applyF (erdname,"get"++foreignEntity)
+                          [applyF (erdname,fkeysel) [CVar argvar]])]
 
 relationshipName :: String -> String -> [Relationship] -> (String, String)
 relationshipName e1 e2 (rel:relrest)=
@@ -768,10 +704,7 @@ generateDefaultController _ (Entity ename _:_) = CurryProg
     1
     Public
     controllerType
-    [CRule []
-     [noGuard (constF (ename++"Controller","main"++ename++"Controller"))]
-     [] -- where clauses
-    ]
+    [simpleRule [] (constF (ename++"Controller","main"++ename++"Controller"))]
   ]
   [] -- opdecls
 
@@ -796,15 +729,13 @@ generateAuthorizations erdname entities = CurryProg
     (CTCons (authModName,"AccessType") [baseType (erdname,entityName)]
      ~> CTCons ("SessionInfo","UserSessionInfo") []
      ~> ioType (baseType (authModName,"AccessResult")))
-    [CRule [CPVar (1,"at"), CPVar (2,"_")]
-     [noGuard (CCase (CVar (1,"at"))
-       [CBranch (CPComb (authModName,"ListEntities") []) allowed,
-        CBranch (CPComb (authModName,"NewEntity")    []) allowed,
-        CBranch (CPComb (authModName,"ShowEntity")   [CPVar (3,"_")]) allowed,
-        CBranch (CPComb (authModName,"DeleteEntity") [CPVar (3,"_")]) allowed,
-        CBranch (CPComb (authModName,"UpdateEntity") [CPVar (3,"_")]) allowed])]
-     [] -- where clauses
-    ]
+    [simpleRule [CPVar (1,"at"), CPVar (2,"_")]
+     (CCase CRigid (CVar (1,"at"))
+       [cBranch (CPComb (authModName,"ListEntities") []) allowed,
+        cBranch (CPComb (authModName,"NewEntity")    []) allowed,
+        cBranch (CPComb (authModName,"ShowEntity")   [CPVar (3,"_")]) allowed,
+        cBranch (CPComb (authModName,"DeleteEntity") [CPVar (3,"_")]) allowed,
+        cBranch (CPComb (authModName,"UpdateEntity") [CPVar (3,"_")]) allowed])]
 
   -- Expression implemented access allowed
   allowed = applyF (pre "return") [constF (authModName,"AccessGranted")]

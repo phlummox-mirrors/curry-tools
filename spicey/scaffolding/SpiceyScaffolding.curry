@@ -5,7 +5,7 @@
 import ERD
 import IO
 import AbstractCurry
-import AbstractCurryPrinter
+--import AbstractCurryPrinter
 import PrettyAbstract
 import AbstractCurryGoodies
 import Transformation
@@ -19,7 +19,6 @@ import ViewGeneration
 import RouteGeneration
 import EntitiesToHtmlGeneration
 
-  
 getRelationships :: ERD -> [Relationship]
 getRelationships (ERD _ _ relationships) = relationships
 

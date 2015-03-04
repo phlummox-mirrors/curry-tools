@@ -3,7 +3,7 @@
 -- write while developing the program. 
 --
 -- @author Bernd Brassel, with changes by Michael Hanus
--- @version October 2012
+-- @version February 2015
 -- 
 -- Possible extensions: Use type synonyms to reduce annotations
 ------------------------------------------------------------------
@@ -72,7 +72,7 @@ getTypes (CurryProg _ _ _ funcDecls1 _) (CurryProg _ _ _ funcDecls2 _)
   where
     getTypesFuncDecls [] [] = []
     getTypesFuncDecls (CFunc name _ _ t1 _:fs1) (CFunc _ _ _ t2 _:fs2) 
-      | isUntyped t2 = (snd name,t1):getTypesFuncDecls fs1 fs2
+      | isUntyped t2 = (snd name,t1) : getTypesFuncDecls fs1 fs2
       | otherwise = getTypesFuncDecls fs1 fs2
 
 --- addtypes implements a simple algorithm to decide where to add type 
@@ -127,7 +127,7 @@ addTypesCode code newFts ((f,t):fts)
 --- name type variables with a,b,c ... z, t0, t1, ...
 
 toTVar :: Int -> CTypeExpr
-toTVar n | n<26 = CTVar (n,[chr (97+n)])
+toTVar n | n<26      = CTVar (n,[chr (97+n)])
          | otherwise = CTVar (n,"t"++show (n-26))
 
 --- test for functions not typed by the programmer

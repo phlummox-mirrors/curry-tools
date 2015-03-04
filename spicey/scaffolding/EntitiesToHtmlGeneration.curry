@@ -40,12 +40,8 @@ toListView erdname (Entity entityName attrlist) _ _ =
   (thisModuleName erdname, (lowerFirst entityName)++"ToListView") 2 Public
   (baseType (erdname, entityName)
     ~> listType (listType (baseType ("HTML", "HtmlExp"))))
-  [
-    CRule
-    [CPVar (1, lowerFirst entityName)]
-    [
-      noGuard (
-          list2ac (
+  [simpleRule [CPVar (1, lowerFirst entityName)]
+     (list2ac (
             (map (\a -> list2ac [
                           applyF (attributeToConverter a) [
                             applyF (erdname, (lowerFirst entityName)++(attributeName a)) [
@@ -57,10 +53,7 @@ toListView erdname (Entity entityName attrlist) _ _ =
               attrlist
            )
          )
-     )
-    ]
-    []
-  ]
+     )]
 
 toShortView :: ToHtmlGenerator
 toShortView erdname (Entity entityName attrlist) _ _ =
@@ -71,17 +64,11 @@ toShortView erdname (Entity entityName attrlist) _ _ =
   2
   Public
   (baseType (erdname, entityName) ~> stringType)
-  [
-    CRule
-    [CPVar (1,eName)]
-    [noGuard (
-       case attributeDomain firstKeyAttribute of
+  [simpleRule [CPVar (1,eName)]
+     (case attributeDomain firstKeyAttribute of
          StringDom _ -> accessFirstKeyAttribute
          _           -> applyF (pre "show") [accessFirstKeyAttribute]
-     )
-    ]
-    []
-  ]
+     )]
   where
     eName = lowerFirst entityName
 
@@ -124,9 +111,8 @@ toDetailsView erdname (Entity entityName attrlist) relationships allEntities =
        map (\ (name, varId) -> CPVar (varId, lowerFirst name ++ "s"))
            (zip manyToManyEntities [(length manyToOneEntities + 2)..])
     )
-    [
-      noGuard (
-        list2ac [
+    (CSimpleRhs
+       (list2ac [
           applyF ("Spicey", "spTable") [
             applyF (pre "map")
             [
@@ -138,10 +124,10 @@ toDetailsView erdname (Entity entityName attrlist) relationships allEntities =
             ]
           ]
         ]
-     )
-    ]
+      )
     [CLocalPat (CPVar (2,"detailedView"))
-        (list2ac
+       (CSimpleRhs
+         (list2ac
             (map (\a -> list2ac [
                           applyF (attributeToConverter a)
                                  [applyF (erdname, eName ++ attributeName a)
@@ -164,8 +150,8 @@ toDetailsView erdname (Entity entityName attrlist) relationships allEntities =
                  (zip manyToManyEntities [(length manyToOneEntities + 2)..])
             )
         )
-        []
-    ]
+        [])
+    ])
   ]
 
 labelList :: ToHtmlGenerator
@@ -180,12 +166,8 @@ labelList erdname (Entity entityName attrlist) relationships allEntities =
     (
       listType (listType (CTCons ("HTML", "HtmlExp") []))
     )
-    [
-      CRule
-      []
-      [
-        noGuard (
-          list2ac (
+    [simpleRule []
+      (list2ac (
             (map (\ (Attribute name domain _ _) ->
                    list2ac [applyF ("HTML", "textstyle")
                                [string2ac ("label label_for_type_"++
@@ -197,11 +179,9 @@ labelList erdname (Entity entityName attrlist) relationships allEntities =
                                    string2ac s]])
                  (manyToOneEntities++manyToManyEntities))
           )
-       )
-      ]
-      []
-    ]
+       )]
 
+thisModuleName :: String -> String
 thisModuleName erdname = erdname++"EntitiesToHtml"
 
 attributeToConverter :: Attribute -> QName
