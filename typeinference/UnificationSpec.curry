@@ -110,9 +110,9 @@ data UnificationError = Clash Term Term | OccurCheck VarIdx Term
 --- Unifies the given equations.
 ---
 --- @param eqs - the equations to unify
---- @return either an UnificationError or a substitution
+--- @return either a UnificationError or a substitution
 unify :: TermEqs -> Either UnificationError Subst
-unify ts = either Left (Right . eqsToSubst) (unify' ts [])
+unify ts = either Left (Right . eqsToSubst) (unify' [] ts)
 
 eqsToSubst :: TermEqs -> Subst
 eqsToSubst []            = emptySubst
@@ -122,6 +122,9 @@ eqsToSubst ((a, b) : ts) = case a of
     TermVar n    -> extendSubst (eqsToSubst ts) n a
     _            -> error $ "eqsToSubst: " ++ show (a, b)
 
+--- Auxiliary unification operation.
+--- @param sub - the current substitution represented by term equations
+--- @param eqs - the equations to unify
 unify' :: TermEqs -> TermEqs -> Either UnificationError TermEqs
 unify' s [] = Right s
 unify' s (((TermVar      i), b@(TermCons _ _)):e) = elim s i b e
