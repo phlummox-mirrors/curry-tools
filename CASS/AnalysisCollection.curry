@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version August 2014
+--- @version May 2015
 --------------------------------------------------------------------
 
 module AnalysisCollection(

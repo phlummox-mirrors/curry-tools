@@ -291,11 +291,11 @@ argumentTypesFor (Just EmptyFunc)       _      = repeat Any
 argumentTypesFor (Just (AFType rtypes)) reqval =
   maybe (-- no exactly matching type, look for Any type:
          maybe (-- no Any type: if reqtype==Any, try lub of all other types:
-                if reqval==Any && not (null rtypes)
+                if (reqval==Any || reqval==AnyC) && not (null rtypes)
                 then foldr1 lubArgs (map fst rtypes)
                 else repeat Any)
                fst
-               (find ((==Any) . snd) rtypes))
+               (find ((`elem` [AnyC,Any]) . snd) rtypes))
         fst
         (find ((==reqval) . snd) rtypes)
  where
@@ -309,14 +309,14 @@ containsBeqRule (Rule _ rhs) = containsBeqExp rhs
  where
   -- containsBeq an expression w.r.t. a required value
   containsBeqExp exp = case exp of
-    Var _ -> False
-    Lit _ -> False
+    Var _        -> False
+    Lit _        -> False
     Comb _ qf es -> qf == pre "==" || qf == pre "/=" || any containsBeqExp es
-    Free _ e -> containsBeqExp e
-    Or e1 e2 -> containsBeqExp e1 || containsBeqExp e2
-    Typed e _ -> containsBeqExp e
-    Case _ e bs -> containsBeqExp e || any containsBeqBranch bs
-    Let bs e -> containsBeqExp e || any containsBeqExp (map snd bs)
+    Free _ e     -> containsBeqExp e
+    Or e1 e2     -> containsBeqExp e1 || containsBeqExp e2
+    Typed e _    -> containsBeqExp e
+    Case _ e bs  -> containsBeqExp e || any containsBeqBranch bs
+    Let bs e     -> containsBeqExp e || any containsBeqExp (map snd bs)
 
   containsBeqBranch (Branch _ be) = containsBeqExp be
 
@@ -342,13 +342,12 @@ loadPreludeBoolReqValues = do
 -- Current relevant Boolean functions of the prelude:
 preludeBoolReqValues :: [(QName, AFType)]
 preludeBoolReqValues =
- [((pre "&&"),(AFType [([Any,Any],(Cons (pre "False"))),
-           ([(Cons (pre "True")),(Cons (pre "True"))],(Cons (pre "True")))]))
- ,((pre "not"),(AFType [([(Cons (pre "True"))],(Cons (pre "False"))),
-                        ([(Cons (pre "False"))],(Cons (pre "True")))]))
- ,((pre "||"),
-    (AFType [([(Cons (pre "False")),(Cons (pre "False"))],(Cons (pre "False"))),
-             ([Any,Any],(Cons (pre "True")))]))
- ,((pre "solve"),(AFType [([(Cons (pre "True"))],(Cons (pre "True")))]))
- ,((pre "&&>"),(AFType [([(Cons (pre "True")),Any],Any)]))
+ [(pre "&&",    AFType [([Any,Any],false), ([true,true],true)])
+ ,(pre "not",   AFType [([true],false), ([false],true)])
+ ,(pre "||",    AFType [([false,false],false), ([Any,Any],true)])
+ ,(pre "solve", AFType [([true],true)])
+ ,(pre "&&>",   AFType [([true,Any],AnyC)])
  ]
+ where
+   false = Cons (pre "False")
+   true  = Cons (pre "True")

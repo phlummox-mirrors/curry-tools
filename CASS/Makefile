@@ -16,12 +16,7 @@ DEPS = Analysis.curry AnalysisCollection.curry AnalysisDependencies.curry \
        LoadAnalysis.curry SCC.curry ServerFormats.curry \
        ServerFunctions.curry WorkerFunctions.curry \
        $(LIBDIR)/Distribution.curry $(LIBDIR)/PropertyFile.curry \
-       $(METADIR)/FlatCurry.curry \
-       $(ANADIR)/Deterministic.curry $(ANADIR)/HigherOrder.curry \
-       $(ANADIR)/Indeterministic.curry $(ANADIR)/RightLinearity.curry \
-       $(ANADIR)/SolutionCompleteness.curry $(ANADIR)/TotallyDefined.curry \
-       $(ANADIR)/Demandedness.curry $(ANADIR)/Groundness.curry \
-       $(ANADIR)/RequiredValues.curry
+       $(METADIR)/FlatCurry.curry $(ANADIR)/*.curry
 
 .PHONY: all compile install clean uninstall
 
