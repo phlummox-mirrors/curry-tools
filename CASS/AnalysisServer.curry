@@ -5,10 +5,10 @@
 --- to use the analysis system in another Curry program.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version August 2014
+--- @version May 2015
 --------------------------------------------------------------------------
 
-module AnalysisServer(main, initializeAnalysisSystem,
+module AnalysisServer(main, initializeAnalysisSystem, analyzeModuleAsText,
                       analyzeModuleForBrowser, analyzeFunctionForBrowser,
                       analyzeGeneric, analyzePublic, analyzeInterface)
   where
@@ -67,8 +67,7 @@ processArgs enforce args = case args of
                                        processArgs enforce rargs
   [ananame,mname] ->
       if ananame `elem` registeredAnalysisNames
-      then analyzeModule ananame (stripSuffix mname) enforce AText >>=
-             putStrLn . formatResult mname "Text" Nothing True
+      then analyzeModuleAsText ananame (stripSuffix mname) enforce >>= putStrLn
       else showError
   _ -> showError
  where
@@ -115,6 +114,17 @@ mainServer mbport = do
    else
     serverLoop socket1 []
 
+
+--- Run the analysis system and show the analysis results in standard textual
+--- representation.
+--- The third argument is a flag indicating whether the
+--- (re-)analysis should be enforced.
+--- Note that, before its first use, the analysis system must be initialized
+--- by 'initializeAnalysisSystem'.
+analyzeModuleAsText :: String -> String -> Bool -> IO String
+analyzeModuleAsText ananame mname enforce =
+  analyzeModule ananame (stripSuffix mname) enforce AText >>=
+             return . formatResult mname "Text" Nothing True
 
 --- Run the analysis system to show the analysis results in the BrowserGUI.
 --- Note that, before its first use, the analysis system must be initialized

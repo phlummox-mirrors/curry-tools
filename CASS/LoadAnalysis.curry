@@ -11,7 +11,7 @@ module LoadAnalysis where
 import Directory
 import Distribution(stripCurrySuffix)
 import FilePath
-import System(system,getArgs,getEnviron)
+import System(system)
 import GenericProgInfo
 import Configuration(debugMessage,getWithPrelude)
 import IO
