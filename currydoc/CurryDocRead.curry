@@ -40,9 +40,9 @@ classifyLine line
  | take 7 line == "module "  = ModDef
  | take 7 line == "import "  = ModDef
  | otherwise = let id1 = getFirstId line
-                in if id1==""
+                in if null id1
                     then OtherLine
-                    else if id1=="data" || id1=="type"
+                    else if id1 == "data" || id1 == "type" || id1 == "newtype"
                           then DataDef (getDatatypeName line)
                           else FuncDef id1
  where
@@ -52,12 +52,12 @@ classifyLine line
 getFirstId :: String -> String
 getFirstId [] = ""
 getFirstId (c:cs) | isAlpha c = takeWhile isIdChar (c:cs)
-                  | c=='('    = takeWhile (/=')') cs
+                  | c == '('  = takeWhile (/=')') cs
                   | otherwise = ""
 
 -- is an alphanumeric character, underscore, or apostroph?
 isIdChar :: Char -> Bool
-isIdChar c = isAlphaNum c || c=='_' || c=='\''
+isIdChar c = isAlphaNum c || c == '_' || c == '\''
 
 
 -- group the classified lines into module comment and list of
@@ -65,7 +65,7 @@ isIdChar c = isAlphaNum c || c=='_' || c=='\''
 groupLines :: [SourceLine] -> (String,[(SourceLine,String)])
 groupLines sls =
   let (modcmts,progcmts) = break (==ModDef) sls
-   in if progcmts==[]
+   in if progcmts == []
       then ("", groupProgLines sls)
       else (concatMap getComment modcmts,
             groupProgLines (filter (/=ModDef) (tail progcmts)))
@@ -95,8 +95,8 @@ skipFuncDefs _ [] = []
 skipFuncDefs _ (Comment cmt : sls) = groupProgLines (Comment cmt : sls)
 skipFuncDefs _ (DataDef d   : sls) = groupProgLines (DataDef d   : sls)
 skipFuncDefs f (FuncDef f1  : sls) =
-  if f==f1 then skipFuncDefs f sls
-           else groupProgLines (FuncDef f1 : sls)
+  if f == f1 then skipFuncDefs f sls
+             else groupProgLines (FuncDef f1 : sls)
 skipFuncDefs f (ModDef      : sls) = skipFuncDefs f sls
 skipFuncDefs f (OtherLine   : sls) = skipFuncDefs f sls
 
@@ -105,8 +105,8 @@ skipDataDefs _ [] = []
 skipDataDefs _ (Comment cmt : sls) = groupProgLines (Comment cmt : sls)
 skipDataDefs _ (FuncDef f   : sls) = groupProgLines (FuncDef f   : sls)
 skipDataDefs d (DataDef d1  : sls) =
-  if d==d1 then skipDataDefs d sls
-           else groupProgLines (DataDef d1 : sls)
+  if d == d1 then skipDataDefs d sls
+             else groupProgLines (DataDef d1 : sls)
 skipDataDefs d (ModDef      : sls) = skipDataDefs d sls
 skipDataDefs d (OtherLine   : sls) = skipDataDefs d sls
 
@@ -118,6 +118,7 @@ getFuncComment fname ((def, cmt):fdcmts) = case def of
   FuncDef f -> if fname == f then cmt else getFuncComment fname fdcmts
   _         -> getFuncComment fname fdcmts
 
+-- get comment for a constructor or a field name
 getConsComment :: [String] -> String -> Maybe ((String,String))
 getConsComment [] _ = Nothing
 getConsComment (conscmt:conscmts) cname =
@@ -138,7 +139,7 @@ getDataComment n ((def, cmt):fdcmts) = case def of
 
 -- get all comments of a particular type (e.g., "param", "cons"):
 getCommentType :: a -> [(a,b)] -> [b]
-getCommentType ctype cmts = map snd (filter (\c->fst c==ctype) cmts)
+getCommentType ctype cmts = map snd (filter (\c -> fst c == ctype) cmts)
 
 
 
@@ -153,7 +154,7 @@ splitComment cmt = splitCommentMain (lines cmt)
 splitCommentMain :: [String] -> (String,[(String,String)])
 splitCommentMain [] = ("",[])
 splitCommentMain (l:ls) =
-  if l=="" || head l /= '@'
+  if l == "" || head l /= '@'
   then let (maincmt,rest) = splitCommentMain ls
         in (l++('\n':maincmt),rest)
   else ([],splitCommentParams (takeWhile isAlpha (tail l))
@@ -162,7 +163,7 @@ splitCommentMain (l:ls) =
 splitCommentParams :: String -> String -> [String] -> [(String,String)]
 splitCommentParams param paramcmt [] = [(param,skipWhiteSpace paramcmt)]
 splitCommentParams param paramcmt (l:ls) =
-  if l=="" || head l /= '@'
+  if l == "" || head l /= '@'
   then splitCommentParams param (paramcmt++('\n':l)) ls
   else ((param,skipWhiteSpace paramcmt)
         : splitCommentParams (takeWhile isAlpha (tail l))
@@ -192,8 +193,8 @@ getOpCompleteInfo (AnaInfo _ _ _ oci) = oci
 -- Translate a standard analysis result into functional form:
 getFunctionInfo :: [(QName,a)] -> QName -> a
 getFunctionInfo [] n = error ("No analysis result for function "++show n)
-getFunctionInfo ((fn,fi):fnis) n = if fn==n then fi
-                                            else getFunctionInfo fnis n
+getFunctionInfo ((fn,fi):fnis) n = if fn == n then fi
+                                              else getFunctionInfo fnis n
 
 
 --------------------------------------------------------------------------
@@ -209,7 +210,7 @@ skipWhiteSpace :: String -> String
 skipWhiteSpace = dropWhile isWhiteSpace
 
 isWhiteSpace :: Char -> Bool
-isWhiteSpace c = c==' ' || c=='\n'
+isWhiteSpace c = c == ' ' || c == '\n'
 
 -- enclose a non-letter identifier in brackets:
 showId :: String -> String

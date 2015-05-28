@@ -132,6 +132,8 @@ makeCompleteDoc docparams recursive reldocdir modpath = do
       setCurrentDirectory moddir
       -- parsing source program:
       callFrontend FCY modname
+      -- generate abstract curry representation
+      callFrontend ACY modname
       -- when constructing CDOC the imported modules don't have to be read
       -- from the FlatCurry file
       (alltypes,allfuns) <- getProg modname $ docType docparams
