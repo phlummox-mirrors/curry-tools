@@ -10,6 +10,7 @@
 --- @version February 2015
 ------------------------------------------------------------------------------
 
+import Distribution(installDir)
 import System
 
 import Translator(translateFile)
@@ -24,12 +25,13 @@ main = do
   args <- getArgs
   case args of
     (orgSourceFile:inFile:outFile:options) ->
-       let (save,version,optError,ppts) = processOptions (False,False,False,[]) options
+       let (save,version,optError,ppts) = processOptions (False,False,False,[])
+                                                         options
         in if optError
            then showUsage args
            else do
              when version (putStrLn cppTitle)
-             preprocess ppts inFile outFile
+             preprocess ppts orgSourceFile inFile outFile
              when save (saveFile orgSourceFile outFile)
     _ -> showUsage args
  where
@@ -37,7 +39,7 @@ main = do
      []                -> (save,version,opterror,ppts)
      ("-o":os)         -> processOptions (True,version,opterror,ppts) os
      ("-v":os)         -> processOptions (save,True,opterror,ppts) os
-     (('-':'-':ts):os) -> if ts `elem` ["foreigncode"]
+     (('-':'-':ts):os) -> if ts `elem` ["foreigncode","seqrules"]
                           then processOptions (save,version,opterror,ts:ppts) os
 			  else (False,False,True,[])
      _                 -> (False,False,True,[])
@@ -61,16 +63,19 @@ usageText =
   "<OutputFilePath>: name of the file where output should be written\n\n" ++
   "where <options> can contain:\n" ++
   "--foreigncode : translate foreign code pieces in the source file\n" ++
+  "--seqrules    : implement sequential rule selection strategy\n" ++
   "-o            : store output also in file <OrgFileName>.CURRYPP\n" ++
   "-v            : show preprocessor version on stdout\n"
 
 -- Start the Curry preprocessor:
-preprocess :: [String] -> String -> String -> IO ()
-preprocess pptargets infile outfile
+preprocess :: [String] -> String -> String -> String -> IO ()
+preprocess pptargets orgSourceFile infile outfile
   | null pptargets = do
     putStrLn cppTitle
     putStrLn "ERROR: no preprocessing target (e.g., --foreigncode) specified!\n"
     putStrLn usageText
     exitWith 1
   | "foreigncode" `elem` pptargets = translateFile infile outfile
+  | "seqrules"    `elem` pptargets =
+      system (unwords [installDir++"/currytools/currypp/SequentialRules/Main",orgSourceFile,infile,outfile]) >> done
   | otherwise = error "currypp: internal error"

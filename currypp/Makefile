@@ -28,13 +28,16 @@ compile: Main
 install: compile
 	rm -f $(TOOL)
 	ln -s $(CURDIR)/Main $(TOOL)
+	cd SequentialRules && $(MAKE) install
 
 clean:
 	$(CLEANCURRY) -r
 	rm -f Translator
+	cd SequentialRules && $(MAKE) clean
 
 uninstall: clean
 	rm -f $(TOOL)
+	cd SequentialRules && $(MAKE) uninstall
 
 # generate executable of currypp translator:
 Main: $(SRCDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry
