@@ -134,7 +134,7 @@ translate (CPLit v)          = CLit v
 translate (CPAs n _)         = CVar n
 translate (CPFuncComb qn pl) = applyF qn (map translate pl)
 translate (CPLazy p)         = translate p
-translate (CPRecord _ _)     = error "Records are not supported in this version"
+translate (CPRecord _ _)     = error "Records are not supported in this version of the sequential rule translator!"
 
 
 

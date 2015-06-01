@@ -1,5 +1,5 @@
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=--seqrules #-}
-{-# OPTIONS_CYMAKE -Wno-incomplete-patterns -Wno-missing-signatures #-}
+{-# OPTIONS_CYMAKE -Wnone #-}
 
 -- Reverse a list if it has exactly two elements:
 rev2 [x,y] = [y,x]

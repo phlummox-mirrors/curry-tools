@@ -26,7 +26,7 @@ import List(isPrefixOf)
 import PrettyAbstract(showCProg)
 import System
 
-import Sequential hiding(main,applySequential)
+import Sequential
 
 main :: IO ()
 main = do

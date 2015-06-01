@@ -53,44 +53,47 @@ buildexp :: [(String,String)] -> [([CPattern],CExpr,CExpr,[CLocalDecl])] -> Stri
 buildexp _ [] _ _ _     = (constF (pre "failed"),[])
 buildexp ((cn,en):ns) ((ps,c,e,ld):rs) mN nv te  
   | alwaysTrue c && all isVar ps = (doexpr,[exloc])
-  | otherwise = (applyF (pre "if_then_else") [check, doexpr, re], [cloc, exloc] ++ rloc)
-  where isVar p         = case p of 
-                           (CPVar _) -> True
-                           _         -> False
-        (re,rloc)       = buildexp ns rs mN nv te
-        cte             = redefte te
-        ld'             = removedouble ld ps        
-        redefte texpr   = case texpr of
-                           (CFuncType x y) -> CFuncType x (redefte y) 
-                           _               -> (CTCons (pre "Success") []) 
-        cloc            = CLocalFunc (cfunc (mN,cn) arity Private cte clocrule)
-        clocrule        = [guardedRule ps [(c,(CSymbol (pre "success")))] ld'] 
-        exloc           = CLocalFunc (cfunc (mN,en) arity Private te explocrule)
-        explocrule      = [guardedRule ps [(c,e)] ld']
-        newvars []      = []
-        newvars (x:xs)  = (CVar x) : (newvars xs)
-        nva             = newvars nv
-        doexpr          = applyF (mN,en) nva        
-        arity           = length ps         
-        check           = applyF ("SetFunctions","notEmpty") [check']
-        check' 
-          | arity == 0  = applyF ("SetFunctions","set0") [constF (mN,cn)]
-          | arity <= 7  = applyF ("SetFunctions","set" ++ (show(length ps))) ([constF (mN,cn)] ++ nva)
-          | otherwise   = error "only functions with an arity with 7 or less are supported"
+  | otherwise = (applyF (pre "if_then_else") [check, doexpr, re],
+                 [cloc, exloc] ++ rloc)
+ where
+  isVar p         = case p of 
+                     (CPVar _) -> True
+                     _         -> False
+  (re,rloc)       = buildexp ns rs mN nv te
+  cte             = redefte te
+  ld'             = removedouble ld ps        
+  redefte texpr   = case texpr of
+                     (CFuncType x y) -> CFuncType x (redefte y) 
+                     _               -> (CTCons (pre "Success") []) 
+  cloc            = CLocalFunc (cfunc (mN,cn) arity Private cte clocrule)
+  clocrule        = [guardedRule ps [(c,(CSymbol (pre "success")))] ld'] 
+  exloc           = CLocalFunc (cfunc (mN,en) arity Private te explocrule)
+  explocrule      = [guardedRule ps [(c,e)] ld']
+  newvars []      = []
+  newvars (x:xs)  = (CVar x) : (newvars xs)
+  nva             = newvars nv
+  doexpr          = applyF (mN,en) nva        
+  arity           = length ps         
+  check           = applyF ("SetFunctions","notEmpty") [check']
+  check' | arity == 0  = applyF ("SetFunctions","set0") [constF (mN,cn)]
+         | arity <= 7  = applyF ("SetFunctions","set" ++ show (length ps))
+                                ([constF (mN,cn)] ++ nva)
+         | otherwise   = error "only functions with arity <= 7 are supported"
 
 --Hilfsfunktion, um Namenskonflikte (zwischen Pattern
 --und freien Variablen) zu vermeiden
 removedouble :: [CLocalDecl] -> [CPattern] -> [CLocalDecl]
 removedouble ld ps = filter (notin patvars) ld
-  where patvars         = getPVars ps
-        getPVars []     = []
-        getPVars (x:xs) = (getPVars' x) ++ (getPVars xs)
-        getPVars' pat   = case pat of
-                            (CPVar (_,n)) -> [n]
-                            _             -> []
-        notin pl locd   = case locd of
-                            (CLocalVars lvars) -> all (`notElem` pl) (map snd lvars) --notElem n pl
-                            _                  -> True
+ where
+  patvars         = getPVars ps
+  getPVars []     = []
+  getPVars (x:xs) = (getPVars' x) ++ (getPVars xs)
+  getPVars' pat   = case pat of
+                      (CPVar (_,n)) -> [n]
+                      _             -> []
+  notin pl locd   = case locd of
+    (CLocalVars lvars) -> all (`notElem` pl) (map snd lvars)
+    _                  -> True
 
 --Erzeugt bei Bedarf eine Abstractcurry LetDecl
 letDecl :: [CLocalDecl] -> CExpr -> CExpr
@@ -135,63 +138,53 @@ gather (CRule p (CGuardedRhs gs ld)) = build gs
 getNames :: [([CPattern],CExpr,CExpr,[CLocalDecl])] -> [String]
 getNames []             = []
 getNames ((p,g,e,l):rs) = 
-  getPNames p ++ getENames g ++ getENames e ++ getLNames l ++ getNames rs
-  where getPNames []            = []
-        getPNames (pa:pas)      = (getPNames' pa) ++ (getPNames pas)
-        getPNames' pa           = case pa of
-          (CPVar (_,n))         -> [n]
-          (CPComb (_,n) ps)     -> n : (getPNames ps)
-          (CPAs (_,n) pat)      -> n : (getPNames' pat)
-          (CPFuncComb (_,n) ps) -> n : (getPNames ps)
-          (CPLazy pat)          -> (getPNames' pat)
-          _                     -> []
-        getENames expr          = case expr of
-          (CVar (_,n))          -> [n]
-          (CSymbol (_,n))       -> [n]
-          (CApply e1 e2)        -> (getENames e1) ++ (getENames e2)
-          (CLambda ps e1)       -> (getPNames ps) ++ (getENames e1)
-          (CLetDecl ld e1)      -> (getLNames ld) ++ (getENames e1)
-          (CDoExpr sl)          -> getSNames sl
-          (CListComp e1 sl)     -> (getENames e1) ++ (getSNames sl)
-          (CCase _ e1 be)       -> (getENames e1) ++ (getBNames be)
-          _                     -> []
-        getLNames []            = []
-        getLNames (lo:los)      = (getLNames' lo) ++ (getLNames los)
-        getLNames' lo           = case lo of
-          (CLocalFunc fd)       -> getFNames fd
-          (CLocalPat pa rhs)    -> getPNames' pa ++ getRhsNames rhs
-          (CLocalVars lvars)    -> map snd lvars
-        getSNames []            = []
-        getSNames (s:sl)        = (getSNames' s) ++ (getSNames sl)        
-        getSNames' s            = case s of
-          (CSExpr e1)           -> getENames e1
-          (CSPat pa e1)         -> (getPNames' pa) ++ (getENames e1)
-          (CSLet ld)            -> getLNames ld
-        getBNames []            = []
-        getBNames ((pa,e1):bs)  = getPNames' pa ++ getRhsNames e1 ++ getBNames bs
+  concatMap getPNames p ++ getENames g ++ getENames e ++
+  concatMap getLNames l ++ getNames rs
+ where
+  getPNames (CPVar (_,n))         = [n]
+  getPNames (CPLit _)             = []
+  getPNames (CPComb (_,n) ps)     = n : (concatMap getPNames ps)
+  getPNames (CPAs (_,n) pat)      = n : (getPNames pat)
+  getPNames (CPFuncComb (_,n) ps) = n : (concatMap getPNames ps)
+  getPNames (CPLazy pat)          = (getPNames pat)
+  getPNames (CPRecord (_,n) fds)  = n : concatMap getFdPNames fds
 
-        getGNames []            = []
-        getGNames ((g1,e1):gs)  = (getENames g1) ++ (getENames e1) ++ (getGNames gs)    
-        getFNames f             = case f of
-          (CFunc (_,n) _ _ _ r)    -> n : (getRSNames r)
-          (CmtFunc _ (_,n) _ _ _r) -> n : (getRSNames r)
+  getFdPNames ((_,n),pat) = n : getPNames pat
+  getFdENames ((_,n),pat) = n : getENames pat
+    
+  getENames (CVar (_,n))          = [n]
+  getENames (CLit _)              = []
+  getENames (CSymbol (_,n))       = [n]
+  getENames (CApply e1 e2)        = getENames e1 ++ getENames e2
+  getENames (CLambda ps e1)       = concatMap getPNames ps ++ getENames e1
+  getENames (CLetDecl ld e1)      = concatMap getLNames ld ++ getENames e1
+  getENames (CDoExpr sl)          = concatMap getSNames sl
+  getENames (CListComp e1 sl)     = getENames e1 ++ concatMap getSNames sl
+  getENames (CCase _ e1 be)       = getENames e1 ++ concatMap getBNames be
+  getENames (CTyped te _)         = getENames te
+  getENames (CRecConstr (_,n) fds) = n : concatMap getFdENames fds
+  getENames (CRecUpdate re    fds) = getENames re ++ concatMap getFdENames fds
 
-        getRhsNames (CSimpleRhs  re ls) = getENames re ++ getLNames ls
-        getRhsNames (CGuardedRhs gs ls) = getGNames gs ++ getLNames ls
+  getLNames (CLocalFunc fd)    = getFNames fd
+  getLNames (CLocalPat pa rhs) = getPNames pa ++ getRhsNames rhs
+  getLNames (CLocalVars lvars) = map snd lvars
 
-        getRSNames []           = []
-        getRSNames (ru:rus)     = (getRSNames' ru) ++ (getRSNames rus)
-        getRSNames' (CRule pas rhs) = getPNames pas ++ getRhsNames rhs
+  getSNames (CSExpr e1)   = getENames e1
+  getSNames (CSPat pa e1) = getPNames pa ++ getENames e1
+  getSNames (CSLet ld)    = concatMap getLNames ld
+    
+  getBNames (pa,be) = getPNames pa ++ getRhsNames be
+  
+  getGNames (gd,ge) = getENames gd ++ getENames ge
+  
+  getFNames (CFunc (_,n) _ _ _ r)    = n : concatMap getRSNames r
+  getFNames (CmtFunc _ (_,n) _ _ _r) = n : concatMap getRSNames r
 
+  getRhsNames (CSimpleRhs  re ls) = getENames re ++ concatMap getLNames ls
+  getRhsNames (CGuardedRhs gs ls) = concatMap getGNames gs ++
+                                    concatMap getLNames ls
 
-
-
-
-
-
-
-
-
+  getRSNames (CRule pas rhs) = concatMap getPNames pas ++ getRhsNames rhs
 
 
 
