@@ -13,7 +13,7 @@ If the pre-processor is installed (see Makefile) as the binary `currypp`,
 Curry source files containing integrated code can be translated
 by running `currypp` as follows:
 
-    currypp org-filename input-file output-file [-o]
+    currypp org-filename input-file output-file --foreigncode [-o]
 
 The parameters are:
 
