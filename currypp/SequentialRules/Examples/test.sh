@@ -1,11 +1,23 @@
 #!/bin/sh
-# Shell script to test the current set of CHR(Curry) examples
-PAKCS=../../../../bin/pakcs
+# Shell script to test the current set of examples
+CURRYBIN="../../../../bin"
+
+if [ -x "$CURRYBIN/pakcs" ] ; then
+    CURRYEXEC=pakcs
+    CURRYOPTIONS="-q :set v0 :set printdepth 0 :set -free :set +verbose"
+elif [ -x "$CURRYBIN/kics2" ] ; then
+    CURRYEXEC=kics2
+    CURRYOPTIONS=":set v0 :set -ghci"
+else
+    echo "ERROR: Unknown Curry system!"
+    exit 1
+fi
+
 LOGFILE=xxx$$
-PATH=`dirname $PAKCS`:$PATH
+PATH=$CURRYBIN:$PATH
 export PATH
-`dirname $PAKCS`/cleancurry
-cat << EOM | $PAKCS -q :set -interactive :set v0 :set printdepth 0 :set -free :set +verbose :set -time | tee $LOGFILE
+$CURRYBIN/cleancurry
+cat << EOM | $CURRYBIN/$CURRYEXEC $CURRYOPTIONS :set -interactive :set -time | tee $LOGFILE
 :load BreakWhere
 main
 
@@ -35,7 +47,7 @@ EOM
 ################ end of tests ####################
 # CHeck differences:
 DIFF=diff$$
-diff TESTRESULT $LOGFILE > $DIFF
+diff TESTRESULT.$CURRYEXEC $LOGFILE > $DIFF
 if [ "`cat $DIFF`" = "" ] ; then
   echo
   echo "Regression test successfully executed!"
