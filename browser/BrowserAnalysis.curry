@@ -45,10 +45,10 @@ moduleAnalyses =
   -- SourceCodeAnalysis (\fname -> readFile fname >>= \prog ->
   --                               return (ContentsResult CurryProg prog))),
   ("Curry code (generated from FlatCurry)",
-   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showCurryMod False prog))),
+   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showCurryMod prog))),
   ("Source program with type signatures added", SourceCodeAnalysis addTypes),
   ("FlatCurry code",
-   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showCurryMod True prog))),
+   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showFlatCurry prog))),
   ("FlatCurry expression",
    FlatCurryAnalysis (\prog -> ContentsResult FlatCurryExp (showFlatProg prog)))]
 
