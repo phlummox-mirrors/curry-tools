@@ -7,18 +7,22 @@
 
 module ImportCalls(main,showImportCalls) where
 
-import FlatCurry
 import Char
+import Directory
+import Distribution
+import FileGoodies
 import List
 import Sort
 import System
-import Directory
-import FileGoodies
-import Distribution
+import Time (ClockTime)
 
+import FlatCurry
+
+m1 :: IO ()
 m1 = showAllImportedCalls "ImportCalls"
 
 -- Check arguments and call main function:
+main :: IO ()
 main = do
   args <- getArgs
   if length args /= 1
@@ -27,6 +31,7 @@ main = do
                    "Usage: importcalls <module_name>"
    else showAllImportedCalls (stripSuffix (head args))
 
+showAllImportedCalls :: String -> IO ()
 showAllImportedCalls modname = do
   prog <- readCurrentFlatCurry modname
   putStrLn ("Calls to imported functions/constructors in module \""++modname++"\":\n")
@@ -52,7 +57,7 @@ getAllImpCalls (Prog mod imps _ funs _) =
 
 calls2impCalls :: [String] -> [QName] -> [(String,[String])]
 calls2impCalls [] _ = []
-calls2impCalls (mod:mods) funs = 
+calls2impCalls (mod:mods) funs =
  (mod, map snd (filter (\(m,_)->m==mod) funs)) : calls2impCalls mods funs
 
 -- Computes the list of called functions in a list of function declarations
@@ -98,6 +103,7 @@ readCurrentFlatCurry modname = do
              then readFlatCurry progname
              else readFlatCurryFile fcyprogname
 
+getSourceModificationTime :: String -> IO ClockTime
 getSourceModificationTime progname = do
   lexists <- doesFileExist (progname++".lcurry")
   if lexists then getModificationTime (progname++".lcurry")
@@ -105,6 +111,7 @@ getSourceModificationTime progname = do
 
 -- add a directory name for a Curry source file by looking up the
 -- current load path (CURRYPATH):
+findSourceFileInLoadPath :: String -> IO String
 findSourceFileInLoadPath modname = do
   loadpath <- getLoadPathForFile modname
   mbfname <- lookupFileInPath (baseName modname) [".lcurry",".curry"] loadpath
