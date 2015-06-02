@@ -33,6 +33,7 @@ isCalled name (Let bs e) = any (isCalled name) (e : map snd bs)
 isCalled name (Or e1 e2)     = (isCalled name e1) || (isCalled name e2)
 isCalled name (Case _ _ ces) = any isCalledCase ces
   where isCalledCase (Branch _ e) = isCalled name e
+isCalled name (Typed e _) = isCalled name e
 
 -- end of CalledByAnalysis
 

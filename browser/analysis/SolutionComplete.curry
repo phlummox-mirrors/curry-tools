@@ -27,6 +27,7 @@ analyseSolutionComplete = analyseWithDependencies isFlexDefined and
 isFlexDefined :: FuncDecl -> Bool
 isFlexDefined (Func _ _ _ _ def) = isFlexRule def
 
+isFlexRule :: Rule -> Bool
 isFlexRule (Rule _ e) = isFlexExpr e
 isFlexRule (External f) =
    f `elem` ["Prelude.=:=","Prelude.success","Prelude.&",
@@ -47,6 +48,7 @@ isFlexExpr (Let bs e)        = all isFlexExpr (map snd bs) && isFlexExpr e
 isFlexExpr (Or e1 e2)        = isFlexExpr e1 && isFlexExpr e2
 isFlexExpr (Case ctype e bs) = ctype==Flex &&
                          all isFlexExpr (e : map (\(Branch _ be)->be) bs)
+isFlexExpr (Typed e _) = isFlexExpr e
 
 
 -- end of SolutionComplete

@@ -20,8 +20,9 @@ getImportedInterfaces mod = do
   imps <- readFlatCurryIntWithImports mod
   return (map (\prog -> (progName prog, IF prog)) imps)
 
--- Extract a module and its imports:
-moduleImports (Prog mod imps _ _ _) = (mod,imps)
+-- Extract a module and its imports
+moduleImports :: Prog -> (String, [String])
+moduleImports (Prog m is _ _ _) = (m, is)
 
 -----------------------------------------------------------------------------
 -- Unione type to distinguish between interface and FlatCurry program:
@@ -31,17 +32,20 @@ ifOrProg :: (Prog->a) -> (Prog->a) -> InterfaceOrFlatProg -> a
 ifOrProg iffun _ (IF prog) = iffun prog
 ifOrProg _ fpfun (FP prog) = fpfun prog
 
+progOfIFFP :: InterfaceOrFlatProg -> Prog
 progOfIFFP (IF prog) = prog
 progOfIFFP (FP prog) = prog
 
 --------------------------------------------------------------------------
 -- Read an existing(!) FlatCurry file w.r.t. current load path:
+readFlatCurryFileInLoadPath :: (String -> IO _) -> String -> [String] -> IO Prog
 readFlatCurryFileInLoadPath prt mod loadpath = do
   mbfcyfile <- lookupFileInPath (flatCurryFileName mod) [""] loadpath
   maybe (error $ "FlatCurry file of module "++mod++" not found!")
         (readFlatCurryFileAndReport prt mod)
         mbfcyfile
 
+readFlatCurryFileAndReport :: (String -> IO _) -> String -> String -> IO Prog
 readFlatCurryFileAndReport prt mod filename = do
   size <- fileSize filename
   prt $ "Reading FlatCurry file of module '"++mod++"' ("++show size++" bytes)..."

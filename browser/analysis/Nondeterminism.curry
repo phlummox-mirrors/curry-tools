@@ -26,6 +26,7 @@ analyseNondeterminism = analyseWithDependencies isNondeterministicDefined or
 isNondeterministicDefined :: FuncDecl -> Bool
 isNondeterministicDefined (Func _ _ _ _ rule) = isNondeterministicRule rule
 
+isNondeterministicRule :: Rule -> Bool
 isNondeterministicRule (Rule _ e) = orInExpr e
 isNondeterministicRule (External _) = False
 
@@ -46,6 +47,7 @@ isSetValuedDefined :: FuncDecl -> Bool
 isSetValuedDefined (Func f _ _ _ rule) =
   f `notElem` [pre "failed",pre "$!!",pre "$##"] && isSetValuedRule rule
 
+isSetValuedRule :: Rule -> Bool
 isSetValuedRule (Rule _ e) = orInExpr e || extraVarInExpr e
 isSetValuedRule (External _) = False
 
@@ -60,6 +62,7 @@ extraVarInExpr (Let bs e) = any extraVarInExpr (map snd bs) || extraVarInExpr e
 extraVarInExpr (Or e1 e2) = extraVarInExpr e1 || extraVarInExpr e2
 extraVarInExpr (Case _  e bs) = extraVarInExpr e || any extraVarInBranch bs
                 where extraVarInBranch (Branch _ be) = extraVarInExpr be
+extraVarInExpr (Typed e _) = extraVarInExpr e
 
-
+pre :: String -> QName
 pre n = ("Prelude",n)

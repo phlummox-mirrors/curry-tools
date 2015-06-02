@@ -117,7 +117,7 @@ getTreesNodeName n (Node t v subtrees : trees) =
 getTreesValue :: Int -> [Tree a] -> a
 getTreesValue _ [] = error "getTreesValue: nothing selected" -- should not occur
 getTreesValue n (Leaf _ v : trees) =
-  if n==0 then v 
+  if n==0 then v
           else getTreesValue (n-1) trees
 getTreesValue n (Node t v subtrees : trees) =
   if n==0 then v
@@ -186,6 +186,7 @@ getAllImportsOfModule gs mod = do
   (GS trees _ _ _ _ _ _) <- readIORef gs
   return (collectImports (importsOfRoot trees) [mod] [])
  where
+   importsOfRoot []                       = []
    importsOfRoot ((Leaf _ (_,imps)) :_)   = imps
    importsOfRoot ((Node _ (_,imps) _) :_) = imps
 
@@ -207,8 +208,8 @@ setMainContentsModule :: IORef GuiState -> String -> ContentsKind -> String
                       -> IO ()
 setMainContentsModule gs cntmod cntkind contents = do
   (GS t mm ms fs _ flag fana) <- readIORef gs
-  writeIORef gs (GS t mm ms fs 
-                   (if cntkind==OtherText then "" else cntmod,cntkind,contents) 
+  writeIORef gs (GS t mm ms fs
+                   (if cntkind==OtherText then "" else cntmod,cntkind,contents)
                     flag fana)
 
 getContentsModule :: IORef GuiState -> IO String
@@ -490,7 +491,7 @@ browserGUI gstate rmod rtxt names =
   analyzeModuleWith modanalysis mod gp = safeIO gp $
     performModuleAnalysis modanalysis (showDoing gp) mod >>= \res ->
     showModAnalysisResult mod res gp
-    
+
   showModAnalysisResult mod (ContentsResult cntkind contents) gp = do
     setValue rtxt contents gp
     setMainContentsModule gstate mod cntkind contents

@@ -76,3 +76,4 @@ linearVariables (Case _ e bs) =
  where
   patternVars (Branch (Pattern _ vs) _) = vs
   patternVars (Branch (LPattern _)   _) = []
+linearVariables (Typed e _) = linearVariables e

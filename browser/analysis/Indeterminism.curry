@@ -24,8 +24,10 @@ analyseIndeterminism :: [FuncDecl] -> [(QName,Bool)]
 analyseIndeterminism = analyseWithDependencies isIndeterministic or
 
 --- is a function directly (i.e., by its rhs) indeterministic?
+isIndeterministic :: FuncDecl -> Bool
 isIndeterministic (Func _ _ _ _ rule) = isIndetRule rule
 
+isIndetRule :: Rule -> Bool
 isIndetRule (Rule _ e) = choiceInExpr e
 isIndetRule (External _) = False
 
@@ -41,5 +43,6 @@ choiceInExpr (Let bs e) = any choiceInExpr (map snd bs) || choiceInExpr e
 choiceInExpr (Or e1 e2) = choiceInExpr e1 || choiceInExpr e2
 choiceInExpr (Case _  e bs) = choiceInExpr e || any choiceInBranch bs
                 where choiceInBranch (Branch _ be) = choiceInExpr be
+choiceInExpr (Typed e _) = choiceInExpr e
 
 -- end of AnaIndeterminism
