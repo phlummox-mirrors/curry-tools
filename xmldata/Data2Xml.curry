@@ -38,15 +38,13 @@ import Char
 import FileGoodies
 import List
 import System
- 
+
 data Options = LowCase | FileName String
 
 main :: IO ()
 main = do
   args <- getArgs
-  let opts = reverse (argsToOptions args)
-  if null opts then putStrLn usageMsg
-               else derive opts
+  derive (reverse (argsToOptions args))
 
 usageMsg :: String
 usageMsg = "Usage: data2xml [-low] <filename>\n"++
@@ -60,9 +58,11 @@ argsToOptions args = case args of
   _           -> []
 
 derive :: [Options] -> IO ()
+derive []                 = putStrLn usageMsg
+derive (LowCase    : _  ) = putStrLn usageMsg
 derive (FileName fn:opts) = do
   CurryProg modName  _ ts _ _ <- readCurry fn
-  let (specials,types) = if isPrelude modName 
+  let (specials,types) = if isPrelude modName
                            then (specialFuncs opts,filterSpecials ts)
                            else ([],ts)
       progName = transModName fn
@@ -70,14 +70,14 @@ derive (FileName fn:opts) = do
                              $ concatMap requiredTypesTypeDecl types
   imports <- importTypes modName impTypes
   writeFile (progName++".curry") $ showProg $
-   CurryProg progName (nub $ ["XML",fn] ++ imports) [] 
+   CurryProg progName (nub $ ["XML",fn] ++ imports) []
              (map (mkType2Xml opts) types ++
               map (mkXml2Type opts) types ++ specials)
              []
   putStrLn ("You can now import "++progName)
 
 maybeString :: [QName] -> [QName]
-maybeString xs 
+maybeString xs
   = if notElem (pre "String") xs && elem (pre "[]") xs && elem (pre "Char") xs
     then (pre "String" : xs)
     else xs
@@ -91,14 +91,15 @@ transModName mn = mn ++ "DataToXml"
 ----------------------------
 
 toXmlName :: QName -> QName
-toXmlName (m,s) = case (isPrelude m,s,isTupleName s) of 
+toXmlName (m,s) = case (isPrelude m, s, isTupleName s) of
   (True,"[]",_)  -> (nm,"list_To_Xml")
   (True,"()",_)  -> (nm,"unitToXml")
   (True,_,True)  -> (nm,"tuple"++show (length s-1)++"ToXml")
   (_,c:cs,_)     -> (nm,toLower c:cs ++ "ToXml")
+  (_, [], _)     -> error "Data2Xml.toXmlName: empty identifier"
  where nm = transModName m
-                  
- 
+
+
 fromXmlName :: QName -> QName
 fromXmlName (m,s) = case (isPrelude m,s,isTupleName s) of
   (True,"[]",_)  -> (nm,"xml_To_List")
@@ -106,18 +107,19 @@ fromXmlName (m,s) = case (isPrelude m,s,isTupleName s) of
   (True,_,True)  -> (nm,"xmlToTuple"++show (length s-1))
   _              -> (nm,"xmlTo"++s)
  where nm = transModName m
-                 
+
 
 listTag :: [Options] -> String
 listTag opts = tag opts "List"
 
 isTupleName :: String -> Bool
-isTupleName (n:name) = n=='(' && isTuple name
+isTupleName []       = False
+isTupleName (n:name) = n == '(' && isTuple name
   where
     isTuple ""  = False
-    isTuple ")" = True
+    isTuple [c] = c == ')'
     isTuple (c:c':cs) = c==',' && isTuple (c':cs)
-    
+
 ----------------------------
 -- generating tags
 ----------------------------
@@ -134,15 +136,15 @@ tagNameForCons (mname,cname)
 -------------------------------------------------
 -- make functions to transform data terms to xml
 -------------------------------------------------
- 
+
 mkType2Xml :: [Options] -> CTypeDecl -> CFuncDecl
-mkType2Xml _ (CTypeSyn name vis vars t) 
+mkType2Xml _ (CTypeSyn name vis vars t)
   = CFunc (toXmlName name) 1 vis
           (CFuncType (CTCons name (map CTVar vars)) xmlType)
           [simpleRule [CPVar (0,"x0")] (call2xml (t,0))]
-mkType2Xml opts (CType name vis vars cs) 
+mkType2Xml opts (CType name vis vars cs)
   = CFunc (toXmlName name) (1+length vars) vis
-          (type2XmlType vars 
+          (type2XmlType vars
             (CFuncType (CTCons name (map CTVar vars)) xmlType))
           (map (mkConsDecl2Xml opts $ map (CPVar . renVar) vars) cs)
 mkType2Xml _ (CNewType _ _ _ _)
@@ -160,23 +162,23 @@ mkConsDecl2Xml _ _ (CRecord _ _ _)
   = error "Data2Xml.mkConsDecl2Xml: CRecord not yet implemented!"
 
 type2XmlType :: [(Int,String)] -> CTypeExpr -> CTypeExpr
-type2XmlType vars t 
-  = foldr CFuncType t (map (\x->CFuncType (CTVar x) xmlType) vars)  
+type2XmlType vars t
+  = foldr CFuncType t (map (\x->CFuncType (CTVar x) xmlType) vars)
 
 call2xml :: (CTypeExpr,Int) -> CExpr
 call2xml (t,i) = CApply (call2xmlType t) (toVar i)
 
 call2xmlType :: CTypeExpr -> CExpr
 call2xmlType (CTVar v) = CVar (renVar v)
-call2xmlType (CTCons name args) 
+call2xmlType (CTCons name args)
   | snd name == "[]" &&  args==[CTCons (pre "Char") []]
   = CSymbol $ toXmlName (pre "String")
-  | otherwise 
+  | otherwise
   = applyF (toXmlName name) (map call2xmlType args)
 call2xmlType (CFuncType _ _) = error "unable to transform functions to XML"
 
 xml :: [Options] -> String -> [CExpr] -> [CExpr] -> CExpr
-xml opts name attrs elems 
+xml opts name attrs elems
   = applyF ("XML","XElem")
            [string2ac (tag opts name), list2ac attrs, list2ac elems]
 
@@ -184,17 +186,17 @@ xmlType :: CTypeExpr
 xmlType = CTCons ("XML","XmlExp") []
 
 -------------------------------------------------
--- make functions to transform xml to data terms 
+-- make functions to transform xml to data terms
 -------------------------------------------------
 
 mkXml2Type :: [Options] -> CTypeDecl -> CFuncDecl
-mkXml2Type _ (CTypeSyn name vis vars t) 
+mkXml2Type _ (CTypeSyn name vis vars t)
   = CFunc (fromXmlName name) 1 vis
           (CFuncType xmlType (CTCons name (map CTVar vars)))
           [simpleRule [CPVar (0,"x0")] (callXml2 (t,0))]
-mkXml2Type opts (CType name vis vars cs) 
+mkXml2Type opts (CType name vis vars cs)
   = CFunc (fromXmlName name) (1+length vars) vis
-          (xml2typeType vars 
+          (xml2typeType vars
              (CFuncType xmlType (CTCons name (map CTVar vars))))
           (map (mkXml2ConsDecl opts $ map (CPVar . renVar) vars) cs)
 mkXml2Type _ (CNewType _ _ _ _)
@@ -206,8 +208,8 @@ renVar (i,s) = case s of
                 _ -> (i,s)
 
 xml2typeType :: [(Int,String)] -> CTypeExpr -> CTypeExpr
-xml2typeType vars t 
-  = foldr CFuncType t (map (\x->CFuncType xmlType (CTVar x)) vars)  
+xml2typeType vars t
+  = foldr CFuncType t (map (\x->CFuncType xmlType (CTVar x)) vars)
 
 mkXml2ConsDecl :: [Options] -> [CPattern] -> CConsDecl -> CRule
 mkXml2ConsDecl opts patVars (CCons name _ args)
@@ -215,19 +217,20 @@ mkXml2ConsDecl opts patVars (CCons name _ args)
                (applyF name (map callXml2 (zip args [0..])))
   where
    arity = length args
-   newPatVars = renameUnused (map renVar $ concatMap tvarsOfType args) patVars 
+   newPatVars = renameUnused (map renVar $ concatMap tvarsOfType args) patVars
 mkXml2ConsDecl _ _ (CRecord _ _ _)
   = error "Data2Xml.mkXml2ConsDecl: CRecord not yet implemented!"
 
 renameUnused :: [(Int,String)] -> [CPattern] -> [CPattern]
-renameUnused _ [] = []
-renameUnused usedVars (CPVar (i,v):vs) 
-      | elem (i,v) usedVars = CPVar (i,v) : renameUnused usedVars vs
-      | otherwise = CPVar (i,"_") : renameUnused usedVars vs
+renameUnused _        []     = []
+renameUnused usedVars (p:ps) = case p of
+  CPVar (i,v) | elem (i,v) usedVars -> CPVar (i,v)   : renameUnused usedVars ps
+              | otherwise           -> CPVar (i,"_") : renameUnused usedVars ps
+  _                                 -> p             : renameUnused usedVars ps
 
 
 pxml :: [Options] -> String -> [CPattern] -> [CPattern] -> CPattern
-pxml opts name attrs elems 
+pxml opts name attrs elems
   = CPComb ("XML","XElem")
            [stringPattern (tag opts name), listPattern attrs, listPattern elems]
 
@@ -239,7 +242,7 @@ callXml2Type (CTVar v) = CVar (renVar v)
 callXml2Type (CTCons name args)
   | snd name=="[]" && args==[CTCons (pre "Char") []]
   = CSymbol (fromXmlName (pre "String"))
-  | otherwise 
+  | otherwise
   = applyF (fromXmlName name) (map callXml2Type args)
 callXml2Type (CFuncType _ _) = error "unable to transform functions from XML"
 
@@ -253,16 +256,16 @@ importTypes m ts = do
   let specials = if isPrelude m then ["Read","ReadShowTerm"] else []
   imessage imps
   return (imps++specials)
- 
+
 imessage :: [String] -> IO ()
 imessage [] = done
 imessage [m] = putStrLn $ "You also need to generate the module "++m
 imessage (m:m':ms) =
   putStrLn $ "You also need to generate the modules "++(unwords $ m:m':ms)
-                 
+
 importType :: QName -> String
 importType (m,f)
-  | isPrelude m && elem f ["String","[]","Char","Int","Float"] 
+  | isPrelude m && elem f ["String","[]","Char","Int","Float"]
   = "PreludeDataToXml"
   | isPrelude m && f == "IO"
   = error "unable to transform I/O actions to XML"
@@ -278,7 +281,7 @@ specialNames :: [String]
 specialNames = ["Int","Float","String","Char","IO","Success","[]","()","(,)"]
 
 filterSpecials :: [CTypeDecl] -> [CTypeDecl]
-filterSpecials 
+filterSpecials
   = filter ((\ (m,n) -> not (isPrelude m && elem n specialNames)) . typeName)
 
 specialFuncs :: [Options] -> [CFuncDecl]
@@ -298,17 +301,17 @@ mkTupleType n =
        tvars = map (\i -> (i,'a':show i)) [1..n]
 
 mkList2xml :: [Options] -> CFuncDecl
-mkList2xml opts = 
+mkList2xml opts =
    CFunc (toXmlName (pre "[]")) 2 Public
      (CFuncType (CFuncType (CTVar (0,"a")) xmlType)
                 (CFuncType (CTCons (pre "[]") [CTVar (0,"a")]) xmlType))
      [simpleRule (pVars 2)
                  (applyF ("XML","XElem")
-                         [string2ac (listTag opts), list2ac [], 
+                         [string2ac (listTag opts), list2ac [],
                           applyE (applyF (pre "map") [toVar 0]) [toVar 1]])]
 
 mkXml2List :: [Options] -> CFuncDecl
-mkXml2List opts = 
+mkXml2List opts =
    CFunc (fromXmlName (pre "[]")) 2 Public
      (CFuncType (CFuncType xmlType (CTVar (0,"a")))
                 (CFuncType xmlType (CTCons (pre "[]") [CTVar (0,"a")])))
@@ -319,7 +322,7 @@ mkXml2List opts =
     [x,y] = pVars 2
 
 baseType2xml :: [Options] -> String -> CFuncDecl
-baseType2xml opts s 
+baseType2xml opts s
   = CFunc (toXmlName (pre s)) 1 Public
      (CFuncType (CTCons (pre s) []) xmlType)
      [simpleRule (pVars 1) (xml opts s [] [writeFun s])]
@@ -329,15 +332,17 @@ baseTypeXml2 opts s =
   CFunc (fromXmlName (pre s)) 1 Public
    (CFuncType xmlType (CTCons (pre s) []))
    (simpleRule [pxml opts s [] [CPComb ("XML","XText") (pVars 1)]] (readFun s)
-    : if s=="String" 
+    : if s=="String"
       then [simpleRule [pxml opts s [] []] (string2ac "")]
       else [])
 
 readFun :: String -> CExpr
-readFun "Int"    = applyF ("Read","readInt") [toVar 0]
-readFun "Char"   = applyF (pre "head") [toVar 0]
-readFun "Float"  = applyF ("ReadShowTerm","readQTerm") [toVar 0]
-readFun "String" = toVar 0
+readFun typ = case typ of
+  "Int"    -> applyF ("Read","readInt") [toVar 0]
+  "Char"   -> applyF (pre "head") [toVar 0]
+  "Float"  -> applyF ("ReadShowTerm","readQTerm") [toVar 0]
+  "String" -> toVar 0
+  _        -> error ("Dta2Xml.readFun: unknown type " ++ typ)
 
 writeFun :: String -> CExpr
 writeFun s = case s of
@@ -362,9 +367,9 @@ requiredTypesConsDecl (CRecord _ _ fs) = concatMap requiredTypesFieldDecl fs
 
 requiredTypesTypeExpr :: CTypeExpr -> [QName]
 requiredTypesTypeExpr (CTVar _) = []
-requiredTypesTypeExpr (CFuncType e1 e2) 
+requiredTypesTypeExpr (CFuncType e1 e2)
   = requiredTypesTypeExpr e1 ++ requiredTypesTypeExpr e2
-requiredTypesTypeExpr (CTCons name ts) 
+requiredTypesTypeExpr (CTCons name ts)
   | name==(pre "[]") && ts == [CTCons (pre "Char") []]
   = [pre "String"]
   | otherwise
