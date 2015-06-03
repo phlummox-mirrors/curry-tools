@@ -36,6 +36,11 @@ dutch iflag
 Loading program "FloatString"...
 main
 [True,False]
+Loading program "Guards"...
+main1
+["Not zero","Zero","Not zero"]
+main2
+[1,1,1,1,2,2,2]
 Loading program "Lookup"...
 main1
 Nothing

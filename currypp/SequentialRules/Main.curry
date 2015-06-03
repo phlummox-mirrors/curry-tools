@@ -70,7 +70,3 @@ replaceOptionsLine = unlines . map replOptLine . lines
   replOptLine s = if "{-# OPTIONS_CYMAKE " `isPrefixOf` s -- -}
                   then " "
                   else s
-
-
--- Generate with
--- > /opt/pakcs/pakcs-1.11.5/bin/pakcs :l Main :save :q

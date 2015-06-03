@@ -27,7 +27,9 @@ BubbleSort> BubbleSort> DutchFlag> [Red,Red,White,White,White,Blue,Blue]
 [Red,Red,White,White,White,Blue,Blue]
 DutchFlag> [Red,Red,White,White,White,Blue,Blue]
 DutchFlag> DutchFlag> FloatString> [True,False]
-FloatString> FloatString> Lookup> Nothing
+FloatString> FloatString> Guards> ["Not zero","Zero","Not zero"]
+Guards> [1,1,1,1,2,2,2]
+Guards> Guards> Lookup> Nothing
 Lookup> (Just 14)
 Lookup> (Just 14)
 (Just 19)
