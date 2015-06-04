@@ -1,8 +1,8 @@
 ----------------------------------------------------------------------
 --- Operations to generate documentation in HTML format.
 ---
---- @author Michael Hanus
---- @version January 2015
+--- @author Michael Hanus, Jan Tikovsky
+--- @version June 2015
 ----------------------------------------------------------------------
 
 module CurryDocHtml where
@@ -59,6 +59,7 @@ generateHtmlDocs docparams anainfo modname modcmts progcmts = do
         [anchoredSection "exported_operations"
                   [h2 [htxt "Exported operations:"]]] ++
         (map (genHtmlFunc docparams modname progcmts anainfo ops) expfuns)))
+    False
  where
    title = "Module "++modname
 
@@ -589,6 +590,78 @@ genConsIndexPage docdir types = do
 htmlConsIndex :: [QName] -> [HtmlExp]
 htmlConsIndex qnames = categorizeByItemKey (map showModNameRef qnames)
 
+--------------------------------------------------------------------------
+-- generate the index page categorizing all system libraries of PAKCS/KICS2
+genSystemLibsPage :: String -> [Category] -> [[ModInfo]] -> IO ()
+genSystemLibsPage docdir cats modInfos = do
+  putStrLn $ "Writing main index page for " ++ currySystem ++
+             " to \"" ++ fname ++ "\"..."
+  mainPage (currySystem ++ " Libraries")
+           [h1 [htxt $ currySystem ++ ": System Libraries"]]
+           syslibsLeftTopMenu
+           syslibsRightTopMenu
+           3
+           (syslibsSideMenu cats)
+           ([infoTxt, hrule] ++ genHtmlLibCats modInfos)
+           True
+   >>= writeFile fname
+ where
+  fname = docdir ++ "/" ++ currySystem ++ "_libs.html"
+
+syslibsLeftTopMenu :: [[HtmlExp]]
+syslibsLeftTopMenu =
+  [ [href baseURL [htxt currySystem]]
+  , [href (baseURL ++ "/Manual.pdf") [htxt "Manual (PDF)"]]
+  , [href (baseURL ++ "/lib/") [htxt "Libraries"]]
+  , [ehref currygleURL [extLinkIcon, htxt " API Search"]]
+  , [href (baseURL ++ "/download.html") [htxt "Download"]]
+  ]
+
+syslibsRightTopMenu :: [[HtmlExp]]
+syslibsRightTopMenu =
+  [ curryHomeItem
+  , [ehref (curryHomeURL ++ "/documentation/report")
+           [extLinkIcon, htxt " Curry Report"]]
+  ]
+
+syslibsSideMenu :: [Category] -> [HtmlExp]
+syslibsSideMenu cats = map par $
+     [[ehref currygleURL [extLinkIcon, htxt " Search with Curr(y)gle"]]]
+  ++ [[href ("#" ++ genCatLink c) [ htxt (showCategory c)]] | c <- cats]
+  ++ [ [href "findex.html" [htxt "Index to all library functions"]]
+     , [href "cindex.html" [htxt "Index to all library constructors"]]
+     ]
+
+infoTxt :: HtmlExp
+infoTxt = par
+  [ htxt "Here is the collection of libraries contained in the distribution of "
+  , href baseURL [htxt currySystem]
+  , htxt $ ". Most of these libraries have been implemented during the "
+        ++ "development of larger Curry applications. If you have suggestions "
+        ++ "for changes/improvements or if you want to contribute your own "
+        ++ "library, please contact "
+  , href "http://www.informatik.uni-kiel.de/~mh/" [htxt "Michael Hanus"]
+  , htxt "."
+  ]
+
+-- Generate links for a category (system libraries page)
+genCatLink :: Category -> String
+genCatLink cat = getCategoryID cat
+
+genHtmlLibCats :: [[ModInfo]] -> [HtmlExp]
+genHtmlLibCats [] = []
+genHtmlLibCats (cat:cats) = case cat of
+  []          -> []
+  ((c,_,_):_) ->
+       [anchoredSection (getCategoryID c) [h2 [htxt (showCategory c ++ ":")]]]
+    ++ genHtmlLibCat cat
+    ++ genHtmlLibCats cats
+
+genHtmlLibCat :: [ModInfo] -> [HtmlExp]
+genHtmlLibCat category =
+  [dlist [(genHtmlName modname,[htxt modcmt]) | (_,modname,modcmt) <- category ]]
+ where
+  genHtmlName modname = [code [href (modname ++ ".html") [htxt modname]]]
 
 --------------------------------------------------------------------------
 -- Auxiliary operation for general page style.
@@ -600,15 +673,16 @@ htmlConsIndex qnames = categorizeByItemKey (map showModNameRef qnames)
 --- @param righttopmenu - the menu shown at right of the top
 --- @param columns - number of columns for the left-side menu
 --- @param sidemenu - the menu shown at the left-hand side
---- @param doc - the main contents of the page
+--- @param maindoc - the main contents of the page
+--- @param isIndex - flag to generate libs index page
 mainPage :: String -> [HtmlExp] -> [[HtmlExp]] -> [[HtmlExp]] -> Int
-         -> [HtmlExp] -> [HtmlExp] -> IO String
-mainPage title htmltitle lefttopmenu righttopmenu columns sidemenu maindoc = do
+         -> [HtmlExp] -> [HtmlExp] -> Bool -> IO String
+mainPage title htmltitle lefttopmenu righttopmenu columns sidemenu maindoc isIndex = do
     time <- getLocalTime
     return $ showHtmlPage $
       bootstrapPage baseURL cssIncludes
                     title lefttopmenu righttopmenu columns sidemenu htmltitle maindoc
-                    (curryDocFooter time)
+                    (curryDocFooter time) isIndex
 
 cssIncludes :: [String]
 cssIncludes = ["bootstrap","bootstrap-responsive","font-awesome.min","currydoc"]
@@ -626,15 +700,15 @@ showPageWithDocStyle title body =
 --- The standard right top menu.
 rightTopMenu :: [[HtmlExp]]
 rightTopMenu =
-  [[ehref "http://www.curry-language.org/"
-          [extLinkIcon, htxt " Curry Homepage"]],
-   [ehref (baseURL++"/lib/")
-          [extLinkIcon, htxt $ " "++currySystem++" Libraries"]],
-   [ehref "http://www.curry-language.org/tools/currydoc"
-          [extLinkIcon, htxt " About CurryDoc"]]]
- where
-  extLinkIcon = italic [] `addClass` "fa fa-external-link"
+  [ curryHomeItem
+  , [ehref (baseURL++"/lib/")
+           [extLinkIcon, htxt $ " "++currySystem++" Libraries"]]
+  , [ehref (curryHomeURL ++ "/tools/currydoc")
+           [extLinkIcon, htxt " About CurryDoc"]]
+  ]
 
+extLinkIcon :: HtmlExp
+extLinkIcon = italic [] `addClass` "fa fa-external-link"
 
 -- Standard footer information for generated web pages:
 curryDocFooter :: CalendarTime -> [HtmlExp]
@@ -643,6 +717,9 @@ curryDocFooter time =
            bold [htxt "CurryDoc"],
            htxt (" ("++currydocVersion++") at "),
            htxt (calendarTimeToString time)]]
+
+curryHomeItem :: [HtmlExp]
+curryHomeItem = [ehref curryHomeURL [extLinkIcon, htxt " Curry Homepage"]]
 
 --- Generate a simple page with the default documentation style.
 --- @param title - the title of the page
@@ -658,6 +735,7 @@ simplePage title htmltitle lefttopmenu maindoc = do
                     [h1 (maybe [htxt title] id htmltitle)]
                     maindoc
                     (curryDocFooter time)
+                    False
 
 --- An anchored section in the document:
 anchoredSection :: String -> [HtmlExp] -> HtmlExp
@@ -693,10 +771,14 @@ sortStrings strings = mergeSort leqStringIgnoreCase strings
 -- Returns the first sentence in a string:
 firstSentence :: String -> String
 firstSentence s = let (fs,ls) = break (=='.') s in
-  if ls==""
+  if null ls
   then fs
   else if tail ls /= "" && isWhiteSpace (head (tail ls))
        then fs ++ "."
        else fs ++ "." ++ firstSentence (tail ls)
+
+firstPassage :: String -> String
+firstPassage = unlines . takeWhile (\s -> s /= "" && not (all isWhiteSpace s))
+             . lines
 
 --------------------------------------------------------------------------

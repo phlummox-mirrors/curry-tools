@@ -1,8 +1,8 @@
 ----------------------------------------------------------------------
 --- Some auxiliary operations of CurryDoc to read programs.
 ---
---- @author Michael Hanus
---- @version January 2015
+--- @author Michael Hanus, Jan Tikovsky
+--- @version June 2015
 ----------------------------------------------------------------------
 
 module CurryDocRead where
@@ -31,12 +31,50 @@ data SourceLine = Comment String  -- a comment for CurryDoc
                 | ModDef          -- a line containing a module definition
                 | OtherLine       -- a line not relevant for CurryDoc
 
+--- This datatype is used to categorize Curry libraries
+--- @cons General   - a general library
+--- @cons Algorithm - a library which provides data structures and algorithms
+--- @cons Web       - a library for web applications
+--- @cons Meta      - a library for meta-programming
+data Category = General
+              | Algorithm
+              | Web
+              | Meta
+
+type ModInfo = (Category, String, String)
+
+--- Determine the category for a module
+readCategory :: [String] -> Category
+readCategory [] = General
+readCategory (catcmt:_) = case cat of
+  "general"   -> General
+  "algorithm" -> Algorithm
+  "web"       -> Web
+  "meta"      -> Meta
+  _           -> General
+ where
+  (cat,_) = span isIdChar catcmt
+
+--- Show a category
+showCategory :: Category -> String
+showCategory General   = "General libraries"
+showCategory Algorithm = "Data structures and algorithms"
+showCategory Web       = "Libraries for web applications"
+showCategory Meta      = "Libraries for meta-programming"
+
+--- ID for a category
+getCategoryID :: Category -> String
+getCategoryID General   = "general"
+getCategoryID Algorithm = "algorithm"
+getCategoryID Web       = "web"
+getCategoryID Meta      = "meta"
+
 -- classify a line of the source program:
 -- here we replace blank line comments by a "breakline" tag
 classifyLine :: String -> SourceLine
 classifyLine line
- | take 3 line == "---" && all isSpace (drop 3 line) = Comment "" --"<br/>"
- | take 4 line == "--- "     = Comment (drop 4 line)
+ | take 3 line == "---"  && all isSpace (drop 3 line) = Comment "" --"<br/>"
+ | take 4 line == "--- " && head (drop 4 line) /= '-' = Comment (drop 4 line)
  | take 7 line == "module "  = ModDef
  | take 7 line == "import "  = ModDef
  | otherwise = let id1 = getFirstId line
