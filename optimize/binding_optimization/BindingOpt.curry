@@ -3,7 +3,7 @@
 --- by constrained equalities (which binds variables).
 ---
 --- @author Michael Hanus
---- @version September 2014
+--- @version June 2015
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
@@ -31,7 +31,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 05/09/2014)"
+  let bannerText = "Curry Binding Optimizer (version of 04/06/2015)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -173,14 +173,14 @@ transformFuncDecl verb lookupreqinfo fdecl@(Func qf ar vis texp rule) =
            if on==0 then "" else
              "Function "++snd qf++": "++
              (if on==1 then "one occurrence" else show on++" occurrences") ++
-             " of (==) transformed into (=:=)",
+             " of (==) transformed into (===)",
          Func qf ar vis texp trule)
   else (0,"",fdecl)
 
 -------------------------------------------------------------------------
 -- State threaded thorugh the program transformer:
 -- * name of current function
--- * number of occurrences of (==) that are replaced by (=:=)
+-- * number of occurrences of (==) that are replaced by (===)
 data TState = TState QName Int
 
 initTState :: QName -> TState
@@ -197,11 +197,11 @@ incOccNumber (TState qf on) = TState qf (on+1)
 --- values. If there is an occurrence of (e1==e2) where the value `True`
 --- is required, then this occurrence is replaced by
 ---
----     ((e1=:=e2) &> True)
+---     (e1===e2)
 ---
 --- Similarly, (e1/=e2) with required value `False` is replaced by
 ---
----     ((e1=:=e2) &> False)
+---     (not (e1===e2))
 
 transformRule :: (QName -> Maybe AFType) -> TState -> Rule -> (TState,Rule)
 transformRule _ tst (External s) = (tst, External s)
@@ -212,20 +212,20 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   -- transform an expression w.r.t. a required value
   transformExp tst (Var i) _ = (Var i, tst)
   transformExp tst (Lit v) _ = (Lit v, tst)
-  transformExp tst0 (Comb ct qf es) reqval =
-    let reqargtypes = argumentTypesFor (lookupreqinfo qf) reqval
-        (tes,tst1)  = transformExps tst0 (zip es reqargtypes)
-     in if (qf == pre "==" && reqval == RequiredValues.Cons (pre "True")) ||
-           (qf == pre "/=" && reqval == RequiredValues.Cons (pre "False"))
-        then (Comb FuncCall (pre "&>")
-               [Comb FuncCall (pre "=:=") tes,
-                let RequiredValues.Cons qcons = reqval
-                 in Comb ConsCall qcons []],
+  transformExp tst0 (Comb ct qf es) reqval
+    | qf == pre "==" && reqval == RequiredValues.Cons (pre "True")
+    = (Comb FuncCall (pre "===") tes,
+       incOccNumber tst1)
+    | qf == pre "/=" && reqval == RequiredValues.Cons (pre "False")
+    = (Comb FuncCall (pre "not") [Comb FuncCall (pre "===") tes],
               incOccNumber tst1)
-        else if qf == pre "$" && length es == 2 &&
-                (isFuncPartCall (head es) || isConsPartCall (head es))
-             then transformExp tst0 (reduceDollar es) reqval
-             else (Comb ct qf tes, tst1)
+    | qf == pre "$" && length es == 2 &&
+      (isFuncPartCall (head es) || isConsPartCall (head es))
+    = transformExp tst0 (reduceDollar es) reqval
+    | otherwise
+    = (Comb ct qf tes, tst1)
+   where reqargtypes = argumentTypesFor (lookupreqinfo qf) reqval
+         (tes,tst1)  = transformExps tst0 (zip es reqargtypes)
   transformExp tst0 (Free vars e) reqval =
     let (te,tst1) = transformExp tst0 e reqval
      in (Free vars te, tst1)
