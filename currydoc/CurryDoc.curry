@@ -2,8 +2,8 @@
 --- Implementation of CurryDoc, a utility for the automatic
 --- generation of HTML documentation from Curry programs.
 ---
---- @author Michael Hanus
---- @version January 2015
+--- @author Michael Hanus, Jan Tikovsky
+--- @version June 2015
 ----------------------------------------------------------------------
 
 -- * All comments to be put into the HTML documentation must be
@@ -34,6 +34,7 @@ import FileGoodies
 import FilePath ((</>), (<.>), dropFileName, takeFileName)
 import FlatCurry
 import FlatCurryRead(readFlatCurryWithImports)
+import Function
 import List
 import Maybe(fromJust)
 import System
@@ -85,6 +86,8 @@ processArgs params args = case args of
   -- HTML index only
   ("--onlyindexhtml":docdir:modnames) ->
                       makeIndexPages docdir (map stripCurrySuffix modnames)
+  ("--libsindexhtml":docdir:modnames) ->
+                      makeSystemLibsIndex docdir modnames
   (('-':_):_) -> putStrLn usageMessage
   -- module
   [modname] ->
@@ -103,6 +106,7 @@ usageMessage = unlines
  , "Usage: currydoc [--nomarkdown] [--html|--tex|--cdoc] [<doc directory>] <module_name>"
  , "       currydoc [--nomarkdown] --noindexhtml <doc directory> <module_name>"
  , "       currydoc --onlyindexhtml <doc directory> <module_names>"
+ , "       currydoc --libsindexhtml <doc directory> <module_names>"
  ]
 
 
@@ -132,6 +136,8 @@ makeCompleteDoc docparams recursive reldocdir modpath = do
       setCurrentDirectory moddir
       -- parsing source program:
       callFrontend FCY modname
+      -- generate abstract curry representation
+      callFrontend ACY modname
       -- when constructing CDOC the imported modules don't have to be read
       -- from the FlatCurry file
       (alltypes,allfuns) <- getProg modname $ docType docparams
@@ -174,6 +180,37 @@ makeIndexPages docdir modnames = do
     fcyfile <- findFileInLoadPath (flatCurryFileName modname)
     (Prog _ _ types funs _) <- readFlatCurryFile fcyfile
     return (types,funs)
+
+--- Generate a system library index page categorizing the given
+--- (already compiled!) modules
+makeSystemLibsIndex :: String -> [String] -> IO ()
+makeSystemLibsIndex docdir modnames = do
+  -- generate index pages (main index, function index, constructor index)
+  makeIndexPages docdir modnames
+  putStrLn ("Categorizing modules ...")
+  modInfos <- mapIO getModInfo modnames
+  putStrLn ("Grouping modules by categories ...")
+  let grpMods = map sortByName $ groupByCategory $ sortByCategory modInfos
+      cats    = sortBy (<=) $ nub $ map fst3 modInfos
+  genSystemLibsPage docdir cats grpMods
+ where
+  fst3 (x,_,_)    = x
+  snd3 (_,y,_)    = y
+  trd3 (_,_,z)    = z
+  sortByCategory  = sortBy ((<=) `on` fst3)
+  groupByCategory = groupBy ((==) `on` fst3)
+  sortByName      = sortBy ((<=) `on` snd3)
+
+getModInfo :: String -> IO (Category,String, String)
+getModInfo modname = do
+  mmodsrc <- lookupModuleSourceInLoadPath modname
+  case mmodsrc of
+    Nothing           -> error $ "Source code of module '"++modname++"' not found!"
+    Just (_,progname) -> do
+      (modcmts,_) <- readComments progname
+      let (modcmt,catcmts) = splitComment modcmts
+          category         = readCategory $ getCommentType "category" catcmts
+      return (category,modname,firstPassage modcmt)
 
 -- create documentation directory (if necessary) with gifs and stylesheets:
 prepareDocDir :: DocType -> String -> IO ()

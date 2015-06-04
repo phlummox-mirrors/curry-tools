@@ -76,26 +76,30 @@ bootstrapForm rootdir styles title lefttopmenu righttopmenu
 --- @param header   - the main header (rendered with hero-unit style)
 --- @param contents - the main contents of the document
 --- @param footer   - the footer of the document
+--- @param isIndex  - flag to generate index page with header
+---                   (using whole page width)
 bootstrapPage :: String -> [String] -> String -> [[HtmlExp]]
               -> [[HtmlExp]] -> Int -> [HtmlExp] -> [HtmlExp]
-              -> [HtmlExp] -> [HtmlExp] -> HtmlPage
+              -> [HtmlExp] -> [HtmlExp] -> Bool -> HtmlPage
 bootstrapPage rootdir styles title lefttopmenu righttopmenu
-              leftcols sidemenu header contents footer =
+              leftcols sidemenu header contents footer isIndex =
   HtmlPage title
            ([pageEnc "utf-8",responsiveView,icon] ++
              map (\n -> pageCSS (rootdir++"/css/"++n++".css")) styles)
            (topNavigationBar lefttopmenu righttopmenu ++
-            [blockstyle "container-fluid"
-              [blockstyle "row-fluid"
                 (if leftcols==0
-                 then [headerRow, blockstyle "row-fluid" contents]
-                 else [blockstyle ("span"++show leftcols)
-                        [blockstyle "well sidebar-nav" sidemenu],
-                       blockstyle ("span"++show (12-leftcols))
-                        [headerRow,
-                         blockstyle "row-fluid" contents]]),
-               hrule,
-               HtmlStruct "footer" [] footer]])
+                 then fluidBlock $ [headerRow, blockstyle "row-fluid" contents]
+                        ++ footline
+                 else (if isIndex
+                       then      [blockstyle "container-fluid" [headerRow]]
+                              ++ (fluidBlock $ sidemenuBlock
+                              ++ [blockstyle ("span" ++ show (12-leftcols))
+                                             contentBlock]
+                              ++ footline)
+                       else fluidBlock $ sidemenuBlock
+                              ++ [blockstyle ("span" ++ show (12-leftcols))
+                                             (headerRow : contentBlock)]
+                              ++ footline)))
  where
   -- for a better view on handheld devices:
   responsiveView =
@@ -108,6 +112,18 @@ bootstrapPage rootdir styles title lefttopmenu righttopmenu
   -- header row:
   headerRow = blockstyle "row-fluid"
                 [HtmlStruct "header" [("class","hero-unit")] header]
+
+  -- content block
+  contentBlock = [blockstyle "row-fluid" contents]
+  
+  -- sidemenu block
+  sidemenuBlock = [ blockstyle ("span"++show leftcols)
+                    [blockstyle "well sidebar-nav" sidemenu] ]
+
+  -- footline
+  footline = [hrule, HtmlStruct "footer" [] footer]
+
+  fluidBlock b = [blockstyle "container-fluid" [blockstyle "row-fluid" b]]
 
 -- Navigation bar at the top:
 topNavigationBar :: [[HtmlExp]] -> [[HtmlExp]] -> [HtmlExp]
