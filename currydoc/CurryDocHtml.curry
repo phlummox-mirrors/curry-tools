@@ -37,42 +37,44 @@ generateHtmlDocs docparams anainfo modname modcmts progcmts = do
   acyname <- findFileInLoadPath (abstractCurryFileName modname)
   putStrLn $ "Reading AbstractCurry program \""++acyname++"\"..."
   (CurryProg _ imports types functions ops) <- readAbstractCurryFile acyname
-  let exptypes = filter isExportedType types
-      expfuns  = filter isExportedFun functions
-  mainPage title htmltitle (lefttopmenu types) rightTopMenu 3
-           [bold [htxt "Exported names:"],
-            genHtmlExportIndex (map tName exptypes)
-                               (getExportedCons types)
-                               (getExportedFields types)
-                               (map fName expfuns),
-            anchored "imported_modules" [bold [htxt "Imported modules:"]],
-            ulist (map (\i -> [href (getLastName i++".html") [htxt i]])
-                       imports) `addClass` "nav nav-list"]
-    (genHtmlModule docparams modcmts ++
-       ([h2 [htxt "Summary of exported operations:"],
-         borderedTable
-           (map (genHtmlFuncShort docparams progcmts anainfo) expfuns)] ++
-        (maybeGenDoc [] (\tys ->
+  let
+    exptypes   = filter isExportedType types
+    expfuns    = filter isExportedFun  functions
+    navigation =
+      [ bold [htxt "Exported names:"]
+      , genHtmlExportIndex (map tName      exptypes)
+                           (getExportedCons   types)
+                           (getExportedFields types)
+                           (map fName       expfuns)
+      , anchored "imported_modules" [bold [htxt "Imported modules:"]]
+      , ulist (map (\i -> [href (getLastName i++".html") [htxt i]]) imports)
+        `addClass` "nav nav-list"
+      ]
+    content =
+         genHtmlModule docparams modcmts
+      ++ [ h2 [htxt "Summary of exported operations:"]
+         , borderedTable (map (genHtmlFuncShort docparams progcmts anainfo) expfuns)
+         ]
+      ++ ifNotNull exptypes (\tys ->
           [anchoredSection "exported_datatypes"
-                               [h2 [htxt "Exported datatypes:"]], hrule] ++
-               concatMap (genHtmlType docparams progcmts) tys) exptypes) ++
-        [anchoredSection "exported_operations"
-                  [h2 [htxt "Exported operations:"]]] ++
-        (map (genHtmlFunc docparams modname progcmts anainfo ops) expfuns)))
-    False
+           (h2 [htxt "Exported datatypes:"] : hrule : concatMap (genHtmlType docparams progcmts) tys)])
+      ++ [anchoredSection "exported_operations"
+           (h2 [htxt "Exported operations:"] : map (genHtmlFunc docparams modname progcmts anainfo ops) expfuns)
+         ]
+  mainPage title [htmltitle] (lefttopmenu types functions) rightTopMenu 
+    navigation content
  where
-   title = "Module "++modname
+  title = "Module " ++ modname
 
-   htmltitle = [h1 [htxt "Module ",
-                    href (modname++"_curry.html")
-                         [htxt (modname++".curry")]]]
+  htmltitle = h1 [ htxt "Module "
+                 , href (modname ++ "_curry.html") [htxt (modname ++ ".curry")]
+                 ]
 
-   lefttopmenu types =
-     [[href "?" [htxt title]],
-      [href "#imported_modules" [htxt "Imports"]]] ++
-     (if null types then []
-      else [[href "#exported_datatypes" [htxt "Datatypes"]]]) ++
-     [[href "#exported_operations" [htxt "Operations"]]]
+  lefttopmenu :: [CTypeDecl] -> [CFuncDecl] -> [[HtmlExp]]
+  lefttopmenu ts fs
+    = [[href "?" [htxt title]], [href "#imported_modules" [htxt "Imports"]]]
+   ++ ifNotNull ts (const [[href "#exported_datatypes"  [htxt "Datatypes" ]]])
+   ++ ifNotNull fs (const [[href "#exported_operations" [htxt "Operations"]]])
 
 
 --- Translate a documentation comment to HTML and use markdown translation
@@ -182,9 +184,9 @@ ulistOrEmpty items | null items = []
                    | otherwise  = [ulist items]
 
 -- generate the html documentation for given comments ("param", "return",...)
-maybeGenDoc :: [HtmlExp] -> ([a] -> [HtmlExp]) -> [a] -> [HtmlExp]
-maybeGenDoc def genDoc cmt
-  | null cmt  = def
+ifNotNull :: [a] -> ([a] -> [b]) -> [b]
+ifNotNull cmt genDoc
+  | null cmt  = []
   | otherwise = genDoc cmt
 
 --- generate HTML documentation for a datatype if it is exported:
@@ -305,7 +307,7 @@ genHtmlFunc docparams modname progcmts anainfo ops (CmtFunc _ n a vis ftype rule
 genHtmlFunc docparams modname progcmts anainfo ops
             (CFunc (fmod,fname) _ _ ftype rules) =
   let (funcmt,paramcmts) = splitComment (getFuncComment fname progcmts)
-   in anchored fname
+   in anchoredDiv fname
        [borderedTable [[
          [par $
            [code [opnameDoc
@@ -327,17 +329,17 @@ genHtmlFunc docparams modname progcmts anainfo ops
   genParamComment paramcmts =
     let params = map (span isIdChar) (getCommentType "param" paramcmts)
         ret    = getCommentType "return" paramcmts
-     in  maybeGenDoc [] (\parCmts ->
+     in  ifNotNull params (\parCmts ->
           [ par [ explainCat "Example call:", nbsp
                 , code [htxt (showCall fname (map fst params))]
                 ]
           , par [explainCat "Parameters:"]
           , ulist (map (\(parid,parcmt) -> [code [htxt parid], htxt " : "]
              ++ removeTopPar (docComment2HTML docparams (removeDash parcmt))) parCmts)
-          ]) params
-      ++ maybeGenDoc [] (\retCmt -> [dlist (map (\rescmt ->
+          ])
+      ++ ifNotNull ret (\retCmt -> [dlist (map (\rescmt ->
           ([explainCat "Returns:"],
-           removeTopPar (docComment2HTML docparams rescmt))) retCmt)]) ret
+           removeTopPar (docComment2HTML docparams rescmt))) retCmt)])
 
   showCall f params =
     if isAlpha (head f) || length params /= 2
@@ -600,10 +602,8 @@ genSystemLibsPage docdir cats modInfos = do
            [h1 [htxt $ currySystem ++ ": System Libraries"]]
            syslibsLeftTopMenu
            syslibsRightTopMenu
-           3
            (syslibsSideMenu cats)
            ([infoTxt, hrule] ++ genHtmlLibCats modInfos)
-           True
    >>= writeFile fname
  where
   fname = docdir ++ "/" ++ currySystem ++ "_libs.html"
@@ -649,13 +649,11 @@ genCatLink :: Category -> String
 genCatLink cat = getCategoryID cat
 
 genHtmlLibCats :: [[ModInfo]] -> [HtmlExp]
-genHtmlLibCats [] = []
-genHtmlLibCats (cat:cats) = case cat of
-  []          -> []
-  ((c,_,_):_) ->
-       [anchoredSection (getCategoryID c) [h2 [htxt (showCategory c ++ ":")]]]
-    ++ genHtmlLibCat cat
-    ++ genHtmlLibCats cats
+genHtmlLibCats = concatMap gen
+  where
+  gen []              = []
+  gen cat@((c,_,_):_) = [anchoredSection (getCategoryID c)
+                        (h2 [htxt (showCategory c ++ ":")] : genHtmlLibCat cat)]
 
 genHtmlLibCat :: [ModInfo] -> [HtmlExp]
 genHtmlLibCat category =
@@ -671,18 +669,16 @@ genHtmlLibCat category =
 --- @param htmltitle - the title in HTML format (shown as h1)
 --- @param lefttopmenu - the menu shown at left of the top
 --- @param righttopmenu - the menu shown at right of the top
---- @param columns - number of columns for the left-side menu
 --- @param sidemenu - the menu shown at the left-hand side
 --- @param maindoc - the main contents of the page
---- @param isIndex - flag to generate libs index page
-mainPage :: String -> [HtmlExp] -> [[HtmlExp]] -> [[HtmlExp]] -> Int
-         -> [HtmlExp] -> [HtmlExp] -> Bool -> IO String
-mainPage title htmltitle lefttopmenu righttopmenu columns sidemenu maindoc isIndex = do
+mainPage :: String -> [HtmlExp] -> [[HtmlExp]] -> [[HtmlExp]]
+         -> [HtmlExp] -> [HtmlExp] -> IO String
+mainPage title htmltitle lefttopmenu righttopmenu sidemenu maindoc = do
     time <- getLocalTime
     return $ showHtmlPage $
       bootstrapPage baseURL cssIncludes
-                    title lefttopmenu righttopmenu columns sidemenu htmltitle maindoc
-                    (curryDocFooter time) isIndex
+                    title lefttopmenu righttopmenu 3 sidemenu htmltitle maindoc
+                    (curryDocFooter time)
 
 cssIncludes :: [String]
 cssIncludes = ["bootstrap","bootstrap-responsive","font-awesome.min","currydoc"]
@@ -735,15 +731,19 @@ simplePage title htmltitle lefttopmenu maindoc = do
                     [h1 (maybe [htxt title] id htmltitle)]
                     maindoc
                     (curryDocFooter time)
-                    False
 
 --- An anchored section in the document:
 anchoredSection :: String -> [HtmlExp] -> HtmlExp
-anchoredSection tag doc = HtmlStruct "section" [("id",tag)] doc
+anchoredSection tag doc = section doc `addAttr` ("id",tag)
 
 --- An anchored element in the document:
 anchored :: String -> [HtmlExp] -> HtmlExp
 anchored tag doc = style "anchored" doc `addAttr` ("id",tag)
+
+--- An anchored element in the document:
+anchoredDiv :: String -> [HtmlExp] -> HtmlExp
+anchoredDiv tag doc = block doc `addAttr` ("class", "anchored")
+                                `addAttr` ("id",tag)
 
 --- A bordered table:
 borderedTable :: [[[HtmlExp]]] -> HtmlExp
