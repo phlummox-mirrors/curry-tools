@@ -657,7 +657,9 @@ genHtmlLibCats = concatMap gen
 
 genHtmlLibCat :: [ModInfo] -> [HtmlExp]
 genHtmlLibCat category =
-  [dlist [(genHtmlName modname,[htxt modcmt]) | (_,modname,modcmt) <- category ]]
+  [dlist [(genHtmlName modname, docComment2HTML defaultCurryDocParams modcmt)
+  | (_,modname,modcmt) <- category ]
+  ]
  where
   genHtmlName modname = [code [href (modname ++ ".html") [htxt modname]]]
 
