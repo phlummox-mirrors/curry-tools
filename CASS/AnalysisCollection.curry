@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version May 2015
+--- @version June 2015
 --------------------------------------------------------------------
 
 module AnalysisCollection(
@@ -39,7 +39,8 @@ import TotallyDefined
 import Indeterministic
 import Demandedness
 import Groundness
-import RequiredValues
+import RequiredValue
+import qualified RequiredValues as RVS
 
 --------------------------------------------------------------------
 --- Each analysis used in our tool must be registered in this list
@@ -60,7 +61,8 @@ registeredAnalysis =
   ,cassAnalysis "Higher-order constructors"  hiOrdCons        showOrder
   ,cassAnalysis "Higher-order functions"     hiOrdFunc        showOrder
   ,cassAnalysis "Sibling constructors"       siblingCons      showSibling
-  ,cassAnalysis "Required values"            reqValueAnalysis showAFType
+  ,cassAnalysis "Required value"             reqValueAnalysis showAFType
+  ,cassAnalysis "Required value sets"        RVS.reqValueAnalysis RVS.showAFType
   ]
 
 

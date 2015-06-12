@@ -9,18 +9,18 @@
 --- the argument `True` to compute the result `False`.
 ---
 --- @author Michael Hanus
---- @version June 2015
+--- @version May 2015
 -----------------------------------------------------------------------------
 
-module RequiredValues(AType(..),showAType,AFType(..),showAFType,lubAType,
-                      reqValueAnalysis)
+module RequiredValue(AType(..),showAType,AFType(..),showAFType,lubAType,
+                     reqValueAnalysis)
  where
 
 import Analysis
 import FlatCurry
 import FlatCurryGoodies
 import GenericProgInfo
-import List hiding (union,intersect)
+import List
 import Sort(mergeSort)
 
 import TotallyDefined(siblingCons)
@@ -30,13 +30,14 @@ import Unsafe(trace)
 -- Our abstract (non-standard) type domain.
 -- `Any` represents any expression,
 -- `AnyC` represents any value (i.e., constructor-rooted term),
--- `Cons cs` a value rooted by some of the constructor `cs`, and
-data AType = Cons [QName] | AnyC | Any
+-- `Cons c` a value rooted by the constructor `c`, and
+-- `Empty` represents no possible value.
+data AType = Any | AnyC | Cons QName | Empty
 
 --- Is some abstract type a constructor?
 isConsValue :: AType -> Bool
-isConsValue av = case av of Cons cs -> not (null cs)
-                            _       -> False
+isConsValue av = case av of Cons _ -> True
+                            _      -> False
 
 --- Least upper bound of abstract values.
 lubAType :: AType -> AType -> AType
@@ -44,9 +45,12 @@ lubAType Any      _        = Any
 lubAType AnyC     Any      = Any
 lubAType AnyC     AnyC     = AnyC
 lubAType AnyC     (Cons _) = AnyC
+lubAType AnyC     Empty    = AnyC
 lubAType (Cons _) Any      = Any
 lubAType (Cons _) AnyC     = AnyC
-lubAType (Cons c) (Cons d) = Cons (union c d)
+lubAType (Cons c) (Cons d) = if c==d then Cons c else AnyC
+lubAType (Cons c) Empty    = Cons c
+lubAType Empty    av       = av
 
 --- Join two abstract values. The result is `Empty` if they are not compatible.
 joinAType :: AType -> AType -> AType
@@ -54,19 +58,23 @@ joinAType Any      av       = av
 joinAType AnyC     Any      = AnyC
 joinAType AnyC     AnyC     = AnyC
 joinAType AnyC     (Cons c) = Cons c
+joinAType AnyC     Empty    = Empty
 joinAType (Cons c) Any      = Cons c
 joinAType (Cons c) AnyC     = Cons c
-joinAType (Cons c) (Cons d) = Cons (intersect c d)
+joinAType (Cons c) (Cons d) = if c==d then Cons c else Empty
+joinAType (Cons _) Empty    = Empty
+joinAType Empty    _        = Empty
 
 --- Are two abstract types compatible, i.e., describe common values?
 compatibleType :: AType -> AType -> Bool
-compatibleType t1 t2 = joinAType t1 t2 /= Cons []
+compatibleType t1 t2 = joinAType t1 t2 /= Empty
 
 -- Shows an abstract value.
 showAType :: AOutFormat -> AType -> String
 showAType _ Any  = "any"
 showAType _ AnyC = "cons"
-showAType _ (Cons cs) = "{" ++ intercalate "," (map snd cs) ++ "}"
+showAType _ (Cons (_,n)) = n --q++"."++n
+showAType _ Empty = "_|_"
 
 --- The abstract type of a function.
 --- It is either `EmptyFunc`, i.e., contains no information about
@@ -123,7 +131,7 @@ maxReqValues = 3
 --- Required value analysis.
 reqValueAnalysis :: Analysis AFType
 reqValueAnalysis =
-  combinedDependencyFuncAnalysis "RequiredValues"
+  combinedDependencyFuncAnalysis "RequiredValue"
                                  siblingCons EmptyFunc analyseReqVal
 
 analyseReqVal :: ProgInfo [QName] -> FuncDecl -> [(QName,AFType)] -> AFType
@@ -137,7 +145,7 @@ analyseReqVal consinfo (Func (m,f) arity _ _ rule) calledfuncs
   anaresult (Rule args rhs) = analyseReqValRule consinfo calledfuncs args rhs
 
   -- add special results for prelude functions here:
-  preludeFuncs = [("failed",AFType [([],Cons [])])
+  preludeFuncs = [("failed",AFType [([],Empty)])
                  ,("==",AFType [([AnyC,AnyC],AnyC)])
                  ,("=:=",AFType [([AnyC,AnyC],AnyC)])
                  ,("$",AFType [([AnyC,Any],AnyC)])
@@ -160,12 +168,12 @@ analyseReqValRule consinfo calledfuncs args rhs =
       if any (==AnyC) rtypes && any isConsValue rtypes
       then
        let somecons = maybe (error "Internal error")
-                            (\ (Cons (c:_)) -> c)
-                            (find isConsValue rtypes)
+                                (\ (Cons c) -> c)
+                                (find isConsValue rtypes)
            othercons = maybe [] id (lookupProgInfo somecons consinfo)
            consenvtypes = foldr lubEnvTypes []
                                 (map (\rt -> reqValExp initenv rhs rt)
-                                   (map (\c -> Cons [c]) (somecons:othercons)))
+                                     (map Cons (somecons:othercons)))
         in AFType (map (\ (env,rtype) -> (map snd env, rtype))
                        (lubAnyEnvTypes (if length othercons >= maxReqValues
                                         then envtypes
@@ -176,7 +184,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
   reqValExp env exp reqtype = case exp of
     Var v -> [(updateVarInEnv env v reqtype, reqtype)]
     Lit _ -> [(env, AnyC)] -- too many literal constants...
-    Comb ConsCall c _ -> [(env, Cons [c])] -- analysis of arguments superfluous
+    Comb ConsCall c _ -> [(env, Cons c)] -- analysis of arguments superfluous
     Comb FuncCall qf funargs ->
       if qf==(prelude,"?") && length funargs == 2
       then -- use intended definition of Prelude.? for more precise analysis:
@@ -184,7 +192,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
       else
         maybe [(env, AnyC)]
               (\ftype -> case ftype of
-                 EmptyFunc -> [(env, Cons [])] -- no information available
+                 EmptyFunc -> [(env, Empty)] -- no information available
                  AFType ftypes ->
                    let matchingtypes = filter (compatibleType reqtype . snd)
                                               ftypes
@@ -197,7 +205,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
                                in (foldr joinEnv env argenvs, rt))
                              matchingtypes
                     in if null matchingtypes
-                       then [(env, Cons [])]
+                       then [(env, Empty)]
                        else matchingenvs )
               (lookup qf calledfuncs)
     Comb _ _ _ -> [(env, AnyC)] -- no reasonable info for partial applications
@@ -211,7 +219,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
           reqenvs = filter (not . null)
                            (map (envForBranch env reqtype e) nfbranches)
        in if null reqenvs
-          then [(env, Cons [])]
+          then [(env, Empty)]
           else foldr1 lubEnvTypes reqenvs
     Free vars e ->
       map (dropEnv (length vars))
@@ -237,7 +245,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
     branchtypes = case pat of
       LPattern _   -> reqValExp env bexp reqtype
       Pattern qc pvars ->
-        let caseenvs = map fst (reqValExp env exp (Cons [qc]))
+        let caseenvs = map fst (reqValExp env exp (Cons qc))
             branchenvs =
               foldr lubEnvTypes []
                     (map (\caseenv ->
@@ -251,11 +259,11 @@ lubEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)] -> [(AEnv,AType)]
 lubEnvTypes []         ets2 = ets2
 lubEnvTypes ets1@(_:_) []   = ets1
 lubEnvTypes ((env1,t1):ets1) ((env2,t2):ets2)
-  | t1==Cons [] = lubEnvTypes ets1 ((env2,t2):ets2) -- ignore "empty" infos
-  | t2==Cons [] = lubEnvTypes ((env1,t1):ets1) ets2
-  | t1==t2      = (lubEnv env1 env2, t1) : lubEnvTypes ets1 ets2
-  | t1 < t2     = (env1,t1) : lubEnvTypes ets1 ((env2,t2):ets2)
-  | otherwise   = (env2,t2) : lubEnvTypes ((env1,t1):ets1) ets2
+  | t1==Empty = lubEnvTypes ets1 ((env2,t2):ets2) -- ignore "empty" infos
+  | t2==Empty = lubEnvTypes ((env1,t1):ets1) ets2
+  | t1==t2    = (lubEnv env1 env2, t1) : lubEnvTypes ets1 ets2
+  | t1<t2     = (env1,t1) : lubEnvTypes ets1 ((env2,t2):ets2)
+  | otherwise = (env2,t2) : lubEnvTypes ((env1,t1):ets1) ets2
 
 --- "lub" the environments of the more specific types to the AnyC type
 --- (if present).
@@ -287,25 +295,3 @@ joinEnv ((i1,v1):env1) env2@(_:_) =
 -- Name of the standard prelude:
 prelude :: String
 prelude = "Prelude"
-
-
-------------------------------------------------------------------------------
--- Auxiliaries:
-
--- Union on sorted lists:
-union :: [a] -> [a] -> [a]
-union []       ys     = ys
-union xs@(_:_) []     = xs
-union (x:xs)   (y:ys) | x==y      = x : union xs ys
-                      | x<y       = x : union xs (y:ys)
-	              | otherwise = y : union (x:xs) ys
-
--- Intersection on sorted lists:
-intersect :: [a] -> [a] -> [a]
-intersect []     _      = []
-intersect (_:_)  []     = []
-intersect (x:xs) (y:ys) | x==y      = x : intersect xs ys
-                        | x<y       = intersect xs (y:ys)
-	                | otherwise = intersect (x:xs) ys
-
-------------------------------------------------------------------------------

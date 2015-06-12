@@ -11,7 +11,7 @@ module BindingOpt (main, transformFlatProg) where
 import AnalysisServer    (analyzeGeneric, analyzePublic, analyzeInterface)
 import Analysis
 import GenericProgInfo
-import RequiredValues
+import RequiredValue
 
 import Directory         (renameFile)
 import Distribution      ( installDir, curryCompiler, currySubdir
@@ -213,10 +213,10 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformExp tst (Var i) _ = (Var i, tst)
   transformExp tst (Lit v) _ = (Lit v, tst)
   transformExp tst0 (Comb ct qf es) reqval
-    | qf == pre "==" && reqval == RequiredValues.Cons (pre "True")
+    | qf == pre "==" && reqval == RequiredValue.Cons (pre "True")
     = (Comb FuncCall (pre "===") tes,
        incOccNumber tst1)
-    | qf == pre "/=" && reqval == RequiredValues.Cons (pre "False")
+    | qf == pre "/=" && reqval == RequiredValue.Cons (pre "False")
     = (Comb FuncCall (pre "not") [Comb FuncCall (pre "===") tes],
               incOccNumber tst1)
     | qf == pre "$" && length es == 2 &&
@@ -280,7 +280,7 @@ caseArgType branches =
                           branches
    in if length nfbranches /= 1 then Any else getPatCons (head nfbranches)
  where
-   getPatCons (Branch (Pattern qc _) _) = Cons qc --RequiredValues.Cons
+   getPatCons (Branch (Pattern qc _) _) = Cons qc --RequiredValue.Cons
    getPatCons (Branch (LPattern _)   _) = Any
 
 --- Compute the argument types for a given abstract function type
