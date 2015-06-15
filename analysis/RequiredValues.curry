@@ -33,6 +33,10 @@ import Unsafe(trace)
 -- `Cons cs` a value rooted by some of the constructor `cs`, and
 data AType = Cons [QName] | AnyC | Any
 
+--- Abstract representation of no possible value.
+empty :: AType
+empty = Cons []
+
 --- Is some abstract type a constructor?
 isConsValue :: AType -> Bool
 isConsValue av = case av of Cons cs -> not (null cs)
@@ -47,6 +51,8 @@ lubAType AnyC     (Cons _) = AnyC
 lubAType (Cons _) Any      = Any
 lubAType (Cons _) AnyC     = AnyC
 lubAType (Cons c) (Cons d) = Cons (union c d)
+-- replace previous rule by following rule in order to use singleton sets:
+--lubAType (Cons c) (Cons d) = if c==d then Cons c else AnyC
 
 --- Join two abstract values. The result is `Empty` if they are not compatible.
 joinAType :: AType -> AType -> AType
@@ -57,10 +63,12 @@ joinAType AnyC     (Cons c) = Cons c
 joinAType (Cons c) Any      = Cons c
 joinAType (Cons c) AnyC     = Cons c
 joinAType (Cons c) (Cons d) = Cons (intersect c d)
+-- replace previous rule by following rule in order to use singleton sets:
+--joinAType (Cons c) (Cons d) = if c==d then Cons c else Cons []
 
 --- Are two abstract types compatible, i.e., describe common values?
 compatibleType :: AType -> AType -> Bool
-compatibleType t1 t2 = joinAType t1 t2 /= Cons []
+compatibleType t1 t2 = joinAType t1 t2 /= empty
 
 -- Shows an abstract value.
 showAType :: AOutFormat -> AType -> String
@@ -137,7 +145,7 @@ analyseReqVal consinfo (Func (m,f) arity _ _ rule) calledfuncs
   anaresult (Rule args rhs) = analyseReqValRule consinfo calledfuncs args rhs
 
   -- add special results for prelude functions here:
-  preludeFuncs = [("failed",AFType [([],Cons [])])
+  preludeFuncs = [("failed",AFType [([],empty)])
                  ,("==",AFType [([AnyC,AnyC],AnyC)])
                  ,("=:=",AFType [([AnyC,AnyC],AnyC)])
                  ,("$",AFType [([AnyC,Any],AnyC)])
@@ -184,7 +192,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
       else
         maybe [(env, AnyC)]
               (\ftype -> case ftype of
-                 EmptyFunc -> [(env, Cons [])] -- no information available
+                 EmptyFunc -> [(env, empty)] -- no information available
                  AFType ftypes ->
                    let matchingtypes = filter (compatibleType reqtype . snd)
                                               ftypes
@@ -197,7 +205,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
                                in (foldr joinEnv env argenvs, rt))
                              matchingtypes
                     in if null matchingtypes
-                       then [(env, Cons [])]
+                       then [(env, empty)]
                        else matchingenvs )
               (lookup qf calledfuncs)
     Comb _ _ _ -> [(env, AnyC)] -- no reasonable info for partial applications
@@ -211,7 +219,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
           reqenvs = filter (not . null)
                            (map (envForBranch env reqtype e) nfbranches)
        in if null reqenvs
-          then [(env, Cons [])]
+          then [(env, empty)]
           else foldr1 lubEnvTypes reqenvs
     Free vars e ->
       map (dropEnv (length vars))
@@ -251,11 +259,11 @@ lubEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)] -> [(AEnv,AType)]
 lubEnvTypes []         ets2 = ets2
 lubEnvTypes ets1@(_:_) []   = ets1
 lubEnvTypes ((env1,t1):ets1) ((env2,t2):ets2)
-  | t1==Cons [] = lubEnvTypes ets1 ((env2,t2):ets2) -- ignore "empty" infos
-  | t2==Cons [] = lubEnvTypes ((env1,t1):ets1) ets2
-  | t1==t2      = (lubEnv env1 env2, t1) : lubEnvTypes ets1 ets2
-  | t1 < t2     = (env1,t1) : lubEnvTypes ets1 ((env2,t2):ets2)
-  | otherwise   = (env2,t2) : lubEnvTypes ((env1,t1):ets1) ets2
+  | t1==empty = lubEnvTypes ets1 ((env2,t2):ets2) -- ignore "empty" infos
+  | t2==empty = lubEnvTypes ((env1,t1):ets1) ets2
+  | t1==t2    = (lubEnv env1 env2, t1) : lubEnvTypes ets1 ets2
+  | t1 < t2   = (env1,t1) : lubEnvTypes ets1 ((env2,t2):ets2)
+  | otherwise = (env2,t2) : lubEnvTypes ((env1,t1):ets1) ets2
 
 --- "lub" the environments of the more specific types to the AnyC type
 --- (if present).

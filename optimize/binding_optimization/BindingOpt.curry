@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------
 --- Implementation of a transformation to replace Boolean equalities
---- by constrained equalities (which binds variables).
+--- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
 --- @version June 2015
@@ -11,8 +11,9 @@ module BindingOpt (main, transformFlatProg) where
 import AnalysisServer    (analyzeGeneric, analyzePublic, analyzeInterface)
 import Analysis
 import GenericProgInfo
-import RequiredValue
+import RequiredValues
 
+import CSV
 import Directory         (renameFile)
 import Distribution      ( installDir, curryCompiler, currySubdir
                          , addCurrySubdir, splitModuleFileName
@@ -31,7 +32,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 04/06/2015)"
+  let bannerText = "Curry Binding Optimizer (version of 14/06/2015)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -137,11 +138,17 @@ transformFlatProg (verb, withanalysis, _) modname
                                      (if verb==3 then reqinfo else mreqinfo)
             return (flip lookupProgInfo reqinfo)
     else return (flip lookup preludeBoolReqValues)
-  let (ons,cmts,newfdecls) = unzip3 (map (transformFuncDecl verb lookupreqinfo)
-                                         fdecls)
-      numtrans = sum ons
-  printVerbose verb 1 $ unlines (filter (not . null) cmts)
-  printVerbose verb 1 $ "Total number of transformations: " ++ show numtrans
+  let (stats,newfdecls) = unzip (map (transformFuncDecl lookupreqinfo) fdecls)
+      numtrans = totalTrans stats
+      numbeqs  = totalBEqs  stats
+      csvfname = mname ++ "_BOPTSTATS.csv"
+  printVerbose verb 2 $ statSummary stats
+  printVerbose verb 1 $
+     "Total number of transformed (dis)equalities: " ++ show numtrans ++
+     " (out of " ++ show numbeqs ++ ")"
+  unless (verb<2) $ do
+    writeCSVFile csvfname (stats2csv stats)
+    putStrLn ("Detailed statistics written to '" ++ csvfname ++"'")
   return (Prog mname imports tdecls newfdecls opdecls, numtrans > 0)
 
 loadAnalysisWithImports :: Analysis a -> String -> [String]
@@ -159,23 +166,18 @@ showInfos showi =
           . (\p -> fst p ++ snd p) . progInfo2Lists
 
 -- Transform a function declaration.
--- The number of transformed occurrences of (==), a comment, and
--- the new function declaration are returned.
-transformFuncDecl :: Int -> (QName -> Maybe AFType) -> FuncDecl
-                  -> (Int,String,FuncDecl)
-transformFuncDecl verb lookupreqinfo fdecl@(Func qf ar vis texp rule) =
+-- Some statistical information and the new function declaration are returned.
+transformFuncDecl :: (QName -> Maybe AFType) -> FuncDecl
+                  -> (TransStat,FuncDecl)
+transformFuncDecl lookupreqinfo fdecl@(Func qf@(_,fn) ar vis texp rule) =
   if containsBeqRule rule
   then
     let (tst,trule) = transformRule lookupreqinfo (initTState qf) rule
         on = occNumber tst
-     in (on,
-         if verb <= 1 then "" else
-           if on==0 then "" else
-             "Function "++snd qf++": "++
-             (if on==1 then "one occurrence" else show on++" occurrences") ++
-             " of (==) transformed into (===)",
-         Func qf ar vis texp trule)
-  else (0,"",fdecl)
+     in (TransStat fn beqs on, Func qf ar vis texp trule)
+  else (TransStat fn 0 0, fdecl)
+ where
+  beqs = numberBeqRule rule
 
 -------------------------------------------------------------------------
 -- State threaded thorugh the program transformer:
@@ -213,10 +215,10 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformExp tst (Var i) _ = (Var i, tst)
   transformExp tst (Lit v) _ = (Lit v, tst)
   transformExp tst0 (Comb ct qf es) reqval
-    | qf == pre "==" && reqval == RequiredValue.Cons (pre "True")
+    | qf == pre "==" && reqval == aTrue
     = (Comb FuncCall (pre "===") tes,
        incOccNumber tst1)
-    | qf == pre "/=" && reqval == RequiredValue.Cons (pre "False")
+    | qf == pre "/=" && reqval == aFalse
     = (Comb FuncCall (pre "not") [Comb FuncCall (pre "===") tes],
               incOccNumber tst1)
     | qf == pre "$" && length es == 2 &&
@@ -280,7 +282,7 @@ caseArgType branches =
                           branches
    in if length nfbranches /= 1 then Any else getPatCons (head nfbranches)
  where
-   getPatCons (Branch (Pattern qc _) _) = Cons qc --RequiredValue.Cons
+   getPatCons (Branch (Pattern qc _) _) = aCons qc
    getPatCons (Branch (LPattern _)   _) = Any
 
 --- Compute the argument types for a given abstract function type
@@ -320,6 +322,25 @@ containsBeqRule (Rule _ rhs) = containsBeqExp rhs
 
   containsBeqBranch (Branch _ be) = containsBeqExp be
 
+-- Number of occurrences of Prelude.== or Prelude./= occurring in a rule:
+numberBeqRule :: Rule -> Int
+numberBeqRule (External _) = 0
+numberBeqRule (Rule _ rhs) = numberBeqExp rhs
+ where
+  -- numberBeq an expression w.r.t. a required value
+  numberBeqExp exp = case exp of
+    Var _        -> 0
+    Lit _        -> 0
+    Comb _ qf es -> (if qf == pre "==" || qf == pre "/=" then 1 else 0) +
+                    sum (map numberBeqExp es)
+    Free _ e     -> numberBeqExp e
+    Or e1 e2     -> numberBeqExp e1 + numberBeqExp e2
+    Typed e _    -> numberBeqExp e
+    Case _ e bs  -> numberBeqExp e + sum (map numberBeqBranch bs)
+    Let bs e     -> numberBeqExp e + sum (map numberBeqExp (map snd bs))
+
+  numberBeqBranch (Branch _ be) = numberBeqExp be
+
 pre :: String -> QName
 pre n = ("Prelude", n)
 
@@ -335,19 +356,60 @@ loadPreludeBoolReqValues = do
   hasBoolReqValue (AFType rtypes) =
     maybe False (const True) (find (isBoolReqValue . snd) rtypes)
 
-  isBoolReqValue rt = case rt of
-    Cons qc -> qc `elem` [pre "True", pre "False"]
-    _       -> False
+  isBoolReqValue rt = rt == aFalse || rt == aTrue
 
 -- Current relevant Boolean functions of the prelude:
 preludeBoolReqValues :: [(QName, AFType)]
 preludeBoolReqValues =
- [(pre "&&",    AFType [([Any,Any],false), ([true,true],true)])
- ,(pre "not",   AFType [([true],false), ([false],true)])
- ,(pre "||",    AFType [([false,false],false), ([Any,Any],true)])
- ,(pre "solve", AFType [([true],true)])
- ,(pre "&&>",   AFType [([true,Any],AnyC)])
+ [(pre "&&",    AFType [([Any,Any],aFalse), ([aTrue,aTrue],aTrue)])
+ ,(pre "not",   AFType [([aTrue],aFalse), ([aFalse],aTrue)])
+ ,(pre "||",    AFType [([aFalse,aFalse],aFalse), ([Any,Any],aTrue)])
+ ,(pre "solve", AFType [([aTrue],aTrue)])
+ ,(pre "&&>",   AFType [([aTrue,Any],AnyC)])
  ]
+
+--- Map a constructor into an abstract value representing this constructor:
+aCons :: QName -> AType
+aCons qn = Cons [qn]
+
+--- Abstract `False` value
+aFalse :: AType
+aFalse = aCons (pre "False")
+
+--- Abstract `True` value
+aTrue :: AType
+aTrue  = aCons (pre "True")
+
+-------------------------------------------------------------------------
+--- Statistical information (e.g., for benchmarking the tool):
+--- * function name
+--- * number of Boolean (dis)equalities in the rule
+--- * number of transformed (dis)equalities in the rule
+data TransStat = TransStat String Int Int
+
+--- Number of all transformations:
+totalTrans :: [TransStat] -> Int
+totalTrans = sum . map (\ (TransStat _ _ teqs) -> teqs)
+
+--- Number of all Boolean (dis)equalities:
+totalBEqs :: [TransStat] -> Int
+totalBEqs = sum . map (\ (TransStat _ beqs _) -> beqs)
+
+--- Show a summary of the actual transformations:
+statSummary :: [TransStat] -> String
+statSummary = concatMap showSum
  where
-   false = Cons (pre "False")
-   true  = Cons (pre "True")
+  showSum (TransStat fn _ teqs) =
+    if teqs==0
+      then ""
+      else "Function "++fn++": "++
+           (if teqs==1 then "one occurrence" else show teqs++" occurrences") ++
+           " of (==) transformed into (===)\n"
+
+--- Translate statistics into CSV format:
+stats2csv :: [TransStat] -> [[String]]
+stats2csv stats =
+  ["Function","Boolean equalities", "Transformed equalities"] :
+  map (\ (TransStat fn beqs teqs) -> [fn, show beqs, show teqs]) stats
+
+-------------------------------------------------------------------------
