@@ -1,0 +1,18 @@
+Default Rules Preprocessor
+==========================
+
+This directory contains the implementation of a preprocessor
+for Curry programs in order to implement default rules.
+A default rule for a function `f` processed by this preprocessor
+must be defined as a rule defining `default_f` (see the examples
+in the directory Examples).
+
+The preprocessor can be called with the following parameters:
+
+... <input> : translate <input> program and show translated program
+
+... -r <input> : translate <input> program and load the translated program
+                 into the Curry system
+
+... <org> <infile> <outfile> : "preprocessor mode", i.e., translate
+  <infile> to <outfile> where <org> is the original program

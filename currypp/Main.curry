@@ -59,10 +59,12 @@ main = do
     ("-?":_)          -> Just opts { optHelp = True}
     ("-o":os)         -> processOptions opts { optSave = True } os
     ("-v":os)         -> processOptions opts { optVers = True } os
-    (('-':'-':ts):os) -> if ts `elem` ["foreigncode","seqrules"]
+    (('-':'-':ts):os) -> if ts `elem` ["foreigncode","seqrules","default"]
                          then processOptions opts {optTgts = ts:optTgts opts} os
     	 	         else Nothing
-    _                 -> Nothing
+    (ts:os)           -> if ts `elem` ["foreigncode","seqrules","defaultrules"]
+                         then processOptions opts {optTgts = ts:optTgts opts} os
+    	 	         else Nothing
 
   saveFile orgSourceFile outFile = do
     let sFile = orgSourceFile++".CURRYPP"
@@ -82,12 +84,13 @@ usageText =
   "<InputFilePath> : name of the actual input file\n" ++
   "<OutputFilePath>: name of the file where output should be written\n\n" ++
   "where <options> contain preprocessing targets\n\n" ++
-  "--foreigncode : translate foreign code pieces in the source file\n" ++
-  "--seqrules    : implement sequential rule selection strategy\n" ++
+  "foreigncode  : translate foreign code pieces in the source file\n" ++
+  "seqrules     : implement sequential rule selection strategy\n" ++
+  "defaultrules : implement default rules\n" ++
   "\nand optional settings:\n" ++
-  "-o            : store output also in file <OrgFileName>.CURRYPP\n" ++
-  "-v            : show preprocessor version on stdout\n" ++
-  "-h|-?         : show help message and quit\n"
+  "-o           : store output also in file <OrgFileName>.CURRYPP\n" ++
+  "-v           : show preprocessor version on stdout\n" ++
+  "-h|-?        : show help message and quit\n"
 
 -- Start the Curry preprocessor:
 preprocess :: [String] -> String -> String -> String -> IO ()
@@ -97,8 +100,11 @@ preprocess pptargets orgSourceFile infile outfile
     putStrLn "ERROR: no preprocessing target (e.g., --foreigncode) specified!\n"
     putStrLn usageText
     exitWith 1
-  | "foreigncode" `elem` pptargets = translateFile infile outfile
-  | "seqrules"    `elem` pptargets =
+  | "foreigncode"  `elem` pptargets = translateFile infile outfile
+  | "seqrules"     `elem` pptargets =
       system (unwords [installDir++"/currytools/currypp/SequentialRules/Main",
+                       orgSourceFile,infile,outfile]) >> done
+  | "defaultrules" `elem` pptargets =
+      system (unwords [installDir++"/currytools/currypp/DefaultRules/Transform",
                        orgSourceFile,infile,outfile]) >> done
   | otherwise = error "currypp: internal error"

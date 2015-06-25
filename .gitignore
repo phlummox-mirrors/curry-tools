@@ -12,6 +12,7 @@ CASS/cass_worker
 curry2js/Curry2JS
 currypp/Main
 currypp/SequentialRules/Main
+currypp/DefaultRules/Transform
 currydoc/CurryDoc
 currytest/CurryTest
 createmakefile/CreateMakefile
