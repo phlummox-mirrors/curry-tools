@@ -267,6 +267,14 @@ Loading program "ParOr"...
 main
 [True,True,True,False]
 [True,True,True,False]
+Loading program "MapColor"...
+main
+[(WA,Red),(OR,Green),(ID,Blue),(BC,Green)]
+[(WA,Red),(OR,Blue),(ID,Green),(BC,Blue)]
+[(WA,Green),(OR,Red),(ID,Blue),(BC,Red)]
+[(WA,Green),(OR,Blue),(ID,Red),(BC,Blue)]
+[(WA,Blue),(OR,Red),(ID,Green),(BC,Red)]
+[(WA,Blue),(OR,Green),(ID,Red),(BC,Green)]
 Loading program "Rev2"...
 main
 [[],[1],[2,1],[1,2,3],[1,2,3,4]]

@@ -4,13 +4,11 @@
 -- This example shows that optimal evaluation is still possible
 -- with default rules.
 
-f 0 1 = 0
-f _ 2 = 1
+f 0 1 = 1
+f _ 2 = 2
 default_f _ x = x
--- does not yet work with current transformation scheme, better:
--- rename original rules and introduce single rule for orig. function:
--- f x y = f' x y ? f_default x y
 
 loop = loop
 
+-- Note this a finite search space is only obtained with KiCS2!
 main = [f loop 2, f loop 3]

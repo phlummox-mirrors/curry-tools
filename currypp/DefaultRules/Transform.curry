@@ -155,26 +155,39 @@ func2rule funcs (CmtFunc _ qf ar vis texp rules) =
   func2rule funcs (CFunc qf ar vis texp rules)
 
 transFDecl :: [(QName,CRule)] -> CFuncDecl -> [CFuncDecl]
-transFDecl defrules fdecl@(CFunc qf ar vis texp rules) =
-  maybe [CFunc qf ar vis texp rules]
-        (\defrule ->
-          let condfun = transFDecl2ApplyCond fdecl
-	   in [condfun,
-               CFunc qf ar vis texp
-                     (rules++[transDefaultRule (funcName condfun) ar defrule])])
-        (lookup qf defrules)
 transFDecl defrules (CmtFunc _ qf ar vis texp rules) =
   transFDecl defrules (CFunc qf ar vis texp rules)
-
-transFDecl2ApplyCond :: CFuncDecl -> CFuncDecl
-transFDecl2ApplyCond (CmtFunc _ qf ar vis texp rules) =
-  transFDecl2ApplyCond (CFunc qf ar vis texp rules)
-transFDecl2ApplyCond (CFunc (mn,fn) ar _ texp rules) =
-  CFunc condfunname ar Private (adjustResultType texp) (map rule2cond rules)
+transFDecl defrules fdecl@(CFunc qf@(mn,fn) ar vis texp rules) =
+  maybe [CFunc qf ar vis texp rules]
+        (\defrule ->
+	      [transFDecl2ApplyCond applyname fdecl,
+               CFunc neworgname ar Private texp rules,
+	       CFunc deffunname ar Private texp
+                     [transDefaultRule applyname ar defrule],
+	       CFunc qf ar vis texp [neworgrule]])
+        (lookup qf defrules)
  where
-  -- new name for "application check" function (TODO: check for unused name)
-  condfunname =  (mn,fn++"_APPLYCOND")
-  
+  -- new names for auxiliary functions (TODO: check for unused name)
+  applyname  = (mn,fn++"_ORGFUN")
+  neworgname = (mn,fn++"_DEFAULT")
+  deffunname = (mn,fn++"_APPLYCOND")
+
+  neworgrule =
+    CRule (map CPVar argvars)
+          (CSimpleRhs (applyF (pre "?")
+  	                      [applyF neworgname (map CVar argvars),
+		   	       applyF deffunname (map CVar argvars)])
+	              [])
+
+  argvars = map (\i->(i,"x"++show i)) [1..ar]
+
+
+transFDecl2ApplyCond :: QName -> CFuncDecl -> CFuncDecl
+transFDecl2ApplyCond nqf (CmtFunc _ qf ar vis texp rules) =
+  transFDecl2ApplyCond nqf (CFunc qf ar vis texp rules)
+transFDecl2ApplyCond nqf (CFunc _ ar _ texp rules) =
+  CFunc nqf ar Private (adjustResultType texp) (map rule2cond rules)
+ where
   rule2cond (CRule rpats (CSimpleRhs _ rlocals)) =
     CRule rpats (CSimpleRhs preUnit rlocals)
   rule2cond (CRule rpats (CGuardedRhs gds rlocals)) =

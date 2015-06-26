@@ -47,6 +47,9 @@ main4
 :l ParOr
 main
 
+:l MapColor
+main
+
 :l Rev2
 main
 
