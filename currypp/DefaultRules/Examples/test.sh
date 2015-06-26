@@ -24,6 +24,9 @@ main
 :load BubbleSort
 main
 
+:l ColorMap
+main
+
 :l DutchFlag
 main
 dutch iflag
@@ -45,9 +48,6 @@ main3
 main4
 
 :l ParOr
-main
-
-:l MapColor
 main
 
 :l Rev2
