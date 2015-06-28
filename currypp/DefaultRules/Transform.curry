@@ -131,7 +131,7 @@ translateProg :: CurryProg -> CurryProg
 translateProg (CurryProg mn imps tdecls fdecls ops) =
   CurryProg mn newimps tdecls newfdecls ops
  where
-  newimps = if "SetFunctions" `elem` imps then imps else "SetFunctions":imps
+  newimps = if setFunMod `elem` imps then imps else setFunMod:imps
   (deffuncs,funcs) = partition isDefault fdecls
   defrules = map (func2rule funcs) deffuncs
   newfdecls = concatMap (transFDecl defrules) funcs
@@ -160,17 +160,17 @@ transFDecl defrules (CmtFunc _ qf ar vis texp rules) =
 transFDecl defrules fdecl@(CFunc qf@(mn,fn) ar vis texp rules) =
   maybe [CFunc qf ar vis texp rules]
         (\defrule ->
-	      [transFDecl2ApplyCond applyname fdecl,
-               CFunc neworgname ar Private texp rules,
+	      [CFunc neworgname ar Private texp rules,
+               transFDecl2ApplyCond applyname fdecl,
 	       CFunc deffunname ar Private texp
                      [transDefaultRule applyname ar defrule],
 	       CFunc qf ar vis texp [neworgrule]])
         (lookup qf defrules)
  where
   -- new names for auxiliary functions (TODO: check for unused name)
-  applyname  = (mn,fn++"_ORGFUN")
-  neworgname = (mn,fn++"_DEFAULT")
-  deffunname = (mn,fn++"_APPLYCOND")
+  neworgname = (mn,fn++"_ORGRULES")
+  applyname  = (mn,fn++"_APPLICABLE")
+  deffunname = (mn,fn++"_DEFAULT")
 
   neworgrule =
     CRule (map CPVar argvars)
@@ -208,9 +208,9 @@ transDefaultRule _ _ (CRule _ (CGuardedRhs _ _)) =
 transDefaultRule condfunname ar (CRule pats (CSimpleRhs exp locals)) =
   CRule newpats (CGuardedRhs [(checkCond,exp)] locals)
  where
-  checkCond =applyF ("SetFunctions","isEmpty")
-                    [applyF ("SetFunctions","set"++show ar)
-                            (CSymbol condfunname : args)]
+  checkCond = applyF (setFunMod,"isEmpty")
+                     [applyF (setFunMod,"set"++show ar)
+                             (CSymbol condfunname : args)]
 
   (newpats,args) = unzip (map arg2patexp (zip [1001..] pats))
   
@@ -228,3 +228,6 @@ preUnit = CSymbol (pre "()")
 
 preUntyped :: CTypeExpr
 preUntyped = CTCons (pre "untyped") []
+
+setFunMod :: String
+setFunMod = "SetFunctions"
