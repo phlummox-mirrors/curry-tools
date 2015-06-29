@@ -5,9 +5,9 @@
 data Color = Red | White | Blue
 
 -- Formulation with sequential rule application:
-solveD (x++[White]++y++[Red  ]++z) = solveD (x++[Red]++y++[White]++z)
-solveD (x++[Blue ]++y++[Red  ]++z) = solveD (x++[Red]++y++[Blue]++z)
-solveD (x++[Blue ]++y++[White]++z) = solveD (x++[White]++y++[Blue]++z)
+solveD (x++[White]++y++[Red  ]++z) = solveD (x++[Red  ]++y++[White]++z)
+solveD (x++[Blue ]++y++[Red  ]++z) = solveD (x++[Red  ]++y++[Blue ]++z)
+solveD (x++[Blue ]++y++[White]++z) = solveD (x++[White]++y++[Blue ]++z)
 default_solveD flag = flag
 
 uni color = [] ? color : uni color
@@ -21,7 +21,7 @@ main = solveD iflag
 -------------------------------------------------------------------------------
 -- Sergio's version to obtain a single solution:
 dutch (r@(uni Red) ++ w@(uni White) ++ b@(uni Blue) ++ (Red:xs))
-  | (w++b==[])=:=False = dutch (Red:r ++ w ++ b ++ xs)
+  | w++b /= []  = dutch (Red:r ++ w ++ b ++ xs)
 dutch (r@(uni Red) ++ w@(uni White) ++ b@(uni Blue) ++ (White:xs))
-  | (b==[])=:=False = dutch (r ++ White:w ++ b ++ xs)
+  | b /= []     = dutch (r ++ White:w ++ b ++ xs)
 default_dutch z = z

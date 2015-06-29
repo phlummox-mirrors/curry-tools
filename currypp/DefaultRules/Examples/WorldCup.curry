@@ -4,10 +4,10 @@
 
 import Char(isDigit)
 
-parse (team1++" _:_ "++team2) = (team1,team2,Nothing)
+parse (team1++" _:_ "++team2) = (team1, team2, Nothing)
 parse (team1++[' ',x,':',y,' ']++team2)
-  | (isDigit x && isDigit y) =:= True
-  = (team1,team2, Just (toInt x,toInt y))
+  | isDigit x && isDigit y
+  = (team1, team2, Just (toInt x,toInt y))
 default_parse _ = error "Wrong format!"
 
 toInt :: Char -> Int

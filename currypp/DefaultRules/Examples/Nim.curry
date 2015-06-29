@@ -14,7 +14,7 @@ winMove state | next == move state = proceed state next   where next free
 
 -- We proceed with a next state only if the next state does not allow
 -- a winning move:
-proceed state next | winMove next =:= _ = failed
+proceed state next | winMove next == _ = failed
 default_proceed _ next = next
 
 -- Here are the moves of the Nim game: pick some number of sticks

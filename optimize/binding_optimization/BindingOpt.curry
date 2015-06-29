@@ -32,7 +32,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 14/06/2015)"
+  let bannerText = "Curry Binding Optimizer (version of 29/06/2015)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -273,17 +273,26 @@ reduceDollar args = case args of
   _ -> error "reduceDollar"
 
 --- Try to compute the required value of a case argument expression.
---- If the case expression has one non-failing branch, the branch
---- constructor is chosen, otherwise it is `Any`.
+--- If one branch of the case expression is "False -> failed",
+--- then the required value is `True` (this is due to the specific
+--- translation of Boolean conditional rules of the front end).
+--- If the case expression has one non-failing branch, the constructor
+--- of this branch is chosen, otherwise it is `Any`.
 caseArgType :: [BranchExpr] -> AType
-caseArgType branches =
-  let nfbranches = filter (\ (Branch _ be) ->
-                                   be /= Comb FuncCall (pre "failed") [])
-                          branches
-   in if length nfbranches /= 1 then Any else getPatCons (head nfbranches)
+caseArgType branches
+  | not (null (tail branches)) &&
+    branches!!1 == Branch (Pattern (pre "False") []) failedFC
+  = aCons (pre "True")
+  | length nfbranches /= 1
+  = Any
+  | otherwise = getPatCons (head nfbranches)
  where
-   getPatCons (Branch (Pattern qc _) _) = aCons qc
-   getPatCons (Branch (LPattern _)   _) = Any
+  failedFC = Comb FuncCall (pre "failed") []
+
+  nfbranches = filter (\ (Branch _ be) -> be /= failedFC) branches
+
+  getPatCons (Branch (Pattern qc _) _) = aCons qc
+  getPatCons (Branch (LPattern _)   _) = Any
 
 --- Compute the argument types for a given abstract function type
 --- and required value.
