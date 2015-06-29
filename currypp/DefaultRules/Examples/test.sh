@@ -47,8 +47,15 @@ main2
 main3
 main4
 
+:l Nim
+main
+
 :l ParOr
 main
+
+:l Queens
+queens 4
+queens 6
 
 :l Rev2
 main
