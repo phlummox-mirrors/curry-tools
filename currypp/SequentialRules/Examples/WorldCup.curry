@@ -1,4 +1,4 @@
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=--seqrules #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=seqrules #-}
 
 -- Example: parse World Cup soccer scores (e.g., "_:_", "3:2")
 

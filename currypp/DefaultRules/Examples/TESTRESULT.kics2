@@ -246,7 +246,9 @@ FixInt> FixInt> FloatString> [True,False]
 FloatString> FloatString> Guards> ["Not zero","Zero","Not zero"]
 Guards> [1,1,1,1,2,2,2]
 [1,1,2,1,2,2,2]
-Guards> Guards> Lookup> Nothing
+Guards> Guards> ListFuns> ([],[1,2],[1,2])
+ListFuns> [(1,4,8),(2,5,9)]
+ListFuns> ListFuns> Lookup> Nothing
 Lookup> (Just 14)
 Lookup> (Just 14)
 (Just 19)

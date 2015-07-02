@@ -41,6 +41,10 @@ main
 main1
 main2
 
+:l ListFuns
+main1
+main2
+
 :l Lookup
 main1
 main2
@@ -65,6 +69,9 @@ main
 
 EOM
 ################ end of tests ####################
+# Clean:
+/bin/rm -f *.CURRYPP
+
 # Check differences:
 DIFF=diff$$
 diff TESTRESULT.$CURRYEXEC $LOGFILE > $DIFF
@@ -79,4 +86,5 @@ else
   /bin/rm -f $DIFF
   /bin/mv -f $LOGFILE LOGFILE
   echo "Test output saved in file 'LOGFILE'."
+  exit 1
 fi

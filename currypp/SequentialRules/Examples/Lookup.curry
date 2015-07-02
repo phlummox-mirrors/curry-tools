@@ -1,4 +1,4 @@
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=--seqrules #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=seqrules #-}
 
 -- Lookup with default rules:
 nlookup key (_ ++ [(key,value)] ++ _) = Just value

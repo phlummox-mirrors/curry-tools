@@ -1,4 +1,4 @@
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=--seqrules #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=seqrules #-}
 -- Bubble sort formulation with default rules
 
 import SetFunctions

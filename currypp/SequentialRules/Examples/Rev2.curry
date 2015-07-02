@@ -1,4 +1,4 @@
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=--seqrules #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=seqrules #-}
 {-# OPTIONS_CYMAKE -Wnone #-}
 
 -- Reverse a list if it has exactly two elements:

@@ -262,6 +262,11 @@ main1
 main2
 [1,1,1,1,2,2,2]
 [1,1,2,1,2,2,2]
+Loading program "ListFuns"...
+main1
+([],[1,2],[1,2])
+main2
+[(1,4,8),(2,5,9)]
 Loading program "Lookup"...
 main1
 Nothing
