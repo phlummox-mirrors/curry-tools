@@ -56,6 +56,7 @@ if [ "`cat $DIFF`" = "" ] ; then
   echo
   echo "Regression test successfully executed!"
   /bin/rm -f $LOGFILE $DIFF
+  $CURRYBIN/cleancurry
 else
   echo
   echo "Differences in regression test occurred:"
@@ -63,5 +64,6 @@ else
   /bin/rm -f $DIFF
   /bin/mv -f $LOGFILE LOGFILE
   echo "Test output saved in file 'LOGFILE'."
+  $CURRYBIN/cleancurry
   exit 1
 fi

@@ -18,53 +18,20 @@ PATH=$CURRYBIN:$PATH
 export PATH
 $CURRYBIN/cleancurry
 cat << EOM | $CURRYBIN/$CURRYEXEC $CURRYOPTIONS :set -interactive :set -time | tee $LOGFILE
-:load BreakWhere
-main
-
-:load BubbleSort
-main
-
-:l ColorMap
-main
-
-:l DutchFlag
-main
-dutch iflag
-
-:l FixInt
-main
-
-:l FloatString
-main
-
-:l Guards
+:load Expressions
 main1
 main2
 
-:l ListFuns
-main1
-main2
-
-:l Lookup
-main1
-main2
-main3
-main4
-
-:l Nim
+:load Grep
 main
 
-:l ParOr
+:load Half
 main
 
-:l Queens
-queens 4
-queens 6
-
-:l Rev2
+:load Last
 main
 
-:l WorldCup
+:load Various
 main
 
 EOM
