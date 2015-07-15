@@ -8,6 +8,6 @@ import Char(isDigit)
 -- Our desired notation:
 isNNFloat :: String -> Bool
 isNNFloat (f1 ++ "." ++ f2) | (all isDigit f1 && all isDigit f2) = True
-default_isNNFloat _ = False
+isNNFloat'default _ = False
 
 main = map isNNFloat ["3.14","314"]

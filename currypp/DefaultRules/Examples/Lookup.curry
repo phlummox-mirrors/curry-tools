@@ -2,7 +2,7 @@
 
 -- Lookup with default rules:
 nlookup key (_ ++ [(key,value)] ++ _) = Just value
-default_nlookup _   _                 = Nothing 
+nlookup'default _   _                 = Nothing 
 
 main1 = nlookup 3 [] --> Nothing
 main2 = nlookup 3 [(1,11),(3,14),(6,7)] --> Just 14

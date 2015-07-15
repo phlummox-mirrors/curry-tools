@@ -8,7 +8,7 @@ data Color = Red | White | Blue
 solveD (x++[White]++y++[Red  ]++z) = solveD (x++[Red  ]++y++[White]++z)
 solveD (x++[Blue ]++y++[Red  ]++z) = solveD (x++[Red  ]++y++[Blue ]++z)
 solveD (x++[Blue ]++y++[White]++z) = solveD (x++[White]++y++[Blue ]++z)
-default_solveD flag = flag
+solveD'default flag = flag
 
 uni color = [] ? color : uni color
 
@@ -24,4 +24,4 @@ dutch (r@(uni Red) ++ w@(uni White) ++ b@(uni Blue) ++ (Red:xs))
   | w++b /= []  = dutch (Red:r ++ w ++ b ++ xs)
 dutch (r@(uni Red) ++ w@(uni White) ++ b@(uni Blue) ++ (White:xs))
   | b /= []     = dutch (r ++ White:w ++ b ++ xs)
-default_dutch z = z
+dutch'default z = z

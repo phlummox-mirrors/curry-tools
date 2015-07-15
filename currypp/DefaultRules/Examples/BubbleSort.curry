@@ -6,7 +6,7 @@ import SetFunctions
 
 sort :: [Int] -> [Int]
 sort (xs++[x,y]++ys) | x>y = sort (xs++[y,x]++ys)
-default_sort xs = xs
+sort'default xs = xs
 
 mainnd = sort [7,1,6,3,5,4,2]
 

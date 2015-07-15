@@ -1,12 +1,12 @@
 -----------------------------------------------------------------------------
---- Translator to implement default rules
+--- Translator for Curry programs to implement default rules
 -----------------------------------------------------------------------------
 
 import AbstractCurry
 import AbstractCurryGoodies
 import Directory
 import Distribution
-import List(isPrefixOf,partition)
+import List(isPrefixOf,isSuffixOf,partition)
 import PrettyAbstract(showCProg)
 import System
 
@@ -128,8 +128,10 @@ replaceOptionsLine = unlines . map replOptLine . lines
 -- Main transformation:
 
 translateProg :: CurryProg -> CurryProg
-translateProg (CurryProg mn imps tdecls fdecls ops) =
-  CurryProg mn newimps tdecls newfdecls ops
+translateProg prog@(CurryProg mn imps tdecls fdecls ops) =
+  if null deffuncs
+  then prog
+  else CurryProg mn newimps tdecls newfdecls ops
  where
   newimps = if setFunMod `elem` imps then imps else setFunMod:imps
   (deffuncs,funcs) = partition isDefault fdecls
@@ -137,11 +139,20 @@ translateProg (CurryProg mn imps tdecls fdecls ops) =
   newfdecls = concatMap (transFDecl defrules) funcs
 
 isDefault :: CFuncDecl -> Bool
-isDefault (CFunc (_,fname) _ _ _ _)     = "default_" `isPrefixOf` fname
-isDefault (CmtFunc _ (_,fname) _ _ _ _) = "default_" `isPrefixOf` fname
+isDefault (CFunc (_,fname) _ _ _ _)     = "'default" `isSuffixOf` fname
+  || "default_" `isPrefixOf` fname
+isDefault (CmtFunc _ (_,fname) _ _ _ _) = "'default" `isSuffixOf` fname
+  || "default_" `isPrefixOf` fname
 
-func2rule :: [CFuncDecl] -> CFuncDecl -> (QName,CRule)
-func2rule funcs (CFunc (mn,fn) _ _ _ rules)
+default2orgname :: String -> String
+default2orgname fname =
+  if "default_" `isPrefixOf` fname
+    then drop 8 fname
+    else reverse . drop 8 . reverse $ fname
+
+-- Extract the arity and default rule for a default function definition:
+func2rule :: [CFuncDecl] -> CFuncDecl -> (QName,(Int,CRule))
+func2rule funcs (CFunc (mn,fn) ar _ _ rules)
   | (mn,defname) `notElem` map funcName funcs
    = error $
       "Default rule given for '"++defname++"' but no such function defined!"
@@ -149,17 +160,20 @@ func2rule funcs (CFunc (mn,fn) _ _ _ rules)
    = error $ "Default rule for '"++defname++"' without right-hand side!"
   | length rules > 1
    = error $ "More than one default rule for function '"++defname++"'!"
-  | otherwise = ((mn, defname), head rules)
- where defname = drop 8 fn
+  | otherwise = ((mn, defname), (ar, head rules))
+ where defname = default2orgname fn
 func2rule funcs (CmtFunc _ qf ar vis texp rules) =
   func2rule funcs (CFunc qf ar vis texp rules)
 
-transFDecl :: [(QName,CRule)] -> CFuncDecl -> [CFuncDecl]
+transFDecl :: [(QName,(Int,CRule))] -> CFuncDecl -> [CFuncDecl]
 transFDecl defrules (CmtFunc _ qf ar vis texp rules) =
   transFDecl defrules (CFunc qf ar vis texp rules)
 transFDecl defrules fdecl@(CFunc qf@(mn,fn) ar vis texp rules) =
-  maybe [CFunc qf ar vis texp rules]
-        (\defrule ->
+  maybe [fdecl]
+        (\ (dar,defrule) ->
+           if dar /= ar
+           then error $ "Default rule for '"++fn++"' has different arity!"
+           else
 	      [CFunc neworgname ar Private texp rules,
                transFDecl2ApplyCond applyname fdecl,
 	       CFunc deffunname ar Private texp

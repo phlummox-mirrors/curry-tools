@@ -18,7 +18,7 @@ perm (x:xs) = ndinsert (perm xs)
 
 -- A placement is safe if two queens are not in a same diagonal:
 safe (_++[x]++y++[z]++_) | abs (x-z) == length y + 1 = failed
-default_safe xs = xs
+safe'default xs = xs
 
 -- A solution to the n-queens puzzle is a safe permutation:
 queens :: Int -> [Int]

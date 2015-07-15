@@ -8,6 +8,6 @@ testExps = ["3+4","xs++ys =:= [1,2] where xs,ys free"]
 
 -- FLP solution with default rules:
 breakWhereFreeFLP (exp++wf@(" where "++_++" free")) = (exp,wf)
-default_breakWhereFreeFLP exp = (exp,"")
+breakWhereFreeFLP'default exp = (exp,"")
 
 main = map breakWhereFreeFLP testExps

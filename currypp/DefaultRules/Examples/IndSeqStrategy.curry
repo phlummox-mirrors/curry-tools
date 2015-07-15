@@ -6,7 +6,7 @@
 
 f 0 1 = 1
 f _ 2 = 2
-default_f _ x = x
+f'default _ x = x
 
 loop = loop
 
