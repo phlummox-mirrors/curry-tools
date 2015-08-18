@@ -174,7 +174,7 @@ cprogDocWithPrecedences ps cprog@(CurryProg name imps types funcs ops)
   = moduleHeaderDoc name cprog (exportedNames name cprog) <$>>
     impsDoc imps <$>> opsDoc ops <$>>
     typesDoc name types <$>>
-    funcsDoc (precs ops ++ ps) name funcs <$> empty
+    funcsDoc (precs ops ++ ps) name funcs $$ empty
 
 --- generates a list of precedences
 --- @param opDecls - a list of operators
@@ -194,10 +194,10 @@ commaSepList = fillSep . punctuate comma
 (<$>>) :: Doc -> Doc -> Doc
 d1 <$>> d2 | isEmpty d1 = d2
            | isEmpty d2 = d1
-           | otherwise = d1 <$> line <> d2
+           | otherwise = d1 $$ line <> d2
 
 def :: Doc -> [CTVarIName] -> Doc -> Doc
-def name params body = block (name <> paramDoc <$> body)
+def name params body = block (name <> paramDoc $$ body)
  where
   paramDoc = if null params then empty
               else space <> align (fillSep (map varDoc params))
@@ -286,7 +286,7 @@ moduleHeaderDoc name cprog exports
 
 exportsDoc :: [Doc] -> Doc
 exportsDoc xs
-  = group (nest 1 (lparen <$> align (fillSep (punctuate comma xs)) <$> rparen))
+  = group (nest 1 (lparen $$ align (fillSep (punctuate comma xs)) $$ rparen))
 
 hasPrivate :: CurryProg -> Bool
 hasPrivate (CurryProg _ _ types funcs _) =
@@ -372,7 +372,7 @@ typeExprDoc mod p (CTCons name args)
   | otherwise
     = (if p == 2 then parens else id) $ app (qname mod name) (map (typeExprDoc mod 2) args)
 typeExprDoc mod p typ@(CFuncType _ _)
-  = (if p > 0 then parens else id) $ fillEncloseSep empty empty (space<>arrow<>space)
+  = (if p > 0 then parens else id) $ fillEncloseSep empty empty (space <> rarrow <> space)
      (map (typeExprDoc mod 1) (argTypes typ) ++
       [typeExprDoc mod 0 (resultType typ)])
 
@@ -391,10 +391,10 @@ funcsDoc pr mod funcs = vcat (punctuate line (map (funcDoc pr mod) funcs))
 funcDoc :: Precs -> String -> CFuncDecl -> Doc
 funcDoc pr mod (CFunc name _ _ typ rules) =
   (if hasRec typ then text "--" else empty) <>
-  (if isUntyped typ then empty else funcTypeDeclDoc mod name typ <$> empty) <>
+  (if isUntyped typ then empty else funcTypeDeclDoc mod name typ $$ empty) <>
   vsep (map (ruleDoc pr mod name) rules)
 funcDoc pr mod (CmtFunc cmt name ar vis typ rules) =
-  vsep (map (\l->text ("--- "++l)) (lines cmt)) <$>
+  vsep (map (\l->text ("--- "++l)) (lines cmt)) $$
   funcDoc pr mod (CFunc name ar vis typ rules)
 
 hasRec :: CTypeExpr -> Bool
@@ -424,7 +424,7 @@ funcTypeDeclDoc mod name typ
 
 funcTypeDoc :: String -> [CTypeExpr] -> CTypeExpr -> Doc
 funcTypeDoc mod args res
-  = fillEncloseSep doubleColon empty (space<>arrow)
+  = fillEncloseSep doubleColon empty (space <> rarrow)
      ((map ((space<>) . typeExprDoc mod 1) args) ++
       (map ((space<>) . typeExprDoc mod 1) [res]))
 
@@ -432,7 +432,7 @@ funcTypeDoc mod args res
 
 ruleDoc :: Precs -> String -> QName -> CRule -> Doc
 ruleDoc pr mod name (CRule patterns crhs)
-  = hang 2 (hang 2 (nameAndParam <$> align (rhsDoc pr mod equals crhs)))
+  = hang 2 (hang 2 (nameAndParam $$ align (rhsDoc pr mod equals crhs)))
   where
     nameAndParam =
         if isInfixName name && length patterns == 2
@@ -521,8 +521,8 @@ expDoc2 amILeft pr mPrec mod (CApply e1 e2)
         | otherwise = id
 
     ifThenElse =
-        text "if" <+> align (expDoc unknown pr Nothing mod (fargs!!0)) <$>
-        text "then" <+> align (expDoc unknown pr Nothing mod (fargs!!1)) <$>
+        text "if" <+> align (expDoc unknown pr Nothing mod (fargs!!0)) $$
+        text "then" <+> align (expDoc unknown pr Nothing mod (fargs!!1)) $$
         text "else" <+> align (expDoc unknown pr Nothing mod (fargs!!2))
 
     fname = maybe ("","") id mfname
@@ -547,11 +547,11 @@ expDoc2 amILeft pr mPrec mod (CApply e1 e2)
 expDoc2 _ pr mPrec mod (CLambda ps e)
   = par mPrec $ hang 1 $
      backslash  <+> patternsDoc mod ps
-       <+> arrow <+> expDoc unknown pr Nothing mod e
+       <+> rarrow <+> expDoc unknown pr Nothing mod e
 
 expDoc2 _ pr mPrec mod (CLetDecl bs e)
   = par mPrec $ hang 1 $
-     text "let" <+> localDeclsDoc pr mod bs <$>
+     text "let" <+> localDeclsDoc pr mod bs $$
      text "in" <+> expDoc unknown pr Nothing mod e
 
 expDoc2 _ pr mPrec mod (CDoExpr stms)
@@ -565,7 +565,7 @@ expDoc2 _ pr _ mod (CListComp e stms)
 expDoc2 _ pr mPrec mod (CCase ct e bs)
   = par mPrec $ hang 1 $
      caseTypeDoc ct <+> align (expDoc unknown pr Nothing mod e)
-       <+> text "of" <$> layout (map (branchDoc pr mod) bs)
+       <+> text "of" $$ layout (map (branchDoc pr mod) bs)
   where
     caseTypeDoc CRigid = text "case"
     caseTypeDoc CFlex  = text "fcase"
@@ -591,7 +591,7 @@ expDoc2 _ pr mPrec mod (CRecUpdate e cfields)
 --                   (map (fieldDoc equals (expDoc unknown pr Nothing mod)) fields)
 --
 --expDoc2 _ pr mPrec mod (CRecSelect exp label)
---  = par mPrec $ expDoc False pr (Just (unknown,11)) mod exp <+> arrow <+> text label
+--  = par mPrec $ expDoc False pr (Just (unknown,11)) mod exp <+> rarrow <+> text label
 --
 --expDoc2 _ pr _ mod (CRecUpdate fields exp)
 --  = fillEncloseSep lbrace
@@ -614,7 +614,7 @@ statementDoc pr mod (CSLet localDecls) =
 
 branchDoc :: Precs -> String -> (CPattern, CRhs) -> Doc
 branchDoc pr mod (cpat, crhs)
-  = def (patternDoc mod cpat) [] (align (rhsDoc pr mod arrow crhs))
+  = def (patternDoc mod cpat) [] (align (rhsDoc pr mod rarrow crhs))
 
 -- -------------------------------pattern--------------------------------------
 
