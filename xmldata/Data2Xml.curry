@@ -63,7 +63,7 @@ derive (LowCase    : _  ) = putStrLn usageMsg
 derive (FileName fn:opts) = do
   CurryProg modName  _ ts _ _ <- readCurry fn
   let (specials,types) = if isPrelude modName
-                           then (specialFuncs opts,filterSpecials ts)
+                           then (specialFuncs opts, filterSpecials ts)
                            else ([],ts)
       progName = transModName fn
       impTypes = maybeString $ nub $ filter ((/=modName) .fst)
@@ -278,7 +278,8 @@ importType (m,f)
 -----------------------------------------
 
 specialNames :: [String]
-specialNames = ["Int","Float","String","Char","IO","Success","[]","()","(,)"]
+specialNames =
+  ["Int","Float","String","Char","IO","Success","[]","()","(,)","DET"]
 
 filterSpecials :: [CTypeDecl] -> [CTypeDecl]
 filterSpecials
