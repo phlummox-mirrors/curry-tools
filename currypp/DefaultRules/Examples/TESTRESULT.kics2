@@ -263,4 +263,19 @@ Queens> [4,1,5,2,6,3]
 [3,6,2,5,1,4]
 Queens> Queens> Rev2> [[],[1],[2,1],[1,2,3],[1,2,3,4]]
 Rev2> Rev2> WorldCup> [("GER","USA",Nothing),("GER","USA",(Just (1,0)))]
-WorldCup> WorldCup> 
+WorldCup> WorldCup> ======================================================================
+PROOF OBLIGATIONS:
+ParOrDet.por is a deterministic operation.
+======================================================================
+ParOrDet> True
+ParOrDet> ParOrDet> ======================================================================
+PROOF OBLIGATIONS:
+BubbleSortDet.sort is a deterministic operation.
+======================================================================
+BubbleSortDet> [1,2,3,4,5,6,7]
+BubbleSortDet> BubbleSortDet> ======================================================================
+PROOF OBLIGATIONS:
+DutchFlagDet.solveD is a deterministic operation.
+======================================================================
+DutchFlagDet> [Red,Red,White,White,White,Blue,Blue]
+DutchFlagDet> DutchFlagDet> 
