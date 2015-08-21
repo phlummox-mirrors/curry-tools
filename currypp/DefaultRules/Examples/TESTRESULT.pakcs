@@ -298,3 +298,24 @@ main
 Loading program "WorldCup"...
 main
 [("GER","USA",Nothing),("GER","USA",Just (1,0))]
+Loading program "ParOrDet"...
+======================================================================
+PROOF OBLIGATIONS:
+ParOrDet.por is a deterministic operation.
+======================================================================
+main
+True
+Loading program "BubbleSortDet"...
+======================================================================
+PROOF OBLIGATIONS:
+BubbleSortDet.sort is a deterministic operation.
+======================================================================
+main
+[1,2,3,4,5,6,7]
+Loading program "DutchFlagDet"...
+======================================================================
+PROOF OBLIGATIONS:
+DutchFlagDet.solveD is a deterministic operation.
+======================================================================
+main
+[Red,Red,White,White,White,Blue,Blue]

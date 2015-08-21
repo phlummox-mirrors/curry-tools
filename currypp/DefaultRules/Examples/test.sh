@@ -67,6 +67,15 @@ main
 :l WorldCup
 main
 
+:l ParOrDet
+main
+
+:l BubbleSortDet
+main
+
+:l DutchFlagDet
+main
+
 EOM
 ################ end of tests ####################
 # Clean:

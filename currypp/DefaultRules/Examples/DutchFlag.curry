@@ -4,13 +4,12 @@
 
 data Color = Red | White | Blue
 
--- Formulation with sequential rule application:
+-- Formulation with default rule:
+solveD :: [Color] -> [Color]
 solveD (x++[White]++y++[Red  ]++z) = solveD (x++[Red  ]++y++[White]++z)
 solveD (x++[Blue ]++y++[Red  ]++z) = solveD (x++[Red  ]++y++[Blue ]++z)
 solveD (x++[Blue ]++y++[White]++z) = solveD (x++[White]++y++[Blue ]++z)
 solveD'default flag = flag
-
-uni color = [] ? color : uni color
 
 iflag = [White,Red,White,Blue,Red,Blue,White]
 
@@ -20,8 +19,11 @@ main = solveD iflag
 
 -------------------------------------------------------------------------------
 -- Sergio's version to obtain a single solution:
+dutch :: [Color] -> [Color]
 dutch (r@(uni Red) ++ w@(uni White) ++ b@(uni Blue) ++ (Red:xs))
   | w++b /= []  = dutch (Red:r ++ w ++ b ++ xs)
 dutch (r@(uni Red) ++ w@(uni White) ++ b@(uni Blue) ++ (White:xs))
   | b /= []     = dutch (r ++ White:w ++ b ++ xs)
 dutch'default z = z
+
+uni color = [] ? color : uni color

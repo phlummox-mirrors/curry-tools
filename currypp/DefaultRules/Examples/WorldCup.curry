@@ -1,4 +1,5 @@
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=defaultrules #-}
+{-# OPTIONS_CYMAKE -Wnone #-}
 
 -- Example: parse World Cup soccer scores (e.g., "_:_", "3:2")
 

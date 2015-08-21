@@ -1,9 +1,14 @@
 -----------------------------------------------------------------------------
 --- Translator for Curry programs to implement default rules
+--- and deterministic functions.
+---
+--- @author Michael Hanus
+--- @version August 2015
 -----------------------------------------------------------------------------
 
 import AbstractCurry
 import AbstractCurryGoodies
+import Char(isDigit,digitToInt)
 import Directory
 import Distribution
 import List(isPrefixOf,isSuffixOf,partition)
@@ -15,7 +20,8 @@ import System
 banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Transformation Tool for Curry with Default Rules (Version of 25/06/15)"
+   bannerText =
+     "Transformation Tool for Curry with Default Rules (Version of 21/08/15)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------
@@ -41,7 +47,7 @@ setExec  (TParam wq _ _) = TParam wq True True
 maintest :: String -> IO ()
 maintest progname = do
   prog <- readUntypedCurry progname
-  let newprog = showCProg (translateProg prog)
+  let newprog = showCProg (snd (translateProg prog))
   putStrLn newprog
   writeFile "Test.curry" newprog
 
@@ -56,10 +62,21 @@ main = do
      ("-c":moreargs) -> processArgs (setCompile   tparam) moreargs
      ("-r":moreargs) -> processArgs (setExec      tparam) moreargs
      [mname]         -> transMain tparam (stripCurrySuffix mname)
-     [orgfile,infile,outfile] -> transPP orgfile infile outfile
-     _ -> putStrLn $ banner ++
-           "\nERROR: Illegal arguments for transformation: " ++
-           unwords args ++ "\n" ++ usageInfo
+     (orgfile:infile:outfile:opts) ->
+       maybe (printError args)
+             (\vl -> transPP vl orgfile infile outfile)
+	     (processOptions opts)
+     _ -> printError args
+
+  processOptions optargs = case optargs of
+    []             -> Just 0
+    ["-v"]         -> Just 1
+    [['-','v',vl]] -> if isDigit vl then Just (digitToInt vl) else Nothing
+
+  printError args =
+    putStrLn $ banner ++
+               "ERROR: Illegal arguments for transformation:\n" ++
+               unwords args ++ "\n" ++ usageInfo
 
 usageInfo :: String
 usageInfo =
@@ -77,10 +94,10 @@ transMain (TParam quiet compile execprog) progname = do
       transprogfname = progname++"_TRANS.curry"
       putStrNQ s = if quiet then done else putStr s
       putStrLnNQ s = if quiet then done else putStrLn s
-  putStrLnNQ banner
+  putStrNQ banner
   prog <- readUntypedCurry progname
   system $ "cleancurry " ++ progname
-  let transprog = showCProg (translateProg prog)
+  let transprog = showCProg (snd (translateProg prog))
   putStrLnNQ "Transformed module:"
   putStrLnNQ transprog
   if not compile then done else do
@@ -102,15 +119,22 @@ compileAcyFcy quiet progname = do
 
 ------------------------------------------------------------------------
 -- Start sequentializer in "preprocessor mode":
-transPP :: String -> String -> String -> IO ()
-transPP orgfile infile outfile = do
+transPP :: Int -> String -> String -> String -> IO ()
+transPP verb orgfile infile outfile = do
+  when (verb>0) $ putStr banner
   let savefile = orgfile++".SAVE"
       modname = stripCurrySuffix orgfile
   renameFile orgfile savefile
+  starttime <- getCPUTime
   readFile infile >>= writeFile orgfile . replaceOptionsLine
   inputProg <- tryReadUntypedCurry modname savefile
   renameFile savefile orgfile
-  writeFile outfile (showCProg (translateProg inputProg))
+  let (detfuncnames,newprog) = translateProg inputProg
+  writeFile outfile (showCProg newprog)
+  stoptime <- getCPUTime
+  when (verb>0) $ putStrLn
+    ("Total transformation time: " ++ show (stoptime-starttime) ++ " ms")
+  printProofObligation detfuncnames
  where
    tryReadUntypedCurry mn savefile =
      catch (readUntypedCurry mn)
@@ -124,31 +148,97 @@ replaceOptionsLine = unlines . map replOptLine . lines
                   then " "
                   else s
 
-------------------------------------------------------------------------
--- Main transformation:
-
-translateProg :: CurryProg -> CurryProg
-translateProg prog@(CurryProg mn imps tdecls fdecls ops) =
-  if null deffuncs
-  then prog
-  else CurryProg mn newimps tdecls newfdecls ops
+printProofObligation :: [QName] -> IO ()
+printProofObligation qfs = unless (null qfs) $ do
+  putStrLn line
+  putStrLn "PROOF OBLIGATIONS:"
+  mapIO_ (\ (q,f) -> putStrLn (q++"."++f++" is a deterministic operation.")) qfs
+  putStrLn line
  where
-  newimps = if setFunMod `elem` imps then imps else setFunMod:imps
-  (deffuncs,funcs) = partition isDefault fdecls
-  defrules = map (func2rule funcs) deffuncs
-  newfdecls = concatMap (transFDecl defrules) funcs
+  line = take 70 (repeat '=')
+
+------------------------------------------------------------------------
+-- Main transformation: transform a Curry program with default rules
+-- and deterministic functions into a new Curry program where these
+-- features are implemented by standard Curry features.
+-- Moreover, the list of deterministic functions is returned
+-- (to show the proof obligations to ensure completeness of the
+-- transformation).
+
+translateProg :: CurryProg -> ([QName],CurryProg)
+translateProg prog@(CurryProg mn imps tdecls fdecls ops) =
+  if null deffuncs && null detfuncnames
+  then ([],prog)
+  else (detfuncnames, CurryProg mn newimps tdecls newfdecls ops)
+ where
+  newimps          = if setFunMod `elem` imps then imps else setFunMod:imps
+  detfuncnames     = map funcName (filter isDetFun fdecls)
+  undetfuncs       = concatMap (transDetFun detfuncnames) fdecls
+  (deffuncs,funcs) = partition isDefault undetfuncs
+  defrules         = map (func2rule funcs) deffuncs
+  newfdecls        = concatMap (transFDecl defrules) funcs
+
+------------------------------------------------------------------------
+-- implementation of deterministic function transformation:
+
+-- Is the function declaration marked as a deterministic function?
+isDetFun :: CFuncDecl -> Bool
+isDetFun (CmtFunc _ qf ar vis texp rules) =
+  isDetFun (CFunc qf ar vis texp rules)
+isDetFun (CFunc _ _ _ texp _) = hasDetResultType texp
+  where
+   hasDetResultType (CTVar _) = False
+   hasDetResultType (CFuncType _ rt) = hasDetResultType rt
+   hasDetResultType (CTCons tc _) = tc == pre "DET"
+
+-- translate a function (where the names of all deterministic functions
+-- is provided as a first argument):
+transDetFun :: [QName] -> CFuncDecl -> [CFuncDecl]
+transDetFun detfnames (CmtFunc _ qf ar vis texp rules) =
+  transDetFun detfnames (CFunc qf ar vis texp rules)
+transDetFun detfnames fdecl@(CFunc qf@(mn,fn) ar vis texp rules)
+ | qf `elem` detfnames
+ = [CFunc qf ar vis (removeDetResultType texp) [newdetrule],
+    CFunc neworgname ar Private (removeDetResultType texp) rules]
+ | isDefault fdecl && (mn, default2orgname fn) `elem` detfnames
+  -- rename default rule of a deterministic function:
+ = [CFunc (mn, default2orgname fn ++ orgsuffix ++ "'default") ar vis texp rules]
+ | otherwise = [fdecl]
+ where
+  -- new name for original function (TODO: check for unused name)
+  neworgname = (mn,fn++orgsuffix)
+  orgsuffix = "_ORGNDFUN"
+
+  newdetrule =
+    CRule (map CPVar argvars)
+          (CSimpleRhs (applyF (setFunMod, "selectValue")
+                              [applyF (setFunMod, "set"++show ar)
+                                      (CSymbol neworgname : map CVar argvars)])
+                      [])
+
+  argvars = map (\i->(i,"x"++show i)) [1..ar]
+
+removeDetResultType :: CTypeExpr -> CTypeExpr
+removeDetResultType tv@(CTVar _) = tv
+removeDetResultType (CFuncType t1 t2) =
+  CFuncType (removeDetResultType t1) (removeDetResultType t2)
+removeDetResultType (CTCons tc texps) =
+  if tc == pre "DET"
+  then head texps
+  else CTCons tc (map removeDetResultType texps)
+
+
+------------------------------------------------------------------------
+-- implementation of default rule transformation:
 
 isDefault :: CFuncDecl -> Bool
-isDefault (CFunc (_,fname) _ _ _ _)     = "'default" `isSuffixOf` fname
-  || "default_" `isPrefixOf` fname
-isDefault (CmtFunc _ (_,fname) _ _ _ _) = "'default" `isSuffixOf` fname
-  || "default_" `isPrefixOf` fname
+isDefault (CmtFunc _ qf ar vis texp rules) =
+  isDefault (CFunc qf ar vis texp rules)
+isDefault (CFunc (_,fname) _ _ _ _) = "'default" `isSuffixOf` fname
 
+-- translate default name (i.e., with suffix 'default) into standard name:
 default2orgname :: String -> String
-default2orgname fname =
-  if "default_" `isPrefixOf` fname
-    then drop 8 fname
-    else reverse . drop 8 . reverse $ fname
+default2orgname fname = reverse . drop 8 . reverse $ fname
 
 -- Extract the arity and default rule for a default function definition:
 func2rule :: [CFuncDecl] -> CFuncDecl -> (QName,(Int,CRule))
@@ -165,6 +255,8 @@ func2rule funcs (CFunc (mn,fn) ar _ _ rules)
 func2rule funcs (CmtFunc _ qf ar vis texp rules) =
   func2rule funcs (CFunc qf ar vis texp rules)
 
+-- Translates a function declaration into a new one that respects
+-- the potential default rule (which are provided as the first argument).
 transFDecl :: [(QName,(Int,CRule))] -> CFuncDecl -> [CFuncDecl]
 transFDecl defrules (CmtFunc _ qf ar vis texp rules) =
   transFDecl defrules (CFunc qf ar vis texp rules)
@@ -174,11 +266,11 @@ transFDecl defrules fdecl@(CFunc qf@(mn,fn) ar vis texp rules) =
            if dar /= ar
            then error $ "Default rule for '"++fn++"' has different arity!"
            else
-	      [CFunc neworgname ar Private texp rules,
+              [CFunc neworgname ar Private texp rules,
                transFDecl2ApplyCond applyname fdecl,
-	       CFunc deffunname ar Private texp
+               CFunc deffunname ar Private texp
                      [transDefaultRule applyname ar defrule],
-	       CFunc qf ar vis texp [neworgrule]])
+               CFunc qf ar vis texp [neworgrule]])
         (lookup qf defrules)
  where
   -- new names for auxiliary functions (TODO: check for unused name)
@@ -189,13 +281,15 @@ transFDecl defrules fdecl@(CFunc qf@(mn,fn) ar vis texp rules) =
   neworgrule =
     CRule (map CPVar argvars)
           (CSimpleRhs (applyF (pre "?")
-  	                      [applyF neworgname (map CVar argvars),
-		   	       applyF deffunname (map CVar argvars)])
-	              [])
+                              [applyF neworgname (map CVar argvars),
+                               applyF deffunname (map CVar argvars)])
+                      [])
 
   argvars = map (\i->(i,"x"++show i)) [1..ar]
 
-
+-- Translates a function declaration into one where the right-hand side
+-- is always Prelude.(), i.e., it just checks for applicability.
+-- The first argument is the new name of the translated function.
 transFDecl2ApplyCond :: QName -> CFuncDecl -> CFuncDecl
 transFDecl2ApplyCond nqf (CmtFunc _ qf ar vis texp rules) =
   transFDecl2ApplyCond nqf (CFunc qf ar vis texp rules)
@@ -203,9 +297,16 @@ transFDecl2ApplyCond nqf (CFunc _ ar _ texp rules) =
   CFunc nqf ar Private (adjustResultType texp) (map rule2cond rules)
  where
   rule2cond (CRule rpats (CSimpleRhs _ rlocals)) =
-    CRule rpats (CSimpleRhs preUnit rlocals)
+    let singlepatvars = extractSingles (concatMap varsOfPat rpats ++
+                                        concatMap varsOfLDecl rlocals)
+     in CRule (map (anonymPat singlepatvars) rpats)
+              (CSimpleRhs preUnit rlocals)
   rule2cond (CRule rpats (CGuardedRhs gds rlocals)) =
-    CRule rpats (CGuardedRhs (map (\gd -> (fst gd,preUnit)) gds) rlocals)
+    let singlepatvars = extractSingles (concatMap varsOfPat rpats ++
+                                        concatMap (varsOfExp . fst) gds ++
+                                        concatMap varsOfLDecl rlocals)
+     in CRule (map (anonymPat singlepatvars) rpats)
+              (CGuardedRhs (map (\gd -> (fst gd,preUnit)) gds) rlocals)
 
 -- Adjust the result type of a type by setting the result type to ():
 adjustResultType :: CTypeExpr -> CTypeExpr
@@ -214,7 +315,7 @@ adjustResultType texp =
   then texp
   else case texp of
          CFuncType te1 te2 -> CFuncType te1 (adjustResultType te2)
-	 _                 -> unitType
+         _                 -> unitType
 
 transDefaultRule :: QName -> Int -> CRule -> CRule
 transDefaultRule _ _ (CRule _ (CGuardedRhs _ _)) =
@@ -245,3 +346,99 @@ preUntyped = CTCons (pre "untyped") []
 
 setFunMod :: String
 setFunMod = "SetFunctions"
+
+--- Extracts all elements with a single occurrence in a given list.
+extractSingles :: [a] -> [a]
+extractSingles [] = []
+extractSingles (x:xs) =
+  if null (filter (==x) xs)
+  then x : extractSingles xs
+  else extractSingles (filter (/=x) xs)
+
+--- Replaces all variables occurring in the first argument by
+--- anonymous variables in a pattern.
+anonymPat :: [(Int,String)] -> CPattern -> CPattern
+anonymPat vs (CPVar v) = CPVar (if v `elem` vs then (fst v,"_") else v)
+anonymPat _  (CPLit l) = CPLit l
+anonymPat vs (CPComb qc pats) = CPComb qc (map (anonymPat vs) pats)
+anonymPat vs (CPAs v pat) =
+  if v `elem` vs then anonymPat vs pat
+                 else CPAs v (anonymPat vs pat)
+anonymPat vs (CPFuncComb qf pats) = CPFuncComb qf (map (anonymPat vs) pats)
+anonymPat vs (CPLazy pat) = CPLazy (anonymPat vs pat)
+anonymPat vs (CPRecord qc recpats) =
+  CPRecord qc (map (\ (n,p) -> (n, anonymPat vs p)) recpats)
+
+------------------------------------------------------------------------
+-- AbstractCurry auxiliaries:
+
+--- Returns list of all variables occurring in a pattern.
+--- Each occurrence corresponds to one element, i.e., the list might
+--- contain multiple elements.
+varsOfPat :: CPattern -> [(Int,String)]
+varsOfPat (CPVar v) = [v]
+varsOfPat (CPLit _) = []
+varsOfPat (CPComb _ pats) = concatMap varsOfPat pats
+varsOfPat (CPAs v pat) = v : varsOfPat pat
+varsOfPat (CPFuncComb _ pats) = concatMap varsOfPat pats
+varsOfPat (CPLazy pat) = varsOfPat pat
+varsOfPat (CPRecord _ recpats) = concatMap (varsOfPat . snd) recpats
+
+--- Returns list of all variables occurring in an expression.
+--- Each occurrence corresponds to one element, i.e., the list might
+--- contain multiple elements.
+varsOfExp :: CExpr -> [(Int,String)]
+varsOfExp (CVar v)             = [v]
+varsOfExp (CLit _)             = []
+varsOfExp (CSymbol _)          = []
+varsOfExp (CApply e1 e2)       = varsOfExp e1 ++ varsOfExp e2
+varsOfExp (CLambda pl le)      = concatMap varsOfPat pl ++ varsOfExp le
+varsOfExp (CLetDecl ld le)     = concatMap varsOfLDecl ld ++ varsOfExp le
+varsOfExp (CDoExpr sl)         = concatMap varsOfStat sl
+varsOfExp (CListComp le sl)    = varsOfExp le ++ concatMap varsOfStat sl
+varsOfExp (CCase _ ce bl)      =
+  varsOfExp ce ++ concatMap (\ (p,rhs) -> varsOfPat p ++ varsOfRhs rhs) bl
+varsOfExp (CTyped te _)        = varsOfExp te
+varsOfExp (CRecConstr _ upds)  = concatMap (varsOfExp . snd) upds
+varsOfExp (CRecUpdate e upds) = varsOfExp e ++ concatMap (varsOfExp . snd) upds
+
+--- Returns list of all variables occurring in a right-hand side.
+--- Each occurrence corresponds to one element, i.e., the list might
+--- contain multiple elements.
+varsOfRhs :: CRhs -> [(Int,String)]
+varsOfRhs (CSimpleRhs rhs ldecls) =
+  varsOfExp rhs ++ concatMap varsOfLDecl ldecls
+varsOfRhs (CGuardedRhs gs  ldecls) =
+  concatMap (\ (g,e) -> varsOfExp g ++ varsOfExp e) gs  ++
+  concatMap varsOfLDecl ldecls
+
+--- Returns list of all variables occurring in a statement.
+--- Each occurrence corresponds to one element, i.e., the list might
+--- contain multiple elements.
+varsOfStat :: CStatement -> [(Int,String)]
+varsOfStat (CSExpr e)  = varsOfExp e
+varsOfStat (CSPat p e) = varsOfPat p ++ varsOfExp e
+varsOfStat (CSLet ld)  = concatMap varsOfLDecl ld
+                             
+--- Returns list of all variables occurring in a local declaration.
+--- Each occurrence corresponds to one element, i.e., the list might
+--- contain multiple elements.
+varsOfLDecl :: CLocalDecl -> [(Int,String)]
+varsOfLDecl (CLocalFunc f)     = varsOfFDecl f
+varsOfLDecl (CLocalPat p rhs)  = varsOfPat p ++ varsOfRhs rhs
+varsOfLDecl (CLocalVars lvars) = lvars
+                           
+--- Returns list of all variables occurring in a function declaration.
+--- Each occurrence corresponds to one element, i.e., the list might
+--- contain multiple elements.
+varsOfFDecl :: CFuncDecl -> [(Int,String)]
+varsOfFDecl (CFunc     _ _ _ _ r) = concatMap varsOfRule r
+varsOfFDecl (CmtFunc _ _ _ _ _ r) = concatMap varsOfRule r
+
+--- Returns list of all variables occurring in a rule.
+--- Each occurrence corresponds to one element, i.e., the list might
+--- contain multiple elements.
+varsOfRule :: CRule -> [(Int,String)]
+varsOfRule (CRule pats rhs) = concatMap varsOfPat pats ++ varsOfRhs rhs
+
+------------------------------------------------------------------------

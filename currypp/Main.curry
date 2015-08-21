@@ -10,25 +10,29 @@
 --- @version February 2015
 ------------------------------------------------------------------------------
 
+import Char(isDigit,digitToInt)
 import Distribution(installDir)
 import System
 
 import Translator(translateFile)
 
-cppTitle :: String
-cppTitle = "Curry Preprocessor (version of 01/06/2015)"
+cppBanner :: String
+cppBanner = unlines [bannerLine,bannerText,bannerLine]
+ where
+   bannerText = "Curry Preprocessor (version of 21/08/2015)"
+   bannerLine = take (length bannerText) (repeat '=')
 
 --- Preprocessor options:
 data PPOpts = PPOpts { optHelp :: Bool
                      , optSave :: Bool
-		     , optVers :: Bool
+		     , optVerb :: Int
 		     , optTgts :: [String]
 		     }
 
 initOpts :: PPOpts
 initOpts = PPOpts { optHelp = False
                   , optSave = False
- 	          , optVers = False
+ 	          , optVerb = 0
 		  , optTgts = []
 		  }
 		  
@@ -41,15 +45,15 @@ main = do
        maybe (showUsage args)
 	     (\opts ->
 	       if optHelp opts
-	       then putStrLn (cppTitle ++ "\n" ++ usageText)
+	       then putStrLn (cppBanner ++ usageText)
 	       else do
-                when (optVers opts) $ putStrLn cppTitle
-                preprocess (optTgts opts) orgSourceFile inFile outFile
+                when (optVerb opts > 0) $ putStr cppBanner
+                preprocess opts orgSourceFile inFile outFile
                 when (optSave opts) $ saveFile orgSourceFile outFile )
 	     (processOptions initOpts options)
     _ -> maybe (showUsage args)
 	       (\opts -> if optHelp opts
-	                 then putStrLn (cppTitle ++ "\n" ++ usageText)
+	                 then putStrLn (cppBanner ++ usageText)
 	                 else showUsage args)
                (processOptions initOpts args)
  where
@@ -58,7 +62,10 @@ main = do
     ("-h":_)          -> Just opts { optHelp = True}
     ("-?":_)          -> Just opts { optHelp = True}
     ("-o":os)         -> processOptions opts { optSave = True } os
-    ("-v":os)         -> processOptions opts { optVers = True } os
+    ("-v":os)         -> processOptions opts { optVerb = 1 } os
+    (['-','v',vl]:os) -> if isDigit vl
+                         then processOptions opts { optVerb = digitToInt vl } os
+			 else Nothing
     (('-':'-':ts):os) -> if ts `elem` ["foreigncode","seqrules","default"]
                          then processOptions opts {optTgts = ts:optTgts opts} os
     	 	         else Nothing
@@ -72,7 +79,7 @@ main = do
     putStrLn $ "Translated Curry file written to '"++sFile++"'"
 
   showUsage args = do
-    putStrLn cppTitle
+    putStr cppBanner
     putStrLn $ "\nERROR: Illegal arguments: " ++ unwords args ++ "\n"
     putStrLn usageText
     exitWith 1
@@ -93,10 +100,10 @@ usageText =
   "-h|-?        : show help message and quit\n"
 
 -- Start the Curry preprocessor:
-preprocess :: [String] -> String -> String -> String -> IO ()
-preprocess pptargets orgSourceFile infile outfile
+preprocess :: PPOpts -> String -> String -> String -> IO ()
+preprocess opts orgSourceFile infile outfile
   | null pptargets = do
-    putStrLn cppTitle
+    putStr cppBanner
     putStrLn "ERROR: no preprocessing target (e.g., --foreigncode) specified!\n"
     putStrLn usageText
     exitWith 1
@@ -105,6 +112,12 @@ preprocess pptargets orgSourceFile infile outfile
       system (unwords [installDir++"/currytools/currypp/SequentialRules/Main",
                        orgSourceFile,infile,outfile]) >> done
   | "defaultrules" `elem` pptargets =
-      system (unwords [installDir++"/currytools/currypp/DefaultRules/Transform",
-                       orgSourceFile,infile,outfile]) >> done
+      system
+       (unwords $ [installDir++"/currytools/currypp/DefaultRules/Transform",
+                   orgSourceFile,infile,outfile] ++
+		  (if verb==0 then [] else ["-v"++show verb])) >> done
   | otherwise = error "currypp: internal error"
+ where
+  pptargets = optTgts opts
+  verb      = optVerb opts
+  
