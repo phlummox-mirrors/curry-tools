@@ -67,7 +67,7 @@ generateHtmlDocs docparams anainfo modname modcmts progcmts = do
   title = "Module " ++ modname
 
   htmltitle = h1 [ htxt "Module "
-                 , href (modname ++ "_curry.html") [htxt (modname ++ ".curry")]
+                 , href (modname ++ "_curry.html") [htxt modname]
                  ]
 
   lefttopmenu :: [CTypeDecl] -> [CFuncDecl] -> [[HtmlExp]]

@@ -3,16 +3,18 @@
 --- and deterministic functions.
 ---
 --- @author Michael Hanus
---- @version August 2015
+--- @version September 2015
 -----------------------------------------------------------------------------
 
-import AbstractCurry
-import AbstractCurryGoodies
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Select
+import AbstractCurry.Build
+import AbstractCurry.Pretty
 import Char(isDigit,digitToInt)
 import Directory
 import Distribution
 import List(isPrefixOf,isSuffixOf,partition)
-import PrettyAbstract(showCProg)
 import System
 
 --------------------------------------------------------------------
@@ -21,7 +23,7 @@ banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "Transformation Tool for Curry with Default Rules (Version of 21/08/15)"
+     "Transformation Tool for Curry with Default Rules (Version of 03/09/15)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------
@@ -368,77 +370,5 @@ anonymPat vs (CPFuncComb qf pats) = CPFuncComb qf (map (anonymPat vs) pats)
 anonymPat vs (CPLazy pat) = CPLazy (anonymPat vs pat)
 anonymPat vs (CPRecord qc recpats) =
   CPRecord qc (map (\ (n,p) -> (n, anonymPat vs p)) recpats)
-
-------------------------------------------------------------------------
--- AbstractCurry auxiliaries:
-
---- Returns list of all variables occurring in a pattern.
---- Each occurrence corresponds to one element, i.e., the list might
---- contain multiple elements.
-varsOfPat :: CPattern -> [(Int,String)]
-varsOfPat (CPVar v) = [v]
-varsOfPat (CPLit _) = []
-varsOfPat (CPComb _ pats) = concatMap varsOfPat pats
-varsOfPat (CPAs v pat) = v : varsOfPat pat
-varsOfPat (CPFuncComb _ pats) = concatMap varsOfPat pats
-varsOfPat (CPLazy pat) = varsOfPat pat
-varsOfPat (CPRecord _ recpats) = concatMap (varsOfPat . snd) recpats
-
---- Returns list of all variables occurring in an expression.
---- Each occurrence corresponds to one element, i.e., the list might
---- contain multiple elements.
-varsOfExp :: CExpr -> [(Int,String)]
-varsOfExp (CVar v)             = [v]
-varsOfExp (CLit _)             = []
-varsOfExp (CSymbol _)          = []
-varsOfExp (CApply e1 e2)       = varsOfExp e1 ++ varsOfExp e2
-varsOfExp (CLambda pl le)      = concatMap varsOfPat pl ++ varsOfExp le
-varsOfExp (CLetDecl ld le)     = concatMap varsOfLDecl ld ++ varsOfExp le
-varsOfExp (CDoExpr sl)         = concatMap varsOfStat sl
-varsOfExp (CListComp le sl)    = varsOfExp le ++ concatMap varsOfStat sl
-varsOfExp (CCase _ ce bl)      =
-  varsOfExp ce ++ concatMap (\ (p,rhs) -> varsOfPat p ++ varsOfRhs rhs) bl
-varsOfExp (CTyped te _)        = varsOfExp te
-varsOfExp (CRecConstr _ upds)  = concatMap (varsOfExp . snd) upds
-varsOfExp (CRecUpdate e upds) = varsOfExp e ++ concatMap (varsOfExp . snd) upds
-
---- Returns list of all variables occurring in a right-hand side.
---- Each occurrence corresponds to one element, i.e., the list might
---- contain multiple elements.
-varsOfRhs :: CRhs -> [(Int,String)]
-varsOfRhs (CSimpleRhs rhs ldecls) =
-  varsOfExp rhs ++ concatMap varsOfLDecl ldecls
-varsOfRhs (CGuardedRhs gs  ldecls) =
-  concatMap (\ (g,e) -> varsOfExp g ++ varsOfExp e) gs  ++
-  concatMap varsOfLDecl ldecls
-
---- Returns list of all variables occurring in a statement.
---- Each occurrence corresponds to one element, i.e., the list might
---- contain multiple elements.
-varsOfStat :: CStatement -> [(Int,String)]
-varsOfStat (CSExpr e)  = varsOfExp e
-varsOfStat (CSPat p e) = varsOfPat p ++ varsOfExp e
-varsOfStat (CSLet ld)  = concatMap varsOfLDecl ld
-                             
---- Returns list of all variables occurring in a local declaration.
---- Each occurrence corresponds to one element, i.e., the list might
---- contain multiple elements.
-varsOfLDecl :: CLocalDecl -> [(Int,String)]
-varsOfLDecl (CLocalFunc f)     = varsOfFDecl f
-varsOfLDecl (CLocalPat p rhs)  = varsOfPat p ++ varsOfRhs rhs
-varsOfLDecl (CLocalVars lvars) = lvars
-                           
---- Returns list of all variables occurring in a function declaration.
---- Each occurrence corresponds to one element, i.e., the list might
---- contain multiple elements.
-varsOfFDecl :: CFuncDecl -> [(Int,String)]
-varsOfFDecl (CFunc     _ _ _ _ r) = concatMap varsOfRule r
-varsOfFDecl (CmtFunc _ _ _ _ _ r) = concatMap varsOfRule r
-
---- Returns list of all variables occurring in a rule.
---- Each occurrence corresponds to one element, i.e., the list might
---- contain multiple elements.
-varsOfRule :: CRule -> [(Int,String)]
-varsOfRule (CRule pats rhs) = concatMap varsOfPat pats ++ varsOfRhs rhs
 
 ------------------------------------------------------------------------
