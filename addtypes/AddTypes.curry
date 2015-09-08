@@ -3,20 +3,24 @@
 -- write while developing the program. 
 --
 -- @author Bernd Brassel, with changes by Michael Hanus
--- @version February 2015
+-- @version September 2015
 -- 
 -- Possible extensions: Use type synonyms to reduce annotations
 ------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -Wno-incomplete-patterns #-}
+
 module AddTypes(main,addTypeSignatures) where
 
-import AbstractCurry
-import AbstractCurryPrinter
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Pretty
 import System (system,getArgs)
 import CurryStringClassifier
 import List
 import FileGoodies
 import AllSolutions
+import Pretty
 
 -- The tool is rather simple, it uses Curry's facilities for 
 -- meta-programming to read the program in the form defined 
@@ -112,9 +116,8 @@ addTypesCode code newFts ((f,t):fts)
           : addTypesCode (tail remainder) newFts ((f,t):fts)
       ' ':_ -> line ++ addTypesCode remainder newFts ((f,t):fts)
       _ -> if defines f lhs
-             then let typed = (showTypeExpr False $ normalize t)++"\n"
-                       in (printf++" :: "++typed) ++ line 
-                          ++ addTypesCode remainder newFts fts
+             then pretty 78 (ppSig $ normalize t) ++ "\n" ++
+                  line ++ addTypesCode remainder newFts fts
              else line ++ addTypesCode remainder newFts ((f,t):fts)
 
   where
@@ -122,6 +125,9 @@ addTypesCode code newFts ((f,t):fts)
     (lhs,_) = break (=='=') line
     printf = if all (flip elem infixIDs) f then '(':f++")" else f
 
+    ppSig texp = nest 2 $
+                sep [ text printf
+                    , align $ doubleColon <+> ppCTypeExpr defaultOptions texp]
 
 
 --- name type variables with a,b,c ... z, t0, t1, ...

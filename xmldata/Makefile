@@ -4,9 +4,7 @@
 # - installed Curry System (REPL)
 
 # Some modules required by the erd2curry implementation:
-DEPS = Data2Xml.curry $(METADIR)/AbstractCurry.curry \
-       $(METADIR)/AbstractCurryGoodies.curry \
-       $(METADIR)/AbstractCurryPrinter.curry
+DEPS = Data2Xml.curry $(LIBDIR)/AbstractCurry/*.curry
 
 # binaries
 TOOL = $(ROOT)/bin/data2xml

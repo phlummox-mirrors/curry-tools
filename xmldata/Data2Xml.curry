@@ -26,14 +26,16 @@
 ---     readXmlFile "Nat.xml" >>= return . xmlToNat
 ---
 --- @author Bernd Brassel, Michael Hanus
---- @version February 2015
+--- @version September 2015
 ------------------------------------------------------------------------------
 
 module Data2Xml where
 
-import AbstractCurry
-import AbstractCurryGoodies
-import AbstractCurryPrinter
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Select
+import AbstractCurry.Build
+import AbstractCurry.Pretty(showCProg)
 import Char
 import FileGoodies
 import List
@@ -69,7 +71,7 @@ derive (FileName fn:opts) = do
       impTypes = maybeString $ nub $ filter ((/=modName) .fst)
                              $ concatMap requiredTypesTypeDecl types
   imports <- importTypes modName impTypes
-  writeFile (progName++".curry") $ showProg $
+  writeFile (progName++".curry") $ showCProg $
    CurryProg progName (nub $ ["XML",fn] ++ imports) []
              (map (mkType2Xml opts) types ++
               map (mkXml2Type opts) types ++ specials)

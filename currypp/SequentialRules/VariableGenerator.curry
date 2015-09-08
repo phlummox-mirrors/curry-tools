@@ -2,12 +2,12 @@
 --- Module with operations to generate unused variables.
 --- 
 --- @author Lasse Folger (with changes by Michael Hanus)
---- @version June 2015
+--- @version September 2015
 ------------------------------------------------------------------------------
 
 module VariableGenerator(vars,varsL) where
 
-import AbstractCurry
+import AbstractCurry.Types
 import List
 
 
@@ -22,7 +22,7 @@ varsInRule rule = nub (getRVars rule)
   getPVars (CPAs (_,n) pa)   = n : getPVars pa
   getPVars (CPLazy lp)       = getPVars lp
   getPVars (CPRecord _ fds)  = concatMap (getPVars . snd) fds
-			     
+                             
   getGVars (x,y) = getEVars x ++ getEVars y
 
   getRhsVars (CSimpleRhs  rhs ldecls) = getEVars rhs ++ concatMap getLVars ldecls
@@ -41,11 +41,11 @@ varsInRule rule = nub (getRVars rule)
   getEVars (CTyped te _)        = getEVars te
   getEVars (CRecConstr _ upds)  = concatMap (getEVars . snd) upds
   getEVars (CRecUpdate re upds) = getEVars re ++ concatMap (getEVars . snd) upds
-		
+                
   getSVars (CSExpr e)  = getEVars e
   getSVars (CSPat p e) = getPVars p ++ getEVars e
   getSVars (CSLet ld)  = concatMap getLVars ld
-			     
+                             
   getBVars (p,rhs) = getPVars p ++ getRhsVars rhs
 
   getLVars (CLocalFunc f)     = getFVars f

@@ -2,7 +2,7 @@
 --- Operations to generate documentation in HTML format.
 ---
 --- @author Michael Hanus, Jan Tikovsky
---- @version June 2015
+--- @version September 2015
 ----------------------------------------------------------------------
 
 module CurryDocHtml where
@@ -12,8 +12,9 @@ import CurryDocRead
 import CurryDocConfig
 import TotallyDefined(Completeness(..))
 import FilePath
-import AbstractCurry
-import AbstractCurryGoodies
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Select
 import qualified FlatCurry as FC
 import qualified FlatCurryGoodies as FCG
 import HTML

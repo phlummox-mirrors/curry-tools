@@ -3,14 +3,12 @@
 --- implement a sequential rule selection strategy.
 --- 
 --- @author Lasse Folger (with changes by Michael Hanus)
---- @version June 2015
+--- @version September 2015
 ------------------------------------------------------------------------------
 
 import Reduction
-import AbstractCurry
-import AbstractCurryGoodies
+import AbstractCurry.Types
 import List(partition)
-import PrettyAbstract
 import Translation
 import Selection
 import System
@@ -66,12 +64,12 @@ renameF iname oname fl = map renameF' fl
             CFunc (rename n) a v (renameTE te) (map renameR r)
   renameF' (CmtFunc c n a v te r) =
             CmtFunc c (rename n) a v (renameTE te) (map renameR r)
-	    
+            
   renameTE te = case te of
                   (CTVar _)       -> te
                   (CFuncType i o)   -> CFuncType (renameTE i) (renameTE o)
                   (CTCons n t)      -> CTCons (rename n) (map renameTE t)
-		  
+                  
   renameR (CRule p rhs)         = CRule (map renameP p) (renameRhs rhs)
   renameRhs (CSimpleRhs exp ld) = CSimpleRhs  (renameE exp) (map renameLD ld)
   renameRhs (CGuardedRhs gs ld) = CGuardedRhs (map renameG gs)  (map renameLD ld)
@@ -110,7 +108,7 @@ renameF iname oname fl = map renameF' fl
                   (CSExpr e)  -> CSExpr (renameE e)
                   (CSPat p e) -> CSPat (renameP p) (renameE e)
                   (CSLet ld)  -> CSLet (map renameLD ld)
-		  
+                  
   renameB (p,rhs) = (renameP p, renameRhs rhs)
 
   renameRC (s,e) = (rename s, renameE e)

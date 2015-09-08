@@ -3,15 +3,14 @@
 --- functional patterns, as patterns, lazy patterns).
 --- 
 --- @author Lasse Folger (with changes by Michael Hanus)
---- @version June 2015
+--- @version September 2015
 ------------------------------------------------------------------------------
 
 module Reduction where
 
-import AbstractCurryGoodies
-import AbstractCurry
+import AbstractCurry.Build
+import AbstractCurry.Types
 import List
-import AbstractCurryPrinter
 import VariableGenerator
 
 {- In diesem Modul sind Funktionen definiert, die zur Reduktion von

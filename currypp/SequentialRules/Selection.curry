@@ -3,12 +3,12 @@
 --- i.e., operations that are not defined by inductively sequential rules.
 --- 
 --- @author Lasse Folger (with changes by Michael Hanus)
---- @version June 2015
+--- @version September 2015
 ------------------------------------------------------------------------------
 
 module Selection where
 
-import AbstractCurry
+import AbstractCurry.Types
 import Unsafe(trace)
 
 --- Test whether a function definition is non-deterministic, i.e.,
@@ -43,7 +43,7 @@ checkIArgs t@(i,ls@(_:_)) = if (all isCons ls)
                                               | otherwise  = False
   equal ((CPLit a) : _)    ((CPLit b) : _)    | a == b      = True
                                               | otherwise   = False
-					     
+                                             
   isCons []    = False        
   isCons (x:_) = case x of CPComb _ _ -> True
                            CPLit  _   -> True

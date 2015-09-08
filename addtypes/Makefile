@@ -19,7 +19,7 @@ clean:
 uninstall: clean
 	rm -f $(TOOL)
 
-AddTypes: AddTypes.curry $(METADIR)/AbstractCurry.curry \
+AddTypes: AddTypes.curry $(LIBDIR)/AbstractCurry/*.curry \
 	  $(LIBDIR)/List.curry $(LIBDIR)/AllSolutions.curry
 	$(REPL) $(REPL_OPTS) :load AddTypes :save :quit
 

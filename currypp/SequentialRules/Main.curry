@@ -16,14 +16,15 @@
 ---   <infile> to <outfile> where <org> is the original program
 --- 
 --- @author Lasse Folger (with changes by Michael Hanus)
---- @version June 2015
+--- @version September 2015
 ------------------------------------------------------------------------------
 
-import AbstractCurry
+import AbstractCurry.Types
+import AbstractCurry.Files
 import Directory
 import Distribution(stripCurrySuffix)
 import List(isPrefixOf)
-import PrettyAbstract(showCProg)
+import AbstractCurry.Pretty(showCProg)
 import System
 
 import Sequential

@@ -3,16 +3,14 @@
 --- implementing a sequential rule selection strategy.
 --- 
 --- @author Lasse Folger (with changes by Michael Hanus)
---- @version June 2015
+--- @version September 2015
 ------------------------------------------------------------------------------
 
 module Translation where
 
-import AbstractCurry
-import AbstractCurryGoodies
-import AbstractCurryPrinter
+import AbstractCurry.Types
+import AbstractCurry.Build
 import VariableGenerator
-import SetFunctions
 
 {-Dieses Modul beinhaltet alle Funktion, die für die eigentliche Uebersetzung
 in sequenziellen Patternmatching benötigt werden. Es werden alle Regeln zu einer
