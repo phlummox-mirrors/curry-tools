@@ -1,6 +1,6 @@
 module ERD2Curry where
 
-import PrettyAbstract
+import AbstractCurry.Pretty(showCProg)
 import XML
 import XML2ERD
 import ERD
@@ -8,8 +8,6 @@ import ERDGoodies
 import Transformation
 import CodeGeneration
 import System(getArgs,system)
-import FileGoodies(dirName)
-import ReadShowTerm(readUnqualifiedTerm)
 import Time
 import Directory
 import ERD2Graph
@@ -17,7 +15,7 @@ import System(exitWith)
 import Distribution(curryCompiler)
 
 systemBanner =
-  let bannerText = "ERD->Curry Compiler (Version of 05/12/13)"
+  let bannerText = "ERD->Curry Compiler (Version of 17/09/15)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 

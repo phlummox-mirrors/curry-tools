@@ -4,10 +4,9 @@
 
 import ERD
 import IO
-import AbstractCurry
---import AbstractCurryPrinter
-import PrettyAbstract
-import AbstractCurryGoodies
+import AbstractCurry.Types
+import AbstractCurry.Build
+import AbstractCurry.Pretty hiding(showCProg)
 import Transformation
 import ERDGoodies
 import System(system)
@@ -18,6 +17,11 @@ import ControllerGeneration
 import ViewGeneration
 import RouteGeneration
 import EntitiesToHtmlGeneration
+
+--- Show operation for AbstractCurry programs that does not put
+--- name qualifiers:
+showCProg :: CurryProg -> String
+showCProg = prettyCurryProg (defaultOptions { qualification = None })
 
 getRelationships :: ERD -> [Relationship]
 getRelationships (ERD _ _ relationships) = relationships

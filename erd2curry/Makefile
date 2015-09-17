@@ -2,7 +2,7 @@
 #
 # Required:
 # - installed Curry System (PAKCS or KiCS2) specified by variable REPL
-# - root location of the Curry System specified by variable ROOT
+# - bin directory of the Curry System specified by variable BINDIR
 
 # binaries
 TOOL = $(BINDIR)/erd2curry

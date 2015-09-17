@@ -4,7 +4,7 @@
 --- from a term file.
 ---
 --- @author Michael Hanus, Marion Mueller
---- @version September 2010
+--- @version September 2015
 ------------------------------------------------------------------------------
 
 module ERD(ERD(..),ERDName,Entity(..),EName,Entity(..),
@@ -61,7 +61,6 @@ type Role = String
 --- cardinality (0,n)).
 data Cardinality = Exactly Int
                  | Between Int MaxValue
-                 | Range Int (Maybe Int) -- for backward compatibility
 
 --- The upper bound of a cardinality which is either a finite number
 --- or infinite.
@@ -90,7 +89,6 @@ updateERDTerm (ERD name es rs) = ERD name es (map updateRel rs)
      then Between min (Max m)
      else error ("ERD: Illegal cardinality " ++ show (Between min (Max m)))
    updateCard (Between min Infinite) = Between min Infinite
-   updateCard (Range min max) = updateCard (Between min (maybe Infinite Max max))
 
 {-
 -- Example ERD term:

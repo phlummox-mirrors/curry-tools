@@ -1,5 +1,5 @@
-import AbstractCurry
-import AbstractCurryGoodies
+import AbstractCurry.Types
+import AbstractCurry.Build
 import ERD
 import ERDGoodies
 import GenerationHelper

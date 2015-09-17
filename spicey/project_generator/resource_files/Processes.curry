@@ -24,6 +24,7 @@ import AllSolutions
 --------------------------------------------------------------------------
 -- A operations on the datatype for process systems.
 
+processesOf :: Processes a -> [(String, a)]
 processesOf  (ProcSpec procs _ _) = procs
 
 --- The names of the processes in a process system.
@@ -34,6 +35,7 @@ getControllerForState :: stid -> Processes stid -> ControllerReference
 getControllerForState sid (ProcSpec _ ctrlof _) = ctrlof sid
 
 --- Is a state a final state, i.e., without successors, in a process system?
+isFinalState :: a -> Processes a -> IO Bool
 isFinalState sid (ProcSpec _ _ trans) = do
   succs <- getOneSolution (\x -> let p free in x =:= trans sid p)
   return (maybe True (const False) succs)

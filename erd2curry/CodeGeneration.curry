@@ -11,8 +11,8 @@ module CodeGeneration(Option,Storage(..),ConsistencyTest(..),
 
 import ERD
 import ERDGoodies
-import AbstractCurry
-import AbstractCurryGoodies
+import AbstractCurry.Types
+import AbstractCurry.Build
 import List
 import Char
 import FiniteMap

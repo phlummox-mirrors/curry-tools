@@ -1,5 +1,5 @@
-import AbstractCurry
-import AbstractCurryGoodies
+import AbstractCurry.Types
+import AbstractCurry.Build
 import GenerationHelper
 import ERD
 import ERDGoodies
@@ -523,7 +523,7 @@ manyToManyAddOrRemove erdname (Entity entityName _) entities allEntities =
       [simpleRule [CPVar (0, (lowerFirst e2)++"s"), CPVar (1, (lowerFirst e1))]
         (applyF (db "mapT_")
            [CLambda [CPVar(2, "t")]
-	     (applyF (erdname, dbFuncPrefix++(linkTableName e1 e2 allEntities))
+             (applyF (erdname, dbFuncPrefix++(linkTableName e1 e2 allEntities))
                [applyF (erdname, (lowerFirst e1)++"Key") [cvar (lowerFirst e1)],
                 applyF (erdname, (lowerFirst e2)++"Key") [cvar "t"]]),
             cvar ((lowerFirst e2)++"s")])]
@@ -543,11 +543,11 @@ getAll erdname (Entity entityName _) entities _ =
       [simpleRule []
         (applyF (db "runQ")
           [applyF (db "queryAll")
-	    [CLambda [CPVar(0, take 1 (lowerFirst foreignEntity) )]
-	             (CLetDecl [(CLocalVars [(1,"key")])]
-		        (applyF (erdname, lowerFirst foreignEntity)
-			        [cvar "key",
-			         cvar (take 1 (lowerFirst foreignEntity))]))
+            [CLambda [CPVar(0, take 1 (lowerFirst foreignEntity) )]
+                     (CLetDecl [(CLocalVars [(1,"key")])]
+                        (applyF (erdname, lowerFirst foreignEntity)
+                                [cvar "key",
+                                 cvar (take 1 (lowerFirst foreignEntity))]))
                     ]
             ]
        )
@@ -567,10 +567,10 @@ manyToManyGetRelated erdname (Entity entityName _) entities allEntities =
       (ctvar entityName ~> CTCons (db "Query") [listType (ctvar foreignEntity)])
       [simpleRule [CPVar (1, (take 1 $ lowerFirst entityName)++foreignEntity)]
         (applyF (db "queryAll")
-	  [CLambda [CPVar(0, take 1 (lowerFirst foreignEntity) )] 
+          [CLambda [CPVar(0, take 1 (lowerFirst foreignEntity) )] 
             (CLetDecl
-	       [CLocalVars [(1,(take 1 $ lowerFirst entityName)++"key"),
-	                    (2,(take 1 $ lowerFirst foreignEntity)++"key")]]
+               [CLocalVars [(1,(take 1 $ lowerFirst entityName)++"key"),
+                            (2,(take 1 $ lowerFirst foreignEntity)++"key")]]
                (foldr (\a b -> applyF ("Dynamic", "<>") [a,b]) 
                  (applyF (erdname, lowerFirst (linkTableName entityName foreignEntity allEntities)) [cvar ((take 1 $ lowerFirst entityName)++"key"), cvar ((take 1 $ lowerFirst foreignEntity)++"key")])
                  [

@@ -2,8 +2,8 @@ import Char
 import Time
 import ERD
 import ERDGoodies
-import AbstractCurry
-import AbstractCurryGoodies
+import AbstractCurry.Types
+import AbstractCurry.Build
 
 ------------------------------------------------------------------------
 -- lower the first character in a string

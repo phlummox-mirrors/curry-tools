@@ -8,7 +8,7 @@ import Distribution
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Spicey Web Framework (Version of 30/07/14)"
+  let bannerText = "Spicey Web Framework (Version of 17/09/15)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
