@@ -21,8 +21,8 @@ install: compile
 	rm -f $(TOOL)
 	ln -s $(CURDIR)/erd2cdbi $(TOOL)
 
-clean:  
-	cleancurry -r
+clean:
+	$(CLEANCURRY)
 	rm -f erd2cdbi
 
 uninstall: clean
