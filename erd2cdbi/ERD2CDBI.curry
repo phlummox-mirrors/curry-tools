@@ -82,7 +82,7 @@ writeCDBI (ERD name ents rels)  dbPath newDB = do
                   "import Database.CDBI.Description \n \n")
   mapIO_ (\x -> (writeEntityData x file)) ents
   hClose file
-  file2 <- openFile (name++"_SQLParserInfo.info") WriteMode
+  file2 <- openFile (name++"_SQLCode.info") WriteMode
   writeParserFile file2 ents rels dbPath
   hClose file2
   if newDB then do 
