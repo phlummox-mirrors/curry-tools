@@ -22,6 +22,7 @@ all:
 	@cd currydoc       && $(MAKE)
 	@cd currypp        && $(MAKE)
 	@cd currytest      && $(MAKE)
+	@cd erd2cdbi       && $(MAKE)
 	@cd erd2curry      && $(MAKE)
 	@cd genint         && $(MAKE)
 	@cd importcalls    && $(MAKE)
@@ -49,6 +50,7 @@ compile:
 	@cd currydoc       && $(MAKE) compile
 	@cd currypp        && $(MAKE) compile
 	@cd currytest      && $(MAKE) compile
+	@cd erd2cdbi       && $(MAKE) compile
 	@cd erd2curry      && $(MAKE) compile
 	@cd genint         && $(MAKE) compile
 	@cd importcalls    && $(MAKE) compile
@@ -68,6 +70,7 @@ install:
 	@cd currydoc       && $(MAKE) install
 	@cd currypp        && $(MAKE) install
 	@cd currytest      && $(MAKE) install
+	@cd erd2cdbi       && $(MAKE) install
 	@cd erd2curry      && $(MAKE) install
 	@cd genint         && $(MAKE) install
 	@cd importcalls    && $(MAKE) install
@@ -87,6 +90,7 @@ clean:
 	@cd currydoc       && $(MAKE) clean
 	@cd currypp        && $(MAKE) clean
 	@cd currytest      && $(MAKE) clean
+	@cd erd2cdbi       && $(MAKE) clean
 	@cd erd2curry      && $(MAKE) clean
 	@cd genint         && $(MAKE) clean
 	@cd importcalls    && $(MAKE) clean
@@ -106,6 +110,7 @@ uninstall:
 	@cd currydoc       && $(MAKE) uninstall
 	@cd currypp        && $(MAKE) uninstall
 	@cd currytest      && $(MAKE) uninstall
+	@cd erd2cdbi       && $(MAKE) uninstall
 	@cd erd2curry      && $(MAKE) uninstall
 	@cd genint         && $(MAKE) uninstall
 	@cd importcalls    && $(MAKE) uninstall

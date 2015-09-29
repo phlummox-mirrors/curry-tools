@@ -16,6 +16,7 @@ currypp/DefaultRules/Transform
 currydoc/CurryDoc
 currytest/CurryTest
 createmakefile/CreateMakefile
+erd2cdbi/erd2cdbi
 erd2curry/erd2curry
 genint/GenInt
 importcalls/ImportCalls
