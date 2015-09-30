@@ -12,7 +12,8 @@ export CLEANCURRY = $(BINDIR)/cleancurry
 export REPL       = $(BINDIR)/curry
 
 # Directory names of all tools:
-TOOLDIRS=$(notdir $(shell find . -mindepth 1 -maxdepth 1 -type d | sort))
+TOOLDIRS = $(filter-out $(EXCLUDES), $(sort $(notdir $(shell find . -mindepth 1 -maxdepth 1 -type d))))
+EXCLUDES = .git
 
 make_TOOLDIRS=$(addprefix make_,$(TOOLDIRS))
 compile_TOOLDIRS=$(addprefix compile_,$(TOOLDIRS))
