@@ -12,6 +12,7 @@ import IO
 import IOExts ( connectToCommand )
 import List
 import ReadShowTerm ( readsQTerm )
+import SetFunctions (selectValue, set2)
 import System
 import Time
 
@@ -77,7 +78,7 @@ writeCDBI (ERD name ents rels)  dbPath newDB = do
   hPutStrLn file ("module "++name++"_CDBI where\n" ++               
                   "import Time (ClockTime)\n" ++
                   "import Database.CDBI.ER\n" ++
-		  "import Database.CDBI.Criteria(idVal)\n"++
+                  "import Database.CDBI.Criteria(idVal)\n"++
                   "import Database.CDBI.Connection \n"++
                   "import Database.CDBI.Description \n \n")
   mapIO_ (\x -> (writeEntityData x file)) ents
@@ -98,7 +99,7 @@ writeParserFile file2 ents rels dbPath = do
   hPutStrLn file2 ("PInfo"++" \""++dbPath++"\"")
   hPutStrLn file2 ((spaceN 6)++"["++
                    (intercalate (",\n"++(spaceN 7)) 
-                                (map (getrelationtypes ents) rels))++"]")
+                                (map (getRelationTypes ents) rels))++"]")
   hPutStrLn file2 ((spaceN 6)++"["++
                    (intercalate (",\n"++(spaceN 7))
                                 (map getNullableAttr ents))++"]")
@@ -112,6 +113,10 @@ writeParserFile file2 ents rels dbPath = do
 
 -- generates data term for each name of a relationship and both ending entities
 -- if it is of type (1 to 1), (N to 1), (1 to N) or (M to N)
+getRelationTypes :: [Entity] -> Relationship -> String
+getRelationTypes ents rel = selectValue (set2 getrelationtypes ents rel)
+
+-- Non-deterministic implementation:
 getrelationtypes :: [Entity] -> Relationship -> String
 getrelationtypes ents (Relationship 
                        "" 
