@@ -15,17 +15,18 @@ export REPL       = $(BINDIR)/curry
 TOOLDIRS = $(filter-out $(EXCLUDES), $(sort $(notdir $(shell find . -mindepth 1 -maxdepth 1 -type d))))
 EXCLUDES = .git
 
-make_TOOLDIRS=$(addprefix make_,$(TOOLDIRS))
 compile_TOOLDIRS=$(addprefix compile_,$(TOOLDIRS))
 install_TOOLDIRS=$(addprefix install_,$(TOOLDIRS))
 clean_TOOLDIRS=$(addprefix clean_,$(TOOLDIRS))
 uninstall_TOOLDIRS=$(addprefix uninstall_,$(TOOLDIRS))
 
 .PHONY: all
-all: $(make_TOOLDIRS)
+all: $(TOOLDIRS)
 
-$(make_TOOLDIRS):
-	@cd $(patsubst make_%,%,$@) && $(MAKE)
+.PHONY: force
+
+$(TOOLDIRS): force
+	@cd $@ && $(MAKE)
 
 .PHONY: compile
 compile: $(compile_TOOLDIRS)
