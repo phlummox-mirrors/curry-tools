@@ -373,6 +373,7 @@ preludeBoolReqValues =
  [(pre "&&",    AFType [([Any,Any],aFalse), ([aTrue,aTrue],aTrue)])
  ,(pre "not",   AFType [([aTrue],aFalse), ([aFalse],aTrue)])
  ,(pre "||",    AFType [([aFalse,aFalse],aFalse), ([Any,Any],aTrue)])
+ ,(pre "&",     AFType [([aTrue,aTrue],aTrue)])
  ,(pre "solve", AFType [([aTrue],aTrue)])
  ,(pre "&&>",   AFType [([aTrue,Any],AnyC)])
  ]
