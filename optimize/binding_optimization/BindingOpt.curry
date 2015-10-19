@@ -3,7 +3,7 @@
 --- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version June 2015
+--- @version October 2015
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
@@ -32,7 +32,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 29/06/2015)"
+  let bannerText = "Curry Binding Optimizer (version of 19/10/2015)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -180,9 +180,9 @@ transformFuncDecl lookupreqinfo fdecl@(Func qf@(_,fn) ar vis texp rule) =
   beqs = numberBeqRule rule
 
 -------------------------------------------------------------------------
--- State threaded thorugh the program transformer:
+-- State threaded through the program transformer:
 -- * name of current function
--- * number of occurrences of (==) that are replaced by (===)
+-- * number of occurrences of (==) that are replaced by (=:=)
 data TState = TState QName Int
 
 initTState :: QName -> TState
@@ -199,11 +199,11 @@ incOccNumber (TState qf on) = TState qf (on+1)
 --- values. If there is an occurrence of (e1==e2) where the value `True`
 --- is required, then this occurrence is replaced by
 ---
----     (e1===e2)
+---     (e1=:=e2)
 ---
 --- Similarly, (e1/=e2) with required value `False` is replaced by
 ---
----     (not (e1===e2))
+---     (not (e1=:=e2))
 
 transformRule :: (QName -> Maybe AFType) -> TState -> Rule -> (TState,Rule)
 transformRule _ tst (External s) = (tst, External s)
@@ -216,10 +216,10 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformExp tst (Lit v) _ = (Lit v, tst)
   transformExp tst0 (Comb ct qf es) reqval
     | qf == pre "==" && reqval == aTrue
-    = (Comb FuncCall (pre "===") tes,
+    = (Comb FuncCall (pre "=:=") tes,
        incOccNumber tst1)
     | qf == pre "/=" && reqval == aFalse
-    = (Comb FuncCall (pre "not") [Comb FuncCall (pre "===") tes],
+    = (Comb FuncCall (pre "not") [Comb FuncCall (pre "=:=") tes],
               incOccNumber tst1)
     | qf == pre "$" && length es == 2 &&
       (isFuncPartCall (head es) || isConsPartCall (head es))
@@ -414,7 +414,7 @@ statSummary = concatMap showSum
       then ""
       else "Function "++fn++": "++
            (if teqs==1 then "one occurrence" else show teqs++" occurrences") ++
-           " of (==) transformed into (===)\n"
+           " of (==) transformed into (=:=)\n"
 
 --- Translate statistics into CSV format:
 stats2csv :: [TransStat] -> [[String]]
