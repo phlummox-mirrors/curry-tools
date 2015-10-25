@@ -42,11 +42,12 @@ import FiniteMap
 import List      (find)
 
 import AFCSubst
-import AnnotatedFlatCurry
-import qualified AnnotatedFlatCurryGoodies as AFC (annExpr, funcName)
 import ErrorState
-import FlatCurry
-import FlatCurryGoodies (branchExpr, funcName)
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Goodies (branchExpr, funcName)
+import FlatCurry.Annotated.Types
+import qualified FlatCurry.Annotated.Goodies as AFC (annExpr, funcName)
 import SCC
 import Unification
 import Unsafe

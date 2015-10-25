@@ -7,7 +7,7 @@
 module AFCSubst where
 
 import FiniteMap
-import AnnotatedFlatCurry
+import FlatCurry.Annotated.Types
 
 --- The (abstract) data type for substitutions on TypeExpr.
 type AFCSubst = FM TVarIndex TypeExpr
