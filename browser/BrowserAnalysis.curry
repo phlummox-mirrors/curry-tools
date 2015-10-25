@@ -11,9 +11,9 @@ import AnalysisTypes
 import Analysis(AOutFormat(..))
 import AnalysisServer(analyzeFunctionForBrowser)
 import AnalysisCollection(functionAnalysisInfos)
-import FlatCurry
-import FlatCurryGoodies
-import FlatCurryShow(showFlatFunc)
+import FlatCurry.Types
+import FlatCurry.Goodies
+import FlatCurry.Show(showFlatFunc)
 import Overlapping
 import PatternComplete
 import SolutionComplete

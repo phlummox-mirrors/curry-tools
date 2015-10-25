@@ -13,7 +13,7 @@ module PatternComplete(CompletenessType(..),
                        analyseCompleteness,
                        analyseTotallyDefined) where
 
-import FlatCurry
+import FlatCurry.Types
 import Dependency(analyseWithDependencies)
 
 ------------------------------------------------------------------------------

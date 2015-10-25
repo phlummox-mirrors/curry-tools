@@ -8,7 +8,7 @@
 
 module SolutionComplete(analyseSolutionComplete)   where
 
-import FlatCurry
+import FlatCurry.Types
 import List
 import Dependency
 

@@ -15,7 +15,7 @@
 import IO
 import GUI
 import ReadNumeric
-import FlatCurryShow(showCurryId)
+import FlatCurry.Show(showCurryId)
 import List(isPrefixOf)
 import Distribution(getLoadPathForFile)
 import FileGoodies

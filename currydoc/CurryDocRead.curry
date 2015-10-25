@@ -7,7 +7,7 @@
 
 module CurryDocRead where
 
-import FlatCurry
+import FlatCurry.Types
 import TotallyDefined(Completeness(..))
 import Char
 

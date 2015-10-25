@@ -24,8 +24,8 @@ module Analysis(Analysis(..),
                 AOutFormat(..))
   where
 
-import FlatCurry(ConsDecl,FuncDecl,TypeDecl,QName)
-import FlatCurryGoodies(progImports)
+import FlatCurry.Types(ConsDecl,FuncDecl,TypeDecl,QName)
+import FlatCurry.Goodies(progImports)
 import GenericProgInfo(ProgInfo,combineProgInfo,lookupProgInfo)
 import LoadAnalysis(loadCompleteAnalysis,getInterfaceInfos)
 import CurryFiles(getImports)

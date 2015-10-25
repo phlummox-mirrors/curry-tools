@@ -24,10 +24,11 @@ import List   (intercalate)
 import Pretty (pPrint)
 import Sort   (mergeSort,leqString)
 
-import FlatCurry
-import FlatCurryGoodies
-import FlatCurryPretty   (Options (..), defaultOptions, ppProg, ppFuncDecl)
-import FlatCurryShow
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Goodies
+import FlatCurry.Pretty   (Options (..), defaultOptions, ppProg, ppFuncDecl)
+import FlatCurry.Show
 
 --- Show FlatCurry module in pretty-printed form
 showFlatCurry :: Prog -> String

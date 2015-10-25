@@ -12,7 +12,7 @@
 module Indeterministic(indetAnalysis,showIndet) where
 
 import Analysis
-import FlatCurry
+import FlatCurry.Types
 
 ------------------------------------------------------------------------------
 --- The indeterminism analysis is a global function dependency analysis.

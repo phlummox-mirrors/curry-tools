@@ -7,7 +7,7 @@ module AnalysisTypes(FunctionAnalysis(..),AnalysisResult(..),
                      ModuleAnalysis(..),ModuleAnalysisResult(..),
                      ContentsKind(..)) where
 
-import FlatCurry
+import FlatCurry.Types
 
 -------------------------------------------------------------------------------
 -- Types for analyzing functions:

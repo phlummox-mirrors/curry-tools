@@ -12,8 +12,8 @@ module Deterministic(overlapAnalysis,showOverlap,showDet,
                      Deterministic(..),nondetAnalysis) where
 
 import Analysis
-import FlatCurry
-import FlatCurryGoodies
+import FlatCurry.Types
+import FlatCurry.Goodies
 
 ------------------------------------------------------------------------------
 -- The overlapping analysis can be applied to individual functions.

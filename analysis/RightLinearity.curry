@@ -10,7 +10,7 @@ module RightLinearity(rlinAnalysis,hasRightLinearRules,linearExpr,
                       showRightLinear) where
 
 import Analysis
-import FlatCurry
+import FlatCurry.Types
 import Maybe
 import List
 

@@ -5,9 +5,10 @@ module Imports(getImportedInterfaces,moduleImports,readFlatCurryFileInLoadPath,
                InterfaceOrFlatProg(..),ifOrProg,progOfIFFP)
   where
 
-import FlatCurry
-import FlatCurryGoodies
-import FlatCurryRead
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Goodies
+import FlatCurry.Read
 import FileGoodies
 import Distribution(getLoadPathForModule)
 import Directory

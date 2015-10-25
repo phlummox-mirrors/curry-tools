@@ -8,7 +8,7 @@
 
 module Nondeterminism(analyseNondeterminism,analyseSetValued) where
 
-import FlatCurry
+import FlatCurry.Types
 import Overlapping(orInExpr)
 import Dependency(analyseWithDependencies)
 

@@ -10,8 +10,9 @@ module CurryFiles(getImports,findModuleSourceInLoadPath,
                   getSourceFileTime,getFlatCurryFileTime,
                   readNewestFlatCurry) where
 
-import FlatCurry
-import FlatCurryGoodies(progImports)
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Goodies(progImports)
 import Directory(doesFileExist,getModificationTime)
 import Distribution(lookupFileInLoadPath,lookupModuleSourceInLoadPath)
 import Time(ClockTime)

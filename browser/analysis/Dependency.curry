@@ -8,7 +8,7 @@ module Dependency(analyseWithDependencies, indirectlyDependent,
                   funcsInExpr, callsDirectly, externalDependent,
                   dependencyGraphs, localDependencyGraphs) where
 
-import FlatCurry
+import FlatCurry.Types
 import List
 import SetRBT
 import Sort(leqString)

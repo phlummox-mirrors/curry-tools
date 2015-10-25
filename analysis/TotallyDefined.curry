@@ -14,8 +14,8 @@ module TotallyDefined(siblingCons,showSibling,
                       patCompAnalysis,totalAnalysis) where
 
 import Analysis
-import FlatCurry
-import FlatCurryGoodies
+import FlatCurry.Types
+import FlatCurry.Goodies
 import GenericProgInfo
 import List(delete)
 

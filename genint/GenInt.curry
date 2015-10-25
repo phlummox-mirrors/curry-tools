@@ -15,8 +15,9 @@
 {-# OPTIONS_CYMAKE -Wno-incomplete-patterns -Wno-missing-signatures #-}
 
 import FilePath (takeFileName, (</>))
-import FlatCurry
-import FlatCurryShow
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Show
 import List
 import Char(isAlpha)
 import System(getArgs,getEnviron,system)

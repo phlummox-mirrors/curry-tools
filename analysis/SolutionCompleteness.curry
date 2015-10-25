@@ -10,7 +10,7 @@
 module SolutionCompleteness(solcompAnalysis,showSolComplete)  where
 
 import Analysis
-import FlatCurry
+import FlatCurry.Types
 import List
 
 ------------------------------------------------------------------------------

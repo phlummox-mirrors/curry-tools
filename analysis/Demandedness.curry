@@ -11,8 +11,8 @@ module Demandedness
  where
 
 import Analysis
-import FlatCurry
-import FlatCurryGoodies
+import FlatCurry.Types
+import FlatCurry.Goodies
 import List((\\),intercalate)
 
 ------------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 
 module CalledByAnalysis(calledBy) where
 
-import FlatCurry
+import FlatCurry.Types
 import List
 
 -- Computes the list of all functions that calls some function.

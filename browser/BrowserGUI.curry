@@ -12,9 +12,10 @@ import GUI
 import Read
 import IOExts
 import Imports
-import FlatCurry
-import FlatCurryGoodies
-import FlatCurryShow
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Goodies
+import FlatCurry.Show
 import ShowFlatCurry(leqFunc,funcModule)
 import System
 import FileGoodies

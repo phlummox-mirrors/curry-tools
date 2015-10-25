@@ -9,8 +9,9 @@
 
 module ServerFunctions where
 
-import FlatCurry(QName,readFlatCurryInt)
-import FlatCurryGoodies(progImports)
+import FlatCurry.Types   (QName)
+import FlatCurry.Files   (readFlatCurryInt)
+import FlatCurry.Goodies (progImports)
 import Socket(Socket(..),listenOnFresh,sClose,waitForSocketAccept)
 import IO(Handle(..),hClose,hFlush,hGetLine,hPutStrLn,hWaitForInput,hWaitForInputs)
 import ReadShowTerm(readQTerm,showQTerm)

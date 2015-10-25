@@ -11,7 +11,8 @@ import Char
 import Directory
 import Distribution
 import FilePath ((</>), takeFileName)
-import FlatCurry
+import FlatCurry.Types
+import FlatCurry.Files
 import List
 import Sort
 import System

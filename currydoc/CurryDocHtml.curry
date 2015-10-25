@@ -15,8 +15,8 @@ import FilePath
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Select
-import qualified FlatCurry as FC
-import qualified FlatCurryGoodies as FCG
+import qualified FlatCurry.Types as FC
+import qualified FlatCurry.Goodies as FCG
 import HTML
 import BootstrapStyle
 import List

@@ -12,8 +12,8 @@ module AnalysisCollection(
   functionAnalysisInfos,registeredAnalysisNames,
   lookupRegAnaWorker,runAnalysisWithWorkers,analyzeMain) where
 
-import FlatCurry
-import FlatCurryGoodies(progImports)
+import FlatCurry.Types
+import FlatCurry.Goodies(progImports)
 import IO
 import IOExts
 import XML

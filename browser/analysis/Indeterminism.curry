@@ -8,7 +8,7 @@
 
 module Indeterminism(analyseIndeterminism,choiceInExpr) where
 
-import FlatCurry
+import FlatCurry.Types
 import List
 import Dependency
 

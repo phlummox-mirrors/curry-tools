@@ -7,8 +7,8 @@
 
 module AnalysisDependencies(getModulesToAnalyze,reduceDependencies) where
 
-import FlatCurry
-import FlatCurryGoodies(progImports)
+import FlatCurry.Types
+import FlatCurry.Goodies(progImports)
 import ReadShowTerm(readQTerm)
 import Directory(doesFileExist,getModificationTime)
 import Distribution(findFileInLoadPath)

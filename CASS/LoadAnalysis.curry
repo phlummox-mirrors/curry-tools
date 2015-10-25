@@ -17,7 +17,7 @@ import Configuration(debugMessage,getWithPrelude)
 import IO
 import FiniteMap
 import ReadShowTerm(readQTerm,showQTerm)
-import FlatCurry(QName)
+import FlatCurry.Types(QName)
 import CurryFiles(findModuleSourceInLoadPath)
 
 

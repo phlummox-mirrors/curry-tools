@@ -9,7 +9,7 @@
 module Groundness(Ground(..),showGround,groundAnalysis,
                   NDEffect(..),showNDEffect,ndEffectAnalysis) where
 
-import FlatCurry
+import FlatCurry.Types
 import List
 import Analysis
 import GenericProgInfo

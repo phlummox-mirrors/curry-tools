@@ -17,8 +17,8 @@ module RequiredValue(AType(..),showAType,AFType(..),showAFType,lubAType,
  where
 
 import Analysis
-import FlatCurry
-import FlatCurryGoodies
+import FlatCurry.Types
+import FlatCurry.Goodies
 import GenericProgInfo
 import List
 import Sort(mergeSort)

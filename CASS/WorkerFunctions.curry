@@ -8,8 +8,9 @@
 
 module WorkerFunctions where
 
-import FlatCurry
-import FlatCurryGoodies
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Goodies
 import ReadShowTerm(readQTerm,showQTerm)
 import List(partition)
 import IOExts

@@ -10,7 +10,8 @@ module CurryDocTeX where
 import CurryDocParams
 import CurryDocRead
 import Distribution
-import FlatCurry
+import FlatCurry.Types
+import FlatCurry.Files
 import HTML
 import HtmlParser
 import List

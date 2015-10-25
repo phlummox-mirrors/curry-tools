@@ -32,8 +32,9 @@ import Directory
 import Distribution
 import FileGoodies
 import FilePath ((</>), (<.>), dropFileName, takeFileName)
-import FlatCurry
-import FlatCurryRead(readFlatCurryWithImports)
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Read(readFlatCurryWithImports)
 import Function
 import List
 import Maybe(fromJust)

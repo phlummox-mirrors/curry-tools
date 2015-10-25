@@ -9,8 +9,9 @@ module CurryDocCDoc where
 import CurryDocParams
 import CurryDocRead
 import Distribution(findFileInLoadPath)
-import FlatCurry
-import FlexRigid
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.FlexRigid
 import ReadShowTerm
 import List
 

@@ -7,15 +7,16 @@
 
 import JavaScript
 import List
-import FlatCurry
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Compact
+import FlatCurry.Show
 import Integer
 import System(system,getArgs)
 import Directory
-import CompactFlatCurry
 import Char(isAlphaNum)
 import Unsafe
 import Distribution(installDir,findFileInLoadPath)
-import FlatCurryShow
 import Maybe
 import ReadNumeric(readNat)
 

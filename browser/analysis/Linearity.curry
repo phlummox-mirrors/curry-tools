@@ -7,7 +7,7 @@
 
 module Linearity(analyseRightLinearity,hasRightLinearRules,linearExpr) where
 
-import FlatCurry
+import FlatCurry.Types
 import Maybe
 import List
 import Dependency(analyseWithDependencies)

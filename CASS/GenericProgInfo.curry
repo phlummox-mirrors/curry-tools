@@ -11,7 +11,7 @@ import Configuration(debugMessage)
 import Directory(removeFile)
 import FiniteMap
 import FilePath((<.>))
-import FlatCurry
+import FlatCurry.Types
 import XML
 
 --- Type to represent analysis information.

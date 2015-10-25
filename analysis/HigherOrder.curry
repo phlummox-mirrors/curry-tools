@@ -5,8 +5,8 @@
 module HigherOrder(Order(..),showOrder,hiOrdType,hiOrdCons,hiOrdFunc) where
 
 import Analysis
-import FlatCurry
-import FlatCurryGoodies
+import FlatCurry.Types
+import FlatCurry.Goodies
 import Maybe
 import GenericProgInfo
 

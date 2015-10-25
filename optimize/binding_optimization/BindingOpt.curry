@@ -22,8 +22,9 @@ import FileGoodies
 import FilePath          ((</>), (<.>), normalise, pathSeparator)
 import List
 import System            (getArgs,system,exitWith,getCPUTime)
-import FlatCurry hiding  (Cons)
-import FlatCurryGoodies
+import FlatCurry.Types hiding  (Cons)
+import FlatCurry.Files
+import FlatCurry.Goodies
 
 type Options = (Int, Bool, Bool) -- (verbosity, use analysis?, auto-load?)
 

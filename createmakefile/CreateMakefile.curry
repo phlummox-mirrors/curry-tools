@@ -7,8 +7,9 @@
 
 module CreateMakefile where
 
-import FlatCurry
-import FlatCurryRead
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Read
 import List
 import System
 import Distribution
