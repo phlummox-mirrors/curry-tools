@@ -51,7 +51,7 @@ showMake mainmod sourcefiles =
 -- add a directory name for a Curry source file by looking up the
 -- current load path (CURRYPATH):
 findSourceFileInLoadPath modname = do
-  loadpath <- getLoadPathForFile modname
+  loadpath <- getLoadPathForModule modname
   mbfname <- lookupFileInPath (baseName modname) [".lcurry",".curry"] loadpath
   maybe (error ("Curry file for module \""++modname++"\" not found!"))
         (return . dropLocal)

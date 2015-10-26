@@ -24,7 +24,7 @@ import System(getArgs,getEnviron,system)
 import Directory
 import FileGoodies
 import Sort(mergeSort,leqString)
-import Distribution(getLoadPathForFile,stripCurrySuffix,modNameToPath
+import Distribution(stripCurrySuffix,modNameToPath
                    ,lookupModuleSourceInLoadPath)
 
 main = do

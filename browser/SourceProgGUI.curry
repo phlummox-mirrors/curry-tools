@@ -9,31 +9,18 @@
 --- <empty line>  -> terminate GUI
 --- q             -> terminate GUI
 ---
---- @version June 2011
+--- @version October 2015
 ------------------------------------------------------------------------
 
 import IO
 import GUI
-import ReadNumeric
 import FlatCurry.Show(showCurryId)
 import List(isPrefixOf)
-import Distribution(getLoadPathForFile)
-import FileGoodies
+import Distribution(lookupModuleSourceInLoadPath)
 import System(getArgs)
 import Char(isAlpha,isSpace)
-import Maybe(isJust)
 
 ---------------------------------------------------------------------
--- add a directory name for a Curry source file by looking up the
--- current load path (CURRYPATH):
-findSourceFileInLoadPath :: String -> IO (String)
-findSourceFileInLoadPath modname = do
-  loadpath <- getLoadPathForFile modname
-  mbfname <- lookupFileInPath (baseName modname) [".lcurry",".curry"] loadpath
-  maybe (error $ "Curry file for module \""++modname++"\" not found!")
-        return
-        mbfname
-
 -- find a function declaration in a program text:
 findFunDeclInProgText :: String -> String -> Int
 findFunDeclInProgText progtext fname =
@@ -84,11 +71,14 @@ sourceProgGUI cnt progdefs =
 -- start the counter GUI:
 startGUI :: String -> IO ()
 startGUI prog = do
-  filename <- findSourceFileInLoadPath prog
-  contents <- readFile filename
-  runHandlesControlledGUI ("Module: "++filename)
-     (sourceProgGUI contents (splitProgDefs contents))
-     [stdin]
+  mbsrc <- lookupModuleSourceInLoadPath prog
+  case mbsrc of
+    Nothing -> error $ "Curry file for module \""++prog++"\" not found!"
+    Just (_,filename) -> do
+      contents <- readFile filename
+      runHandlesControlledGUI ("Module: "++filename)
+                              (sourceProgGUI contents (splitProgDefs contents))
+                              [stdin]
 
 main :: IO ()
 main = do
@@ -140,9 +130,3 @@ isCommentLine :: String -> Bool
 isCommentLine l = take 2 (dropWhile isSpace l) == "--"
   
 ----------------------------------------------------------------------------
-
-m :: String -> IO ()
-m prog = do
-  filename <- findSourceFileInLoadPath prog
-  contents <- readFile filename
-  print $ splitProgDefs contents
