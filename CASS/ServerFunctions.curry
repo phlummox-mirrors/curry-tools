@@ -17,7 +17,6 @@ import IO(Handle(..),hClose,hFlush,hGetLine,hPutStrLn,hWaitForInput,hWaitForInpu
 import ReadShowTerm(readQTerm,showQTerm)
 import System(system,sleep)
 import Directory(doesFileExist,getModificationTime)
-import Distribution(findFileInLoadPath)
 import Maybe(fromMaybe)
 import List(delete)
 import Time(ClockTime)

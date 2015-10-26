@@ -772,7 +772,7 @@ transformWUI mainmodname imports target = do
 getAndTransformWUIConditions :: String -> IO [(QName,Bool)]
 getAndTransformWUIConditions modname = do
   prog <- readFlatCurry modname
-  fcyname <- findFileInLoadPath (modname++".fcy")
+  fcyname <- findFileInLoadPath (flatCurryFileName modname)
   let jscfuns = jscOfProg prog
       newflatprogname = fcyname++"_withjs"
   if or (map snd jscfuns) -- is there some withConditionJS to be transformed?
