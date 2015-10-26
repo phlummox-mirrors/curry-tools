@@ -16,10 +16,10 @@ DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
        CurryDocParams.curry CurryDocConfig.curry \
        BootstrapStyle.curry \
        $(LIBDIR)/Markdown.curry \
-       $(METADIR)/FlexRigid.curry \
+       $(LIBDIR)/FlatCurry/FlexRigid.curry \
        $(LIBDIR)/CategorizedHtmlList.curry \
        $(LIBDIR)/Distribution.curry $(LIBDIR)/PropertyFile.curry \
-       $(METADIR)/FlatCurry.curry \
+       $(LIBDIR)/FlatCurry/Types.curry $(LIBDIR)/FlatCurry/Files.curry \
        $(LIBDIR)/HTML.curry $(LIBDIR)/HtmlParser.curry \
        $(CASS)/AnalysisServer.curry \
        $(ANADIR)/Deterministic.curry $(ANADIR)/TotallyDefined.curry \

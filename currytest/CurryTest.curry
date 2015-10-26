@@ -18,7 +18,8 @@ import Read
 import Assertion
 import System
 import List
-import FlatCurry
+import FlatCurry.Types
+import FlatCurry.Files
 import IO
 import IOExts -- use IORefs
 import FileGoodies  (stripSuffix)

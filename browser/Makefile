@@ -18,7 +18,8 @@ DEPS = BrowserGUI.curry ShowFlatCurry.curry Imports.curry \
        $(CURRYTOOLS)/addtypes/AddTypes.curry \
        $(CURRYTOOLS)/importcalls/ImportCalls.curry \
        $(LIBDIR)/GUI.curry $(LIBDIR)/IOExts.curry  $(LIBDIR)/System.curry \
-       $(METADIR)/FlatCurry.curry $(METADIR)/FlatCurryShow.curry \
+       $(LIBDIR)/FlatCurry/Types.curry $(LIBDIR)/FlatCurry/Files.curry \
+       $(LIBDIR)/FlatCurry/Show.curry \
        analysis/*.curry $(ANADIR)/*.curry
 
 LOADPATH = analysis:$(CASS):$(ANADIR):$(CURRYTOOLS)/importcalls:$(CURRYTOOLS)/addtypes

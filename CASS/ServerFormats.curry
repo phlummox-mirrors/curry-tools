@@ -9,7 +9,7 @@
 module ServerFormats(serverFormats,formatResult) where
 
 import GenericProgInfo
-import FlatCurry(QName,showQNameInModule)
+import FlatCurry.Types(QName,showQNameInModule)
 import XML
 
 --------------------------------------------------------------------

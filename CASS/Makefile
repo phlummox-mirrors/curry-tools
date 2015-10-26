@@ -16,7 +16,7 @@ DEPS = Analysis.curry AnalysisCollection.curry AnalysisDependencies.curry \
        LoadAnalysis.curry SCC.curry ServerFormats.curry \
        ServerFunctions.curry WorkerFunctions.curry \
        $(LIBDIR)/Distribution.curry $(LIBDIR)/PropertyFile.curry \
-       $(METADIR)/FlatCurry.curry $(ANADIR)/*.curry
+       $(LIBDIR)/FlatCurry/*.curry $(ANADIR)/*.curry
 
 .PHONY: all compile install clean uninstall
 

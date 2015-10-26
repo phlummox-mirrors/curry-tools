@@ -17,6 +17,7 @@ clean:
 uninstall: clean
 
 # generate executable for import calls tools:
-ImportCalls: ImportCalls.curry $(METADIR)/FlatCurry.curry \
+ImportCalls: ImportCalls.curry $(LIBDIR)/FlatCurry/Types.curry \
+	     $(LIBDIR)/FlatCurry/Files.curry \
 	     $(LIBDIR)/System.curry $(LIBDIR)/List.curry
 	$(REPL) $(REPL_OPTS) :load ImportCalls :save :quit

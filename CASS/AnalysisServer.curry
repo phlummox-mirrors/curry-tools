@@ -16,7 +16,7 @@ module AnalysisServer(main, initializeAnalysisSystem, analyzeModuleAsText,
 import ReadNumeric(readNat)
 import Char(isSpace)
 import Directory
-import FlatCurry(QName)
+import FlatCurry.Types(QName)
 import Socket(Socket(..),listenOn,listenOnFresh,sClose,waitForSocketAccept)
 import IO
 import ReadShowTerm(readQTerm,showQTerm)

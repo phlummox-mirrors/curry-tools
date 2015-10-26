@@ -7,7 +7,6 @@ ROOT ?= $(error Please specify the variable ROOT)
 
 export BINDIR     = $(ROOT)/bin
 export LIBDIR     = $(ROOT)/lib
-export METADIR    = $(LIBDIR)/meta
 export CLEANCURRY = $(BINDIR)/cleancurry
 export REPL       = $(BINDIR)/curry
 
