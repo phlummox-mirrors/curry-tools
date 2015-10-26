@@ -37,7 +37,7 @@ import AbstractCurry.Select
 import AbstractCurry.Build
 import AbstractCurry.Pretty(showCProg)
 import Char
-import FileGoodies
+import Distribution(stripCurrySuffix)
 import List
 import System
 
@@ -56,7 +56,7 @@ usageMsg = "Usage: data2xml [-low] <filename>\n"++
 argsToOptions :: [String] -> [Options]
 argsToOptions args = case args of
   "-low":opts -> LowCase : argsToOptions opts
-  [s]         -> [FileName (stripSuffix s)]
+  [s]         -> [FileName (stripCurrySuffix s)]
   _           -> []
 
 derive :: [Options] -> IO ()
@@ -84,9 +84,11 @@ maybeString xs
     then (pre "String" : xs)
     else xs
 
--- Transform original module name into name of the transformation module:
+-- Transform original module name into name of the transformation module.
+-- Hierarchical module names are "flattened" by replacing dots with underscores.
 transModName :: String -> String
-transModName mn = mn ++ "DataToXml"
+transModName mn = map dot2us mn ++ "DataToXml"
+ where dot2us c = if c=='.' then '_' else c
 
 ----------------------------
 -- naming the new functions
