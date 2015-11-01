@@ -178,7 +178,7 @@ makeIndexPages docdir modnames = do
   done
  where
   readTypesFuncs modname = do
-    fcyfile <- findFileInLoadPath (flatCurryFileName modname)
+    fcyfile <- getFlatCurryFileInLoadPath modname
     (Prog _ _ types funs _) <- readFlatCurryFile fcyfile
     return (types,funs)
 
@@ -299,8 +299,7 @@ makeDocIfNecessary docparams recursive docdir modname = do
   if not docexists
    then copyOrMakeDoc docparams recursive docdir modname
    else do
-     ctime  <- findFileInLoadPath (flatCurryFileName modname)
-                 >>= getModificationTime
+     ctime  <- getFlatCurryFileInLoadPath modname >>= getModificationTime
      dftime <- getModificationTime docfile
      if compareClockTime ctime dftime == GT
       then copyOrMakeDoc docparams recursive docdir modname
@@ -311,11 +310,11 @@ makeDocIfNecessary docparams recursive docdir modname = do
 -- get imports of a module by reading the interface, if possible:
 getImports :: String -> IO [String]
 getImports modname = do
-  let fintname = flatCurryIntName modname
-      fcyname  = flatCurryFileName modname
-  mbfintfile <- lookupFileInLoadPath fintname
+  mbfintfile <- getLoadPathForModule modname >>=
+                lookupFileInPath (flatCurryIntName modname) [""]
   (Prog _ imports _ _ _) <- maybe
-                             (findFileInLoadPath fcyname >>= readFlatCurryFile)
+                             (getFlatCurryFileInLoadPath modname >>=
+                              readFlatCurryFile)
                              readFlatCurryFile
                              mbfintfile
   return imports

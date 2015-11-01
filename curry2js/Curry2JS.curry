@@ -5,6 +5,7 @@
 --- @version January 16, 2007
 ------------------------------------------------------------------------------
 
+import Distribution      (installDir)
 import JavaScript
 import List
 import FlatCurry.Types
@@ -12,13 +13,12 @@ import FlatCurry.Files
 import FlatCurry.Compact
 import FlatCurry.Show
 import Integer
-import System(system,getArgs)
+import System            (system, getArgs)
 import Directory
-import Char(isAlphaNum)
+import Char              (isAlphaNum)
 import Unsafe
-import Distribution(installDir,findFileInLoadPath)
 import Maybe
-import ReadNumeric(readNat)
+import ReadNumeric       (readNat)
 
 ------------------------------------------------------------------------------
 -- General definitions:
@@ -772,7 +772,7 @@ transformWUI mainmodname imports target = do
 getAndTransformWUIConditions :: String -> IO [(QName,Bool)]
 getAndTransformWUIConditions modname = do
   prog <- readFlatCurry modname
-  fcyname <- findFileInLoadPath (flatCurryFileName modname)
+  fcyname <- getFlatCurryFileInLoadPath modname
   let jscfuns = jscOfProg prog
       newflatprogname = fcyname++"_withjs"
   if or (map snd jscfuns) -- is there some withConditionJS to be transformed?

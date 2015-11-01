@@ -11,12 +11,13 @@ import CurryDocParams
 import CurryDocRead
 import CurryDocConfig
 import TotallyDefined(Completeness(..))
-import FilePath
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Select
 import qualified FlatCurry.Types as FC
 import qualified FlatCurry.Goodies as FCG
+import FilePath
+import FileGoodies (lookupFileInPath)
 import HTML
 import BootstrapStyle
 import List
@@ -26,6 +27,7 @@ import Time
 import Distribution
 import CategorizedHtmlList
 import Markdown
+import Maybe
 
 infixl 0 `withTitle`
 
@@ -35,7 +37,9 @@ infixl 0 `withTitle`
 generateHtmlDocs :: DocParams -> AnaInfo -> String -> String
                  -> [(SourceLine,String)] -> IO String
 generateHtmlDocs docparams anainfo modname modcmts progcmts = do
-  acyname <- findFileInLoadPath (abstractCurryFileName modname)
+  acyname <- getLoadPathForModule modname >>=
+             lookupFileInPath (abstractCurryFileName modname) [""] >>=
+             return . fromJust
   putStrLn $ "Reading AbstractCurry program \""++acyname++"\"..."
   (CurryProg _ imports types functions ops) <- readAbstractCurryFile acyname
   let
