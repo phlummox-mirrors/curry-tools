@@ -66,7 +66,7 @@ main = do
      [mname]         -> transMain tparam (stripCurrySuffix mname)
      (orgfile:infile:outfile:opts) ->
        maybe (printError args)
-             (\vl -> transPP vl orgfile infile outfile)
+             (\vl -> transDefaultRules vl orgfile infile outfile)
 	     (processOptions opts)
      _ -> printError args
 
@@ -120,11 +120,11 @@ compileAcyFcy quiet progname = do
   callFrontendWithParams FCY params progname
 
 ------------------------------------------------------------------------
--- Start sequentializer in "preprocessor mode":
-transPP :: Int -> String -> String -> String -> IO ()
-transPP verb orgfile infile outfile = do
+-- Start default rules transformation in "preprocessor mode":
+transDefaultRules :: Int -> String -> String -> String -> IO ()
+transDefaultRules verb orgfile infile outfile = do
   when (verb>0) $ putStr banner
-  let savefile = orgfile++".SAVE"
+  let savefile = orgfile++".SAVEDEFRULES"
       modname = stripCurrySuffix orgfile
   renameFile orgfile savefile
   starttime <- getCPUTime
@@ -134,8 +134,9 @@ transPP verb orgfile infile outfile = do
   let (detfuncnames,newprog) = translateProg inputProg
   writeFile outfile (showCProg newprog)
   stoptime <- getCPUTime
-  when (verb>0) $ putStrLn
-    ("Total transformation time: " ++ show (stoptime-starttime) ++ " ms")
+  when (verb>1) $ putStrLn
+    ("Default rules transformation time: " ++
+     show (stoptime-starttime) ++ " ms")
   printProofObligation detfuncnames
  where
    tryReadUntypedCurry mn savefile =

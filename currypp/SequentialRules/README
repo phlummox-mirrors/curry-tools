@@ -10,11 +10,6 @@ rule ordering.
 The ideas of this transformation are described in the
 [WFLP 2014 paper](http://ceur-ws.org/Vol-1335/wflp2014_paper5.pdf).
 
-The preprocessor can be called with the following parameters:
-
-... <input> : translate <input> program and show translated program
-
-... <input> <output> : translate <input> program into <output> program
-
-... <org> <infile> <outfile> : "preprocessor mode", i.e., translate
-  <infile> to <outfile> where <org> is the original program
+The preprocessor can be called by the Curry preprocessor `currypp`
+with the option `seqrules` (provided as a CYMAKE option,
+see the example programs in the directory Examples).

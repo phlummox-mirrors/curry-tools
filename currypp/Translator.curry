@@ -93,21 +93,21 @@ formatWarnings ws@((p,_):_) = "\nWARNINGS in " ++ getFilename p ++ ":"
                      ++ " | "   ++ getWarnMsg w
 
 --- Translates a file with Curry with Integrated Code to a file with Curry Code.
---- @param in_fp - The filepath to the input file
---- @param out_fp - The filepath to the output file
-translateFile :: String -> String -> IO ()
-translateFile in_fp out_fp =
-  do in_st  <- readFile in_fp
-     out_st <- translateString in_fp in_st
-     writeFile out_fp out_st
+--- @param orgfile - The file path to the original Curry file
+--- @param infile - The file path to the input file
+--- @param outfile - The file path to the output file
+translateFile :: String -> String -> String -> IO ()
+translateFile orgfile infile outfile =
+  readFile infile >>= translateString orgfile >>= writeFile outfile
 
---- Translates a string with Curry with Integrated Code to a string with Curry
---- Code.
+--- Translates a string containing a Curry program with Integrated Code
+--- into a string with pure Curry code.
+--- @param fname - The name of the original Curry file
 --- @param s - The string that should be translated
 --- @return The translated string
 translateString :: String -> String -> IO String
-translateString name s =
-  do stw <- concatAllIOPM $ applyLangParsers $ ciparser name s
+translateString fname s =
+  do stw <- concatAllIOPM $ applyLangParsers $ ciparser fname s
      putStr (formatWarnings (getWarnings stw))
      escapePR (discardWarnings stw) errfun
 

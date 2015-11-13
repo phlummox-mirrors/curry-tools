@@ -6,18 +6,23 @@
 # Jasper Sikorra - jsi@informatik.uni-kiel.de
 #
 #****************************************************************************
-
-#----------------------------------
-# Input and output dirs
-#----------------------------------
+# Makefile for Curry preprocessor
+#****************************************************************************
 
 # Tool binary
 TOOL = $(BINDIR)/currypp
 
 # Source filepaths
-SRCDIR  = $(CURDIR)
-PARSEDIR = $(SRCDIR)/Parser
-MLDIR = $(PARSEDIR)/ML
+SRCDIR      = $(CURDIR)
+PARSEDIR    = $(SRCDIR)/Parser
+MLDIR       = $(PARSEDIR)/ML
+SEQRULESDIR = $(CURDIR)/SequentialRules
+DEFRULESDIR = $(CURDIR)/DefaultRules
+
+# preprocessor input path and dependencies:
+PPPATH = $(SRCDIR):$(PARSEDIR):$(MLDIR):$(SEQRULESDIR):$(DEFRULESDIR)
+DEPS   = $(SRCDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
+         $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry
 
 .PHONY: all compile install clean uninstall
 
@@ -28,22 +33,14 @@ compile: Main
 install: compile
 	rm -f $(TOOL)
 	ln -s $(CURDIR)/Main $(TOOL)
-	cd SequentialRules && $(MAKE) install
-	cd DefaultRules && $(MAKE) install
 
 clean:
 	$(CLEANCURRY) -r
-	rm -f Translator
-	cd SequentialRules && $(MAKE) clean
-	cd DefaultRules && $(MAKE) clean
 
 uninstall: clean
 	rm -f $(TOOL)
-	cd SequentialRules && $(MAKE) uninstall
-	cd DefaultRules && $(MAKE) uninstall
 
 # generate executable of currypp translator:
-Main: $(SRCDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry
-	@echo Compiling Curry Integrated Code Translator ...
-	$(REPL) $(REPL_OPTS) :set path $(SRCDIR):$(PARSEDIR):$(MLDIR) \
-	  :load Main :save :quit
+Main: $(DEPS)
+	@echo Compiling Curry Preprocessor...
+	$(REPL) $(REPL_OPTS) :set path $(PPPATH) :load Main :save :quit

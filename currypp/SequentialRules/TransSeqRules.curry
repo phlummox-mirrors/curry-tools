@@ -36,7 +36,7 @@ main = do
     [srcmod]        -> applySequential (stripCurrySuffix srcmod) Nothing
     [srcmod,trgmod] -> applySequential (stripCurrySuffix srcmod)
                                        (Just (stripCurrySuffix trgmod))
-    [orgfile,infile,outfile] -> ppSequential orgfile infile outfile
+    [orgfile,infile,outfile] -> transSequentialRules 1 orgfile infile outfile
     _ -> do putStrLn $ "Illegal arguments: "++unwords args
             putStrLn "Usage: ... <sourcemodule> <targetmodule>"
 
@@ -48,17 +48,20 @@ applySequential sourcemodname mbtarget = do
   (maybe putStr (\fn -> writeFile (fn++".curry")) mbtarget) targetprog
 
 -- Start sequentializer in "preprocessor mode":
-ppSequential :: String -> String -> String -> IO ()
-ppSequential orgfile infile outfile = do
-  --print (orgfile,infile,outfile)
-  let savefile = orgfile++".SAVE"
+transSequentialRules :: Int -> String -> String -> String -> IO ()
+transSequentialRules verb orgfile infile outfile = do
+  let savefile = orgfile++".SAVESEQRULES"
       modname = stripCurrySuffix orgfile
   renameFile orgfile savefile
+  starttime <- getCPUTime
   readFile infile >>= writeFile orgfile . replaceOptionsLine
   inputProg <- tryReadCurry modname savefile
-  --putStr (showCProg (translate inputProg modname))
   renameFile savefile orgfile
   writeFile outfile (showCProg (translate inputProg modname))
+  stoptime <- getCPUTime
+  when (verb>1) $ putStrLn
+    ("Sequential rules transformation time: " ++
+     show (stoptime-starttime) ++ " ms")
  where
    tryReadCurry mn savefile =
      catch (readCurry mn)
