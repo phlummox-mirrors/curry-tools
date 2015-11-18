@@ -61,3 +61,11 @@ test20 = assertTrue "Email1" (isEmail "pakcs@curry-language.org")
 
 test21 = assertTrue "Email2" (not (isEmail "pa%kcs@curry-language.org"))
 
+
+isID :: String -> Bool
+isID s = s ``regex [a-zA-Z][a-zA-Z0-9_']*''
+
+test30 = assertTrue "ID1" (isID "ab_4'aux")
+
+test31 = assertTrue "ID2" (not (isID "4ab"))
+
