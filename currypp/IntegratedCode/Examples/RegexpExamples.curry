@@ -1,9 +1,9 @@
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=--foreigncode #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=foreigncode #-}
 
 ------------------------------------------------------------------------------
 --- This program contains some examples for integrated code to support
 --- regular expression matching.
---- The syntax of regular expression is similar to
+--- The syntax of regular expressions is similar to
 --- POSIX extended regular expressions
 ------------------------------------------------------------------------------
 

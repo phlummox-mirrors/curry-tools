@@ -16,7 +16,7 @@ import Distribution(installDir)
 import List(delete)
 import System
 
-import Translator(translateFile)
+import TransICode(translateICFile)
 import TransDefRules(transDefaultRules)
 import TransSeqRules(transSequentialRules)
 
@@ -138,7 +138,7 @@ preprocess opts orgfile infile outfile
         exitWith 1
   | ForeignCode `elem` pptargets
    = do starttime <- getCPUTime
-        translateFile orgfile infile outfile
+        translateICFile orgfile infile outfile
         stoptime <- getCPUTime
         when (verb>1) $ putStrLn
           ("Foreign code transformation time: " ++

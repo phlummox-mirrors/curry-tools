@@ -13,15 +13,15 @@
 TOOL = $(BINDIR)/currypp
 
 # Source filepaths
-SRCDIR      = $(CURDIR)
-PARSEDIR    = $(SRCDIR)/Parser
+ICODEDIR    = $(CURDIR)/IntegratedCode
+PARSEDIR    = $(ICODEDIR)/Parser
 MLDIR       = $(PARSEDIR)/ML
 SEQRULESDIR = $(CURDIR)/SequentialRules
 DEFRULESDIR = $(CURDIR)/DefaultRules
 
 # preprocessor input path and dependencies:
-PPPATH = $(SRCDIR):$(PARSEDIR):$(MLDIR):$(SEQRULESDIR):$(DEFRULESDIR)
-DEPS   = $(SRCDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
+PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SEQRULESDIR):$(DEFRULESDIR)
+DEPS   = Main.curry $(ICODEDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
          $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry
 
 .PHONY: all compile install clean uninstall
@@ -44,3 +44,11 @@ uninstall: clean
 Main: $(DEPS)
 	@echo Compiling Curry Preprocessor...
 	$(REPL) $(REPL_OPTS) :set path $(PPPATH) :load Main :save :quit
+
+# run the test suites for the Curry preprocessor
+.PHONY: runtest
+runtest:
+	cd IntegratedCode/Examples && ./test.sh
+	cd SequentialRules/Examples && ./test.sh
+	cd DefaultRules/Examples && ./test.sh
+

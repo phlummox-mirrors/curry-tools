@@ -1,0 +1,110 @@
+\section{CurryPP: A Preprocessor for Curry Programs}
+
+The Curry preprocessor \ccode{currypp}
+\index{Curry preprocessor}\index{preprocessor}
+implements
+various transformations on Curry source programs.
+It supports some experimental language extensions
+that might become part of the standard parser of Curry
+in some future version.
+
+Currently, the Curry preprocessor
+supports the following extensions that will be described below in more detail:
+
+\begin{description}
+\item[Integrated code:]
+This extension allows to integrate
+code written in some other language into Curry programs,
+like regular expressions, format specifications (\ccode{printf}),
+HTML and XML code.
+\item[Sequential rules:]
+If this feature is used, all rules in a Curry module are
+interpreted as sequential, i.e., a rule is only applied
+if all previous rules defining the same operation are not applicable.
+The idea of sequential rules are described in \cite{AntoyHanus14}.
+\item[Default rules:]
+If this feature is used, one can add a default rule
+to operations defined in a Curry module.
+This provides a similar power than sequential rules
+but with a better operational behavior.
+The idea of default rules are described in \cite{AntoyHanus16PADL}.
+\end{description}
+
+The preprocessor is an executable named \ccode{currypp},
+which is stored in the directory \code{\cyshome/bin}.
+In order to apply the preprocessor when loading a Curry source
+program into \CYS, one has to add an option line
+at the beginning of the source program.
+For instance, in order to use default rules in a Curry program,
+one has to put the line
+\begin{curry}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=defaultrules #-}
+\end{curry}
+at the beginning of the program.
+This option tells the \CYS front end to process the Curry source program
+with \code{currypp} before actually parsing the source text.
+
+The option \ccode{defaultrules} has to be replaced by
+\ccode{seqrules} if the sequential rule matching should be replaced.
+To support integrated code, one has to set the option
+\ccode{foreigncode} (which can also be combined with
+either \ccode{defaultrules} or \ccode{seqrules}.
+If one wants to see the result of the transformation, one can
+also set the option \ccode{-o}. This has the effect that the
+transformed source program is stored in the file
+\code{Prog.curry.CURRYPP} if the name of the original program
+is \code{Prog.curry}.
+
+For instance, in order to use integrated code and default rules
+in a module and store the transformed program,
+one has to put the line
+\begin{curry}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=foreigncode --optF=defaultrules --optF=-o #-}
+\end{curry}
+at the beginning of the program.
+
+
+\subsection{Integrated Code}
+
+Integrated code is enclosed in at least two back ticks and ticks
+in a Curry program. The number of starting back ticks and ending ticks
+must be always identical.
+After the initial back ticks, there must be an identifier
+specifying the kind of integrated code,
+e.g., \code{regexp} or \code{html} (see below).
+For instance, if one uses regular expressions (see below for more details),
+the following expressions are valid in source programs:
+\begin{curry}
+  s ``regex (a|(bc*))+''
+  s ````regex aba*c''''
+\end{curry}
+The Curry preprocessor transforms these code pieces into regular
+Curry expressions. The next sections describe the currently
+supported foreign languages.
+
+
+\subsubsection{Regular Expressions}
+
+TODO
+
+\subsubsection{Format Specifications}
+
+TODO
+
+\subsubsection{HTML Code}
+
+TODO
+
+\subsubsection{XML Expressions}
+
+TODO
+
+\subsection{Sequential Rules}
+
+TODO
+
+\subsection{Default Rules}
+
+TODO
+
+%  LocalWords:  preprocessor

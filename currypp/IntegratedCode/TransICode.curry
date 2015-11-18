@@ -25,9 +25,9 @@
 --- xml    - see the MLParser and XML library
 ---
 --- @author Jasper Sikorra (with changes by Michael Hanus)
---- @version February 2015
+--- @version November 2015
 ------------------------------------------------------------------------------
-module Translator where
+module TransICode where
 
 import IO(stderr,hPutStrLn)
 import List
@@ -96,17 +96,17 @@ formatWarnings ws@((p,_):_) = "\nWARNINGS in " ++ getFilename p ++ ":"
 --- @param orgfile - The file path to the original Curry file
 --- @param infile - The file path to the input file
 --- @param outfile - The file path to the output file
-translateFile :: String -> String -> String -> IO ()
-translateFile orgfile infile outfile =
-  readFile infile >>= translateString orgfile >>= writeFile outfile
+translateICFile :: String -> String -> String -> IO ()
+translateICFile orgfile infile outfile =
+  readFile infile >>= translateICString orgfile >>= writeFile outfile
 
 --- Translates a string containing a Curry program with Integrated Code
 --- into a string with pure Curry code.
 --- @param fname - The name of the original Curry file
 --- @param s - The string that should be translated
 --- @return The translated string
-translateString :: String -> String -> IO String
-translateString fname s =
+translateICString :: String -> String -> IO String
+translateICString fname s =
   do stw <- concatAllIOPM $ applyLangParsers $ ciparser fname s
      putStr (formatWarnings (getWarnings stw))
      escapePR (discardWarnings stw) errfun
