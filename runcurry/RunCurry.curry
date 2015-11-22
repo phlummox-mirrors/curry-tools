@@ -22,7 +22,7 @@ import Directory
 import Distribution(installDir,stripCurrySuffix)
 import FileGoodies(fileSuffix)
 import FilePath((<.>),(</>),isRelative)
-import IO (getContents)
+import IO (getContents,hFlush,stdout)
 import List(partition)
 import System(exitWith,getArgs,getPID,system)
 
@@ -59,6 +59,7 @@ checkFirstArg :: [String] -> [String] -> IO ()
 checkFirstArg curryargs [] = do
   -- no program argument provided, use remaining input as program:
   putStrLn "Type in your program with an operation 'main':"
+  hFlush stdout
   progname <- getNewProgramName
   getContents >>= writeFile progname
   execAndDeleteCurryProgram progname curryargs [] >>= exitWith

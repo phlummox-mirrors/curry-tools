@@ -45,7 +45,7 @@ the program text into this command or type the program text on
 the keyboard. For instance, if we type
 \begin{currynomath}
 > runcurry
-main = putStrLn . unlines . map show . take 8 $ [1..]
+main = putStr . unlines . map show . take 8 $ [1..]
 \end{currynomath} % $
 (followed by the end-of-file marker Ctrl-D), the output
 \begin{curry}
