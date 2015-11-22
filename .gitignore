@@ -22,5 +22,6 @@ genint/GenInt
 importcalls/ImportCalls
 optimize/bindingopt
 optimize/binding_optimization/BindingOpt
+runcurry/RunCurry
 spicey/spiceup
 xmldata/Data2Xml
