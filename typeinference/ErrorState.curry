@@ -1,7 +1,7 @@
 --- ---------------------------------------------------------------------------
 --- A combination of Error and state monad like `ErrorT State` in Haskell
 ---
---- @author Björn Peemöller
+--- @author Bjoern Peemoeller
 --- @version September 2014
 --- ----------------------------------------------------------------------------
 

@@ -5,7 +5,7 @@
 --- Because the algorithm is easy to understand, but rather slow,
 --- it serves as a specification for more elaborate implementations.
 ---
---- @author  Jonas Oberschweiber, Björn Peemöller
+--- @author  Jonas Oberschweiber, Bjoern Peemoeller
 --- @version September 2014
 ------------------------------------------------------------------------------
 module UnificationSpec

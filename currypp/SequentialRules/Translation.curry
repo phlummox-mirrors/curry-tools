@@ -12,13 +12,13 @@ import AbstractCurry.Types
 import AbstractCurry.Build
 import VariableGenerator
 
-{-Dieses Modul beinhaltet alle Funktion, die für die eigentliche Uebersetzung
-in sequenziellen Patternmatching benötigt werden. Es werden alle Regeln zu einer
+{-Dieses Modul beinhaltet alle Funktion, die fuer die eigentliche Uebersetzung
+in sequenziellen Patternmatching benoetigt werden. Es werden alle Regeln zu einer
 zusammen gefasst und die Struktur der Regeln sind geschachtelte if-then-else 
-Ausdrücke. 
+Ausdruecke. 
 -}
 
---Übersetzt alle Funktionen eines Moduls
+--Uebersetzt alle Funktionen eines Moduls
 newprog:: CurryProg -> String -> CurryProg
 newprog (CurryProg _ b c fl d) output = CurryProg output newimp c newFL d
   where newFL  = (replaceRules fl output)
@@ -26,7 +26,7 @@ newprog (CurryProg _ b c fl d) output = CurryProg output newimp c newFL d
                     then b
                     else ("SetFunctions" : b) 
 
---Übersetzt eine Liste von Funktionen
+--Uebersetzt eine Liste von Funktionen
 replaceRules:: [CFuncDecl] -> String -> [CFuncDecl]
 replaceRules funclist name = map redefineRule funclist
  where
@@ -105,7 +105,7 @@ alwaysTrue c = (c == (CSymbol (pre "success"))
                || c == (CSymbol (pre "otherwise")) 
                || c == (CSymbol (pre "True"))) 
 
---bereitet die Uebersetzung mehrerer Regeln für eine Funktion
+--bereitet die Uebersetzung mehrerer Regeln fuer eine Funktion
 --vor, indem eine einheitliche Struktur erzeugt wird und an
 --transSRule delegiert wird
 transMRules ::  [CRule] -> String -> CTypeExpr -> CRule
@@ -122,7 +122,7 @@ generateP :: [CVarIName] -> [CPattern]
 generateP []     = []
 generateP (x:xs) = (CPVar x) : (generateP xs)
 
---Die Darstellung der Regel wird an dieser Stelle für spaetere
+--Die Darstellung der Regel wird an dieser Stelle fuer spaetere
 --Umformungen angepasst. 
 gather :: CRule -> [([CPattern],CExpr,CExpr,[CLocalDecl])]        
 gather (CRule p (CSimpleRhs  e ld)) = [(p,CSymbol (pre "success"),e,ld)]

@@ -1,7 +1,7 @@
 --- ----------------------------------------------------------------------------
 --- Type Substitutions on type-annotated AnnotatedFlatCurry
 ---
---- @author Björn Peemöller
+--- @author Bjoern Peemoeller
 --- @version September 2014
 --- ----------------------------------------------------------------------------
 module AFCSubst where

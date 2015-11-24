@@ -8,7 +8,7 @@
 --- The human-readable presentation is (almost) Curry source code
 --- generated from a FlatCurry program.
 ---
---- @author Michael Hanus, Björn Peemöller
+--- @author Michael Hanus, Bjoern Peemoeller
 --- @version June 2015
 ------------------------------------------------------------------------------
 

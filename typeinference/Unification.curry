@@ -3,7 +3,7 @@
 ---
 --- This library implements a unification algorithm using reference tables.
 ---
---- @author  Jonas Oberschweiber, Björn Peemöller
+--- @author  Jonas Oberschweiber, Bjoern Peemoeller
 --- @version September 2014
 ------------------------------------------------------------------------------
 

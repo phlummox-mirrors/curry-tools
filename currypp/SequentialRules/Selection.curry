@@ -22,7 +22,7 @@ isnondeterministic (CmtFunc _ _ _ _ _ rulel)
   | otherwise                    = False
 
 --Diese Funktion such rekursiv nach induktiven Argumenten, wenn keine gefunden
---werden, gibt wird True zurückgegeben, also wenn die Funktion nicht-deterministisch ist.
+--werden, gibt wird True zurueckgegeben, also wenn die Funktion nicht-deterministisch ist.
 checkIArgs :: ([[CPattern]],[[CPattern]]) -> Bool
 checkIArgs (_,[])         = True
 checkIArgs t@(i,ls@(_:_)) = if (all isCons ls) 
@@ -49,7 +49,7 @@ checkIArgs t@(i,ls@(_:_)) = if (all isCons ls)
                            CPLit  _   -> True
                            _          -> False
 
---Zusammenführung von Listen von Listen.
+--Zusammenfuehrung von Listen von Listen.
 conca :: [[a]] -> [[a]] -> [[a]]        
 conca (x:xs)   (y:ys)   = (x ++ y) : (conca xs ys)
 conca []       ys@(_:_) = ys
@@ -57,7 +57,7 @@ conca xs@(_:_) []       = xs
 conca []       []       = []  
 
 --Das jeweils erste Element der "rechten" Listen wird an die
---linken Listen gehängt. 
+--linken Listen gehaengt. 
 cutnext :: ([[CPattern]],[[CPattern]]) -> ([[CPattern]],[[CPattern]]) 
 cutnext (ys,xs) = ((conca ys a),b) 
         where (a,b)                           = cutfirst xs     

@@ -15,15 +15,15 @@ import VariableGenerator
 
 {- In diesem Modul sind Funktionen definiert, die zur Reduktion von
 Funktionspattern, As-Pattern und LazyPattern auf Variablen und
-Konstruktoren beötigt werden, definiert.
+Konstruktoren benoetigt werden, definiert.
 -}
 
---Mittels dieser Funktion können in ein Modul alle Funktions und Aspattern
+--Mittels dieser Funktion koennen in ein Modul alle Funktions und Aspattern
 --reduziert werden.
 newprog:: CurryProg -> CurryProg
 newprog (CurryProg a b c fl d) = CurryProg a b c (replaceFuncPattern fl) d 
 
---Reduziert die Pattern jeder Funktion der übergebenen Liste
+--Reduziert die Pattern jeder Funktion der uebergebenen Liste
 replaceFuncPattern:: [CFuncDecl] -> [CFuncDecl]
 replaceFuncPattern funclist = map redefinefuncp funclist
  where
@@ -54,7 +54,7 @@ notnull :: [a] -> Bool
 notnull x       = not (null x)
 
 --Hier werden im Pattern durch Variablen ersetzt und die entsprechende Ersetzung
---werden mit zurückgegeben 
+--werden mit zurueckgegeben 
 transPattern :: [CVarIName] -> CPattern -> ([CVarIName],(CPattern, [(CVarIName,CPattern)]))
 transPattern v (CPComb qn pl)           = (uv,((CPComb qn np'),replaced))
   where (uv,npl)    = mapAccumL transPattern v pl
@@ -84,7 +84,7 @@ simplifyrep :: [[(CVarIName,CPattern)]] -> [(CVarIName,CPattern)]
 simplifyrep []     = []
 simplifyrep (x:xs) = x ++ (simplifyrep xs)
 
---Hier findet die syntaktische Übersetzung eines Patterns in einen Ausdruck statt.
+--Hier findet die syntaktische Uebersetzung eines Patterns in einen Ausdruck statt.
 pToExp :: [(CVarIName,CPattern)] -> (CExpr,[CLocalDecl])
 pToExp rep = ((pToExp' rep),freevars)
   where pat             = snd (unzip rep) 

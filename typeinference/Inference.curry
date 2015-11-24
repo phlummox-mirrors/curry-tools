@@ -29,7 +29,7 @@
 ---
 --- In case of any error, the type inference quits with an error message.
 ---
---- @author  Jonas Oberschweiber, Björn Peemöller, Michael Hanus
+--- @author  Jonas Oberschweiber, Bjoern Peemoeller, Michael Hanus
 --- @version September 2014
 ------------------------------------------------------------------------------
 module Inference
