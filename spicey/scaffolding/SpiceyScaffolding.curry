@@ -21,7 +21,7 @@ import EntitiesToHtmlGeneration
 --- Show operation for AbstractCurry programs that does not put
 --- name qualifiers:
 showCProg :: CurryProg -> String
-showCProg = prettyCurryProg (setQualification None defaultOptions)
+showCProg = prettyCurryProg (setQualification OnDemand defaultOptions)
 
 getRelationships :: ERD -> [Relationship]
 getRelationships (ERD _ _ relationships) = relationships
