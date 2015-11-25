@@ -18,6 +18,7 @@ module Spicey (
   stringToHtml, maybeStringToHtml,
   intToHtml,maybeIntToHtml, floatToHtml, maybeFloatToHtml,
   boolToHtml, maybeBoolToHtml, calendarTimeToHtml, maybeCalendarTimeToHtml,
+  userDefinedToHtml, maybeUserDefinedToHtml,
   spHref,
   spButton, spPrimButton, spSmallButton, spTable,
   setPageMessage, getPageMessage,
@@ -296,7 +297,7 @@ renderLabels labels hexps =
  where
   enlargeInput h = h `addClass` "input-xxlarge"
 
--- convert standard-datatype-values to html representation
+-- convert standard-datatype-values to HTML representation
 stringToHtml :: String -> HtmlExp
 stringToHtml s = textstyle "type_string" s
 
@@ -327,6 +328,12 @@ calendarTimeToHtml ct = textstyle "type_calendartime" (toDayString ct)
 maybeCalendarTimeToHtml :: Maybe CalendarTime -> HtmlExp
 maybeCalendarTimeToHtml ct =
   textstyle "type_calendartime" (maybe "" toDayString ct)
+
+userDefinedToHtml :: _ -> HtmlExp
+userDefinedToHtml ud = textstyle "type_string" (show ud)
+
+maybeUserDefinedToHtml :: Maybe a -> HtmlExp
+maybeUserDefinedToHtml ud = textstyle "type_string" (maybe "" show ud)
 
 --------------------------------------------------------------------------
 -- Auxiliary HTML items:

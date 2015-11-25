@@ -24,9 +24,10 @@ To generate an application, follow the steps below.
    programs, a relative directory will be relative to the place where
    the cgi programs are stored.
 
-4. Compile the generated programs by `scripts/compile.sh`.
+4. Compile the generated programs by `make compile`.
 
-5. Configure and execute `scripts/deploy.sh`.
+5. Configure the Makefile (variable WEBSERVERDIR) and execute
+   `make deploy` to deploy the web application.
 
 6. After the successful compilation, the application is executable
    in a web browser by loading `<URL of web dir>/spicey.cgi`.
