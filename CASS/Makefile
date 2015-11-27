@@ -13,10 +13,10 @@ TOOL   = $(BINDIR)/cass
 DEPS = Analysis.curry AnalysisCollection.curry AnalysisDependencies.curry \
        AnalysisServer.curry AnalysisWorker.curry Configuration.curry \
        CurryFiles.curry FlatCurryDependency.curry GenericProgInfo.curry \
-       LoadAnalysis.curry SCC.curry ServerFormats.curry \
+       LoadAnalysis.curry ServerFormats.curry \
        ServerFunctions.curry WorkerFunctions.curry \
        $(LIBDIR)/Distribution.curry $(LIBDIR)/PropertyFile.curry \
-       $(LIBDIR)/FlatCurry/*.curry $(ANADIR)/*.curry
+       $(LIBDIR)/FlatCurry/*.curry $(LIBDIR)/SCC.curry $(ANADIR)/*.curry
 
 .PHONY: all compile install clean uninstall
 
