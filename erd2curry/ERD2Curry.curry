@@ -1,6 +1,6 @@
 module ERD2Curry where
 
-import AbstractCurry.Pretty(showCProg)
+import AbstractCurry.Pretty
 import XML
 import XML2ERD
 import ERD
@@ -15,7 +15,7 @@ import System(exitWith)
 import Distribution(curryCompiler)
 
 systemBanner =
-  let bannerText = "ERD->Curry Compiler (Version of 17/09/15)"
+  let bannerText = "ERD->Curry Compiler (Version of 30/11/15)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -92,11 +92,13 @@ start erd2currydir opt fromxml srcfile path = do
              showERD 2 transerd ++ "\n")
   putStrLn $ "Transformed ERD term written into file '"++transerdfile++"'."
   moveOldVersion curryfile
-  writeFile curryfile $ showCProg $ erd2code opt $ transform erd
+  writeFile curryfile $ prettyCProg $ erd2code opt $ transform erd
   copyAuxiliaryFiles
   putStrLn $ "Database operations generated into file '"++curryfile++"'\n"++
              "with " ++ showOption (erdName erd) opt ++ ".\n"
  where
+  prettyCProg = prettyCurryProg (setQualification OnDemand defaultOptions)
+  
   -- Copy auxiliary files ERDGeneric.curry and KeyDatabase.curry to target dir
   copyAuxiliaryFiles = do
     if isSQLite opt
