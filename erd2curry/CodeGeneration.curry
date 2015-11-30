@@ -46,7 +46,8 @@ erd2code opt@(_, consistencyTest) (ERD n es rs) =
             (concatMap (entity2datatype opt n) entities 
              ++ map (entity2datatypeKey opt n) entities
              ++ concatMap (generatedEntity2datatype opt n) generatedEntities)
-            (concatMap (entity2trans opt n) entities
+            (generateStorageDefinition opt n
+             ++ concatMap (entity2trans opt n) entities
              ++ concatMap (generatedEntity2trans opt n) generatedEntities 
              ++ concatMap (entity2selmod opt n) es
              ++ concatMap (entity2DBcode opt n entities es rs) entities
@@ -63,6 +64,15 @@ erd2code opt@(_, consistencyTest) (ERD n es rs) =
             []
 
 
+generateStorageDefinition :: Option -> String -> [CFuncDecl]
+generateStorageDefinition (storage, _) n = case storage of
+  SQLite dbpath -> [dbFileDef dbpath]
+  _             -> []
+ where
+  dbFileDef path =
+   cfunc (n,"dbFile") 0 Private stringType
+         [simpleRule [] (string2ac (path ++ "/" ++ n ++ ".db"))]
+    
 generatedEntity2DBcode :: Option -> String -> [Relationship] -> Entity
                        -> [CFuncDecl]
 generatedEntity2DBcode (storage, _) name allrels
@@ -598,7 +608,7 @@ predEntrySQLite (s,eName) attrs v dbpath =
      ~> baseType (db "Dynamic"))
     [simpleRule [] 
                (applyF (db "persistentSQLite")
-                  [string2ac (dbpath ++ "/" ++ s ++ ".db"),
+                  [constF (s,"dbFile"),
                    string2ac eName,
                    list2ac (map att2string attrs)])]
   where 
