@@ -15,7 +15,7 @@ import System(exitWith)
 import Distribution(curryCompiler)
 
 systemBanner =
-  let bannerText = "ERD->Curry Compiler (Version of 30/11/15)"
+  let bannerText = "ERD->Curry Compiler (Version of 02/12/15)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -97,7 +97,9 @@ start erd2currydir opt fromxml srcfile path = do
   putStrLn $ "Database operations generated into file '"++curryfile++"'\n"++
              "with " ++ showOption (erdName erd) opt ++ ".\n"
  where
-  prettyCProg = prettyCurryProg (setQualification OnDemand defaultOptions)
+  --prettyCProg = prettyCurryProg (setQualification OnDemand defaultOptions)
+  -- default (Import) qualification due to bug in AbstractCurry.Pretty:
+  prettyCProg = prettyCurryProg defaultOptions
   
   -- Copy auxiliary files ERDGeneric.curry and KeyDatabase.curry to target dir
   copyAuxiliaryFiles = do

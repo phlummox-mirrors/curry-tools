@@ -57,4 +57,4 @@ runtest:
 	cd optimize/binding_optimization/Examples && ./test.sh
 	cd currypp  && $(MAKE) runtest
 	cd runcurry/Examples && ./test.sh
-	#cd spicey/Examples && ./test.sh
+	cd spicey/Examples && ./test.sh
