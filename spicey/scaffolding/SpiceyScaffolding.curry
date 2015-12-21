@@ -18,10 +18,14 @@ import ViewGeneration
 import RouteGeneration
 import EntitiesToHtmlGeneration
 
---- Show operation for AbstractCurry programs that does not put
---- name qualifiers:
+--- Pretty print an AbstractCurry program with name qualification on demand.
+--- TODO: Currently, our naming scheme should ensure that there are no
+--- name conflicts. Therefore, we omit the list of Curry modules
+--- for the on-demand qualification. However, to be on the safe side,
+--- one should explicitly set this list to the current module and the
+--- list of its imports.
 showCProg :: CurryProg -> String
-showCProg = prettyCurryProg (setQualification OnDemand defaultOptions)
+showCProg = prettyCurryProg (setOnDemandQualification [] defaultOptions)
 
 getRelationships :: ERD -> [Relationship]
 getRelationships (ERD _ _ relationships) = relationships

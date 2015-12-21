@@ -1,26 +1,30 @@
 module ERD2Curry where
 
+import AbstractCurry.Files  (readCurry)
+import AbstractCurry.Select (imports)
 import AbstractCurry.Pretty
+import Directory
+import Distribution(curryCompiler)
+import System(exitWith, getArgs,system)
+import Time
 import XML
+
 import XML2ERD
 import ERD
 import ERDGoodies
 import Transformation
 import CodeGeneration
-import System(getArgs,system)
-import Time
-import Directory
 import ERD2Graph
-import System(exitWith)
-import Distribution(curryCompiler)
 
+systemBanner :: String
 systemBanner =
-  let bannerText = "ERD->Curry Compiler (Version of 02/12/15)"
+  let bannerText = "ERD->Curry Compiler (Version of 21/12/15)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
 --- Main function for saved state. The argument is the directory containing
 --- these sources.
+main :: String -> IO ()
 main erd2currydir = do
   putStrLn systemBanner
   args <- getArgs
@@ -58,6 +62,7 @@ parseArgs (file,fromxml,storage,vis) (arg:args) = case arg of
   setFileDB (SQLite p) = Files p
   setFileDB DB         = Files "."
 
+helpText :: String
 helpText =
   "Usage: erd2curry [-l] [-f] [-d] [-t] [-x] [-v] [--dbpath <dir>] <file>\n" ++
   "Parameters:\n" ++
@@ -70,6 +75,7 @@ helpText =
   "--dbpath <dir>: name of the directory where DB files are stored\n" ++
   "<file>: name of file containing xmi document or ERD term\n"
 
+callStart :: String -> Maybe (String,Bool,Storage,Bool) -> IO ()
 callStart _ Nothing = do
   putStrLn $ "ERROR: Illegal arguments\n\n" ++ helpText
   exitWith 1
@@ -87,20 +93,24 @@ start erd2currydir opt fromxml srcfile path = do
   let transerdfile = addPath path (erdName erd ++ "_ERDT.term")
       curryfile    = addPath path (erdName erd ++ ".curry")
       transerd     = transform erd
+      erdprog      = erd2code opt (transform erd)
   writeFile transerdfile
             ("{- ERD specification transformed from "++erdfile++" -}\n\n " ++
              showERD 2 transerd ++ "\n")
   putStrLn $ "Transformed ERD term written into file '"++transerdfile++"'."
-  moveOldVersion curryfile
-  writeFile curryfile $ prettyCProg $ erd2code opt $ transform erd
   copyAuxiliaryFiles
+  moveOldVersion curryfile
+  curdir <- getCurrentDirectory
+  setCurrentDirectory path
+  impprogs <- mapIO readCurry (imports erdprog)
+  setCurrentDirectory curdir
+  writeFile curryfile $
+    prettyCurryProg
+      (setOnDemandQualification (erdprog:impprogs) defaultOptions)
+      erdprog
   putStrLn $ "Database operations generated into file '"++curryfile++"'\n"++
              "with " ++ showOption (erdName erd) opt ++ ".\n"
  where
-  --prettyCProg = prettyCurryProg (setQualification OnDemand defaultOptions)
-  -- default (Import) qualification due to bug in AbstractCurry.Pretty:
-  prettyCProg = prettyCurryProg defaultOptions
-  
   -- Copy auxiliary files ERDGeneric.curry and KeyDatabase.curry to target dir
   copyAuxiliaryFiles = do
     if isSQLite opt
@@ -140,16 +150,6 @@ moveOldVersion fname = do
   toD i = if i<10 then '0':show i else show i
   
 
---test = start "." (Files ".", WithConsistencyTest) True "./Uni.xmi" "."
-test = start "." (Files ".", WithConsistencyTest) False "./Uni_ERD.term" "."
-
-testTransformation = do
-  xml <- readXmlFile "./Uni.xmi"
-  let erd = convert xml
-  putStr (showERD 0 erd)
-  putStr "\n\n"
-  putStrLn (showERD 0 (transform erd))
-  
 --- Read an ERD specification from an XML file in Umbrello format.
 transformXmlFile :: String -> String -> IO (String,ERD)
 transformXmlFile xmlfile path = do

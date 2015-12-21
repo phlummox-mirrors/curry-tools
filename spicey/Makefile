@@ -13,7 +13,8 @@ TOOL = $(ROOT)/bin/spiceup
 PROJECT_GEN_DIR=project_generator
 
 # Some modules required by the Spicey implementation:
-DEPS = $(PROJECT_GEN_DIR)/SpiceUp.curry scaffolding/*.curry
+DEPS = $(PROJECT_GEN_DIR)/SpiceUp.curry scaffolding/*.curry \
+       $(LIBDIR)/AbstractCurry/*.curry
 
 .PHONY: all compile install clean uninstall
 
