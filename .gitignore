@@ -9,13 +9,14 @@ browser/BrowserGUI
 browser/SourceProgGUI
 CASS/cass
 CASS/cass_worker
+createmakefile/CreateMakefile
 curry2js/Curry2JS
 currypp/Main
 currypp/SequentialRules/Main
 currypp/DefaultRules/Transform
 currydoc/CurryDoc
 currytest/CurryTest
-createmakefile/CreateMakefile
+cusage/CheckUsage
 erd2cdbi/erd2cdbi
 erd2curry/erd2curry
 genint/GenInt
