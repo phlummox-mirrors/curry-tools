@@ -8,7 +8,7 @@ import Distribution
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Spicey Web Framework (Version of 21/12/15)"
+  let bannerText = "Spicey Web Framework (Version of 11/01/16)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -58,9 +58,19 @@ spiceyStructure =
       ResourceFile NoExec "index.html",
       ResourceFile NoExec "favicon.ico",
       Directory "css" [
-        ResourceFile NoExec "bootstrap.css",
-        ResourceFile NoExec "bootstrap-responsive.css",
+        ResourceFile NoExec "bootstrap.min.css",
         ResourceFile NoExec "style.css"
+      ],
+      Directory "js" [
+        ResourceFile NoExec "bootstrap.min.js",
+        ResourceFile NoExec "jquery.min.js"
+      ],
+      Directory "fonts" [
+        ResourceFile NoExec "glyphicons-halflings-regular.eot",
+        ResourceFile NoExec "glyphicons-halflings-regular.svg",
+        ResourceFile NoExec "glyphicons-halflings-regular.ttf",
+        ResourceFile NoExec "glyphicons-halflings-regular.woff",
+        ResourceFile NoExec "glyphicons-halflings-regular.woff2"
       ],
       Directory "images" [
         ResourceFile NoExec "spicey-logo.png",

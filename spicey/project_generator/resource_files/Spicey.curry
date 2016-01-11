@@ -19,7 +19,7 @@ module Spicey (
   intToHtml,maybeIntToHtml, floatToHtml, maybeFloatToHtml,
   boolToHtml, maybeBoolToHtml, calendarTimeToHtml, maybeCalendarTimeToHtml,
   userDefinedToHtml, maybeUserDefinedToHtml,
-  spHref,
+  spHref, spHrefBlock, spHrefInfoBlock,
   spButton, spPrimButton, spSmallButton, spTable,
   setPageMessage, getPageMessage,
   saveLastUrl, getLastUrl, getLastUrls
@@ -214,13 +214,13 @@ addLayout viewblock = do
   return $
     stdNavBar routemenu login ++
     [blockstyle "container-fluid" $
-      [HtmlStruct "header" [("class","hero-unit")] [h1 [htxt spiceyTitle]],
+      [HtmlStruct "header" [("class","jumbotron")] [h1 [htxt spiceyTitle]],
        if null msg
         then HtmlStruct "header" [("class","pagemessage pagemessage-empty")]
                         [htxt ("Last page: "++lasturl)]
         else HtmlStruct "header" [("class","pagemessage")] [htxt msg],
-       blockstyle "row-fluid"
-        [blockstyle "span12" viewblock],
+       blockstyle "row"
+        [blockstyle "col-md-12" viewblock],
        hrule,
        HtmlStruct "footer" []
         [par [htxt "powered by",
@@ -235,41 +235,61 @@ addLayout viewblock = do
 stdNavBar :: HtmlExp -> Maybe String -> [HtmlExp]
 stdNavBar routemenu login =
   [blockstyle "navbar navbar-inverse navbar-fixed-top"
-    [blockstyle "navbar-inner"
-      [blockstyle "container-fluid"
-         [routemenu `addClass` "nav",
-          par [htxt $ "Logged in as: "++maybe "" id login]
-            `addClass` "navbar-text pull-right"]
-      ]
+    [blockstyle "container-fluid"
+      [navBarHeaderItem,
+       HtmlStruct "div" [("id","topnavbar"),
+                         ("class","navbar-collapse collapse")]
+         [routemenu `addClass` "nav navbar-nav",
+          ulist [[href "?login"
+                    (maybe [loginIcon, nbsp, htxt "Login"]
+                           (\n -> [logoutIcon, nbsp,
+                                   htxt $ "Logout" ++ " ("++n++")"])
+                           login)]]
+            `addClass` "nav navbar-nav navbar-right"]]
     ]
   ]
+ where
+  navBarHeaderItem =
+    blockstyle "navbar-header"
+      [HtmlStruct "button"
+        [("type","button"),("class","navbar-toggle collapsed"),
+         ("data-toggle","collapse"),("data-target","#topnavbar"),
+         ("aria-expanded","false"),("aria-controls","navbar")]
+        [textstyle "sr-only" "Toggle navigation",
+         textstyle "icon-bar" "",
+         textstyle "icon-bar" "",
+         textstyle "icon-bar" ""],
+       href "?" [homeIcon, htxt " Home"] `addClass` "navbar-brand"]
+       
 
 getForm :: ViewBlock -> IO HtmlForm
 getForm viewBlock =
   if viewBlock == [HtmlText ""]
   then return $ HtmlForm "forward to Spicey"
-                  [HeadInclude (HtmlStruct "meta"
-                                 [("http-equiv","refresh"),
-                                  ("content","1; url=spicey.cgi")] [])]
+                  [formMetaInfo [("http-equiv","refresh"),
+                                 ("content","1; url=spicey.cgi")]]
                   [par [htxt "You will be forwarded..."]]
   else do
     cookie  <- sessionCookie
     body    <- addLayout viewBlock
     return $ HtmlForm spiceyTitle
-                      ([responsiveView, cookie, icon] ++
-                       map (\f -> FormCSS $ "css/"++f++".css")
-                           ["bootstrap","bootstrap-responsive","style"])
-                      body
+                ([responsiveView, cookie, icon] ++
+                 map (\f -> FormCSS $ "css/"++f++".css")
+                     ["bootstrap.min","style"])
+                (body ++
+                 map (\f -> HtmlStruct "script" [("src","js/"++f++".js")] [])
+                     ["jquery.min","bootstrap.min"])
  where
    responsiveView =
-     HeadInclude (HtmlStruct "meta"
-                    [("name","viewport"),
-                     ("content","width=device-width, initial-scale=1.0")] [])
+     formMetaInfo [("name","viewport"),
+                   ("content","width=device-width, initial-scale=1.0")]
 
    icon = HeadInclude (HtmlStruct "link"
                                   [("rel","shortcut icon"),
                                    ("href","favicon.ico")] [])
 
+
+-------------------------------------------------------------------------
 -- Action performed when a "cancel" button is pressed.
 -- In this case, a message is shown.
 cancelOperation :: IO ()
@@ -297,7 +317,7 @@ renderLabels labels hexps =
  where
   enlargeInput h = h `addClass` "input-xxlarge"
 
--- convert standard-datatype-values to HTML representation
+-- Convert standard datatype values to HTML representation
 stringToHtml :: String -> HtmlExp
 stringToHtml s = textstyle "type_string" s
 
@@ -341,14 +361,24 @@ maybeUserDefinedToHtml ud = textstyle "type_string" (maybe "" show ud)
 --- Hypertext reference in Spicey (rendered as a block button):
 spHref :: String -> [HtmlExp] -> HtmlExp
 spHref ref hexps =
-  href ref hexps `addClass` "btn btn-small"
+  href ref hexps `addClass` "btn btn-sm btn-default"
+
+--- Hypertext reference in Spicey (rendered as a block button):
+spHrefBlock :: String -> [HtmlExp] -> HtmlExp
+spHrefBlock ref hexps =
+  href ref hexps `addClass` "btn btn-small btn-block"
+
+--- Hypertext reference in Spicey (rendered as an info block button):
+spHrefInfoBlock :: String -> [HtmlExp] -> HtmlExp
+spHrefInfoBlock ref hexps =
+  href ref hexps `addClass` "btn btn-info btn-block"
 
 --- Input button in Spicey (rendered as a default button):
 spButton :: String -> HtmlHandler -> HtmlExp
 spButton label handler =
-  button label handler `addClass` "btn"
+  button label handler `addClass` "btn btn-default"
 
---- Primary input button in Spicey (rendered as a primary button):
+--- Primary input button in Spicey (rendered as a default primary button):
 spPrimButton :: String -> HtmlHandler -> HtmlExp
 spPrimButton label handler =
   button label handler `addClass` "btn btn-primary"
@@ -356,11 +386,20 @@ spPrimButton label handler =
 --- Small input button in Spicey (rendered as a small button):
 spSmallButton :: String -> HtmlHandler -> HtmlExp
 spSmallButton label handler =
-  button label handler `addClass` "btn btn-small"
+  button label handler `addClass` "btn btn-sm btn-default"
 
 --- Standard table in Spicey.
 spTable :: [[[HtmlExp]]] -> HtmlExp
 spTable items = table items  `addClass` "table table-hover table-condensed"
+
+--------------------------------------------------------------------------
+-- Icons:
+
+homeIcon   = glyphicon "home"
+loginIcon  = glyphicon "log-in"
+logoutIcon = glyphicon "log-out"
+
+glyphicon n = textstyle ("glyphicon glyphicon-"++n) ""
 
 --------------------------------------------------------------------------
 -- The page messages are implemented by a session store.

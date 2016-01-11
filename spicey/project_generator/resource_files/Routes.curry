@@ -37,7 +37,8 @@ getControllerReference url = getRoutes >>= return . findControllerReference
 
 --- Generates the menu for all route entries put on the top of
 --- each page. As a default, all routes specified with URL matcher
---- Exact in the module RouteData are taken as menu entries.
+--- Exact in the module RouteData, except for "login",
+--- are taken as menu entries.
 getRouteMenu :: IO HtmlExp
 getRouteMenu = do
   routes <- getRoutes
@@ -46,8 +47,10 @@ getRouteMenu = do
    getLinks :: [Route] -> [[HtmlExp]]
    getLinks ((name, matcher, _):restroutes) =
      case matcher of
-       Exact string -> [href ("?" ++ string) [htxt name]]
-                        : getLinks restroutes
+       Exact string -> if string == "login"
+                       then getLinks restroutes
+                       else [(href ("?" ++ string) [htxt name])]
+                            : getLinks restroutes
        Prefix s1 s2 -> [href ("?"++s1++"/"++s2) [htxt name]]
                              : getLinks restroutes
        _ -> getLinks restroutes

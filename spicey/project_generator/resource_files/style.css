@@ -76,12 +76,12 @@ body {
   padding-bottom: 40px;
 }
 
-.hero-unit {
+.jumbotron {
   padding: 5px 15px;
   margin-bottom: 0px;
 }
 
-.hero-unit h1 {
+.jumbotron h1 {
   margin-bottom: 10px;
   font-size: 40px;
 }
