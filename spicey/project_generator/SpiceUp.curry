@@ -59,7 +59,7 @@ spiceyStructure =
       ResourceFile NoExec "favicon.ico",
       Directory "css" [
         ResourceFile NoExec "bootstrap.min.css",
-        ResourceFile NoExec "style.css"
+        ResourceFile NoExec "spicey.css"
       ],
       Directory "js" [
         ResourceFile NoExec "bootstrap.min.js",

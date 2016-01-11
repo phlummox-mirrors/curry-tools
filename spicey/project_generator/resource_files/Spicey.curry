@@ -241,10 +241,13 @@ stdNavBar routemenu login =
                          ("class","navbar-collapse collapse")]
          [routemenu `addClass` "nav navbar-nav",
           ulist [[href "?login"
-                    (maybe [loginIcon, nbsp, htxt "Login"]
-                           (\n -> [logoutIcon, nbsp,
-                                   htxt $ "Logout" ++ " ("++n++")"])
-                           login)]]
+                       (maybe [loginIcon, nbsp, htxt "Login"]
+                              (\n -> [logoutIcon, nbsp, htxt "Logout"
+                                     ,htxt $ " ("
+                                     ,style "text-success" [userIcon]
+                                     ,htxt $ " "++n++")"
+                                     ])
+                              login)]]
             `addClass` "nav navbar-nav navbar-right"]]
     ]
   ]
@@ -275,7 +278,7 @@ getForm viewBlock =
     return $ HtmlForm spiceyTitle
                 ([responsiveView, cookie, icon] ++
                  map (\f -> FormCSS $ "css/"++f++".css")
-                     ["bootstrap.min","style"])
+                     ["bootstrap.min","spicey"])
                 (body ++
                  map (\f -> HtmlStruct "script" [("src","js/"++f++".js")] [])
                      ["jquery.min","bootstrap.min"])
@@ -396,6 +399,7 @@ spTable items = table items  `addClass` "table table-hover table-condensed"
 -- Icons:
 
 homeIcon   = glyphicon "home"
+userIcon   = glyphicon "user"
 loginIcon  = glyphicon "log-in"
 logoutIcon = glyphicon "log-out"
 
