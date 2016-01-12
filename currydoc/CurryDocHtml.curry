@@ -19,7 +19,7 @@ import qualified FlatCurry.Goodies as FCG
 import FilePath
 import FileGoodies (lookupFileInPath)
 import HTML
-import BootstrapStyle
+import Bootstrap3Style
 import List
 import Char
 import Sort
@@ -53,7 +53,7 @@ generateHtmlDocs docparams anainfo modname modcmts progcmts = do
                            (map fName       expfuns)
       , anchored "imported_modules" [bold [htxt "Imported modules:"]]
       , ulist (map (\i -> [href (getLastName i++".html") [htxt i]]) imports)
-        `addClass` "nav nav-list"
+        `addClass` "nav nav-sidebar"
       ]
     content =
          genHtmlModule docparams modcmts
@@ -117,7 +117,7 @@ replaceIdLinks str = case str of
 -- generate HTML index for all exported names:
 genHtmlExportIndex :: [String] -> [String] -> [String] -> [String] -> HtmlExp
 genHtmlExportIndex exptypes expcons expfields expfuns =
-  HtmlStruct "ul" [("class","nav nav-list")]
+  HtmlStruct "ul" [("class","nav nav-sidebar")]
     (concatMap (\ (htmlnames,cattitle) ->
                  if null htmlnames
                  then []
@@ -518,42 +518,28 @@ indexPage modnames =
   (if length modnames == 1
    then []
    else [ulist (map (\m->[href (m++".html") [htxt (m++".curry ")]])
-                    (mergeSort leqStringIgnoreCase modnames))]) ++
-  [bold [htxt "Explanations of the icons used in the documentation:"],
-   table
-     [[[anchor "det_explain" [detIcon]],[nbsp],
-       [htxt " Operation is deterministic, i.e., defined by exclusive rules",
-        htxt " and depend only on deterministic operations"]]
-     ,[[anchor "nondet_explain" [nondetIcon]],[nbsp],
-       [htxt " Operation might be non-deterministic, i.e., it is defined by",
-        htxt " overlapping rules or depend on non-deterministic operations"]]
---      ,[[anchor "rigid_explain" [rigidIcon]],[nbsp],
---        [htxt " Operation is rigid"]]
---      ,[[anchor "flex_explain" [flexibleIcon]],[nbsp],
---        [htxt " Operation is flexible"]]
---      ,[[anchor "flexrigid_explain" [flexrigidIcon]],[nbsp],
---        [htxt " Operation is partially flexible and partially rigid"]]
-     ]
-   ]
-
-detIcon :: HtmlExp
-detIcon       = italic [] `addClass` "fa fa-long-arrow-down"
-                  `withTitle` "This operation is deterministic"
-nondetIcon :: HtmlExp
-nondetIcon    = italic [] `addClass` "fa fa-arrows-alt"
-                  `withTitle` "This operation might be non-deterministic"
--- rigidIcon :: HtmlExp
--- rigidIcon     = italic [] `addClass` "fa fa-cogs"
---                   `withTitle` "This operation is rigid"
--- flexibleIcon :: HtmlExp
--- flexibleIcon  = italic [] `addClass` "fa fa-pagelines"
---                   `withTitle` "This operation is flexible"
--- flexrigidIcon :: HtmlExp
--- flexrigidIcon = italic [] `addClass` "fa fa-exclamation-triangle"
---     `withTitle` "This operation is partially flexible and partially rigid"
-
-withTitle :: HtmlExp -> String -> HtmlExp
-withTitle he t = he `addAttr` ("title",t)
+                    (mergeSort leqStringIgnoreCase modnames))]) ++ [explainIcons]
+                    
+-- Paragraph to explain the meaning of the icons:
+explainIcons :: HtmlExp
+explainIcons =
+  anchoredSection "explain_icons"
+    [h2 [htxt "Explanations of the icons used in the documentation:"],
+     table
+       [[[anchor "det_explain" [detIcon]],[nbsp],
+         [htxt " Operation is deterministic, i.e., defined by exclusive rules",
+          htxt " and depend only on deterministic operations"]]
+       ,[[anchor "nondet_explain" [nondetIcon]],[nbsp],
+         [htxt " Operation might be non-deterministic, i.e., it is defined by",
+          htxt " overlapping rules or depend on non-deterministic operations"]]
+--        ,[[anchor "rigid_explain" [rigidIcon]],[nbsp],
+--          [htxt " Operation is rigid"]]
+--        ,[[anchor "flex_explain" [flexibleIcon]],[nbsp],
+--          [htxt " Operation is flexible"]]
+--        ,[[anchor "flexrigid_explain" [flexrigidIcon]],[nbsp],
+--          [htxt " Operation is partially flexible and partially rigid"]]
+       ]
+    ]
 
 --------------------------------------------------------------------------
 -- generate the function index page for the documentation directory:
@@ -608,18 +594,17 @@ genSystemLibsPage docdir cats modInfos = do
            syslibsLeftTopMenu
            syslibsRightTopMenu
            (syslibsSideMenu cats)
-           ([infoTxt, hrule] ++ genHtmlLibCats modInfos)
+           ([infoTxt, hrule] ++ genHtmlLibCats modInfos ++ [hrule, explainIcons])
    >>= writeFile fname
  where
   fname = docdir ++ "/" ++ currySystem ++ "_libs.html"
 
 syslibsLeftTopMenu :: [[HtmlExp]]
 syslibsLeftTopMenu =
-  [ [href baseURL [htxt currySystem]]
-  , [href (baseURL ++ "/Manual.pdf") [htxt "Manual (PDF)"]]
-  , [href (baseURL ++ "/lib/") [htxt "Libraries"]]
+  [ [href (currySystemURL ++ "/Manual.pdf") [htxt "Manual (PDF)"]]
+  , [href (currySystemURL ++ "/lib/") [htxt "Libraries"]]
   , [ehref currygleURL [extLinkIcon, htxt " API Search"]]
-  , [href (baseURL ++ "/download.html") [htxt "Download"]]
+  , [href (currySystemURL ++ "/download.html") [htxt "Download"]]
   ]
 
 syslibsRightTopMenu :: [[HtmlExp]]
@@ -635,12 +620,13 @@ syslibsSideMenu cats = map par $
   ++ [[href ("#" ++ genCatLink c) [ htxt (showCategory c)]] | c <- cats]
   ++ [ [href "findex.html" [htxt "Index to all library functions"]]
      , [href "cindex.html" [htxt "Index to all library constructors"]]
+     , [href "#explain_icons" [htxt "Icons used in the documentation"]]
      ]
 
 infoTxt :: HtmlExp
 infoTxt = par
   [ htxt "Here is the collection of libraries contained in the distribution of "
-  , href baseURL [htxt currySystem]
+  , href currySystemURL [htxt currySystem]
   , htxt $ ". Most of these libraries have been implemented during the "
         ++ "development of larger Curry applications. If you have suggestions "
         ++ "for changes/improvements or if you want to contribute your own "
@@ -683,12 +669,15 @@ mainPage :: String -> [HtmlExp] -> [[HtmlExp]] -> [[HtmlExp]]
 mainPage title htmltitle lefttopmenu righttopmenu sidemenu maindoc = do
     time <- getLocalTime
     return $ showHtmlPage $
-      bootstrapPage baseURL cssIncludes
-                    title lefttopmenu righttopmenu 3 sidemenu htmltitle maindoc
+      bootstrapPage styleBaseURL cssIncludes title homeBrand
+                    lefttopmenu righttopmenu 3 sidemenu htmltitle maindoc
                     (curryDocFooter time)
 
 cssIncludes :: [String]
-cssIncludes = ["bootstrap","bootstrap-responsive","font-awesome.min","currydoc"]
+cssIncludes = ["bootstrap.min","currydoc"]
+
+homeBrand :: (String,[HtmlExp])
+homeBrand = (currySystemURL, [homeIcon, nbsp, htxt currySystem])
 
 --- Generate a page with the default documentation style.
 --- @param title - the title of the page
@@ -697,22 +686,52 @@ showPageWithDocStyle :: String -> [HtmlExp] -> String
 showPageWithDocStyle title body =
   showHtmlPage $
     HtmlPage title
-             (map (\f -> pageCSS $ baseURL++"/css/"++f++".css") cssIncludes)
+             (map (\f -> pageCSS $ styleBaseURL++"/css/"++f++".css") cssIncludes)
              body
 
 --- The standard right top menu.
 rightTopMenu :: [[HtmlExp]]
 rightTopMenu =
   [ curryHomeItem
-  , [ehref (baseURL++"/lib/")
+  , [ehref (currySystemURL++"/lib/")
            [extLinkIcon, htxt $ " "++currySystem++" Libraries"]]
   , [ehref (curryHomeURL ++ "/tools/currydoc")
            [extLinkIcon, htxt " About CurryDoc"]]
   ]
 
-extLinkIcon :: HtmlExp
-extLinkIcon = italic [] `addClass` "fa fa-external-link"
+--------------------------------------------------------------------------
+-- Icons:
 
+homeIcon :: HtmlExp
+homeIcon   = glyphicon "home"
+
+extLinkIcon :: HtmlExp
+extLinkIcon = glyphicon "new-window"
+
+detIcon :: HtmlExp
+detIcon     = glyphicon "arrow-right"
+                `withTitle` "This operation is deterministic"
+nondetIcon :: HtmlExp
+nondetIcon  = glyphicon "random"
+                `withTitle` "This operation might be non-deterministic"
+-- rigidIcon :: HtmlExp
+-- rigidIcon     = italic [] `addClass` "fa fa-cogs"
+--                   `withTitle` "This operation is rigid"
+-- flexibleIcon :: HtmlExp
+-- flexibleIcon  = italic [] `addClass` "fa fa-pagelines"
+--                   `withTitle` "This operation is flexible"
+-- flexrigidIcon :: HtmlExp
+-- flexrigidIcon = italic [] `addClass` "fa fa-exclamation-triangle"
+--     `withTitle` "This operation is partially flexible and partially rigid"
+
+withTitle :: HtmlExp -> String -> HtmlExp
+withTitle he t = he `addAttr` ("title",t)
+
+-- Select some glyphicon
+glyphicon :: String -> HtmlExp
+glyphicon n = textstyle ("glyphicon glyphicon-"++n) ""
+
+--------------------------------------------------------------------------
 -- Standard footer information for generated web pages:
 curryDocFooter :: CalendarTime -> [HtmlExp]
 curryDocFooter time =
@@ -733,8 +752,7 @@ simplePage :: String -> Maybe [HtmlExp] -> [[HtmlExp]] -> [HtmlExp] -> IO String
 simplePage title htmltitle lefttopmenu maindoc = do
     time <- getLocalTime
     return $ showHtmlPage $
-      bootstrapPage baseURL cssIncludes
-                    title lefttopmenu rightTopMenu 0 []
+      bootstrapPage styleBaseURL cssIncludes title homeBrand lefttopmenu rightTopMenu 0 []
                     [h1 (maybe [htxt title] id htmltitle)]
                     maindoc
                     (curryDocFooter time)

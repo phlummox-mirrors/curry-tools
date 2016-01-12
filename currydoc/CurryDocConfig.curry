@@ -15,10 +15,16 @@ currydocVersion :: String
 currydocVersion = "Version 0.8.0 of January 12, 2016"
 
 --- The URL of the base directory containing the styles, images, etc.
-baseURL :: String
-baseURL = if curryCompiler=="pakcs"
-          then "https://www.informatik.uni-kiel.de/~pakcs"
-          else "https://www-ps.informatik.uni-kiel.de/kics2"
+styleBaseURL :: String
+styleBaseURL = if curryCompiler=="pakcs"
+               then "https://www.informatik.uni-kiel.de/~pakcs/bt3"
+               else "https://www-ps.informatik.uni-kiel.de/kics2/bt3"
+
+--- The URL of the base directory containing the styles, images, etc.
+currySystemURL :: String
+currySystemURL = if curryCompiler=="pakcs"
+                 then "https://www.informatik.uni-kiel.de/~pakcs"
+                 else "https://www-ps.informatik.uni-kiel.de/kics2"
 
 --- The name of this Curry system.
 currySystem :: String
