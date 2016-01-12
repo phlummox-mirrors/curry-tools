@@ -2,7 +2,7 @@
 --- Some auxiliary operations of CurryDoc to read programs.
 ---
 --- @author Michael Hanus, Jan Tikovsky
---- @version June 2015
+--- @version January 2016
 ----------------------------------------------------------------------
 
 module CurryDocRead where
@@ -34,10 +34,12 @@ data SourceLine = Comment String  -- a comment for CurryDoc
 --- This datatype is used to categorize Curry libraries
 --- @cons General   - a general library
 --- @cons Algorithm - a library which provides data structures and algorithms
+--- @cons Database  - a library for database access
 --- @cons Web       - a library for web applications
 --- @cons Meta      - a library for meta-programming
 data Category = General
               | Algorithm
+              | Database
               | Web
               | Meta
 
@@ -49,6 +51,7 @@ readCategory [] = General
 readCategory (catcmt:_) = case cat of
   "general"   -> General
   "algorithm" -> Algorithm
+  "database"  -> Database
   "web"       -> Web
   "meta"      -> Meta
   _           -> General
@@ -59,6 +62,7 @@ readCategory (catcmt:_) = case cat of
 showCategory :: Category -> String
 showCategory General   = "General libraries"
 showCategory Algorithm = "Data structures and algorithms"
+showCategory Database  = "Database access and manipulation"
 showCategory Web       = "Libraries for web applications"
 showCategory Meta      = "Libraries for meta-programming"
 
@@ -66,6 +70,7 @@ showCategory Meta      = "Libraries for meta-programming"
 getCategoryID :: Category -> String
 getCategoryID General   = "general"
 getCategoryID Algorithm = "algorithm"
+getCategoryID Database  = "database"
 getCategoryID Web       = "web"
 getCategoryID Meta      = "meta"
 

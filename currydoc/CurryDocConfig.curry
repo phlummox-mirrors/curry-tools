@@ -3,7 +3,7 @@
 --- the CurryDoc tool.
 ---
 --- @author Michael Hanus, Jan Tikovsky
---- @version June 2015
+--- @version January 2016
 ----------------------------------------------------------------------
 
 module CurryDocConfig where
@@ -12,13 +12,13 @@ import Distribution(curryCompiler)
 
 --- Version of currydoc
 currydocVersion :: String
-currydocVersion = "Version 0.8.0 of June 4, 2015"
+currydocVersion = "Version 0.8.0 of January 12, 2016"
 
 --- The URL of the base directory containing the styles, images, etc.
 baseURL :: String
 baseURL = if curryCompiler=="pakcs"
-          then "http://www.informatik.uni-kiel.de/~pakcs"
-          else "http://www-ps.informatik.uni-kiel.de/kics2"
+          then "https://www.informatik.uni-kiel.de/~pakcs"
+          else "https://www-ps.informatik.uni-kiel.de/kics2"
 
 --- The name of this Curry system.
 currySystem :: String
