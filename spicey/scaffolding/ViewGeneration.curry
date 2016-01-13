@@ -13,7 +13,7 @@ generateViewsForEntity erdname allEntities
      noPKeyAttrs = filter notPKey attrlist
   in CurryProg
   (viewModuleName ename)
-  ["WUI", "HTML", "Time", "Sort", "Spicey","SessionInfo",
+  ["WUI", "HTML", "Time", "Sort", "Bootstrap3Style", "Spicey", "SessionInfo",
    erdname, erdname++"EntitiesToHtml"] -- imports
   [] -- typedecls
   -- functions
@@ -453,7 +453,7 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
                        (zip manyToManyEntities
                             [(length manyToOneEntities + 3)..])
                   ),
-               list2ac [applyF ("Spicey","spHref")
+               list2ac [applyF hrefButtonName
                          [string2ac ("?"++entityName++"/list"),
                           list2ac [applyF ("HTML","htxt")
                             [string2ac ("back to "++entityName++" list")]]]]
@@ -521,17 +521,17 @@ listView erdname (Entity entityName attrlist) _ _ =
                   list2ac [],
                   list2ac
                    [list2ac
-                     [applyF ("Spicey", "spHref")
+                     [applyF hrefButtonName
                        [applyF (pre "++")
                          [string2ac ("?"++entityName++"/show/"),showkey],
                         list2ac [applyF ("HTML","htxt") [string2ac "show"]]]],
                     list2ac
-                     [applyF ("Spicey", "spHref")
+                     [applyF hrefButtonName
                        [applyF (pre "++")
                          [string2ac ("?"++entityName++"/edit/"),showkey],
                         list2ac [applyF ("HTML","htxt") [string2ac "edit"]]]],
                     list2ac
-                     [applyF ("Spicey", "spHref")
+                     [applyF hrefButtonName
                        [applyF (pre "++")
                          [string2ac ("?"++entityName++"/delete/"),showkey],
                         list2ac [applyF ("HTML","htxt") [string2ac "delete"]]]]

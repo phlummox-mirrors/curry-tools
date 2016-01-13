@@ -19,13 +19,13 @@ module Spicey (
   intToHtml,maybeIntToHtml, floatToHtml, maybeFloatToHtml,
   boolToHtml, maybeBoolToHtml, calendarTimeToHtml, maybeCalendarTimeToHtml,
   userDefinedToHtml, maybeUserDefinedToHtml,
-  spHref, spHrefBlock, spHrefInfoBlock,
-  spButton, spPrimButton, spSmallButton, spTable,
+  spTable,
   setPageMessage, getPageMessage,
   saveLastUrl, getLastUrl, getLastUrls
   ) where
 
 import System
+import Bootstrap3Style
 import HTML
 import ReadNumeric
 import KeyDatabase
@@ -77,8 +77,8 @@ nextControllerForData controller param = do
 confirmNextController :: HtmlExp -> (Bool -> Controller) -> _ -> IO HtmlForm
 confirmNextController question controller _ = do
   getForm [question,
-           spButton "Yes" (nextController (controller True)),
-           spButton "No"  (nextController (controller False))]
+           defaultButton "Yes" (nextController (controller True)),
+           defaultButton "No"  (nextController (controller False))]
 
 --- Ask the user for a confirmation and call the corresponding controller.
 --- @param question - a question asked
@@ -87,8 +87,8 @@ confirmNextController question controller _ = do
 confirmController :: [HtmlExp] -> Controller -> Controller -> Controller
 confirmController question yescontroller nocontroller = do
   return $ question ++
-           [par [spButton "Yes" (nextController yescontroller),
-                 spButton "No"  (nextController nocontroller )]]
+           [par [defaultButton "Yes" (nextController yescontroller),
+                 defaultButton "No"  (nextController nocontroller )]]
 
 --- A controller to execute a transaction and proceed with a given
 --- controller if the transaction succeeds. Otherwise, the
@@ -164,7 +164,8 @@ renderWuiForm wuispec initdata controller cancelcontroller title buttontag =
     [h1 [htxt title],
      blockstyle "editform" [wuihexp],
      wuiHandler2button buttontag hdlr `addClass` "btn btn-primary",
-     spButton "cancel" (nextController (cancelOperation >> cancelcontroller))]
+     defaultButton "cancel"
+                   (nextController (cancelOperation >> cancelcontroller))]
       
   (hexp,handler) = wuiWithErrorForm wuispec
                      initdata
@@ -200,97 +201,60 @@ wUncheckMaybe defval wspec =
          wspec
          defval
 
+--------------------------------------------------------------------------
+-- Define page layout of the application.
+
 --- The title of this application (shown in the header).
 spiceyTitle :: String
 spiceyTitle = "Spicey Application"
 
---- Adds the basic page layout to a view.
-addLayout :: ViewBlock -> IO ViewBlock
-addLayout viewblock = do
-  routemenu <- getRouteMenu
-  msg       <- getPageMessage
-  login     <- getSessionLogin
-  lasturl   <- getLastUrl
-  return $
-    stdNavBar routemenu login ++
-    [blockstyle "container-fluid" $
-      [HtmlStruct "header" [("class","jumbotron")] [h1 [htxt spiceyTitle]],
-       if null msg
-        then HtmlStruct "header" [("class","pagemessage pagemessage-empty")]
-                        [htxt ("Last page: "++lasturl)]
-        else HtmlStruct "header" [("class","pagemessage")] [htxt msg],
-       blockstyle "row"
-        [blockstyle "col-md-12" viewblock],
-       hrule,
-       HtmlStruct "footer" []
-        [par [htxt "powered by",
-              href "http://www.informatik.uni-kiel.de/~pakcs/spicey"
-                   [image "images/spicey-logo.png" "Spicey"]
-                 `addAttr` ("target","_blank"),
-              htxt "Framework"]]]]
+--- The home URL and brand shown at the left top of the main page.
+spiceyHomeBrand :: (String, [HtmlExp])
+spiceyHomeBrand = ("?", [homeIcon, htxt " Home"])
 
--- Standard navigation bar at the top.
--- The first argument is the route menu (a ulist).
--- The second argument is the possible login name.
-stdNavBar :: HtmlExp -> Maybe String -> [HtmlExp]
-stdNavBar routemenu login =
-  [blockstyle "navbar navbar-inverse navbar-fixed-top"
-    [blockstyle "container-fluid"
-      [navBarHeaderItem,
-       HtmlStruct "div" [("id","topnavbar"),
-                         ("class","navbar-collapse collapse")]
-         [routemenu `addClass` "nav navbar-nav",
-          ulist [[href "?login"
-                       (maybe [loginIcon, nbsp, htxt "Login"]
-                              (\n -> [logoutIcon, nbsp, htxt "Logout"
-                                     ,htxt $ " ("
-                                     ,style "text-success" [userIcon]
-                                     ,htxt $ " "++n++")"
-                                     ])
-                              login)]]
-            `addClass` "nav navbar-nav navbar-right"]]
-    ]
-  ]
- where
-  navBarHeaderItem =
-    blockstyle "navbar-header"
-      [HtmlStruct "button"
-        [("type","button"),("class","navbar-toggle collapsed"),
-         ("data-toggle","collapse"),("data-target","#topnavbar"),
-         ("aria-expanded","false"),("aria-controls","navbar")]
-        [textstyle "sr-only" "Toggle navigation",
-         textstyle "icon-bar" "",
-         textstyle "icon-bar" "",
-         textstyle "icon-bar" ""],
-       href "?" [homeIcon, htxt " Home"] `addClass` "navbar-brand"]
-       
-
+--- The standard footer of the Spicey page.
+spiceyFooter :: [HtmlExp]
+spiceyFooter =
+  [par [htxt "powered by",
+        href "http://www.informatik.uni-kiel.de/~pakcs/spicey"
+             [image "images/spicey-logo.png" "Spicey"]
+          `addAttr` ("target","_blank"),
+        htxt "Framework"]]
+        
+--- Transforms a view into an HTML form by adding the basic page layout.
 getForm :: ViewBlock -> IO HtmlForm
-getForm viewBlock =
-  if viewBlock == [HtmlText ""]
+getForm viewblock =
+  if viewblock == [HtmlText ""]
   then return $ HtmlForm "forward to Spicey"
                   [formMetaInfo [("http-equiv","refresh"),
                                  ("content","1; url=spicey.cgi")]]
                   [par [htxt "You will be forwarded..."]]
   else do
-    cookie  <- sessionCookie
-    body    <- addLayout viewBlock
-    return $ HtmlForm spiceyTitle
-                ([responsiveView, cookie, icon] ++
-                 map (\f -> FormCSS $ "css/"++f++".css")
-                     ["bootstrap.min","spicey"])
-                (body ++
-                 map (\f -> HtmlStruct "script" [("src","js/"++f++".js")] [])
-                     ["jquery.min","bootstrap.min"])
+    routemenu <- getRouteMenu
+    msg       <- getPageMessage
+    login     <- getSessionLogin
+    lasturl   <- getLastUrl
+    cookie    <- sessionCookie
+    return (bootstrapForm "." ["bootstrap.min","spicey"] spiceyTitle
+               spiceyHomeBrand routemenu (rightTopMenu login)
+               0 []  [h1 [htxt spiceyTitle]]
+               (messageLine msg lasturl : viewblock ) spiceyFooter
+              `addFormParam` cookie)
  where
-   responsiveView =
-     formMetaInfo [("name","viewport"),
-                   ("content","width=device-width, initial-scale=1.0")]
-
-   icon = HeadInclude (HtmlStruct "link"
-                                  [("rel","shortcut icon"),
-                                   ("href","favicon.ico")] [])
-
+  messageLine msg lasturl =
+    if null msg
+      then HtmlStruct "header" [("class","pagemessage pagemessage-empty")]
+                      [htxt ("Last page: "++lasturl)]
+      else HtmlStruct "header" [("class","pagemessage")] [htxt msg]
+        
+  rightTopMenu login =
+    [[href "?login" (maybe [loginIcon, nbsp, htxt "Login"]
+                           (\n -> [logoutIcon, nbsp, htxt "Logout"
+                                  ,htxt $ " ("
+                                  ,style "text-success" [userIcon]
+                                  ,htxt $ " "++n++")"
+                                  ])
+                           login)]]
 
 -------------------------------------------------------------------------
 -- Action performed when a "cancel" button is pressed.
@@ -361,49 +325,9 @@ maybeUserDefinedToHtml ud = textstyle "type_string" (maybe "" show ud)
 --------------------------------------------------------------------------
 -- Auxiliary HTML items:
 
---- Hypertext reference in Spicey (rendered as a block button):
-spHref :: String -> [HtmlExp] -> HtmlExp
-spHref ref hexps =
-  href ref hexps `addClass` "btn btn-sm btn-default"
-
---- Hypertext reference in Spicey (rendered as a block button):
-spHrefBlock :: String -> [HtmlExp] -> HtmlExp
-spHrefBlock ref hexps =
-  href ref hexps `addClass` "btn btn-small btn-block"
-
---- Hypertext reference in Spicey (rendered as an info block button):
-spHrefInfoBlock :: String -> [HtmlExp] -> HtmlExp
-spHrefInfoBlock ref hexps =
-  href ref hexps `addClass` "btn btn-info btn-block"
-
---- Input button in Spicey (rendered as a default button):
-spButton :: String -> HtmlHandler -> HtmlExp
-spButton label handler =
-  button label handler `addClass` "btn btn-default"
-
---- Primary input button in Spicey (rendered as a default primary button):
-spPrimButton :: String -> HtmlHandler -> HtmlExp
-spPrimButton label handler =
-  button label handler `addClass` "btn btn-primary"
-
---- Small input button in Spicey (rendered as a small button):
-spSmallButton :: String -> HtmlHandler -> HtmlExp
-spSmallButton label handler =
-  button label handler `addClass` "btn btn-sm btn-default"
-
 --- Standard table in Spicey.
 spTable :: [[[HtmlExp]]] -> HtmlExp
 spTable items = table items  `addClass` "table table-hover table-condensed"
-
---------------------------------------------------------------------------
--- Icons:
-
-homeIcon   = glyphicon "home"
-userIcon   = glyphicon "user"
-loginIcon  = glyphicon "log-in"
-logoutIcon = glyphicon "log-out"
-
-glyphicon n = textstyle ("glyphicon glyphicon-"++n) ""
 
 --------------------------------------------------------------------------
 -- The page messages are implemented by a session store.

@@ -2,7 +2,7 @@
 --- Operations to generate documentation in HTML format.
 ---
 --- @author Michael Hanus, Jan Tikovsky
---- @version September 2015
+--- @version January 2016
 ----------------------------------------------------------------------
 
 module CurryDocHtml where
@@ -19,7 +19,7 @@ import qualified FlatCurry.Goodies as FCG
 import FilePath
 import FileGoodies (lookupFileInPath)
 import HTML
-import Bootstrap3Style
+import Bootstrap3Style (bootstrapPage, glyphicon, homeIcon)
 import List
 import Char
 import Sort
@@ -702,9 +702,6 @@ rightTopMenu =
 --------------------------------------------------------------------------
 -- Icons:
 
-homeIcon :: HtmlExp
-homeIcon   = glyphicon "home"
-
 extLinkIcon :: HtmlExp
 extLinkIcon = glyphicon "new-window"
 
@@ -726,10 +723,6 @@ nondetIcon  = glyphicon "random"
 
 withTitle :: HtmlExp -> String -> HtmlExp
 withTitle he t = he `addAttr` ("title",t)
-
--- Select some glyphicon
-glyphicon :: String -> HtmlExp
-glyphicon n = textstyle ("glyphicon glyphicon-"++n) ""
 
 --------------------------------------------------------------------------
 -- Standard footer information for generated web pages:

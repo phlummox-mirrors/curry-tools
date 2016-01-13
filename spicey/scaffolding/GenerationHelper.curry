@@ -32,6 +32,10 @@ dataModuleName = "RoutesData"
 mappingModuleName :: String
 mappingModuleName = "ControllerMapping"
 
+-- Name of hrefButton operation:
+hrefButtonName :: QName
+hrefButtonName = ("Bootstrap3Style","hrefButton")
+
 relatedRelation :: String -> Relationship -> String
 relatedRelation en (Relationship _ [REnd en1 _ _, REnd en2 _ _]) =
   if en==en1 then en2 else en1

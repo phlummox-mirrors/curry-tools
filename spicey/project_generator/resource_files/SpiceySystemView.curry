@@ -8,6 +8,7 @@
 module SpiceySystemView(loginView,processListView,historyView)
  where
 
+import Bootstrap3Style (defaultButton, primButton)
 import UserProcesses
 import Processes
 import Spicey
@@ -21,10 +22,10 @@ loginView controller currlogin =
   case currlogin of
    Nothing -> [h3 [htxt "Login as:"],
                textfield loginfield "",
-               spButton "Login" loginHandler]
+               defaultButton "Login" loginHandler]
    Just _  -> [h3 [htxt "Really logout?"],
-               spPrimButton "Logout" (logoutHandler True),
-               spButton "Cancel" (logoutHandler False)]
+               primButton "Logout" (logoutHandler True),
+               defaultButton "Cancel" (logoutHandler False)]
  where
   loginfield free
 
