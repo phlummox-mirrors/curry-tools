@@ -23,35 +23,36 @@ banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "Transformation Tool for Curry with Default Rules (Version of 03/09/15)"
+     "Transformation Tool for Curry with Default Rules (Version of 19/01/16)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------
 -- Data type for transformation parameters
-data TParam = TParam Bool -- work quietly?
-                     Bool -- compile the transformed program?
-                     Bool -- load and execute transformed program?
+data TParam = TParam TransScheme -- translation scheme to be used
+                     Bool        -- work quietly?
+                     Bool        -- compile the transformed program?
+                     Bool        -- load and execute transformed program?
+
+-- Available translation schemes
+data TransScheme = SpecScheme -- as specified in the PADL'16 paper
+                 | NoDupScheme -- scheme without checking conditions twice
 
 defaultTParam :: TParam
-defaultTParam = TParam False False False
+defaultTParam = TParam SpecScheme False False False
+
+setScheme :: TransScheme -> TParam -> TParam
+setScheme scm (TParam _ wq cmp ep) = TParam scm wq cmp ep
 
 setRunQuiet :: TParam -> TParam
-setRunQuiet (TParam _ cmp ep) = TParam True cmp ep
+setRunQuiet (TParam scm _ cmp ep) = TParam scm True cmp ep
 
 setCompile :: TParam -> TParam
-setCompile (TParam wq _ ep) = TParam wq True ep
+setCompile (TParam scm wq _ ep) = TParam scm wq True ep
 
 setExec :: TParam -> TParam
-setExec  (TParam wq _ _) = TParam wq True True
+setExec  (TParam scm wq _ _) = TParam scm wq True True
 
 ------------------------------------------------------------------------
-
-maintest :: String -> IO ()
-maintest progname = do
-  prog <- readUntypedCurry progname
-  let newprog = showCProg (snd (translateProg prog))
-  putStrLn newprog
-  writeFile "Test.curry" newprog
 
 main :: IO ()
 main = do
@@ -67,7 +68,7 @@ main = do
      (orgfile:infile:outfile:opts) ->
        maybe (printError args)
              (\vl -> transDefaultRules vl orgfile infile outfile)
-	     (processOptions opts)
+             (processOptions opts)
      _ -> printError args
 
   processOptions optargs = case optargs of
@@ -90,7 +91,7 @@ usageInfo =
 ------------------------------------------------------------------------
 -- Transformation in "batch" mode:
 transMain :: TParam -> String -> IO ()
-transMain (TParam quiet compile execprog) progname = do
+transMain (TParam scm quiet compile execprog) progname = do
   let progfname = progname ++ ".curry"
       saveprogfname = progname++"_ORG.curry"
       transprogfname = progname++"_TRANS.curry"
@@ -99,7 +100,7 @@ transMain (TParam quiet compile execprog) progname = do
   putStrNQ banner
   prog <- readUntypedCurry progname
   system $ "cleancurry " ++ progname
-  let transprog = showCProg (snd (translateProg prog))
+  let transprog = showCProg (snd (translateProg scm prog))
   putStrLnNQ "Transformed module:"
   putStrLnNQ transprog
   if not compile then done else do
@@ -124,6 +125,10 @@ compileAcyFcy quiet progname = do
 transDefaultRules :: Int -> String -> String -> String -> IO ()
 transDefaultRules verb orgfile infile outfile = do
   when (verb>0) $ putStr banner
+  cppscheme <- getEnviron "CPPSCHEME"
+  let trscm = if cppscheme == "specscheme" then SpecScheme else
+              if cppscheme == "nodupscheme" then NoDupScheme else SpecScheme
+  when (verb>0) $ putStrLn ("Translation scheme: " ++ show trscm)
   let savefile = orgfile++".SAVEDEFRULES"
       modname = stripCurrySuffix orgfile
   renameFile orgfile savefile
@@ -131,7 +136,7 @@ transDefaultRules verb orgfile infile outfile = do
   readFile infile >>= writeFile orgfile . replaceOptionsLine
   inputProg <- tryReadUntypedCurry modname savefile
   renameFile savefile orgfile
-  let (detfuncnames,newprog) = translateProg inputProg
+  let (detfuncnames,newprog) = translateProg trscm inputProg
   writeFile outfile (showCProg newprog)
   stoptime <- getCPUTime
   when (verb>1) $ putStrLn
@@ -168,8 +173,8 @@ printProofObligation qfs = unless (null qfs) $ do
 -- (to show the proof obligations to ensure completeness of the
 -- transformation).
 
-translateProg :: CurryProg -> ([QName],CurryProg)
-translateProg prog@(CurryProg mn imps tdecls fdecls ops) =
+translateProg :: TransScheme -> CurryProg -> ([QName],CurryProg)
+translateProg trscm prog@(CurryProg mn imps tdecls fdecls ops) =
   if null deffuncs && null detfuncnames
   then ([],prog)
   else (detfuncnames, CurryProg mn newimps tdecls newfdecls ops)
@@ -179,7 +184,7 @@ translateProg prog@(CurryProg mn imps tdecls fdecls ops) =
   undetfuncs       = concatMap (transDetFun detfuncnames) fdecls
   (deffuncs,funcs) = partition isDefault undetfuncs
   defrules         = map (func2rule funcs) deffuncs
-  newfdecls        = concatMap (transFDecl defrules) funcs
+  newfdecls        = concatMap (transFDecl trscm defrules) funcs
 
 ------------------------------------------------------------------------
 -- implementation of deterministic function transformation:
@@ -260,20 +265,26 @@ func2rule funcs (CmtFunc _ qf ar vis texp rules) =
 
 -- Translates a function declaration into a new one that respects
 -- the potential default rule (which are provided as the first argument).
-transFDecl :: [(QName,(Int,CRule))] -> CFuncDecl -> [CFuncDecl]
-transFDecl defrules (CmtFunc _ qf ar vis texp rules) =
-  transFDecl defrules (CFunc qf ar vis texp rules)
-transFDecl defrules fdecl@(CFunc qf@(mn,fn) ar vis texp rules) =
+transFDecl :: TransScheme -> [(QName,(Int,CRule))] -> CFuncDecl -> [CFuncDecl]
+transFDecl trscm defrules (CmtFunc _ qf ar vis texp rules) =
+  transFDecl trscm defrules (CFunc qf ar vis texp rules)
+transFDecl trscm defrules fdecl@(CFunc qf@(mn,fn) ar vis texp rules) =
   maybe [fdecl]
         (\ (dar,defrule) ->
            if dar /= ar
            then error $ "Default rule for '"++fn++"' has different arity!"
            else
-              [CFunc neworgname ar Private texp rules,
-               transFDecl2ApplyCond applyname fdecl,
-               CFunc deffunname ar Private texp
-                     [transDefaultRule applyname ar defrule],
-               CFunc qf ar vis texp [neworgrule]])
+             if trscm == SpecScheme
+             then [CFunc neworgname ar Private texp rules,
+                   transFDecl2ApplyCond applyname fdecl,
+                   CFunc deffunname ar Private texp
+                         [transDefaultRule applyname ar defrule],
+                   CFunc qf ar vis texp [neworgrule_SpecScheme]]
+             else -- trscm == NoDupScheme
+                  [transFDecl2FunRHS applyname fdecl,
+                   CFunc deffunname ar Private texp [defrule],
+                   CFunc qf ar vis texp [neworgrule_NoDupScheme]]
+        )
         (lookup qf defrules)
  where
   -- new names for auxiliary functions (TODO: check for unused name)
@@ -281,12 +292,27 @@ transFDecl defrules fdecl@(CFunc qf@(mn,fn) ar vis texp rules) =
   applyname  = (mn,fn++"_APPLICABLE")
   deffunname = (mn,fn++"_DEFAULT")
 
-  neworgrule =
+  neworgrule_SpecScheme =
     CRule (map CPVar argvars)
           (CSimpleRhs (applyF (pre "?")
                               [applyF neworgname (map CVar argvars),
                                applyF deffunname (map CVar argvars)])
                       [])
+
+  neworgrule_NoDupScheme =
+    CRule (map CPVar argvars)
+          (CSimpleRhs
+             (CLetDecl [CLocalPat (CPVar (0,"x0"))
+                         (CSimpleRhs
+                            (applyF (setFunMod,"set"++show ar)
+                                    (CSymbol applyname : map CVar argvars))
+                            [])]
+                       (applyF (pre "if_then_else")
+                          [applyF (setFunMod,"isEmpty") [CVar (0,"x0")],
+                           applyF deffunname (map CVar argvars),
+                           applyF (setFunMod,"chooseValue")
+                                  [CVar (0,"x0"), preUnit]]))
+             [])
 
   argvars = map (\i->(i,"x"++show i)) [1..ar]
 
@@ -297,7 +323,7 @@ transFDecl2ApplyCond :: QName -> CFuncDecl -> CFuncDecl
 transFDecl2ApplyCond nqf (CmtFunc _ qf ar vis texp rules) =
   transFDecl2ApplyCond nqf (CFunc qf ar vis texp rules)
 transFDecl2ApplyCond nqf (CFunc _ ar _ texp rules) =
-  CFunc nqf ar Private (adjustResultType texp) (map rule2cond rules)
+  CFunc nqf ar Private (adjustResultTypeToUnit texp) (map rule2cond rules)
  where
   rule2cond (CRule rpats (CSimpleRhs _ rlocals)) =
     let singlepatvars = extractSingles (concatMap varsOfPat rpats ++
@@ -312,13 +338,41 @@ transFDecl2ApplyCond nqf (CFunc _ ar _ texp rules) =
               (CGuardedRhs (map (\gd -> (fst gd,preUnit)) gds) rlocals)
 
 -- Adjust the result type of a type by setting the result type to ():
-adjustResultType :: CTypeExpr -> CTypeExpr
-adjustResultType texp =
+adjustResultTypeToUnit :: CTypeExpr -> CTypeExpr
+adjustResultTypeToUnit texp =
   if texp == preUntyped
   then texp
   else case texp of
-         CFuncType te1 te2 -> CFuncType te1 (adjustResultType te2)
+         CFuncType te1 te2 -> CFuncType te1 (adjustResultTypeToUnit te2)
          _                 -> unitType
+
+-- Translates a function declaration into one where the right-hand side
+-- is encapsulated in a unary function, i.e., it just checks for applicability
+-- and can later be applied to evaluate its right-hand side.
+-- The first argument is the new name of the translated function.
+transFDecl2FunRHS :: QName -> CFuncDecl -> CFuncDecl
+transFDecl2FunRHS nqf (CmtFunc _ qf ar vis texp rules) =
+  transFDecl2FunRHS nqf (CFunc qf ar vis texp rules)
+transFDecl2FunRHS nqf (CFunc _ ar _ texp rules) =
+  CFunc nqf ar Private (adjustResultTypeToFunRHS texp) (map rule2funrhs rules)
+ where
+  rule2funrhs (CRule rpats (CSimpleRhs rhsexp rlocals)) =
+     CRule rpats
+           (CSimpleRhs (CLambda [CPVar (999,"_")] rhsexp) rlocals)
+  rule2funrhs (CRule rpats (CGuardedRhs gds rlocals)) =
+    CRule rpats
+          (CGuardedRhs
+             (map (\ (gd,rhs) -> (gd,(CLambda [CPVar (999,"_")] rhs))) gds)
+             rlocals)
+
+-- Adjust the result type of a type by setting the result type to ():
+adjustResultTypeToFunRHS :: CTypeExpr -> CTypeExpr
+adjustResultTypeToFunRHS texp =
+  if texp == preUntyped
+  then texp
+  else case texp of
+         CFuncType te1 te2 -> CFuncType te1 (adjustResultTypeToFunRHS te2)
+         _                 -> CFuncType unitType texp
 
 transDefaultRule :: QName -> Int -> CRule -> CRule
 transDefaultRule _ _ (CRule _ (CGuardedRhs _ _)) =
@@ -341,6 +395,8 @@ transDefaultRule condfunname ar (CRule pats (CSimpleRhs exp locals)) =
     _           -> let newvar = (i,"patvar_"++show i)
                     in (CPAs newvar pat, CVar newvar)
   
+------------------------------------------------------------------------
+
 preUnit :: CExpr
 preUnit = CSymbol (pre "()")
 
