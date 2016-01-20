@@ -37,9 +37,10 @@ parseTarget t | t=="foreigncode"  = Just ForeignCode
 	      
 --- Preprocessor options:
 data PPOpts = PPOpts { optHelp :: Bool
-                     , optSave :: Bool
-		     , optVerb :: Int
-		     , optTgts :: [PPTarget]
+                     , optSave :: Bool       -- save the transformed program?
+		     , optVerb :: Int        -- verbosity level
+		     , optTgts :: [PPTarget] -- target of preprocessor
+		     , optMore :: [String]   -- further specific options
 		     }
 
 initOpts :: PPOpts
@@ -47,6 +48,7 @@ initOpts = PPOpts { optHelp = False
                   , optSave = False
  	          , optVerb = 0
 		  , optTgts = []
+		  , optMore = []
 		  }
 		  
 --- The main function of the Curry Preprocessor.
@@ -84,11 +86,8 @@ main = do
     (['-','v',vl]:os) -> if isDigit vl
                          then processOptions opts { optVerb = digitToInt vl } os
 			 else Nothing
-    (('-':'-':ts):os) -> maybe Nothing
-                               (\t -> processOptions
-			                opts {optTgts = t : optTgts opts} os)
-    	 	               (parseTarget ts)
-    (ts:os)           -> maybe Nothing
+    (ts:os)           -> maybe (processOptions
+		                  opts {optMore = optMore opts ++ [ts]} os)
                                (\t -> processOptions
 			                opts {optTgts = t : optTgts opts} os)
     	 	               (parseTarget ts)
@@ -154,7 +153,7 @@ preprocess opts orgfile infile outfile
   | SequentialRules `elem` pptargets
    = transSequentialRules verb orgfile infile outfile
   | DefaultRules    `elem` pptargets
-   = transDefaultRules verb orgfile infile outfile
+   = transDefaultRules verb (optMore opts) orgfile infile outfile
   | otherwise = error "currypp: internal error"
  where
   pptargets = optTgts opts

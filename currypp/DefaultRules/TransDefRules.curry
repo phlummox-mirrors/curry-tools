@@ -3,7 +3,7 @@
 --- and deterministic functions.
 ---
 --- @author Michael Hanus
---- @version September 2015
+--- @version January 2016
 -----------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -29,7 +29,7 @@ banner = unlines [bannerLine,bannerText,bannerLine]
 ------------------------------------------------------------------------
 -- Data type for transformation parameters
 data TParam = TParam TransScheme -- translation scheme to be used
-                     Bool        -- work quietly?
+                     Int         -- verbosity level
                      Bool        -- compile the transformed program?
                      Bool        -- load and execute transformed program?
 
@@ -37,20 +37,29 @@ data TParam = TParam TransScheme -- translation scheme to be used
 data TransScheme = SpecScheme -- as specified in the PADL'16 paper
                  | NoDupScheme -- scheme without checking conditions twice
 
+-- The default translation scheme:
+defaultTransScheme :: TransScheme
+defaultTransScheme = if curryCompiler == "kics2"
+                     then SpecScheme -- due to bug in KiCS2
+                     else SpecScheme -- NoDupScheme
+
 defaultTParam :: TParam
-defaultTParam = TParam SpecScheme False False False
+defaultTParam = TParam defaultTransScheme 1 False False
 
 setScheme :: TransScheme -> TParam -> TParam
-setScheme scm (TParam _ wq cmp ep) = TParam scm wq cmp ep
+setScheme scm (TParam _ vl cmp ep) = TParam scm vl cmp ep
+
+setVerbosity :: Int -> TParam -> TParam
+setVerbosity vl (TParam scm _ cmp ep) = TParam scm vl cmp ep
 
 setRunQuiet :: TParam -> TParam
-setRunQuiet (TParam scm _ cmp ep) = TParam scm True cmp ep
+setRunQuiet = setVerbosity 0
 
 setCompile :: TParam -> TParam
-setCompile (TParam scm wq _ ep) = TParam scm wq True ep
+setCompile (TParam scm vl _ ep) = TParam scm vl True ep
 
 setExec :: TParam -> TParam
-setExec  (TParam scm wq _ _) = TParam scm wq True True
+setExec  (TParam scm vl _ _) = TParam scm vl True True
 
 ------------------------------------------------------------------------
 
@@ -65,16 +74,22 @@ main = do
      ("-c":moreargs) -> processArgs (setCompile   tparam) moreargs
      ("-r":moreargs) -> processArgs (setExec      tparam) moreargs
      [mname]         -> transMain tparam (stripCurrySuffix mname)
-     (orgfile:infile:outfile:opts) ->
-       maybe (printError args)
-             (\vl -> transDefaultRules vl orgfile infile outfile)
-             (processOptions opts)
-     _ -> printError args
+     _               -> printError args
 
-  processOptions optargs = case optargs of
-    []             -> Just 0
-    ["-v"]         -> Just 1
-    [['-','v',vl]] -> if isDigit vl then Just (digitToInt vl) else Nothing
+  -- process the further options of the preprocesser mode:
+  processOptions tparam optargs = case optargs of
+    []             -> Just tparam
+    ("-v":opts)    -> processOptions (setVerbosity 1 tparam) opts
+    (['-','v',vl]:opts) ->
+       if isDigit vl
+         then processOptions (setVerbosity (digitToInt vl) tparam) opts
+         else Nothing
+    (scheme:opts) ->
+       if scheme == "nodupscheme"
+       then processOptions (setScheme NoDupScheme tparam) opts
+       else if scheme == "specscheme"
+            then processOptions (setScheme SpecScheme tparam) opts
+            else Nothing
 
   printError args =
     putStrLn $ banner ++
@@ -91,8 +106,9 @@ usageInfo =
 ------------------------------------------------------------------------
 -- Transformation in "batch" mode:
 transMain :: TParam -> String -> IO ()
-transMain (TParam scm quiet compile execprog) progname = do
-  let progfname = progname ++ ".curry"
+transMain (TParam scm verbosity compile execprog) progname = do
+  let quiet = verbosity == 0
+      progfname = progname ++ ".curry"
       saveprogfname = progname++"_ORG.curry"
       transprogfname = progname++"_TRANS.curry"
       putStrNQ s = if quiet then done else putStr s
@@ -122,12 +138,10 @@ compileAcyFcy quiet progname = do
 
 ------------------------------------------------------------------------
 -- Start default rules transformation in "preprocessor mode":
-transDefaultRules :: Int -> String -> String -> String -> IO ()
-transDefaultRules verb orgfile infile outfile = do
+transDefaultRules :: Int -> [String] -> String -> String -> String -> IO ()
+transDefaultRules verb moreopts orgfile infile outfile = do
   when (verb>0) $ putStr banner
-  cppscheme <- getEnviron "CPPSCHEME"
-  let trscm = if cppscheme == "specscheme" then SpecScheme else
-              if cppscheme == "nodupscheme" then NoDupScheme else SpecScheme
+  trscm <- processOpts moreopts
   when (verb>0) $ putStrLn ("Translation scheme: " ++ show trscm)
   let savefile = orgfile++".SAVEDEFRULES"
       modname = stripCurrySuffix orgfile
@@ -144,9 +158,24 @@ transDefaultRules verb orgfile infile outfile = do
      show (stoptime-starttime) ++ " ms")
   printProofObligation detfuncnames
  where
-   tryReadUntypedCurry mn savefile =
-     catch (readUntypedCurry mn)
-           (\_ -> renameFile savefile orgfile >> exitWith 1)
+  processOpts opts = case opts of
+    []       -> return defaultTransScheme
+    [scheme] ->
+       if scheme == "nodupscheme"
+       then if curryCompiler == "kics2"
+            then return SpecScheme -- due to bug in KiCS2!!!
+            else return NoDupScheme
+       else if scheme == "specscheme"
+            then return SpecScheme
+            else showError
+    _ -> showError
+   where
+    showError = do putStrLn $ "Unknown options (ignored): " ++ show opts --unwords opts
+                   return defaultTransScheme
+
+  tryReadUntypedCurry mn savefile =
+    catch (readUntypedCurry mn)
+          (\_ -> renameFile savefile orgfile >> exitWith 1)
 
 -- Replace OPTIONS_CYMAKE line in a source text by blank line:
 replaceOptionsLine :: String -> String
