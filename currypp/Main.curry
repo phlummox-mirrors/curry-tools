@@ -4,7 +4,7 @@
 ---
 --- The Curry Preprocessor transforms the source code of Curry programs.
 --- Currently, only the translation of foreign code integrated in Curry code
---- is supported (option --foreigncode, see module `Translator`).
+--- is supported (option `foreigncode`, see module `Translator`).
 ---
 --- @author Michael Hanus
 --- @version November 2015
@@ -128,7 +128,7 @@ preprocess :: PPOpts -> String -> String -> String -> IO ()
 preprocess opts orgfile infile outfile
   | null pptargets = do
     putStr cppBanner
-    putStrLn "ERROR: no preprocessing target (e.g., --foreigncode) specified!\n"
+    putStrLn "ERROR: no preprocessing target (e.g., 'foreigncode') specified!\n"
     putStrLn usageText
     exitWith 1
   | SequentialRules `elem` pptargets && DefaultRules `elem` pptargets
