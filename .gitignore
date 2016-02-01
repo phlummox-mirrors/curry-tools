@@ -12,6 +12,7 @@ CASS/cass_worker
 createmakefile/CreateMakefile
 curry2js/Curry2JS
 currypp/Main
+currycheck/CurryCheck
 currydoc/CurryDoc
 currytest/CurryTest
 cusage/CheckUsage
