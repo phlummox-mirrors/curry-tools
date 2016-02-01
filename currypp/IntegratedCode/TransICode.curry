@@ -107,20 +107,21 @@ translateICFile orgfile infile outfile model =
 
 --- Translates a string containing a Curry program with Integrated Code
 --- into a string with pure Curry code.
---- Reads file containing information about the data model in case of SQL.
+--- The first argument is, if non-empty, the name of an info file containing
+--- information about the data model in case of integrated SQL code.
 --- @param model - name of file containing information about the datamodel
 ---                in case of SQL,  an empty string otherwise
 --- @param fname - The name of the original Curry file
 --- @param s - The string that should be translated
 --- @return The translated string
 translateICString :: String -> String -> String -> IO String
-translateICString model fname s =
-  do pinfo <- if model == ""
-                 then return (Left "No .info file given")
-                 else readParserInfo model
-     stw <- concatAllIOPM $ (applyLangParsers pinfo) $ ciparser fname s
-     putStr (formatWarnings (getWarnings stw))
-     escapePR (discardWarnings stw) errfun
+translateICString model fname s = do
+  pinfo <- if model == ""
+              then return (Left "No .info file provided!")
+              else readParserInfo model
+  stw <- concatAllIOPM $ (applyLangParsers pinfo) $ ciparser fname s
+  putStr (formatWarnings (getWarnings stw))
+  escapePR (discardWarnings stw) errfun
 
 --- Handles the IO and PM monads around the StandardTokens for the
 --- concatenation, so they will not disturb in the real concat function
@@ -206,18 +207,18 @@ splitByLine s = splitByLineIter "" s
 
 --- Applies the corresponding translators of the DSL to Curry on the
 --- StandardTokens
---- @param model - data model information in case of SQL code,
----                error message otherwise
+--- @param model - data model information (required in case of SQL code),
+---                otherwise an error message
 --- @param iotks - The input StandardTokens wrapped in IO and ParserMonad
 --- @result      - The translated StandardTokens wrapped in IO and ParserMonad
 applyLangParsers :: Either String ParserInfo
                     -> IO (PM [StandardToken])
                     -> IO (PM [StandardToken])
-applyLangParsers model iotks =
-  do prtks <- iotks
-     prpr <- swapIOPM
-              (liftPM (\tks -> sequenceIO (map (applyLangParser model) tks)) prtks)
-     return (crumplePM (liftPM (\prpt -> sequencePM prpt) prpr))
+applyLangParsers model iotks = do
+  prtks <- iotks
+  prpr <- swapIOPM
+           (liftPM (\tks -> sequenceIO (map (applyLangParser model) tks)) prtks)
+  return (crumplePM (liftPM (\prpt -> sequencePM prpt) prpr))
 
 --- Select the right translator and apply it to a single StandardToken
 --- @param model - data model information in case of SQL code,
