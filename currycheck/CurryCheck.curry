@@ -195,19 +195,20 @@ genMainFunction vm testModule tests =
 publicModuleName :: String -> String
 publicModuleName = (++ "_PUBLIC")
 
--- Check if a function is a property or not,
+-- Check if a function definition is a property that should be tested,
 -- i.e., if the result type is Prop (= [Test]) or PropIO.
--- Since Prop tests are supported by kics2 only, we add these only if
--- kics2 is used.
+-- Since parameterized Prop tests are supported only by kics2,
+-- we add these only if kics2 is used.
 isTest :: CFuncDecl -> Bool
 isTest = isTestType . funcType
  where
   isTestType :: CTypeExpr -> Bool
   isTestType ct =
-    isPropIOType ct ||
-    (curryCompiler == "kics2" &&
-     resultType ct == listType (baseType (easyCheckModule, "Test")))
+    isPropIOType ct || ct == propType ||
+    (curryCompiler == "kics2" && resultType ct == propType)
 
+  propType = listType (baseType (easyCheckModule, "Test"))
+   
 isPropIOType :: CTypeExpr -> Bool
 isPropIOType texp = case texp of
     CTCons tcons [] -> tcons == (easyCheckModule,"PropIO")

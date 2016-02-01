@@ -16,7 +16,8 @@ not_True  = not True -=- False
 not_False = not False -=- True
 
 -- However, we can also use EasyCheck to guess input values to check
--- parameterized properties:
+-- parameterized properties (currently, checking of parameterized properties
+-- is only supported by KiCS2, therefore, such tests are ignored in PAKCS):
 not_not_is_id b = not (not b) -=- b
 
 -- In the former test, EasyCheck makes an exhaustive test by enumerating
