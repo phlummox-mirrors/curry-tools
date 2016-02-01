@@ -36,7 +36,6 @@ data EmptySPM = ESPM Pos [Token]
 --- Returns the SPM with the result which is constructed
 --- bottom-up.
 type SPMParser a = EmptySPM -> SPM a 
-
 --- constructor function for SPM
 --- @param pos - position of the integrated Code
 --- @param ele - a value of type a to initialize the PM
@@ -140,13 +139,15 @@ bindDefSPM parserA defEle f toks espm =
      SPM pos (WM (Errors err) ws) tks -> 
               let rTks = (dropWhile (\t -> not (t `elem` toks || t== Semi)) tks)
                   (SPM  _ pm tks2) = (f defEle (ESPM pos rTks))
-               in (SPM pos (combinePMs (\ _ b -> b)
+               in (SPM pos (combinePMs proj2 --(\ _ y -> y)
                                        (WM (Errors err) ws)
-                                        pm)
+                                       pm)
                            tks2)
      SPM pos (WM (OK res) _) tks      -> f res (ESPM pos tks)     
- 
-  
+ where
+  proj2 :: b -> b -> b
+  proj2 _ y = y
+
 --- Concats a terminal-Parser to a SPMParser.
 --- Invokes the second one just if the first one did not fail.
 (.~>.) :: (EmptySPM -> Either EmptySPM (SPM a)) -> SPMParser a -> SPMParser a
