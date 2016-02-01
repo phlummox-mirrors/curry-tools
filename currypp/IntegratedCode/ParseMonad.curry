@@ -39,6 +39,10 @@ warnOKPM x = warnPM (okPR x)
 throwPM :: Pos -> String -> PM _
 throwPM p s = cleanWM (throwPMsg p s)
 
+throwMultiPM :: Pos -> [String] -> PM _
+throwMultiPM p strs = cleanWM (throwPR  (map (\s -> (PError p s)) strs))
+                                             
+
 --- Return without Errors but with one Warning
 singlePM :: a -> Warning -> PM a
 singlePM x w = warnOKPM x [w]
@@ -76,3 +80,12 @@ fstPM = liftPM fst
 --- snd defined on PM
 sndPM :: PM (a,b) -> PM b
 sndPM = liftPM snd
+
+--- combines two PMs by function f, throws error if at least one of
+--- the two carries an error
+combinePMs :: (a -> b -> c) -> PM a -> PM b -> PM c
+combinePMs f p1 p2 = warnPM (combinePRs f (discardWarningsPM p1) 
+                                          (discardWarningsPM p2))
+                            (concatWarns p1 p2) 
+  where                          
+   concatWarns (WM _ w1) (WM _ w2) = w1 ++ w2

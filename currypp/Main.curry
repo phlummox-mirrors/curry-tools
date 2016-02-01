@@ -7,13 +7,13 @@
 --- is supported (option `foreigncode`, see module `Translator`).
 ---
 --- @author Michael Hanus
---- @version November 2015
+--- @version February 2016
 ------------------------------------------------------------------------------
 
 import Char(isDigit,digitToInt)
 import Directory(copyFile,renameFile)
 import Distribution(installDir)
-import List(delete)
+import List(delete, isPrefixOf)
 import System
 
 import TransICode(translateICFile)
@@ -23,7 +23,7 @@ import TransSeqRules(transSequentialRules)
 cppBanner :: String
 cppBanner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Curry Preprocessor (version of 13/11/2015)"
+   bannerText = "Curry Preprocessor (version of 01/02/2016)"
    bannerLine = take (length bannerText) (repeat '=')
 
 --- Preprocessor targets:
@@ -40,7 +40,8 @@ data PPOpts = PPOpts { optHelp :: Bool
                      , optSave :: Bool       -- save the transformed program?
 		     , optVerb :: Int        -- verbosity level
 		     , optTgts :: [PPTarget] -- target of preprocessor
-		     , optMore :: [String]   -- further specific options
+		     , optModel:: String     -- model for the SQL preprocessor
+                     , optMore :: [String]   -- further specific options
 		     }
 
 initOpts :: PPOpts
@@ -48,6 +49,7 @@ initOpts = PPOpts { optHelp = False
                   , optSave = False
  	          , optVerb = 0
 		  , optTgts = []
+                  , optModel = ""
 		  , optMore = []
 		  }
 		  
@@ -86,6 +88,11 @@ main = do
     (['-','v',vl]:os) -> if isDigit vl
                          then processOptions opts { optVerb = digitToInt vl } os
 			 else Nothing
+    (('-':'-':ts):os) -> if isPrefixOf "model:" ts
+                         then processOptions 
+                                opts {optModel = tail (dropWhile (/=':') ts) }
+                                os
+                         else Nothing
     (ts:os)           -> maybe (processOptions
 		                  opts {optMore = optMore opts ++ [ts]} os)
                                (\t -> processOptions
@@ -111,6 +118,8 @@ usageText =
   "<OutputFilePath>: name of the file where output should be written\n\n" ++
   "where <options> contain preprocessing targets\n\n" ++
   "foreigncode  : translate foreign code pieces in the source file\n" ++
+  "--model:<ERD_Name>_UniSQLCode.info : data model to translate embedded "++
+                                        "sql requests.\n"++
   "seqrules     : implement sequential rule selection strategy\n" ++
   "defaultrules : implement default rules\n" ++
   "\nand optional settings:\n" ++
@@ -137,7 +146,7 @@ preprocess opts orgfile infile outfile
         exitWith 1
   | ForeignCode `elem` pptargets
    = do starttime <- getCPUTime
-        translateICFile orgfile infile outfile
+        translateICFile orgfile infile outfile (optModel opts)
         stoptime <- getCPUTime
         when (verb>1) $ putStrLn
           ("Foreign code transformation time: " ++

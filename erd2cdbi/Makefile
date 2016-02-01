@@ -1,7 +1,8 @@
 #****************************************************************************
-# Transforms ERD-term into datatypes for CDBI.
-# Creates information file for currypp SQL-Parser.
-# Creates a corresponding sqlite database if invoked by option -db.
+# The ERD2CDBI tool transforms an ERD term into datatypes for CDBI.
+# It also creates an information file for the currypp SQL-Parser.
+# If the tool is invoked with the option -db, it creates a
+# corresponding sqlite database.
 #
 #****************************************************************************
 
@@ -15,20 +16,19 @@ DEPS = $(ROOT)/lib/Database/CDBI/*.curry ERD2CDBI.curry
 
 all: install
 
-compile: erd2cdbi
+compile: ERD2CDBI
 
 install: compile
 	rm -f $(TOOL)
-	ln -s $(CURDIR)/erd2cdbi $(TOOL)
+	ln -s $(CURDIR)/ERD2CDBI $(TOOL)
 
 clean:
 	$(CLEANCURRY)
-	rm -f erd2cdbi
+	rm -f ERD2CDBI
 
 uninstall: clean
 	   rm -f $(TOOL)
 
-erd2cdbi: $(DEPS)
+ERD2CDBI: $(DEPS)
 	@echo Compiling ERD2CDBI-Tool
 	$(REPL) $(REPL_OPTS) :load ERD2CDBI :save :quit
-	mv ERD2CDBI $@

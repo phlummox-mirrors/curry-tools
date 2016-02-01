@@ -93,6 +93,13 @@ concatPR (Errors p1) (Errors p2) = Errors (p1 ++ p2)
 concatPR (Errors p1) (OK _)      = Errors p1
 concatPR (OK _)      (Errors p2) = Errors p2
 
+--- Combines two PRs by a given functions
+combinePRs :: (a -> b -> c) -> PR a -> PR b -> PR c
+combinePRs f (OK x) (OK y)           = okPR (f x y)
+combinePRs _ (Errors p1) (Errors p2) = Errors (p1 ++ p2)
+combinePRs _ (Errors p1) (OK _)      = Errors p1
+combinePRs _ (OK _)      (Errors p2) = Errors p2
+
 --- Join multiple Error Monads into one
 sequencePR :: [PR a] -> PR [a]
 sequencePR []       = okPR []

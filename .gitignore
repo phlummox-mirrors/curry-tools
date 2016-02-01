@@ -16,7 +16,7 @@ currycheck/CurryCheck
 currydoc/CurryDoc
 currytest/CurryTest
 cusage/CheckUsage
-erd2cdbi/erd2cdbi
+erd2cdbi/ERD2CDBI
 erd2curry/erd2curry
 genint/GenInt
 importcalls/ImportCalls

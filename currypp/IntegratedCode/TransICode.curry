@@ -23,6 +23,7 @@
 --- regex  - see the RegexParser and Regex library
 --- html   - see the MLParser and HTML library
 --- xml    - see the MLParser and XML library
+--- sql    - see the SQLConverter and CDBI-library
 ---
 --- @author Jasper Sikorra (with changes by Michael Hanus)
 --- @version November 2015
@@ -41,6 +42,7 @@ import DummyParser   as DummyParser
 import FormatParser  as FormatParser
 import RegexParser   as RegexParser
 import MLTranslate   as MLTranslate
+import SQLConverter  as SQLParser
 
 -- Parser for Curry with Integrated Code
 ciparser :: Filename -> String -> IO (PM [StandardToken])
@@ -48,13 +50,16 @@ ciparser = CIParser.parse
 
 -- Selection of parsers for the conversion of Integrated Code expressions
 -- to Curry
-parsers :: Maybe Langtag -> LangParser
+parsers :: Maybe Langtag -> Either String ParserInfo -> LangParser
 parsers = maybe iden pars
   where
-    iden _ s = return $ cleanPM s
-    pars :: Langtag -> LangParser
-    pars l p =
+    iden _ _ s = return $ cleanPM s
+    pars :: Langtag -> Either String ParserInfo -> LangParser
+    pars l model p =
       case l of
+        "sql"       -> case model of
+                            Left err -> (\_ -> return $ throwPM p err)
+                            _  -> SQLParser.parse model p
         "dummy"     -> DummyParser.parse p
         "format"    -> FormatParser.parse ""       p
         "printf"    -> FormatParser.parse "putStr" p
@@ -96,18 +101,24 @@ formatWarnings ws@((p,_):_) = "\nWARNINGS in " ++ getFilename p ++ ":"
 --- @param orgfile - The file path to the original Curry file
 --- @param infile - The file path to the input file
 --- @param outfile - The file path to the output file
-translateICFile :: String -> String -> String -> IO ()
-translateICFile orgfile infile outfile =
-  readFile infile >>= translateICString orgfile >>= writeFile outfile
+translateICFile :: String -> String -> String -> String -> IO ()
+translateICFile orgfile infile outfile model =
+  readFile infile >>= translateICString model orgfile >>= writeFile outfile
 
 --- Translates a string containing a Curry program with Integrated Code
 --- into a string with pure Curry code.
+--- Reads file containing information about the data model in case of SQL.
+--- @param model - name of file containing information about the datamodel
+---                in case of SQL,  an empty string otherwise
 --- @param fname - The name of the original Curry file
 --- @param s - The string that should be translated
 --- @return The translated string
-translateICString :: String -> String -> IO String
-translateICString fname s =
-  do stw <- concatAllIOPM $ applyLangParsers $ ciparser fname s
+translateICString :: String -> String -> String -> IO String
+translateICString model fname s =
+  do pinfo <- if model == ""
+                 then return (Left "No .info file given")
+                 else readParserInfo model
+     stw <- concatAllIOPM $ (applyLangParsers pinfo) $ ciparser fname s
      putStr (formatWarnings (getWarnings stw))
      escapePR (discardWarnings stw) errfun
 
@@ -195,20 +206,27 @@ splitByLine s = splitByLineIter "" s
 
 --- Applies the corresponding translators of the DSL to Curry on the
 --- StandardTokens
+--- @param model - data model information in case of SQL code,
+---                error message otherwise
 --- @param iotks - The input StandardTokens wrapped in IO and ParserMonad
 --- @result      - The translated StandardTokens wrapped in IO and ParserMonad
-applyLangParsers :: IO (PM [StandardToken])
+applyLangParsers :: Either String ParserInfo
                     -> IO (PM [StandardToken])
-applyLangParsers iotks =
+                    -> IO (PM [StandardToken])
+applyLangParsers model iotks =
   do prtks <- iotks
      prpr <- swapIOPM
-              (liftPM (\tks -> sequenceIO (map (applyLangParser) tks)) prtks)
+              (liftPM (\tks -> sequenceIO (map (applyLangParser model) tks)) prtks)
      return (crumplePM (liftPM (\prpt -> sequencePM prpt) prpr))
 
 --- Select the right translator and apply it to a single StandardToken
+--- @param model - data model information in case of SQL code,
+---                error message otherwise
 --- @param t - The input StandardToken
 --- result   - The translated StandardToken wrapped in IO and ParserMonad
-applyLangParser :: StandardToken -> IO (PM StandardToken)
-applyLangParser (StTk p pexp l c) =
-  do parsedStringNoIO <- (parsers l) pexp c
+applyLangParser :: Either String ParserInfo -> 
+                   StandardToken -> 
+                   IO (PM StandardToken)
+applyLangParser model (StTk p pexp l c) =
+  do parsedStringNoIO <- (parsers l model) pexp c
      return (bindPM parsedStringNoIO (\s -> cleanPM (StTk p pexp l s)))

@@ -16,13 +16,14 @@ TOOL = $(BINDIR)/currypp
 ICODEDIR    = $(CURDIR)/IntegratedCode
 PARSEDIR    = $(ICODEDIR)/Parser
 MLDIR       = $(PARSEDIR)/ML
+SQLDIR      = $(PARSEDIR)/SQL
 SEQRULESDIR = $(CURDIR)/SequentialRules
 DEFRULESDIR = $(CURDIR)/DefaultRules
 
 # preprocessor input path and dependencies:
-PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SEQRULESDIR):$(DEFRULESDIR)
+PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR)
 DEPS   = Main.curry $(ICODEDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
-         $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry
+          $(SQLDIR)/*.curry $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry
 
 .PHONY: all compile install clean uninstall
 
