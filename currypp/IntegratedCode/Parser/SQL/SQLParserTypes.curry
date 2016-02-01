@@ -145,6 +145,8 @@ bindDefSPM parserA defEle f toks espm =
                            tks2)
      SPM pos (WM (OK res) _) tks      -> f res (ESPM pos tks)     
  where
+  -- This explicitly typed auxiliary function is necesary to avoid
+  -- a typing error in GHC/KiCS2:
   proj2 :: b -> b -> b
   proj2 _ y = y
 
