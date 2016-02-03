@@ -19,7 +19,7 @@ import IO
 import IOExts
 import List
 import Maybe                (fromJust)
-import System               (system, exitWith, getArgs, getProgName, getPID)
+import System               (system, exitWith, getArgs, getPID)
 
 -- command line options
 data CmdFlag = FQuiet | FVerbose
@@ -80,6 +80,12 @@ genMsg lineNumber file testfun =
   snd (orgTestName testfun) ++
   " (module " ++ file ++ ", line " ++ show lineNumber ++ ")"
 
+easyCheckConfig :: VerbosityMode -> QName
+easyCheckConfig m =
+  (easyCheckModule, case m of Verbose -> "verboseConfig"
+                              Quiet   -> "quietConfig"
+                              _       -> "easyConfig"   )
+
 -- createTests and createTest transform the tests
 -- for execTests (cf. chapter 5)
 createTests :: VerbosityMode -> String -> TestModule -> [CFuncDecl]
@@ -101,11 +107,7 @@ createTest m testmodname origName modname test
 
   msg = string2ac $ genMsg (getTestLine test) origName (getTestName test)
 
-  easyCheckFuncName :: String
-  easyCheckFuncName = case m of Verbose -> "verboseCheck"
-                                _       -> "easyCheck"
-
-  easyCheck arity = (easyCheckModule, easyCheckFuncName ++ show arity)
+  easyCheckFuncName arity = (easyCheckModule, "configCheck" ++ show arity)
 
   propBody :: QName -> Int -> [CRule]
   propBody (_, name) arity =
@@ -113,14 +115,19 @@ createTest m testmodname origName modname test
        CLetDecl [CLocalPat (CPVar msgvar) (CSimpleRhs msg [])]
                 (applyF (easyCheckModule,"execPropWithMsg")
                   [CVar msgvar
-                  ,applyF (easyCheck arity) [CVar msgvar,CSymbol (modname,name)]
+                  ,applyF (easyCheckFuncName arity)
+                     [constF (easyCheckConfig m)
+                     ,CVar msgvar
+                     ,CSymbol (modname,name)]
                   ])]
    where msgvar = (0,"msg")
     
   assertBody :: QName -> [CRule]
-  assertBody (_, name)
-    = [simpleRule [] $ applyF (easyCheckModule, "execAssertIO")
-                              [CSymbol (modname, name), msg]]
+  assertBody (_, name) =
+    [simpleRule [] $ applyF (easyCheckModule, "checkPropIO")
+                            [constF (easyCheckConfig m)
+                            ,msg
+                            ,CSymbol (modname, name)]]
 
 -- the module has to be renamed, this happens in two steps
 -- part one: changing the module name in the module header
@@ -314,23 +321,15 @@ genTestModule m testmodname modules = saveCurryProgram testProg
   testProg = CurryProg testmodname imports [] (mainFunction : funcs) []
   imports = [easyCheckModule, "System"] ++ map newName modules
 
--- executes execTests.main
-execTests :: VerbosityMode -> String -> IO Int
-execTests m testmodname = system $
-  makeCmdQuiet (curryBin ++ " :set v0 :l " ++ testmodname ++ " :eval main :q") m
-
--- depending on the verbosity mode this
--- adds a redirection of all output to /dev/null
-makeCmdQuiet :: String -> VerbosityMode -> String
-makeCmdQuiet cmd m = case m of
-  Quiet -> cmd ++ " 2>&1 > /dev/null"
-  _     -> cmd
+-- Executes the main operation of the generated test module.
+execTests :: String -> IO Int
+execTests testmodname = system $
+  curryBin ++ " :set v0 :l " ++ testmodname ++ " :eval main :q"
 
 -- print the help
 showUsage :: IO ()
-showUsage = do
-  progName <- getProgName
-  error $ usageInfo ("usage: " ++ progName ++ " [OPTIONS] ModuleName[s]") options
+showUsage =
+  error $ usageInfo ("usage: currycheck [OPTIONS] ModuleName[s]") options
 
 --- Name of the Curry REPL binary:
 curryBin :: String
@@ -362,7 +361,7 @@ main = do
   genTestModule mode testmodname testModules
   putStrIfNormal mode $
     "Compiling auxiliary test module '"++testmodname++"'...\n"
-  ret <- execTests mode testmodname
+  ret <- execTests testmodname
   cleanup mode testmodname testModules
   exitWith ret
  where

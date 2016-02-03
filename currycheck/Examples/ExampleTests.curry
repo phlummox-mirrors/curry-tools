@@ -12,7 +12,7 @@ import System
 -- evaluate to a single value:
 rev_123 = reverse [1,2,3] -=- [3,2,1]
 
-not_True  = not True -=- False
+not_True  = not True  -=- False
 not_False = not False -=- True
 
 -- However, we can also use EasyCheck to guess input values to check
