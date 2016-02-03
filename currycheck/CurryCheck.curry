@@ -18,18 +18,32 @@ import GetOpt
 import IO
 import IOExts
 import List
-import Maybe                (fromJust)
+import Read                 (readNat)
 import System               (system, exitWith, getArgs, getPID)
 
+-------------------------------------------------------------------------
 -- command line options
-data CmdFlag = FQuiet | FVerbose
+data CmdFlag = FQuiet | FVerbose | FMaxTest Int
 
 options :: [OptDescr CmdFlag]
 options =
-  [ Option "q" ["quiet"]   (NoArg FQuiet)   "run quietly (no output, only exit code)"
-  , Option "v" ["verbose"] (NoArg FVerbose) "run in verbose mode (ignored if 'quiet' is set)"
+  [ Option "q" ["quiet"]    (NoArg FQuiet)
+           "run quietly (no output, only exit code)"
+  , Option "v" ["verbose"]  (NoArg FVerbose)
+           "run in verbose mode (ignored if 'quiet' is set)"
+  , Option "m" ["maxtests"] (ReqArg (\s -> FMaxTest (readNat s)) "<n>")
+           "maximal number of tests (default: 100)"
   ]
 
+maxTestOfOpts :: [CmdFlag] -> Maybe Int
+maxTestOfOpts opts =
+  maybe Nothing
+        (\ (FMaxTest n) -> if n==0 then Nothing else Just n)
+        (find isMaxTestFlag opts)
+ where
+   isMaxTestFlag opt = case opt of FMaxTest _ -> True
+                                   _          -> False
+                                   
 -------------------------------------------------------------------------
 -- represents the verbosity level used
 data VerbosityMode = Quiet | Verbose | Normal
@@ -77,7 +91,7 @@ firstWordsOfLines = map firstWord
 -- generate a useful error message for failed tests (module and line number)
 genMsg :: Int -> String -> QName -> String
 genMsg lineNumber file testfun =
-  snd (orgTestName testfun) ++
+  snd (testfun) ++
   " (module " ++ file ++ ", line " ++ show lineNumber ++ ")"
 
 easyCheckConfig :: VerbosityMode -> QName
@@ -86,16 +100,16 @@ easyCheckConfig m =
                               Quiet   -> "quietConfig"
                               _       -> "easyConfig"   )
 
--- createTests and createTest transform the tests
--- for execTests (cf. chapter 5)
-createTests :: VerbosityMode -> String -> TestModule -> [CFuncDecl]
-createTests m testmodname (TestModule moduleName newName tests)
-  = map (createTest m testmodname moduleName newName) tests
+-- Transform all tests to an appropriate call of EasyCheck:
+createTests :: [CmdFlag] -> VerbosityMode -> String -> TestModule -> [CFuncDecl]
+createTests opts m testmodname (TestModule moduleName newName tests) =
+  map (createTest opts m testmodname moduleName newName) tests
 
-createTest :: VerbosityMode -> String -> String -> String -> Test -> CFuncDecl
-createTest m testmodname origName modname test
-  = uncurry (cfunc (testmodname, (genTestName $ getTestName test)) 0 Public)
-            createTest'
+createTest :: [CmdFlag] -> VerbosityMode -> String -> String -> String -> Test
+           -> CFuncDecl
+createTest opts m testmodname origName modname test =
+  uncurry (cfunc (testmodname, (genTestName $ getTestName test)) 0 Public)
+          createTest'
  where
   createTest' = case test of
     (PropTest   name arity _) -> (execPropResultType, propBody name arity)
@@ -107,7 +121,7 @@ createTest m testmodname origName modname test
 
   msg = string2ac $ genMsg (getTestLine test) origName (getTestName test)
 
-  easyCheckFuncName arity = (easyCheckModule, "configCheck" ++ show arity)
+  easyCheckFuncName arity = (easyCheckModule, "check" ++ show arity)
 
   propBody :: QName -> Int -> [CRule]
   propBody (_, name) arity =
@@ -116,7 +130,11 @@ createTest m testmodname origName modname test
                 (applyF (easyCheckModule,"execPropWithMsg")
                   [CVar msgvar
                   ,applyF (easyCheckFuncName arity)
-                     [constF (easyCheckConfig m)
+                     [maybe (constF (easyCheckConfig m))
+                            (\mx -> applyF (easyCheckModule,"setMaxTest")
+                                           [CLit (CIntc mx),
+                                            constF (easyCheckConfig m)])
+                            (maxTestOfOpts opts)
                      ,CVar msgvar
                      ,CSymbol (modname,name)]
                   ])]
@@ -204,15 +222,11 @@ publicModuleName = (++ "_PUBLIC")
 
 -- Check if a function definition is a property that should be tested,
 -- i.e., if the result type is Prop (= [Test]) or PropIO.
--- Since parameterized Prop tests are supported only by kics2,
--- we add these only if kics2 is used.
 isTest :: CFuncDecl -> Bool
 isTest = isTestType . funcType
  where
   isTestType :: CTypeExpr -> Bool
-  isTestType ct =
-    isPropIOType ct || ct == propType ||
-    (curryCompiler == "kics2" && resultType ct == propType)
+  isTestType ct = isPropIOType ct || resultType ct == propType
 
   propType = listType (baseType (easyCheckModule, "Test"))
    
@@ -229,15 +243,14 @@ classifyTests = map makeProperty
                         then assertion test
                         else property test
 
-  property f = PropTest (funcName f) (calcArity (funcType f)) 0
+  property  f = PropTest (funcName f) (calcArity (funcType f)) 0
 
   assertion f = AssertTest (funcName f) 0
 
 -- Extracts all tests and transforms all polymoprhic tests into Boolean tests.
-transformTests :: CurryProg -> ([CFuncDecl], CurryProg)
+transformTests :: CurryProg -> ([(Bool,CFuncDecl)], CurryProg)
 transformTests (CurryProg modName imports typeDecls functions opDecls) =
-  (map snd (filter fst tests),
-   CurryProg modName imports typeDecls newFunctions opDecls)
+  (tests, CurryProg modName imports typeDecls newFunctions opDecls)
  where
   (rawTests, funcs) = partition isTest functions
 
@@ -250,16 +263,21 @@ transformTests (CurryProg modName imports typeDecls functions opDecls) =
 -- polymorphically typed test function.
 -- The flag indicates whether the test function should be actually passed
 -- to the test tool.
+-- Since parameterized Prop tests are not supported by pakcs,
+-- they are ignored if pakcs is used.
 poly2bool :: CFuncDecl -> [(Bool,CFuncDecl)]
 poly2bool (CmtFunc _ name arity vis ftype rules) =
   poly2bool (CFunc name arity vis ftype rules)
-poly2bool fdecl@(CFunc (mn,fname) arity vis ftype _) =
-  if isPolyType ftype
-  then [(False,fdecl)
-       ,(True, CFunc (mn,fname++"_ON_BOOL") arity vis (p2b ftype)
+poly2bool fdecl@(CFunc (mn,fname) arity vis ftype _)
+  | curryCompiler == "pakcs" && calcArity ftype > 0
+  = [(False,fdecl)] -- ignore parameterized tests for PAKCS
+  | isPolyType ftype
+  = [(False,fdecl)
+    ,(True, CFunc (mn,fname++"_ON_BOOL") arity vis (p2b ftype)
                      [simpleRule [] (applyF (mn,fname) [])])
-       ]
-  else [(True,fdecl)]
+    ]
+  | otherwise
+  = [(True,fdecl)]
  where
   p2b (CTVar _) = boolType
   p2b (CFuncType t1 t2) = CFuncType (p2b t1) (p2b t2)
@@ -282,16 +300,22 @@ genAndAnalyseModule m moduleName = do
   prog <- readCurryWithParseOptions moduleName (setQuiet True defaultParams)
   lines <- getLines $ moduleName ++ ".curry"
   let words = firstWordsOfLines lines
-  let (rawTests, newMod) = transformModule prog
+      (alltests, newMod) = transformModule prog
+      (rawTests,ignoredTests) = partition fst alltests
   putStrIfNormal m $
-    "Test operations found: " ++
-    unwords (map (snd . orgTestName . funcName) rawTests) ++ "\n"
+    if null rawTests
+    then "No properties found for testing!\n"
+    else "Properties to be tested: " ++
+         unwords (map (snd . funcName . snd) rawTests) ++ "\n"
+  unless (null ignoredTests) $ putStrIfNormal m $
+    "Properties ignored for testing: " ++
+    unwords (map (snd . funcName . snd) ignoredTests) ++ "\n"
   saveCurryProgram newMod
   renameModule2 moduleName newModName
-  let tests = classifyTests rawTests
-  return $ TestModule moduleName newModName (addLinesNumbers words tests)
+  return $ TestModule moduleName newModName
+                      (addLinesNumbers words (classifyTests (map snd rawTests)))
  where
-  transformModule :: CurryProg -> ([CFuncDecl], CurryProg)
+  transformModule :: CurryProg -> ([(Bool,CFuncDecl)], CurryProg)
   transformModule = transformTests . renameModule1 newModName . makeAllPublic
 
   newModName = publicModuleName moduleName
@@ -313,10 +337,10 @@ genTestEnvironment m = mapIO (genAndAnalyseModule m)
 
 -- this creates the auxiliary test module containing all modules' tests
 -- and the main function to run the tests
-genTestModule :: VerbosityMode -> String -> [TestModule] -> IO ()
-genTestModule m testmodname modules = saveCurryProgram testProg
+genTestModule :: [CmdFlag] -> VerbosityMode -> String -> [TestModule] -> IO ()
+genTestModule opts m testmodname modules = saveCurryProgram testProg
  where
-  funcs = concatMap (createTests m testmodname) modules
+  funcs = concatMap (createTests opts m testmodname) modules
   mainFunction = genMainFunction m testmodname $ concatMap tests modules
   testProg = CurryProg testmodname imports [] (mainFunction : funcs) []
   imports = [easyCheckModule, "System"] ++ map newName modules
@@ -328,9 +352,10 @@ execTests testmodname = system $
 
 -- print the help
 showUsage :: IO ()
-showUsage =
-  error $ usageInfo ("usage: currycheck [OPTIONS] ModuleName[s]") options
-
+showUsage = do
+  putStr $ usageInfo ("Usage: currycheck [OPTIONS] ModuleName[s]") options
+  exitWith 1
+  
 --- Name of the Curry REPL binary:
 curryBin :: String
 curryBin = installDir ++ "/bin/curry"
@@ -351,18 +376,19 @@ main :: IO ()
 main = do
   argv <- getArgs
   pid  <- getPID
-  let (opts, args, _) = getOpt RequireOrder options argv
-      mode = getVerbosityMode opts
+  let (opts, args, opterrors) = getOpt RequireOrder options argv
+      vmode = getVerbosityMode opts
       testmodname = "TEST" ++ show pid
+  unless (null opterrors) (putStr (unlines opterrors) >> showUsage)
   when (null args) showUsage
-  testModules <- genTestEnvironment mode (map stripCurrySuffix args)
-  putStrIfNormal mode $
+  testModules <- genTestEnvironment vmode (map stripCurrySuffix args)
+  putStrIfNormal vmode $
     "Generating auxiliary test module '"++testmodname++"'...\n"
-  genTestModule mode testmodname testModules
-  putStrIfNormal mode $
+  genTestModule opts vmode testmodname testModules
+  putStrIfNormal vmode $
     "Compiling auxiliary test module '"++testmodname++"'...\n"
   ret <- execTests testmodname
-  cleanup mode testmodname testModules
+  cleanup vmode testmodname testModules
   exitWith ret
  where
   getVerbosityMode :: [CmdFlag] -> VerbosityMode
