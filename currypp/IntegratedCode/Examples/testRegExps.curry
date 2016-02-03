@@ -7,45 +7,45 @@
 --- POSIX extended regular expressions
 ------------------------------------------------------------------------------
 
-import Assertion
 import RegExp -- required in the pre-processed program
+import Test.EasyCheck
 
-test1 = assertTrue "abc" ("abc" ``regex abc'')
+test_abc = ("abc" ``regex abc'')  -=- True
 
-test2 = assertTrue "aba*c" ("abaaaaaaaaaaaaac" ````regex aba*c'''')
+test_abastarc = ("abaaaaaaaaaaaaac" ````regex aba*c'''')  -=- True
 
-test3 = assertTrue "(a|(bc*))+" ("aabcccaba" ``regex (a|(bc*))+'')
+test_a_bcstar_plus = ("aabcccaba" ``regex (a|(bc*))+'')   -=- True
 
-test4 = assertTrue "[:alpha:] 1" ("a" ``regex [:alpha:]'')
+test_alpha_1 = ("a" ``regex [:alpha:]'')                  -=- True
 
-test5 = assertTrue "[:alpha:] 2" (not ("4" ``regex [:alpha:]''))
+test_alpha_2 = (not ("4" ``regex [:alpha:]''))            -=- True
 
-test6 = assertTrue "[:alpha:]* 1" ("Abc" ``regex [:alpha:]*'')
+test_alpha_star_1 = ("Abc" ``regex [:alpha:]*'')          -=- True
 
-test7 = assertTrue "[:alpha:]* 2" (not ("ab9c" ``regex [:alpha:]*''))
+test_alpha_star_2 = ("ab9c" ``regex [:alpha:]*'')         -=- False
 
-test8 = assertTrue "[a-z]+ 1" ("abc" ``regex [a-z]+'')
+test_a_z_plus_1 = ("abc" ``regex [a-z]+'')                -=- True
 
-test9 = assertTrue "[a-z]+ 2" (not ("Abc" ``regex [a-z]+''))
+test_a_z_plus_2 = ("Abc" ``regex [a-z]+'')                -=- False
 
 -- Examples with parameterized regular expressions:
 
 pregexp1 :: [a] -> a -> a -> Bool
 pregexp1 s v1 v2 = s ``regex [<v1>-<v2>]*''
 
-test10 = assertTrue "para a-c 1" (pregexp1 "abccba" 'a' 'c')
+test_para_a_c_1 = pregexp1 "abccba" 'a' 'c'               -=- True
 
-test11 = assertTrue "para a-c 2" (not (pregexp1 "abcdcba" 'a' 'c'))
+test_para_a_c_2 = pregexp1 "abcdcba" 'a' 'c'              -=- False
 
 pregexp2 :: [a] -> a -> a -> Bool
 pregexp2 s v1 v2 = s ``regex (<v1>|<v2>)*''
 
-test12 = assertTrue "para (0|1)* 1" (pregexp2 [0,1,1,0,0] 0 1)
+test_para_0_1_star_1 = pregexp2 [0,1,1,0,0] 0 1           -=- True
 
-test13 = assertTrue "para (0|1)* 2" (not (pregexp2 [0,1,2,0,0] 0 1))
+test_para_0_1_star_2 = pregexp2 [0,1,2,0,0] 0 1           -=- False
 
 -- A regular expression containing a complex Curry expression:
-test14 = assertTrue "complexexp" ("a" ``regex <((\x -\> x) 'a')>'')
+test_complexexp = ("a" ``regex <((\x -\> x) 'a')>'')      -=- True
 
 
 -- Email address matching:
@@ -57,15 +57,15 @@ isEmail s = s ``regex
   ([:alnum:][a-zA-Z0-9\-]*\.)*
   [a-zA-Z]{2,4}''
 
-test20 = assertTrue "Email1" (isEmail "pakcs@curry-language.org")
+test_Email1 = isEmail "pakcs@curry-language.org"      -=- True
 
-test21 = assertTrue "Email2" (not (isEmail "pa%kcs@curry-language.org"))
+test_Email2 = isEmail "pa%kcs@curry-language.org"     -=- False
 
 
 isID :: String -> Bool
 isID s = s ``regex [a-zA-Z][a-zA-Z0-9_']*''
 
-test30 = assertTrue "ID1" (isID "ab_4'aux")
+test_ID1 = isID "ab_4'aux"    -=- True
 
-test31 = assertTrue "ID2" (not (isID "4ab"))
+test_ID2 = isID "4ab"         -=- False
 

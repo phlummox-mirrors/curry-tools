@@ -5,8 +5,8 @@
 --- easy writing of HTML code in Curry programs.
 ------------------------------------------------------------------------------
 
-import Assertion
 import HTML
+import Test.EasyCheck
 
 htmlTest1 :: String -> [HtmlExp]
 htmlTest1 name = ``html
@@ -37,4 +37,4 @@ htmlDoc1 =
         [HtmlText "eoJ", HtmlText "\n"],
        HtmlText "Bye!"]]]
 
-test1 = assertEqual "Html code" (htmlTest1 "Joe") htmlDoc1
+test_Html_code = htmlTest1 "Joe" -=- htmlDoc1

@@ -7,12 +7,9 @@ CURRYBIN="../../../../bin"
 PATH=$CURRYBIN:$PATH
 export PATH
 
-# test for basic language features
-ALLTESTS="testFormat"
-
 # clean up before
 $CURRYBIN/cleancurry
 
 # execute all unit tests:
 echo "Executing unit tests for Curry code integrator..."
-$CURRYBIN/currytest test*.curry
+$CURRYBIN/currycheck test*.curry
