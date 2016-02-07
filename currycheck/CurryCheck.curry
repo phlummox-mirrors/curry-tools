@@ -112,10 +112,10 @@ createTest opts m testmodname origName modname test =
           createTest'
  where
   createTest' = case test of
-    (PropTest   name arity _) -> (execPropResultType, propBody name arity)
-    (AssertTest name       _) -> (execPropResultType, assertBody name)
+    (PropTest   name arity _) -> (checkPropResultType, propBody name arity)
+    (AssertTest name       _) -> (checkPropResultType, assertBody name)
 
-  execPropResultType = ioType (maybeType stringType)
+  checkPropResultType = ioType (maybeType stringType)
   
   genTestName (modName, fName) = fName ++ "_" ++ modName
 
@@ -127,7 +127,7 @@ createTest opts m testmodname origName modname test =
   propBody (_, name) arity =
     [simpleRule [] $
        CLetDecl [CLocalPat (CPVar msgvar) (CSimpleRhs msg [])]
-                (applyF (easyCheckModule,"execPropWithMsg")
+                (applyF (easyCheckModule,"checkPropWithMsg")
                   [CVar msgvar
                   ,applyF (easyCheckFuncName arity)
                      [maybe (constF (easyCheckConfig m))
@@ -142,7 +142,7 @@ createTest opts m testmodname origName modname test =
     
   assertBody :: QName -> [CRule]
   assertBody (_, name) =
-    [simpleRule [] $ applyF (easyCheckModule, "checkPropIO")
+    [simpleRule [] $ applyF (easyCheckModule, "checkPropIOWithMsg")
                             [constF (easyCheckConfig m)
                             ,msg
                             ,CSymbol (modname, name)]]
@@ -205,7 +205,7 @@ genMainFunction vm testModule tests =
         else [CSExpr (applyF (pre "putStrLn")
                              [string2ac "Executing all tests..."])]) ++
      [ CSPat (cpvar "x1") $ -- run all tests:
-          applyF (easyCheckModule, "execProps") [easyCheckExprs]
+          applyF (easyCheckModule, "runPropertyTests") [easyCheckExprs]
      , CSExpr $ applyF ("System", "exitWith") [cvar "x1"]
      ]
 
