@@ -132,7 +132,7 @@ createTest opts m testmodname origName modname test =
                   ,applyF (easyCheckFuncName arity)
                      [maybe (constF (easyCheckConfig m))
                             (\mx -> applyF (easyCheckModule,"setMaxTest")
-                                           [CLit (CIntc mx),
+                                           [cInt mx,
                                             constF (easyCheckConfig m)])
                             (maxTestOfOpts opts)
                      ,CVar msgvar
@@ -154,7 +154,7 @@ renameModule1 newName (CurryProg _ imports typedecls functions opdecls)
   = CurryProg newName imports typedecls functions opdecls
 
 -- part two: remove all references to the old module name in the code
--- Problem (TODO): simple string replacement does not for hierarchical
+-- Problem (TODO): simple string replacement does not work for hierarchical
 -- module names
 renameModule2 :: String -> String -> IO ()
 renameModule2 oldName newName =
