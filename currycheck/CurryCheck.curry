@@ -156,13 +156,17 @@ createTest opts m testmodname origName modname test =
 type2genop :: CTypeExpr -> CExpr
 type2genop (CTVar _)       = error "No polymorphic generator!"
 type2genop (CFuncType _ _) = error "No generator for functional types!"
-type2genop (CTCons tc targs)
-  | tc == pre "Bool" = constF (generatorModule, "genBool")
-  | tc == pre "Int"  = constF (generatorModule, "genInt")
-  | tc == pre "Char" = constF (generatorModule, "genChar")
-  | tc == pre "[]"   = applyF (generatorModule, "genList")
-                              (map type2genop targs)
-  | otherwise = error ("No generator for type '" ++ snd tc ++ "'!")
+type2genop (CTCons qtc@(_,tc) targs)
+  | qtc `elem` map pre ["Bool","Int","Char","Maybe","Either"]
+  = applyF (generatorModule, "gen" ++ tc) (map type2genop targs)
+  | qtc `elem` map pre ["[]","()","(,)"]
+  = applyF (generatorModule, "gen" ++ transTC tc)
+           (map type2genop targs)
+  | otherwise = error ("No generator for type '" ++ tc ++ "'!")
+ where
+  transTC tcons | tcons == "[]"  = "List"
+                | tcons == "()"  = "Unit"
+                | tcons == "(,)" = "Pair"
 
 -- the module has to be renamed, this happens in two steps
 -- part one: changing the module name in the module header
