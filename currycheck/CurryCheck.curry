@@ -57,10 +57,10 @@ putStrIfNormal md s = when (md /= Quiet) $ do
 -------------------------------------------------------------------------
 
 -- Internal representation of tests extracted from a Curry module.
--- A test is either a property test (with a name, arity, source line number)
+-- A test is either a property test (with a name, type, source line number)
 -- passed to EasyCheck, or an IO test (with a name, source line number)
 -- which is directly executed.
-data Test = PropTest QName Int Int | AssertTest QName Int
+data Test = PropTest QName CTypeExpr Int | AssertTest QName Int
 
 -- The name of a test:
 getTestName :: Test -> QName
@@ -112,8 +112,8 @@ createTest opts m testmodname origName modname test =
           createTest'
  where
   createTest' = case test of
-    (PropTest   name arity _) -> (checkPropResultType, propBody name arity)
-    (AssertTest name       _) -> (checkPropResultType, assertBody name)
+    (PropTest   name t _) -> (checkPropResultType, propBody name (argTypes t))
+    (AssertTest name   _) -> (checkPropResultType, assertBody name)
 
   checkPropResultType = ioType (maybeType stringType)
   
@@ -121,22 +121,28 @@ createTest opts m testmodname origName modname test =
 
   msg = string2ac $ genMsg (getTestLine test) origName (getTestName test)
 
-  easyCheckFuncName arity = (easyCheckModule, "check" ++ show arity)
+  easyCheckFuncName arity =
+    (easyCheckModule, ifPAKCS "checkWithValues" "check" ++ show arity)
 
-  propBody :: QName -> Int -> [CRule]
-  propBody (_, name) arity =
+  propBody :: QName -> [CTypeExpr] -> [CRule]
+  propBody (_, name) argtypes =
     [simpleRule [] $
        CLetDecl [CLocalPat (CPVar msgvar) (CSimpleRhs msg [])]
                 (applyF (easyCheckModule,"checkPropWithMsg")
                   [CVar msgvar
-                  ,applyF (easyCheckFuncName arity)
+                  ,applyF (easyCheckFuncName (length argtypes)) $
                      [maybe (constF (easyCheckConfig m))
                             (\mx -> applyF (easyCheckModule,"setMaxTest")
                                            [cInt mx,
                                             constF (easyCheckConfig m)])
                             (maxTestOfOpts opts)
-                     ,CVar msgvar
-                     ,CSymbol (modname,name)]
+                     ,CVar msgvar] ++
+                     (ifPAKCS (map (\t -> applyF
+                                          (easyCheckModule,"valuesOfSearchTree")
+                                          [type2genop t])
+                                   argtypes)
+                              []) ++
+                     [CSymbol (modname,name)]
                   ])]
    where msgvar = (0,"msg")
     
@@ -146,6 +152,17 @@ createTest opts m testmodname origName modname test =
                             [constF (easyCheckConfig m)
                             ,msg
                             ,CSymbol (modname, name)]]
+
+type2genop :: CTypeExpr -> CExpr
+type2genop (CTVar _)       = error "No polymorphic generator!"
+type2genop (CFuncType _ _) = error "No generator for functional types!"
+type2genop (CTCons tc targs)
+  | tc == pre "Bool" = constF (generatorModule, "genBool")
+  | tc == pre "Int"  = constF (generatorModule, "genInt")
+  | tc == pre "Char" = constF (generatorModule, "genChar")
+  | tc == pre "[]"   = applyF (generatorModule, "genList")
+                              (map type2genop targs)
+  | otherwise = error ("No generator for type '" ++ snd tc ++ "'!")
 
 -- the module has to be renamed, this happens in two steps
 -- part one: changing the module name in the module header
@@ -243,7 +260,7 @@ classifyTests = map makeProperty
                         then assertion test
                         else property test
 
-  property  f = PropTest (funcName f) (calcArity (funcType f)) 0
+  property  f = PropTest (funcName f) (funcType f) 0
 
   assertion f = AssertTest (funcName f) 0
 
@@ -263,14 +280,10 @@ transformTests (CurryProg modName imports typeDecls functions opDecls) =
 -- polymorphically typed test function.
 -- The flag indicates whether the test function should be actually passed
 -- to the test tool.
--- Since parameterized Prop tests are not supported by pakcs,
--- they are ignored if pakcs is used.
 poly2bool :: CFuncDecl -> [(Bool,CFuncDecl)]
 poly2bool (CmtFunc _ name arity vis ftype rules) =
   poly2bool (CFunc name arity vis ftype rules)
 poly2bool fdecl@(CFunc (mn,fname) arity vis ftype _)
-  | curryCompiler == "pakcs" && calcArity ftype > 0
-  = [(False,fdecl)] -- ignore parameterized tests for PAKCS
   | isPolyType ftype
   = [(False,fdecl)
     ,(True, CFunc (mn,fname++"_ON_BOOL") arity vis (p2b ftype)
@@ -323,8 +336,8 @@ genAndAnalyseModule m moduleName = do
   addLinesNumbers words = map (addLineNumber words)
 
   addLineNumber :: [String] -> Test -> Test
-  addLineNumber words (PropTest   name a _) =
-    PropTest   name a $ getLineNumber words (orgTestName name)
+  addLineNumber words (PropTest   name texp _) =
+    PropTest   name texp $ getLineNumber words (orgTestName name)
   addLineNumber words (AssertTest name _) =
     AssertTest name $ getLineNumber words (orgTestName name)
 
@@ -343,7 +356,9 @@ genTestModule opts m testmodname modules = saveCurryProgram testProg
   funcs = concatMap (createTests opts m testmodname) modules
   mainFunction = genMainFunction m testmodname $ concatMap tests modules
   testProg = CurryProg testmodname imports [] (mainFunction : funcs) []
-  imports = [easyCheckModule, "System"] ++ map newName modules
+  imports = [easyCheckModule, "System"] ++
+            (ifPAKCS [generatorModule] []) ++
+            map newName modules
 
 -- Executes the main operation of the generated test module.
 execTests :: String -> IO Int
@@ -403,9 +418,9 @@ main = do
 easyCheckModule :: String
 easyCheckModule = "Test.EasyCheck" 
 
--- Calculates the arity of a function from its actual type.
-calcArity :: CTypeExpr -> Int
-calcArity = length . argTypes
+--- Name of the SearchTreeGenerator module.
+generatorModule :: String
+generatorModule = "SearchTreeGenerators"
 
 -- save a Curry program as 'ModuleName'.curry
 saveCurryProgram :: CurryProg -> IO ()
@@ -413,5 +428,8 @@ saveCurryProgram p = do
   file <- openFile (progName p ++ ".curry") WriteMode
   hPutStrLn file $ showCProg p
   hClose file
+
+ifPAKCS :: a -> a -> a
+ifPAKCS x y = if curryCompiler == "pakcs" then x else y
 
 -------------------------------------------------------------------------
