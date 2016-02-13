@@ -139,7 +139,7 @@ createTest opts m testmodname origName modname test =
                      ,CVar msgvar] ++
                      (ifPAKCS (map (\t -> applyF
                                           (easyCheckModule,"valuesOfSearchTree")
-                                          [type2genop t])
+                                          [type2genop testmodname t])
                                    argtypes)
                               []) ++
                      [CSymbol (modname,name)]
@@ -153,20 +153,26 @@ createTest opts m testmodname origName modname test =
                             ,msg
                             ,CSymbol (modname, name)]]
 
-type2genop :: CTypeExpr -> CExpr
-type2genop (CTVar _)       = error "No polymorphic generator!"
-type2genop (CFuncType _ _) = error "No generator for functional types!"
-type2genop (CTCons qtc@(_,tc) targs)
-  | qtc `elem` map pre ["Bool","Int","Char","Maybe","Either"]
-  = applyF (generatorModule, "gen" ++ tc) (map type2genop targs)
-  | qtc `elem` map pre ["[]","()","(,)"]
-  = applyF (generatorModule, "gen" ++ transTC tc)
-           (map type2genop targs)
-  | otherwise = error ("No generator for type '" ++ tc ++ "'!")
+type2genop :: String -> CTypeExpr -> CExpr
+type2genop _ (CTVar _)       = error "No polymorphic generator!"
+type2genop _ (CFuncType _ _) = error "No generator for functional types!"
+type2genop testmod (CTCons qtc@(_,tc) targs)
+  | qtc `elem` map pre ["Bool","Int","Char","Maybe","Either","Ordering"]
+  = applyF (generatorModule, "gen" ++ tc) arggens
+  | qtc `elem` map pre ["[]","()","(,)","(,,)","(,,,)","(,,,,)"]
+  = applyF (generatorModule, "gen" ++ transTC tc) arggens
+  | otherwise
+   -- let's hope that the programmer has defined an appropriate generator:
+  = applyF (testmod, "gen" ++ tc) arggens
  where
-  transTC tcons | tcons == "[]"  = "List"
-                | tcons == "()"  = "Unit"
-                | tcons == "(,)" = "Pair"
+  arggens = map (type2genop testmod) targs
+
+  transTC tcons | tcons == "[]"     = "List"
+                | tcons == "()"     = "Unit"
+                | tcons == "(,)"    = "Pair"
+                | tcons == "(,,)"   = "Triple"
+                | tcons == "(,,,)"  = "Tuple4"
+                | tcons == "(,,,,)" = "Tuple5"
 
 -- the module has to be renamed, this happens in two steps
 -- part one: changing the module name in the module header
