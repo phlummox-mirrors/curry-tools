@@ -182,7 +182,7 @@ renameModule1 newName (CurryProg _ imports typedecls functions opdecls)
 
 -- part two: remove all references to the old module name in the code
 -- Problem (TODO): simple string replacement does not work for hierarchical
--- module names
+-- module names, better perform replace in renameModule1 on AbstractCurry level
 renameModule2 :: String -> String -> IO ()
 renameModule2 oldName newName =
   updateFile (replaceString (oldName ++ ".") "") filename
@@ -199,9 +199,15 @@ replaceString old new str@(s:ss)
 -- make all functions public
 -- this ensures that all tests can be executed
 makeAllPublic :: CurryProg -> CurryProg
-makeAllPublic (CurryProg modname imports typedecls functions opdecls)
-  = CurryProg modname imports typedecls publicFunctions opdecls
+makeAllPublic (CurryProg modname imports typedecls functions opdecls) =
+  CurryProg modname stimports typedecls publicFunctions opdecls
  where
+  stimports = if generatorModule `elem` imports &&
+                 searchTreeModule `notElem` imports
+              then searchTreeModule : imports -- just to be safe if module
+                                              -- contains generator definitions
+              else imports
+
   publicFunctions = map makePublic $ map ignoreComment functions
 
   -- since we create a copy of the module, we can ignore unnecessary data
@@ -427,6 +433,10 @@ main = do
 --- Name of the EasyCheck module.
 easyCheckModule :: String
 easyCheckModule = "Test.EasyCheck" 
+
+--- Name of the SearchTree module.
+searchTreeModule :: String
+searchTreeModule = "SearchTree"
 
 --- Name of the SearchTreeGenerator module.
 generatorModule :: String
