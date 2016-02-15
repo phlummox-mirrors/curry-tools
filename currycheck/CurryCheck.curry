@@ -12,14 +12,15 @@ import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Select
 import AbstractCurry.Build
-import AbstractCurry.Pretty (showCProg)
+import AbstractCurry.Pretty    (showCProg)
+import AbstractCurry.Transform (renameCurryModule)
 import Distribution
 import GetOpt
 import IO
 import IOExts
 import List
-import Read                 (readNat)
-import System               (system, exitWith, getArgs, getPID)
+import Read                    (readNat)
+import System                  (system, exitWith, getArgs, getPID)
 
 -------------------------------------------------------------------------
 -- command line options
@@ -174,30 +175,8 @@ type2genop testmod (CTCons qtc@(_,tc) targs)
                 | tcons == "(,,,)"  = "Tuple4"
                 | tcons == "(,,,,)" = "Tuple5"
 
--- the module has to be renamed, this happens in two steps
--- part one: changing the module name in the module header
-renameModule1 :: String -> CurryProg -> CurryProg
-renameModule1 newName (CurryProg _ imports typedecls functions opdecls)
-  = CurryProg newName imports typedecls functions opdecls
-
--- part two: remove all references to the old module name in the code
--- Problem (TODO): simple string replacement does not work for hierarchical
--- module names, better perform replace in renameModule1 on AbstractCurry level
-renameModule2 :: String -> String -> IO ()
-renameModule2 oldName newName =
-  updateFile (replaceString (oldName ++ ".") "") filename
- where
-  filename = newName ++ ".curry"
-
--- replace all occurrences of old with new in str
-replaceString :: String -> String -> String -> String
-replaceString _   _   ""         = ""
-replaceString old new str@(s:ss)
-  | old == take (length old) str = new ++ replaceString old new (drop (length old) str)
-  | otherwise                    = s : replaceString old new ss
-
--- make all functions public
--- this ensures that all tests can be executed
+-- Turn all functions into public ones.
+-- This ensures that all tests can be executed.
 makeAllPublic :: CurryProg -> CurryProg
 makeAllPublic (CurryProg modname imports typedecls functions opdecls) =
   CurryProg modname stimports typedecls publicFunctions opdecls
@@ -340,12 +319,12 @@ genAndAnalyseModule m moduleName = do
     "Properties ignored for testing: " ++
     unwords (map (snd . funcName . snd) ignoredTests) ++ "\n"
   saveCurryProgram newMod
-  renameModule2 moduleName newModName
   return $ TestModule moduleName newModName
                       (addLinesNumbers words (classifyTests (map snd rawTests)))
  where
   transformModule :: CurryProg -> ([(Bool,CFuncDecl)], CurryProg)
-  transformModule = transformTests . renameModule1 newModName . makeAllPublic
+  transformModule =
+    transformTests . renameCurryModule newModName . makeAllPublic
 
   newModName = publicModuleName moduleName
 
