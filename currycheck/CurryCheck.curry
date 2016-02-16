@@ -24,7 +24,7 @@ import System                  (system, exitWith, getArgs, getPID)
 
 -------------------------------------------------------------------------
 -- command line options
-data CmdFlag = FQuiet | FVerbose | FMaxTest Int
+data CmdFlag = FQuiet | FVerbose | FMaxTest Int | FMaxFail Int
 
 options :: [OptDescr CmdFlag]
 options =
@@ -34,6 +34,8 @@ options =
            "run in verbose mode (ignored if 'quiet' is set)"
   , Option "m" ["maxtests"] (ReqArg (\s -> FMaxTest (readNat s)) "<n>")
            "maximal number of tests (default: 100)"
+  , Option "f" ["maxfails"] (ReqArg (\s -> FMaxFail (readNat s)) "<n>")
+           "maximal number of condition failures (default: 10000)"
   ]
 
 maxTestOfOpts :: [CmdFlag] -> Maybe Int
@@ -43,6 +45,15 @@ maxTestOfOpts opts =
         (find isMaxTestFlag opts)
  where
    isMaxTestFlag opt = case opt of FMaxTest _ -> True
+                                   _          -> False
+                                   
+maxFailOfOpts :: [CmdFlag] -> Maybe Int
+maxFailOfOpts opts =
+  maybe Nothing
+        (\ (FMaxFail n) -> if n==0 then Nothing else Just n)
+        (find isMaxFailFlag opts)
+ where
+   isMaxFailFlag opt = case opt of FMaxFail _ -> True
                                    _          -> False
                                    
 -------------------------------------------------------------------------
@@ -59,8 +70,7 @@ putStrIfNormal md s = when (md /= Quiet) $ do
 
 -- Internal representation of tests extracted from a Curry module.
 -- A test is either a property test (with a name, type, source line number)
--- passed to EasyCheck, or an IO test (with a name, source line number)
--- which is directly executed.
+-- or an IO test (with a name and source line number).
 data Test = PropTest QName CTypeExpr Int | AssertTest QName Int
 
 -- The name of a test:
@@ -79,15 +89,9 @@ data TestModule = TestModule
   , tests      :: [Test]
   }
 
--- get all lines from file `filename`
-getLines :: String -> IO [String]
-getLines filename = readFile filename >>= return . lines
-
--- extracts the first word of each string
-firstWordsOfLines :: [String] -> [String]
-firstWordsOfLines = map firstWord
- where
-  firstWord = head . splitOn "\t" . head . splitOn " "
+-- Extracts the first word of a string
+firstWord :: String -> String
+firstWord = head . splitOn "\t" . head . splitOn " "
 
 -- generate a useful error message for failed tests (module and line number)
 genMsg :: Int -> String -> QName -> String
@@ -95,6 +99,7 @@ genMsg lineNumber file testfun =
   snd (testfun) ++
   " (module " ++ file ++ ", line " ++ show lineNumber ++ ")"
 
+-- The configuration option for EasyCheck
 easyCheckConfig :: VerbosityMode -> QName
 easyCheckConfig m =
   (easyCheckModule, case m of Verbose -> "verboseConfig"
@@ -108,7 +113,7 @@ createTests opts m testmodname (TestModule moduleName newName tests) =
 
 createTest :: [CmdFlag] -> VerbosityMode -> String -> String -> String -> Test
            -> CFuncDecl
-createTest opts m testmodname origName modname test =
+createTest opts md testmodname origName modname test =
   uncurry (cfunc (testmodname, (genTestName $ getTestName test)) 0 Public)
           createTest'
  where
@@ -132,12 +137,7 @@ createTest opts m testmodname origName modname test =
                 (applyF (easyCheckModule,"checkPropWithMsg")
                   [CVar msgvar
                   ,applyF (easyCheckFuncName (length argtypes)) $
-                     [maybe (constF (easyCheckConfig m))
-                            (\mx -> applyF (easyCheckModule,"setMaxTest")
-                                           [cInt mx,
-                                            constF (easyCheckConfig m)])
-                            (maxTestOfOpts opts)
-                     ,CVar msgvar] ++
+                     [configOpWithMaxFail, CVar msgvar] ++
                      (ifPAKCS (map (\t -> applyF
                                           (easyCheckModule,"valuesOfSearchTree")
                                           [type2genop testmodname t])
@@ -145,14 +145,24 @@ createTest opts m testmodname origName modname test =
                               []) ++
                      [CSymbol (modname,name)]
                   ])]
-   where msgvar = (0,"msg")
+   where
+    configOpWithMaxTest = maybe stdConfigOp
+                                (\n -> applyF (easyCheckModule,"setMaxTest")
+                                              [cInt n, stdConfigOp])
+                                (maxTestOfOpts opts)
+                            
+    configOpWithMaxFail = maybe configOpWithMaxTest
+                                (\n -> applyF (easyCheckModule,"setMaxFail")
+                                              [cInt n, configOpWithMaxTest])
+                                (maxFailOfOpts opts)
+                            
+    msgvar = (0,"msg")
     
-  assertBody :: QName -> [CRule]
+  stdConfigOp = constF (easyCheckConfig md)
+    
   assertBody (_, name) =
     [simpleRule [] $ applyF (easyCheckModule, "checkPropIOWithMsg")
-                            [constF (easyCheckConfig m)
-                            ,msg
-                            ,CSymbol (modname, name)]]
+                            [stdConfigOp, msg, CSymbol (modname, name)]]
 
 type2genop :: String -> CTypeExpr -> CExpr
 type2genop _ (CTVar _)       = error "No polymorphic generator!"
@@ -305,9 +315,9 @@ orgTestName (mn,tname) =
 genAndAnalyseModule :: VerbosityMode -> String -> IO TestModule
 genAndAnalyseModule m moduleName = do
   putStrIfNormal m $ "Analyzing tests in module '" ++ moduleName ++ "'...\n"
-  prog <- readCurryWithParseOptions moduleName (setQuiet True defaultParams)
-  lines <- getLines $ moduleName ++ ".curry"
-  let words = firstWordsOfLines lines
+  prog    <- readCurryWithParseOptions moduleName (setQuiet True defaultParams)
+  progtxt <- readFile (moduleName ++ ".curry")
+  let words = map firstWord (lines progtxt)
       (alltests, newMod) = transformModule prog
       (rawTests,ignoredTests) = partition fst alltests
   putStrIfNormal m $

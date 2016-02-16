@@ -2,7 +2,7 @@
 # Shell script to test the current set of examples
 CURRYBIN="../../../bin"
 
-ALLTESTS="ExampleTests DefaultRulesTest SEBF"
+ALLTESTS="ExampleTests DefaultRulesTest SEBF Nats Tree"
 
 LOGFILE=xxx$$
 PATH=$CURRYBIN:$PATH
