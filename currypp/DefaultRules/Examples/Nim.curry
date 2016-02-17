@@ -1,6 +1,8 @@
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=defaultrules #-}
 {-# OPTIONS_CYMAKE -Wnone #-}
 
+import Test.EasyCheck
+
 -- A simple implementation of a two-person game (here: Nim) with default rules
 --
 -- Example taken from (where the same example was implemented with "fails"):
@@ -28,3 +30,5 @@ data Nat = Z | S Nat
 
 
 main = winMove [S (S Z), S Z]
+
+testNim = winMove [S (S Z), S Z]  -=-  [S Z, S Z]

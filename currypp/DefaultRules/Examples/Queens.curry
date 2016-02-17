@@ -1,9 +1,8 @@
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=defaultrules #-}
 {-# OPTIONS_CYMAKE -Wnone #-}
 
-import Assertion
 import Integer(abs)
-
+import Test.EasyCheck
 
 -------------------------------------------------------------------------
 -- Definition of n-queens with default rules:
@@ -24,9 +23,9 @@ safe'default xs = xs
 queens :: Int -> [Int]
 queens n = safe (perm [1..n])
 
-testq1 = assertValues "Queens4" (queens 4) [[3,1,4,2],[2,4,1,3]]
+test_queens4 = queens 4  <~>  ([3,1,4,2] ? [2,4,1,3])
 
-testq2 = assertValues "Queens6" (queens 6)
-             [[5,3,1,6,4,2],[4,1,5,2,6,3],[3,6,2,5,1,4],[2,4,6,1,3,5]]
+test_queens6 = queens 6  <~>
+               ([5,3,1,6,4,2] ? [4,1,5,2,6,3] ? [3,6,2,5,1,4] ? [2,4,6,1,3,5])
 
 -------------------------------------------------------------------------

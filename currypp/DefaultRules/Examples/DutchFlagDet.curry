@@ -1,5 +1,7 @@
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=defaultrules #-}
 
+import Test.EasyCheck
+
 -- Dijsktra's Dutch National Flag problem with functional patterns,
 -- default rule declared as a deterministic function:
 
@@ -15,3 +17,6 @@ iflag = [White,Red,White,Blue,Red,Blue,White]
 
 main = solveD iflag
  --> [Red,Red,White,White,White,Blue,Blue]
+
+test_solveD =  solveD iflag  -=-  [Red,Red,White,White,White,Blue,Blue]
+
