@@ -1,6 +1,5 @@
 -- Some examples for the use of CurryCheck with user-defined data
 
-import SearchTreeGenerators
 import Test.EasyCheck
 
 -- Natural numbers defined by s-terms (Z=zero, S=successor):
@@ -19,9 +18,6 @@ leq Z     _     = True
 leq (S _) Z     = False
 leq (S x) (S y) = leq x y
 
--- To use CurryCheck with PAKCS, we have to define our own
--- generator for Nat values (this is not necessary for KiCS2):
-genNat = genCons0 Z ||| genCons1 S genNat
 
 -- Property: the addition operator is commutative
 add_commutative x y = add x y -=- add y x

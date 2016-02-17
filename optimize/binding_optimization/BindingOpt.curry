@@ -3,7 +3,7 @@
 --- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version October 2015
+--- @version February 2016
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
@@ -33,7 +33,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 19/10/2015)"
+  let bannerText = "Curry Binding Optimizer (version of 17/02/2016)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -91,7 +91,9 @@ printVerbose verbosity printlevel message =
 transformBoolEq :: Options -> String -> IO ()
 transformBoolEq opts@(verb, _, _) name = do
   let isfcyname = fileSuffix name == "fcy"
-      modname   = stripCurrySubdir (stripSuffix name)
+      modname   = if isfcyname
+                  then modNameOfFcyName (normalise (stripSuffix name))
+                  else name
   printVerbose verb 1 $ "Reading and analyzing module '" ++ modname ++ "'..."
   flatprog <- if isfcyname then readFlatCurryFile name
                            else readFlatCurry     modname
@@ -102,10 +104,14 @@ dropSuffix :: [a] -> [a] -> [a]
 dropSuffix sfx s | sfx `isSuffixOf` s = take (length s - length sfx) s
                  | otherwise          = s
 
-stripCurrySubdir :: String -> String
-stripCurrySubdir s = let (dir, base) = splitDirectoryBaseName s
-                     in normalise $ dropSuffix currySubdir dir </> base
-
+-- Extracts the module name from a given FlatCurry file name:
+modNameOfFcyName :: String -> String
+modNameOfFcyName name =
+  let wosuffix = normalise (stripSuffix name)
+      [dir,wosubdir] = splitOn (currySubdir ++ [pathSeparator]) wosuffix
+   in -- construct hierarchical module name:
+      dir </> intercalate "." (split (==pathSeparator) wosubdir)
+   
 transformAndStoreFlatProg :: Options -> String -> Prog -> IO ()
 transformAndStoreFlatProg opts@(verb, _, load) modname prog = do
   let (dir, name) = splitModuleFileName (progName prog) modname

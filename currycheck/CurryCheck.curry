@@ -15,13 +15,30 @@ import AbstractCurry.Build
 import AbstractCurry.Pretty    (showCProg)
 import AbstractCurry.Transform (renameCurryModule)
 import Distribution
+import qualified FlatCurry.Types as FC
+import FlatCurry.Files
+import qualified FlatCurry.Goodies as FCG
 import GetOpt
 import IO
-import IOExts
 import List
 import Read                    (readNat)
 import System                  (system, exitWith, getArgs, getPID)
 
+-- Banner of this tool:
+ccBanner :: String
+ccBanner = unlines [bannerLine,bannerText,bannerLine]
+ where
+   bannerText =
+     "CurryCheck: a tool for testing Curry programs (version of 17/02/2016)"
+   bannerLine = take (length bannerText) (repeat '=')
+
+-- print the help
+showUsage :: IO ()
+showUsage = do
+  putStr $ usageInfo ("Usage: currycheck [options] <ModuleName[s]>\n")
+                     options
+  exitWith 1
+  
 -------------------------------------------------------------------------
 -- command line options
 data CmdFlag = FQuiet | FVerbose | FMaxTest Int | FMaxFail Int
@@ -37,6 +54,12 @@ options =
   , Option "f" ["maxfails"] (ReqArg (\s -> FMaxFail (readNat s)) "<n>")
            "maximal number of condition failures (default: 10000)"
   ]
+
+isQuiet :: [CmdFlag] -> Bool
+isQuiet = (FQuiet `elem`)
+
+isVerbose :: [CmdFlag] -> Bool
+isVerbose = (FVerbose `elem`)
 
 maxTestOfOpts :: [CmdFlag] -> Maybe Int
 maxTestOfOpts opts =
@@ -56,13 +79,9 @@ maxFailOfOpts opts =
    isMaxFailFlag opt = case opt of FMaxFail _ -> True
                                    _          -> False
                                    
--------------------------------------------------------------------------
--- represents the verbosity level used
-data VerbosityMode = Quiet | Verbose | Normal
-
---- Print second argument if verbosity level is at least Normal:
-putStrIfNormal :: VerbosityMode -> String -> IO ()
-putStrIfNormal md s = when (md /= Quiet) $ do
+--- Print second argument if verbosity level is not quiet:
+putStrIfNormal :: [CmdFlag] -> String -> IO ()
+putStrIfNormal opts s = unless (isQuiet opts) $ do
   putStr s
   hFlush stdout
 
@@ -83,9 +102,14 @@ getTestLine :: Test -> Int
 getTestLine (PropTest   _ _ n) = n
 getTestLine (AssertTest _   n) = n
 
+-- Generates a useful error message for tests (with module and line number)
+genTestMsg :: String -> Test -> String
+genTestMsg file test =
+  snd (getTestName test) ++
+  " (module " ++ file ++ ", line " ++ show (getTestLine test) ++ ")"
+
 data TestModule = TestModule
   { moduleName :: String
-  , newName    :: String
   , tests      :: [Test]
   }
 
@@ -93,57 +117,61 @@ data TestModule = TestModule
 firstWord :: String -> String
 firstWord = head . splitOn "\t" . head . splitOn " "
 
--- generate a useful error message for failed tests (module and line number)
-genMsg :: Int -> String -> QName -> String
-genMsg lineNumber file testfun =
-  snd (testfun) ++
-  " (module " ++ file ++ ", line " ++ show lineNumber ++ ")"
-
 -- The configuration option for EasyCheck
-easyCheckConfig :: VerbosityMode -> QName
-easyCheckConfig m =
-  (easyCheckModule, case m of Verbose -> "verboseConfig"
-                              Quiet   -> "quietConfig"
-                              _       -> "easyConfig"   )
+easyCheckConfig :: [CmdFlag] -> QName
+easyCheckConfig opts =
+  (easyCheckModule, if isQuiet opts   then "quietConfig"   else
+                    if isVerbose opts then "verboseConfig" else "easyConfig")
 
--- Transform all tests to an appropriate call of EasyCheck:
-createTests :: [CmdFlag] -> VerbosityMode -> String -> TestModule -> [CFuncDecl]
-createTests opts m testmodname (TestModule moduleName newName tests) =
-  map (createTest opts m testmodname moduleName newName) tests
-
-createTest :: [CmdFlag] -> VerbosityMode -> String -> String -> String -> Test
-           -> CFuncDecl
-createTest opts md testmodname origName modname test =
-  uncurry (cfunc (testmodname, (genTestName $ getTestName test)) 0 Public)
-          createTest'
+-- Extracts all user data types used as test data generators.
+userTestDataOfModule :: TestModule -> [QName]
+userTestDataOfModule testmod = concatMap testDataOf (tests testmod)
  where
-  createTest' = case test of
-    (PropTest   name t _) -> (checkPropResultType, propBody name (argTypes t))
-    (AssertTest name   _) -> (checkPropResultType, assertBody name)
+  testDataOf (AssertTest _ _) = []
+  testDataOf (PropTest _ texp _) = unionOn userTypesOf (argTypes texp)
 
-  checkPropResultType = ioType (maybeType stringType)
+  userTypesOf (CTVar _) = []
+  userTypesOf (CFuncType from to) = union (userTypesOf from) (userTypesOf to)
+  userTypesOf (CTCons (mn,tc) argtypes) =
+    union (if mn == "Prelude" then [] else [(mn,tc)])
+          (unionOn userTypesOf argtypes)
+
+  unionOn f = foldr union [] . map f
   
-  genTestName (modName, fName) = fName ++ "_" ++ modName
+-- Transform all tests to an appropriate call of EasyCheck:
+createTests :: [CmdFlag] -> String -> TestModule -> [CFuncDecl]
+createTests opts mainmodname (TestModule testmod tests) = map createTest tests
+ where
+  createTest test =
+    cfunc (mainmodname, (genTestName $ getTestName test)) 0 Public
+          (ioType (maybeType stringType))
+          (case test of PropTest   name t _ -> propBody name (argTypes t) test
+                        AssertTest name   _ -> assertBody name test)
 
-  msg = string2ac $ genMsg (getTestLine test) origName (getTestName test)
+  msgOf test = string2ac $ genTestMsg testmod test
+
+  pubmname = publicModuleName testmod
+  
+  genTestName (modName, fName) = fName ++ "_" ++ modNameToId modName
 
   easyCheckFuncName arity =
-    (easyCheckModule, ifPAKCS "checkWithValues" "check" ++ show arity)
+    (easyCheckModule,
+     (if isPAKCS then "checkWithValues" else "check") ++ show arity)
 
-  propBody :: QName -> [CTypeExpr] -> [CRule]
-  propBody (_, name) argtypes =
+  propBody (_, name) argtypes test =
     [simpleRule [] $
-       CLetDecl [CLocalPat (CPVar msgvar) (CSimpleRhs msg [])]
+       CLetDecl [CLocalPat (CPVar msgvar) (CSimpleRhs (msgOf test) [])]
                 (applyF (easyCheckModule,"checkPropWithMsg")
                   [CVar msgvar
                   ,applyF (easyCheckFuncName (length argtypes)) $
                      [configOpWithMaxFail, CVar msgvar] ++
-                     (ifPAKCS (map (\t -> applyF
-                                          (easyCheckModule,"valuesOfSearchTree")
-                                          [type2genop testmodname t])
-                                   argtypes)
-                              []) ++
-                     [CSymbol (modname,name)]
+                     (if isPAKCS
+                      then map (\t -> applyF
+                                        (easyCheckModule,"valuesOfSearchTree")
+                                        [type2genop mainmodname t])
+                                   argtypes
+                      else []) ++
+                     [CSymbol (pubmname,name)]
                   ])]
    where
     configOpWithMaxTest = maybe stdConfigOp
@@ -158,26 +186,27 @@ createTest opts md testmodname origName modname test =
                             
     msgvar = (0,"msg")
     
-  stdConfigOp = constF (easyCheckConfig md)
+  stdConfigOp = constF (easyCheckConfig opts)
     
-  assertBody (_, name) =
+  assertBody (_, name) test =
     [simpleRule [] $ applyF (easyCheckModule, "checkPropIOWithMsg")
-                            [stdConfigOp, msg, CSymbol (modname, name)]]
+                            [stdConfigOp, msgOf test, CSymbol (pubmname, name)]]
 
 type2genop :: String -> CTypeExpr -> CExpr
 type2genop _ (CTVar _)       = error "No polymorphic generator!"
 type2genop _ (CFuncType _ _) = error "No generator for functional types!"
-type2genop testmod (CTCons qtc@(_,tc) targs)
-  | qtc `elem` map pre ["Bool","Int","Char","Maybe","Either","Ordering"]
-  = applyF (generatorModule, "gen" ++ tc) arggens
-  | qtc `elem` map pre ["[]","()","(,)","(,,)","(,,,)","(,,,,)"]
-  = applyF (generatorModule, "gen" ++ transTC tc) arggens
-  | otherwise
-   -- let's hope that the programmer has defined an appropriate generator:
-  = applyF (testmod, "gen" ++ tc) arggens
- where
-  arggens = map (type2genop testmod) targs
+type2genop testmod (CTCons qt targs) =
+  applyF (typename2genopname testmod qt) (map (type2genop testmod) targs)
 
+typename2genopname :: String -> QName -> QName
+typename2genopname testmod qtc@(mn,tc)
+  | qtc `elem` map pre ["Bool","Int","Char","Maybe","Either","Ordering"]
+  = (generatorModule, "gen" ++ tc)
+  | qtc `elem` map pre ["[]","()","(,)","(,,)","(,,,)","(,,,,)"]
+  = (generatorModule, "gen" ++ transTC tc)
+  | otherwise -- we use our own generator:
+  = (testmod, "gen_" ++ modNameToId mn ++ "_" ++ tc)
+ where
   transTC tcons | tcons == "[]"     = "List"
                 | tcons == "()"     = "Unit"
                 | tcons == "(,)"    = "Pair"
@@ -213,16 +242,12 @@ makeAllPublic (CurryProg modname imports typedecls functions opdecls) =
 -- generates the main function of the new executable which executes all tests
 -- testModule: name of new module
 -- tests:      list of tests to execute
-genMainFunction :: VerbosityMode -> String -> [Test] -> CFuncDecl
-genMainFunction vm testModule tests =
-  CFunc (testModule, "main") 0 Public typeExpr body
+genMainFunction :: [CmdFlag] -> String -> [Test] -> CFuncDecl
+genMainFunction opts testModule tests =
+  CFunc (testModule, "main") 0 Public (ioType unitType) [simpleRule [] body]
  where
-  typeExpr = ioType unitType -- IO ()
-
-  body = [simpleRule [] expr]
-
-  expr = CDoExpr $
-     (if vm == Quiet
+  body = CDoExpr $
+     (if isQuiet opts
         then []
         else [CSExpr (applyF (pre "putStrLn")
                              [string2ac "Executing all tests..."])]) ++
@@ -234,13 +259,17 @@ genMainFunction vm testModule tests =
   easyCheckExprs = list2ac $ map makeExpr tests
 
   makeExpr :: Test -> CExpr
-  makeExpr (PropTest (mn, name) _ _) = constF (testModule, name ++ "_" ++ mn)
-  makeExpr (AssertTest (mn, name) _) = constF (testModule, name ++ "_" ++ mn)
+  makeExpr (PropTest (mn, name) _ _) = constF (testModule, name ++ "_" ++ modNameToId mn)
+  makeExpr (AssertTest (mn, name) _) = constF (testModule, name ++ "_" ++modNameToId  mn)
 
 
 -- generate the name of the modified module
 publicModuleName :: String -> String
 publicModuleName = (++ "_PUBLIC")
+
+-- extract the original name of a possibly modified module
+orgModuleName :: String -> String
+orgModuleName s = if "_PUBLIC" `isSuffixOf` s then take (length s - 7) s else s
 
 -- Check if a function definition is a property that should be tested,
 -- i.e., if the result type is Prop (= [Test]) or PropIO.
@@ -312,31 +341,30 @@ orgTestName (mn,tname) =
 -- this function and genTestEnvironment implement the first phase of CurryCheck
 -- analysing the module, i.e. finding tests,
 -- and transforming a copy of the module for CurryChecks usage
-genAndAnalyseModule :: VerbosityMode -> String -> IO TestModule
-genAndAnalyseModule m moduleName = do
-  putStrIfNormal m $ "Analyzing tests in module '" ++ moduleName ++ "'...\n"
+genAndAnalyseModule :: [CmdFlag] -> String -> IO TestModule
+genAndAnalyseModule opts moduleName = do
+  putStrIfNormal opts $ "Analyzing tests in module '" ++ moduleName ++ "'...\n"
   prog    <- readCurryWithParseOptions moduleName (setQuiet True defaultParams)
-  progtxt <- readFile (moduleName ++ ".curry")
+  progtxt <- readFile (modNameToPath moduleName ++ ".curry")
   let words = map firstWord (lines progtxt)
       (alltests, newMod) = transformModule prog
       (rawTests,ignoredTests) = partition fst alltests
-  putStrIfNormal m $
+  putStrIfNormal opts $
     if null rawTests
     then "No properties found for testing!\n"
-    else "Properties to be tested: " ++
+    else "Properties to be tested:\n" ++
          unwords (map (snd . funcName . snd) rawTests) ++ "\n"
-  unless (null ignoredTests) $ putStrIfNormal m $
-    "Properties ignored for testing: " ++
+  unless (null ignoredTests) $ putStrIfNormal opts $
+    "Properties ignored for testing:\n" ++
     unwords (map (snd . funcName . snd) ignoredTests) ++ "\n"
-  saveCurryProgram newMod
-  return $ TestModule moduleName newModName
+  writeCurryProgram newMod
+  return $ TestModule moduleName
                       (addLinesNumbers words (classifyTests (map snd rawTests)))
  where
   transformModule :: CurryProg -> ([(Bool,CFuncDecl)], CurryProg)
   transformModule =
-    transformTests . renameCurryModule newModName . makeAllPublic
-
-  newModName = publicModuleName moduleName
+    transformTests . renameCurryModule (publicModuleName moduleName)
+                   . makeAllPublic
 
   addLinesNumbers words = map (addLineNumber words)
 
@@ -350,43 +378,82 @@ genAndAnalyseModule m moduleName = do
   getLineNumber words (_, name) = lineNumber + 1
    where Just lineNumber = elemIndex name words
 
-genTestEnvironment :: VerbosityMode -> [String] -> IO [TestModule]
-genTestEnvironment m = mapIO (genAndAnalyseModule m)
+genTestEnvironment :: [CmdFlag] -> [String] -> IO [TestModule]
+genTestEnvironment opts = mapIO (genAndAnalyseModule opts)
 
--- this creates the auxiliary test module containing all modules' tests
--- and the main function to run the tests
-genTestModule :: [CmdFlag] -> VerbosityMode -> String -> [TestModule] -> IO ()
-genTestModule opts m testmodname modules = saveCurryProgram testProg
+-- Create the main test module containing all tests of all test modules as
+-- a Curry program with name `mainmodname`.
+-- The main test module contains a wrapper operation for each test
+-- and a main function to execute these tests.
+-- Furthermore, if PAKCS is used, test data generators
+-- for user-defined types are automatically generated.
+genTestModule :: [CmdFlag] -> String -> [TestModule] -> IO ()
+genTestModule opts mainmodname modules = do
+  let testtypes = if isPAKCS
+                  then nub (concatMap userTestDataOfModule modules)
+                  else []
+  generators <- mapIO (createTestDataGenerator mainmodname) testtypes
+  let funcs        = concatMap (createTests opts mainmodname) modules ++
+                               generators
+      mainFunction = genMainFunction opts mainmodname $ concatMap tests modules
+      imports      = nub $ [easyCheckModule, "System"] ++
+                           (if isPAKCS
+                            then [searchTreeModule, generatorModule] ++
+                                  map fst testtypes
+                            else []) ++
+                           map (publicModuleName . moduleName) modules
+  writeCurryProgram (CurryProg mainmodname imports [] (mainFunction : funcs) [])
+
+-- Creates a test data generator for a given type.
+createTestDataGenerator :: String -> QName -> IO CFuncDecl
+createTestDataGenerator mainmodname qt@(mn,_) = do
+  fprog <- readFlatCurry mn
+  maybe (error $ "Definition of type '" ++ qtString ++ "' not found!")
+        (return . type2genData)
+        (find (\t -> FCG.typeName t == qt) (FCG.progTypes fprog))
  where
-  funcs = concatMap (createTests opts m testmodname) modules
-  mainFunction = genMainFunction m testmodname $ concatMap tests modules
-  testProg = CurryProg testmodname imports [] (mainFunction : funcs) []
-  imports = [easyCheckModule, "System"] ++
-            (ifPAKCS [generatorModule] []) ++
-            map newName modules
+  qtString = FC.showQNameInModule "" qt
+
+  type2genData (FC.TypeSyn _ _ _ _) =
+    error $ "Cannot create generator for type synonym " ++ qtString
+  type2genData (FC.Type _ _ tvars cdecls) =
+    if null cdecls
+    then error $ "Cannot create value generator for type '" ++ qtString ++
+                 "' without constructors!"
+    else CFunc (typename2genopname mainmodname qt) (length tvars) Public
+               (foldr (~>) (CTCons searchTreeTC [CTCons qt ctvars])
+                           (map (\v -> CTCons searchTreeTC [v]) ctvars))
+               [simpleRule (map CPVar cvars)
+                  (foldr1 (\e1 e2 -> applyF (generatorModule,"|||") [e1,e2])
+                          (map cons2gen cdecls))]
+   where
+    searchTreeTC = (searchTreeModule,"SearchTree")
+    
+    cons2gen (FC.Cons qn ar _ ctypes) =
+      applyF (generatorModule, "genCons" ++ show ar)
+             ([CSymbol qn] ++ map type2gen ctypes)
+
+    type2gen (FC.TVar i) = CVar (i,"a"++show i)
+    type2gen (FC.FuncType _ _) =
+      error $ "Type '" ++ qtString ++
+              "': cannot create value generators for functions!"
+    type2gen (FC.TCons qtc argtypes) =
+      applyF (typename2genopname mainmodname qtc) (map type2gen argtypes)
+
+    ctvars = map (\i -> CTVar (i,"a"++show i)) tvars
+    cvars  = map (\i -> (i,"a"++show i)) tvars
 
 -- Executes the main operation of the generated test module.
 execTests :: String -> IO Int
-execTests testmodname = system $
-  curryBin ++ " :set v0 :l " ++ testmodname ++ " :eval main :q"
-
--- print the help
-showUsage :: IO ()
-showUsage = do
-  putStr $ usageInfo ("Usage: currycheck [OPTIONS] ModuleName[s]") options
-  exitWith 1
-  
---- Name of the Curry REPL binary:
-curryBin :: String
-curryBin = installDir ++ "/bin/curry"
+execTests mainmodname = system $
+  installDir ++ "/bin/curry :set v0 :l " ++ mainmodname ++ " :eval main :q"
 
 -- remove the generated files (except in Verbose-mode)
-cleanup :: VerbosityMode -> String -> [TestModule] -> IO ()
-cleanup mode testmodname modules =
-  case mode of
-    Verbose -> return ()
-    _       -> do removeCurryModule testmodname
-                  mapIO_ removeCurryModule (map newName modules)
+cleanup :: [CmdFlag] -> String -> [TestModule] -> IO ()
+cleanup opts mainmodname modules =
+  unless (isVerbose opts) $ do
+    removeCurryModule mainmodname
+    mapIO_ removeCurryModule (map (publicModuleName . moduleName) modules)
  where
   removeCurryModule modname = do
     system $ installDir ++ "/bin/cleancurry " ++ modname
@@ -397,27 +464,24 @@ main = do
   argv <- getArgs
   pid  <- getPID
   let (opts, args, opterrors) = getOpt RequireOrder options argv
-      vmode = getVerbosityMode opts
-      testmodname = "TEST" ++ show pid
+      mainmodname = "TEST" ++ show pid
   unless (null opterrors) (putStr (unlines opterrors) >> showUsage)
+  putStrIfNormal opts ccBanner 
   when (null args) showUsage
-  testModules <- genTestEnvironment vmode (map stripCurrySuffix args)
-  putStrIfNormal vmode $
-    "Generating auxiliary test module '"++testmodname++"'...\n"
-  genTestModule opts vmode testmodname testModules
-  putStrIfNormal vmode $
-    "Compiling auxiliary test module '"++testmodname++"'...\n"
-  ret <- execTests testmodname
-  cleanup vmode testmodname testModules
+  testModules <- genTestEnvironment opts (map stripCurrySuffix args)
+  putStrIfNormal opts $ "Generating main test module '"++mainmodname++"'..."
+  genTestModule opts mainmodname testModules
+  putStrIfNormal opts $ "and compiling it...\n"
+  ret <- execTests mainmodname
+  cleanup opts mainmodname testModules
   exitWith ret
- where
-  getVerbosityMode :: [CmdFlag] -> VerbosityMode
-  getVerbosityMode fs | FQuiet   `elem` fs = Quiet
-                      | FVerbose `elem` fs = Verbose
-                      | otherwise          = Normal
 
 -------------------------------------------------------------------------
 -- Auxiliaries
+
+-- Translate a module name to an identifier, i.e., replace '.' by '_':
+modNameToId :: String -> String
+modNameToId = intercalate "_" . split (=='.')
 
 --- Name of the EasyCheck module.
 easyCheckModule :: String
@@ -431,14 +495,11 @@ searchTreeModule = "SearchTree"
 generatorModule :: String
 generatorModule = "SearchTreeGenerators"
 
--- save a Curry program as 'ModuleName'.curry
-saveCurryProgram :: CurryProg -> IO ()
-saveCurryProgram p = do
-  file <- openFile (progName p ++ ".curry") WriteMode
-  hPutStrLn file $ showCProg p
-  hClose file
+-- Writes a Curry module to its file.
+writeCurryProgram :: CurryProg -> IO ()
+writeCurryProgram p = writeFile (modNameToPath (progName p) ++ ".curry") (showCProg p)
 
-ifPAKCS :: a -> a -> a
-ifPAKCS x y = if curryCompiler == "pakcs" then x else y
+isPAKCS :: Bool
+isPAKCS = curryCompiler == "pakcs"
 
 -------------------------------------------------------------------------
