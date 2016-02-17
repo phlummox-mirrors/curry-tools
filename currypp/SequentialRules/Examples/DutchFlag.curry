@@ -1,5 +1,7 @@
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=seqrules #-}
 
+import Test.EasyCheck
+
 -- Dijsktra's Dutch National Flag problem with functional patterns
 
 data Color = Red | White | Blue
@@ -18,6 +20,8 @@ main = solveD iflag
  --> [Red,Red,White,White,White,Blue,Blue]
  -- but also many more (identical) solutions!
 
+test_solveD =  solveD iflag  <~>  [Red,Red,White,White,White,Blue,Blue]
+
 -------------------------------------------------------------------------------
 -- Sergio's version to obtain a single solution:
 dutch (r@(uni Red) ++ w@(uni White) ++ b@(uni Blue) ++ (Red:xs))
@@ -25,3 +29,5 @@ dutch (r@(uni Red) ++ w@(uni White) ++ b@(uni Blue) ++ (Red:xs))
 dutch (r@(uni Red) ++ w@(uni White) ++ b@(uni Blue) ++ (White:xs))
   | (b==[])=:=False = dutch (r ++ White:w ++ b ++ xs)
 dutch z = z
+
+testDutch =  dutch iflag  -=-  [Red,Red,White,White,White,Blue,Blue]
