@@ -1,5 +1,8 @@
 -- Half of a natural number:
 
+import Test.EasyCheck
+
+
 data Peano = O | S Peano
 
 toPeano :: Int -> Peano
@@ -21,3 +24,4 @@ half y | add x x == y
 main :: Int
 main = fromPeano (half (toPeano 100))
 
+test_half = fromPeano (half (toPeano 100)) -=- 50

@@ -2,6 +2,9 @@
 -- ExpVarFunPats
 --------------------------------------------------------------
 
+import Test.EasyCheck
+
+
 data Peano = O | S Peano
 
 data Exp = Num Peano | Var VarName | Add Exp Exp | Mul Exp Exp
@@ -39,6 +42,8 @@ varInExp exp | replace x y (Var v) == exp
 main1 :: VarName
 main1 = varInExp (genExpWithVar' 100)
 
+test_varInExp = varInExp (genExpWithVar' 100) -=- X1
+
 ----------------------------------------------------------------
 -- Simplify
 ----------------------------------------------------------------
@@ -62,3 +67,4 @@ expSize (Mul e1 e2) = expSize e1 + expSize e2 + 1
 main2 :: Int
 main2 = expSize (simplify (genExpWithMult1 2000))
 
+test_simplify = expSize (simplify (genExpWithMult1 2000)) -=- 4001

@@ -2,6 +2,9 @@
 -- grep
 ---------------------------------------------------------------
 
+import Test.EasyCheck
+
+-- Representation of regular expression:
 data RE a = Lit a
           | Alt  (RE a) (RE a)
           | Conc (RE a) (RE a)
@@ -26,12 +29,13 @@ sem (Alt  a b) = sem a ? sem b
 sem (Conc a b) = sem a ++ sem b
 sem (Star a)   = [] ? sem (Conc a (Star a))
 
-grep :: RE a -> [a] -> Success
-grep r s | _ ++ sem r ++ _ == s = success
+grep :: RE a -> [a] -> Bool
+grep r s | _ ++ sem r ++ _ == s = True
 
 bigABABC :: Int -> [Chr]
 bigABABC n = take n (concatMap (\i->A : take i (repeat B)) [1..]) ++ [A,B,C]
 
-main :: Success
+main :: Bool
 main = grep abstarc (bigABABC 50)
 
+test_grep = always $ grep abstarc (bigABABC 50)
