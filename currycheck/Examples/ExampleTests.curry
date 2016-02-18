@@ -93,12 +93,12 @@ last_is_deterministic xs =
 evar = "abc123"
 
 -- First, we check whether setting this variable works:
-set_environ = (setEnviron evar "SET" >> getEnviron evar) `yields` "SET"
+set_environ = (setEnviron evar "SET" >> getEnviron evar) `returns` "SET"
 
 -- Now we check whether unsetting workds:
-unset_environ = (unsetEnviron evar >> getEnviron evar) `yields` ""
+unset_environ = (unsetEnviron evar >> getEnviron evar) `returns` ""
 
 -- We can also compare the results of two actions with `sameAs`:
-sameIO = return (6*7) `sameAs` return 42
+sameIO = return (6*7) `sameReturns` return 42
 
 --------------------------------------------------------------------------

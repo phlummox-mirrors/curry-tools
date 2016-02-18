@@ -24,12 +24,16 @@ import List
 import Read                    (readNat)
 import System                  (system, exitWith, getArgs, getPID)
 
+--- Maximal arity of check functions and tuples currently supported:
+maxArity :: Int
+maxArity = 5
+
 -- Banner of this tool:
 ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 17/02/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 18/02/2016)"
    bannerLine = take (length bannerText) (repeat '=')
 
 -- print the help
@@ -155,8 +159,11 @@ createTests opts mainmodname (TestModule testmod tests) = map createTest tests
   genTestName (modName, fName) = fName ++ "_" ++ modNameToId modName
 
   easyCheckFuncName arity =
-    (easyCheckModule,
-     (if isPAKCS then "checkWithValues" else "check") ++ show arity)
+    if arity>maxArity
+    then error $ "Properties with more than " ++ show maxArity ++
+                 " parameters are currently not supported!"
+    else (easyCheckModule,
+          (if isPAKCS then "checkWithValues" else "check") ++ show arity)
 
   propBody (_, name) argtypes test =
     [simpleRule [] $
@@ -430,8 +437,11 @@ createTestDataGenerator mainmodname qt@(mn,_) = do
     searchTreeTC = (searchTreeModule,"SearchTree")
     
     cons2gen (FC.Cons qn ar _ ctypes) =
-      applyF (generatorModule, "genCons" ++ show ar)
-             ([CSymbol qn] ++ map type2gen ctypes)
+      if ar>maxArity
+      then error $ "Test data constructors with more than " ++ show maxArity ++
+                   " arguments are currently not supported!"
+      else applyF (generatorModule, "genCons" ++ show ar)
+                  ([CSymbol qn] ++ map type2gen ctypes)
 
     type2gen (FC.TVar i) = CVar (i,"a"++show i)
     type2gen (FC.FuncType _ _) =
@@ -497,7 +507,8 @@ generatorModule = "SearchTreeGenerators"
 
 -- Writes a Curry module to its file.
 writeCurryProgram :: CurryProg -> IO ()
-writeCurryProgram p = writeFile (modNameToPath (progName p) ++ ".curry") (showCProg p)
+writeCurryProgram p =
+  writeFile (modNameToPath (progName p) ++ ".curry") (showCProg p ++ "\n")
 
 isPAKCS :: Bool
 isPAKCS = curryCompiler == "pakcs"

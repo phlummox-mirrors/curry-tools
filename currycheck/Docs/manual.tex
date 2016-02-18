@@ -1,0 +1,225 @@
+\section{CurryCheck: A Tool for Testing Curry Programs}
+
+CurryCheck is a tool that supports the automation of
+testing Curry programs.
+The tests to be executed can be unit tests as well as
+property tests parameterized over some arguments.
+The tests can be part of any Curry source program
+and, thus, they are also useful to document the code.
+CurryCheck is based on EasyCheck \cite{ChristiansenFischer08FLOPS}.
+Actually, the properties to be tested are written
+by combinators proposed for EasyCheck, which are actually
+influenced by QuickCheck \cite{ClaessenHughes00}
+but extended to the demands of functional logic programming.
+
+As an example, consider the following naive definition of
+reversing a list:
+\begin{curry}
+rev :: [a] -> [a]
+rev []     = []
+rev (x:xs) = rev xs ++ [x]
+\end{curry}
+To get some confidence in the code, we add some unit tests,
+i.e., test with concrete test data:
+\begin{curry}
+revNull = rev []      -=- []
+rev123  = rev [1,2,3] -=- [3,2,1]
+\end{curry}
+The operator \ccode{-=-} specifies a test where both sides must
+have a single identical value. Since this operator (as many more, see below)
+are defined in the library \code{Test.EasyCheck},
+we also have to import this library.
+Apart from unit tests, which are often tedious to write,
+we can also write a property, i.e., a test parameterized over
+some arguments. For instance, an interesting property of reversing a list
+is the fact that reversing a list two times provides the input list:
+\begin{curry}
+revRevIsId xs = rev (rev xs) -=- xs
+\end{curry}
+Note that each property is defined as a Curry operation
+where the arguments are the parameters of the property.
+Altogether, our program is as follows:
+\begin{curry}
+import Test.EasyCheck
+
+rev :: [a] -> [a]
+rev []     = []
+rev (x:xs) = rev xs ++ [x]
+
+revNull = rev []      -=- []
+rev123  = rev [1,2,3] -=- [3,2,1]
+
+revRevIsId xs = rev (rev xs) -=- xs
+\end{curry}
+Now we can run all tests by invoking the CurryCheck executable
+\ccode{currycheck}, which is stored in the directory \code{\cyshome/bin}.
+If our program is stored in the file \code{Rev.curry},
+we can execute the tests as follows:
+\begin{curry}
+> currycheck Rev
+...
+Executing all tests...
+revNull (module Rev, line 7):
+ Passed 1 test.
+rev123 (module Rev, line 8):
+ Passed 1 test.
+revRevIsId_ON_BOOL (module Rev, line 10):
+ OK, passed 100 tests.
+\end{curry}
+Since the operation \code{rev} is polymorphic,
+the property \code{revRevIsId} is also polymorphic in its argument.
+In order to select concrete values to test this property,
+CurryCheck replaces such polymorphic tests by Boolean tests.
+If we want to test this property on integers numbers,
+we can explicitly provide a type signature,
+where \code{Prop} is the type of tests:
+\begin{curry}
+revRevIsId :: [Int] -> Prop
+revRevIsId xs = rev (rev xs) -=- xs
+\end{curry}
+The command \code{currycheck} has some options to influence
+the output, like \ccode{-q} for a quiet execution
+(only errors and failed tests are reported) or
+\ccode{-v} for a verbose execution where all generated test cases
+are shown.
+Moreover, the return code of \code{currycheck} is \code{0}
+in case of successful tests, otherwise, it is \code{1}.
+Hence, \code{currycheck} can be easily integrated in tool chains
+for automatic testing.
+
+In order to support the inclusion of properties in the source code,
+the operations defined the properties do not have to be exported.
+Hence, one can add properties to any library and export only
+library-relevant operations. To test these properties,
+CurryCheck creates a copy of the library where all operations
+are public, i.e., CurryCheck requires write permission on the
+directory where the source code is stored.
+
+The library \code{Test.EasyCheck} defines many combinators
+to construct properties. In particular, there are a couple of
+combinators for dealing with non-deterministic operations
+(note that this list is incomplete):
+\begin{itemize}
+\item
+The combinator \ccode{<\char126>} is satisfied if the set of values
+of both sides are equal.
+\item
+The property \code{$x$ \char126> $y$} is satisfied if $x$
+evaluates to every value of $y$.
+Thus, the set of values of $y$ must be a subset of the set of values of $x$.
+\item
+The property \code{$x$ <\char126 $y$} is satisfied if $y$
+evaluates to every value of $x$, i.e.,
+the set of values of $x$ must be a subset of the set of values of $y$.
+\item
+The combinator \ccode{<\char126\char126>} is satisfied
+if the multi-set of values of both sides are equal.
+Hence, this operator can be used to compare the number
+of computed solutions of two expressions.
+\item
+The property \code{always $x$} is satisfied if all values $x$ are true.
+\item
+The property \code{eventually $x$} is satisfied if some value
+of $x$ is true.
+\item
+The property \code{failing $x$} is satisfied if $x$ has no value,
+i.e., its evaluation fails.
+\end{itemize}
+%
+For instance, consider theinsertion of an element at an arbitrary
+position in a list:
+\begin{curry}
+insert :: a -> [a] -> [a]
+insert x xs     = x : xs
+insert x (y:ys) = y : insert x ys
+\end{curry}
+The following property states that the element is inserted
+(at least) at the beginning or the end of the list:
+\begin{curry}
+insertAsFirstOrLast :: Int -> [Int] -> Prop
+insertAsFirstOrLast x xs = insert x xs ~> (x:xs ? xs++[x])
+\end{curry}
+%
+A well-known application of \code{insert} is to use it to define
+a permutation of a list:
+\begin{curry}
+perm :: [a] -> [a]
+perm []     = []
+perm (x:xs) = insert x (perm xs)
+\end{curry}
+We can check whether the length of a permuted lists is unchanged:
+\begin{curry}
+permLength :: [Int] -> Prop
+permLength xs = length (perm xs) <~> length xs
+\end{curry}
+Note that the use of \ccode{<\char126>} is relevant since
+we compare non-deterministic values. Actually, the left argument
+evaluates to many (identical) values.
+
+Now consider a predicate to check whether a list is sorted:
+\begin{curry}
+sorted :: [Int] -> Bool
+sorted []       = True
+sorted [_]      = True
+sorted (x:y:zs) = x<=y && sorted (y:zs)
+\end{curry}
+This predicate is useful to test whether there are also sorted permutations:
+\begin{curry}
+permIsEventuallySorted :: [Int] -> Prop
+permIsEventuallySorted xs = eventually $\code{\$}$ sorted (perm xs)
+\end{curry}
+%
+The previous operations can be exploited to provide
+a high-level specification of sorting a list:
+\begin{curry}
+psort :: [Int] -> [Int}
+psort xs | sorted ys = ys
+ where ys = perm xs
+\end{curry}
+Again, we can write some properties:
+\begin{curry}
+psortIsAlwaysSorted xs = always $\code{\$}$ sorted (psort xs)$\listline$
+psortKeepsLength xs = length (psort xs) <~> length xs
+\end{curry}
+Of course, the sort specification via permutations is not useful
+in practice. However, it can be used as an oracle to test
+more efficient sorting algorithms like quicksort:
+\begin{curry}
+qsort :: [Int] -> [Int] 
+qsort []     = []
+qsort (x:l)  = qsort (filter (<x) l) ++ x : qsort (filter (>x) l)
+\end{curry}
+The following properties specifies the correctness of quicksort:
+\begin{curry}
+qsortIsSorting xs = qsort xs <~> psort xs
+\end{curry}
+Actually, if we test this property, we obtain a failure:
+\begin{curry}
+currycheck ExampleTests
+...
+qsortIsSorting (module ExampleTests, line 53) failed
+Falsified by third test.
+Arguments:
+[1,1]
+Results:
+[1]
+\end{curry}
+The result shows that, for the given argument \code{[1,1]},
+an element has been dropped in the result.
+Hence, we correct our implementation, e.g., by replacing
+\code{(>x)} with \code{(>=x)} and obtain a successful test execution.
+
+For I/O operations, it is difficult to execute them with random data.
+Hence, CurryCheck only supports specific I/O unit tests:
+\begin{itemize}
+\item \code{$a$ `returns` $x$} is satisfied if the I/O action $a$
+returns the value $x$.
+\item \code{$a$ `sameReturns` $b$} is satisfied if the I/O actions
+$a$ and $b$ return identical values.
+\end{itemize}
+%
+Since CurryCheck executes the tests written in a source program
+in their textual order, one can write several I/O tests that are
+executed in a well-defined order.
+
+%  LocalWords: CurryCheck
