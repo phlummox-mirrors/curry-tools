@@ -24,9 +24,9 @@ CURRYOPTIONS=":set -time :set v0 :set parser -Wnone"
 /bin/rm -rf spicey_blog
 mkdir spicey_blog
 cd spicey_blog
-$CURRYBIN/spiceup ../Blog.erdterm
+$CURRYBIN/spiceup ../Blog.erdterm > $LOGFILE 2>&1
 echo "Compiling spicey_blog..."
-make CURRYOPTIONS="$CURRYOPTIONS" compile 2>&1 > $LOGFILE
+make CURRYOPTIONS="$CURRYOPTIONS" compile >> $LOGFILE 2>&1
 if [ $? -gt 0 ] ; then
   echo "ERROR in Spicey generation:"
   cat $LOGFILE

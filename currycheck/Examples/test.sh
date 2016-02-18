@@ -24,7 +24,7 @@ if [ $VERBOSE = yes ] ; then
     exit 1
   fi
 else
-  $CURRYBIN/currycheck $ALLTESTS 2>&1 > $LOGFILE
+  $CURRYBIN/currycheck $ALLTESTS > $LOGFILE 2>&1
   if [ $? -gt 0 ] ; then
     echo "ERROR in currycheck:"
     cat $LOGFILE
