@@ -28,6 +28,15 @@ perm (x:xs) = insert x (perm xs)
 permLength :: [Int] -> Prop
 permLength xs = length (perm xs) <~> length xs
 
+permCount :: [Int] -> Prop
+permCount xs = allDifferent xs ==> perm xs # fac (length xs)
+ where
+   fac n = foldr (*) 1 [1..n]
+
+allDifferent []     = True
+allDifferent (x:xs) = x `notElem` xs && allDifferent xs
+
+-- Is a list sorted?
 sorted :: [Int] -> Bool
 sorted []       = True
 sorted [_]      = True

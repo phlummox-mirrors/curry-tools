@@ -124,6 +124,9 @@ of $x$ is true.
 \item
 The property \code{failing $x$} is satisfied if $x$ has no value,
 i.e., its evaluation fails.
+\item
+The property \code{$x$ \# $n$} is satisfied if $x$ has $n$
+different values.
 \end{itemize}
 %
 For instance, consider theinsertion of an element at an arbitrary
@@ -156,6 +159,33 @@ Note that the use of \ccode{<\char126>} is relevant since
 we compare non-deterministic values. Actually, the left argument
 evaluates to many (identical) values.
 
+One might also want to check whether \code{perm} computes the
+correct number of solutions. Since we know that a list of length $n$
+has $n!$ permutations, we write the following property:
+\begin{curry}
+permCount :: [Int] -> Prop
+permCount xs = perm xs # fac (length xs)
+\end{curry}
+where \code{fac} is the factorial function.
+However, this test will be falsified with the argument \code{[1,1]}.
+Actually, this list has only one permuted value since the two
+possible permutations are identical and the combinator \ccode{\#}
+counts the number of \emph{different} values.
+The property would be correct if all elements in the input list \code{xs}
+are different.
+This can be expressed by a conditional property:
+the property \code{$b$ ==> $p$} is satisfied if $p$
+is satisfied for all values where $b$ evaluates to \code{True}.
+Therefore, if we define a predicate \code{allDifferent} by
+\begin{curry}
+allDifferent []     = True
+allDifferent (x:xs) = x `notElem` xs && allDifferent xs
+\end{curry}
+then we can reformulate our property as follows:
+\begin{curry}
+permCount xs = allDifferent xs ==> perm xs # fac (length xs)
+\end{curry}
+%
 Now consider a predicate to check whether a list is sorted:
 \begin{curry}
 sorted :: [Int] -> Bool
@@ -189,7 +219,7 @@ qsort :: [Int] -> [Int]
 qsort []     = []
 qsort (x:l)  = qsort (filter (<x) l) ++ x : qsort (filter (>x) l)
 \end{curry}
-The following properties specifies the correctness of quicksort:
+The following property specifies the correctness of quicksort:
 \begin{curry}
 qsortIsSorting xs = qsort xs <~> psort xs
 \end{curry}
@@ -207,7 +237,7 @@ Results:
 The result shows that, for the given argument \code{[1,1]},
 an element has been dropped in the result.
 Hence, we correct our implementation, e.g., by replacing
-\code{(>x)} with \code{(>=x)} and obtain a successful test execution.
+\code{(>x)} with \code{(>=x)}, and obtain a successful test execution.
 
 For I/O operations, it is difficult to execute them with random data.
 Hence, CurryCheck only supports specific I/O unit tests:
