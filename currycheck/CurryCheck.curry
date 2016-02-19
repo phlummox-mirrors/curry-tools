@@ -21,6 +21,7 @@ import qualified FlatCurry.Goodies as FCG
 import GetOpt
 import IO
 import List
+import Maybe                   (fromJust, isJust)
 import Read                    (readNat)
 import System                  (system, exitWith, getArgs, getPID)
 
@@ -33,7 +34,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 18/02/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 19/02/2016)"
    bannerLine = take (length bannerText) (repeat '=')
 
 -- print the help
@@ -112,9 +113,15 @@ genTestMsg file test =
   snd (getTestName test) ++
   " (module " ++ file ++ ", line " ++ show (getTestLine test) ++ ")"
 
+-- Representation of the information about a module to be tested:
+-- * module name
+-- * test operations
+-- * name of generators defined in this module (i.e., starting with "gen"
+--   and of appropriate result type)
 data TestModule = TestModule
   { moduleName :: String
   , tests      :: [Test]
+  , generators :: [QName]
   }
 
 -- Extracts the first word of a string
@@ -144,17 +151,19 @@ userTestDataOfModule testmod = concatMap testDataOf (tests testmod)
   
 -- Transform all tests to an appropriate call of EasyCheck:
 createTests :: [CmdFlag] -> String -> TestModule -> [CFuncDecl]
-createTests opts mainmodname (TestModule testmod tests) = map createTest tests
+createTests opts mainmodname tm = map createTest (tests tm)
  where
+  testmodname = moduleName tm
+  
   createTest test =
     cfunc (mainmodname, (genTestName $ getTestName test)) 0 Public
           (ioType (maybeType stringType))
           (case test of PropTest   name t _ -> propBody name (argTypes t) test
                         AssertTest name   _ -> assertBody name test)
 
-  msgOf test = string2ac $ genTestMsg testmod test
+  msgOf test = string2ac $ genTestMsg testmodname test
 
-  pubmname = publicModuleName testmod
+  pubmname = publicModuleName testmodname
   
   genTestName (modName, fName) = fName ++ "_" ++ modNameToId modName
 
@@ -162,8 +171,7 @@ createTests opts mainmodname (TestModule testmod tests) = map createTest tests
     if arity>maxArity
     then error $ "Properties with more than " ++ show maxArity ++
                  " parameters are currently not supported!"
-    else (easyCheckModule,
-          (if isPAKCS then "checkWithValues" else "check") ++ show arity)
+    else (easyCheckModule,"checkWithValues" ++ show arity)
 
   propBody (_, name) argtypes test =
     [simpleRule [] $
@@ -172,15 +180,22 @@ createTests opts mainmodname (TestModule testmod tests) = map createTest tests
                   [CVar msgvar
                   ,applyF (easyCheckFuncName (length argtypes)) $
                      [configOpWithMaxFail, CVar msgvar] ++
-                     (if isPAKCS
-                      then map (\t -> applyF
-                                        (easyCheckModule,"valuesOfSearchTree")
-                                        [type2genop mainmodname t])
-                                   argtypes
-                      else []) ++
+                     (map (\t ->
+                           applyF (easyCheckModule,"valuesOfSearchTree")
+                             [if isPAKCS || useUserDefinedGen t
+                              then type2genop mainmodname tm t
+                              else applyF (searchTreeModule,"someSearchTree")
+                                          [constF (pre "unknown")]])
+                          argtypes) ++
                      [CSymbol (pubmname,name)]
                   ])]
    where
+    useUserDefinedGen texp = case texp of
+      CTVar _         -> error "No polymorphic generator!"
+      CFuncType _ _   -> error "No generator for functional types!"
+      CTCons (_,tc) _ -> isJust
+                           (find (\qn -> "gen"++tc == snd qn) (generators tm))
+
     configOpWithMaxTest = maybe stdConfigOp
                                 (\n -> applyF (easyCheckModule,"setMaxTest")
                                               [cInt n, stdConfigOp])
@@ -199,21 +214,26 @@ createTests opts mainmodname (TestModule testmod tests) = map createTest tests
     [simpleRule [] $ applyF (easyCheckModule, "checkPropIOWithMsg")
                             [stdConfigOp, msgOf test, CSymbol (pubmname, name)]]
 
-type2genop :: String -> CTypeExpr -> CExpr
-type2genop _ (CTVar _)       = error "No polymorphic generator!"
-type2genop _ (CFuncType _ _) = error "No generator for functional types!"
-type2genop testmod (CTCons qt targs) =
-  applyF (typename2genopname testmod qt) (map (type2genop testmod) targs)
+type2genop :: String -> TestModule -> CTypeExpr -> CExpr
+type2genop _ _ (CTVar _)       = error "No polymorphic generator!"
+type2genop _ _ (CFuncType _ _) = error "No generator for functional types!"
+type2genop mainmod tm (CTCons qt targs) =
+  applyF (typename2genopname mainmod (generators tm) qt)
+         (map (type2genop mainmod tm) targs)
 
-typename2genopname :: String -> QName -> QName
-typename2genopname testmod qtc@(mn,tc)
+typename2genopname :: String -> [QName] -> QName -> QName
+typename2genopname mainmod definedgenops qtc@(mn,tc)
+  | isJust maybeuserdefined -- take user-defined generator:
+  = fromJust maybeuserdefined
   | qtc `elem` map pre ["Bool","Int","Char","Maybe","Either","Ordering"]
   = (generatorModule, "gen" ++ tc)
   | qtc `elem` map pre ["[]","()","(,)","(,,)","(,,,)","(,,,,)"]
   = (generatorModule, "gen" ++ transTC tc)
   | otherwise -- we use our own generator:
-  = (testmod, "gen_" ++ modNameToId mn ++ "_" ++ tc)
+  = (mainmod, "gen_" ++ modNameToId mn ++ "_" ++ tc)
  where
+  maybeuserdefined = find (\qn -> "gen"++tc == snd qn) definedgenops
+  
   transTC tcons | tcons == "[]"     = "List"
                 | tcons == "()"     = "Unit"
                 | tcons == "(,)"    = "Pair"
@@ -349,12 +369,12 @@ orgTestName (mn,tname) =
 -- analysing the module, i.e. finding tests,
 -- and transforming a copy of the module for CurryChecks usage
 genAndAnalyseModule :: [CmdFlag] -> String -> IO TestModule
-genAndAnalyseModule opts moduleName = do
-  putStrIfNormal opts $ "Analyzing tests in module '" ++ moduleName ++ "'...\n"
-  prog    <- readCurryWithParseOptions moduleName (setQuiet True defaultParams)
-  progtxt <- readFile (modNameToPath moduleName ++ ".curry")
+genAndAnalyseModule opts modname = do
+  putStrIfNormal opts $ "Analyzing tests in module '" ++ modname ++ "'...\n"
+  prog    <- readCurryWithParseOptions modname (setQuiet True defaultParams)
+  progtxt <- readFile (modNameToPath modname ++ ".curry")
   let words = map firstWord (lines progtxt)
-      (alltests, newMod) = transformModule prog
+      (alltests, pubmod)      = transformModule prog
       (rawTests,ignoredTests) = partition fst alltests
   putStrIfNormal opts $
     if null rawTests
@@ -364,13 +384,14 @@ genAndAnalyseModule opts moduleName = do
   unless (null ignoredTests) $ putStrIfNormal opts $
     "Properties ignored for testing:\n" ++
     unwords (map (snd . funcName . snd) ignoredTests) ++ "\n"
-  writeCurryProgram newMod
-  return $ TestModule moduleName
+  writeCurryProgram pubmod
+  return $ TestModule modname
                       (addLinesNumbers words (classifyTests (map snd rawTests)))
+                      (generatorsOfProg pubmod)
  where
   transformModule :: CurryProg -> ([(Bool,CFuncDecl)], CurryProg)
   transformModule =
-    transformTests . renameCurryModule (publicModuleName moduleName)
+    transformTests . renameCurryModule (publicModuleName modname)
                    . makeAllPublic
 
   addLinesNumbers words = map (addLineNumber words)
@@ -385,6 +406,17 @@ genAndAnalyseModule opts moduleName = do
   getLineNumber words (_, name) = lineNumber + 1
    where Just lineNumber = elemIndex name words
 
+-- Extracts all user-defined defined generators defined in a module.
+generatorsOfProg :: CurryProg -> [QName]
+generatorsOfProg = map funcName . filter isGen . functions
+ where
+   isGen fdecl = "gen" `isPrefixOf` snd (funcName fdecl) &&
+                 isSearchTreeType (resultType (funcType fdecl))
+
+   isSearchTreeType (CTVar _) = False
+   isSearchTreeType (CFuncType _ _) = False
+   isSearchTreeType (CTCons tc _) = tc == searchTreeTC
+
 genTestEnvironment :: [CmdFlag] -> [String] -> IO [TestModule]
 genTestEnvironment opts = mapIO (genAndAnalyseModule opts)
 
@@ -396,18 +428,14 @@ genTestEnvironment opts = mapIO (genAndAnalyseModule opts)
 -- for user-defined types are automatically generated.
 genTestModule :: [CmdFlag] -> String -> [TestModule] -> IO ()
 genTestModule opts mainmodname modules = do
-  let testtypes = if isPAKCS
-                  then nub (concatMap userTestDataOfModule modules)
-                  else []
+  let testtypes = nub (concatMap userTestDataOfModule modules)
   generators <- mapIO (createTestDataGenerator mainmodname) testtypes
   let funcs        = concatMap (createTests opts mainmodname) modules ++
                                generators
       mainFunction = genMainFunction opts mainmodname $ concatMap tests modules
-      imports      = nub $ [easyCheckModule, "System"] ++
-                           (if isPAKCS
-                            then [searchTreeModule, generatorModule] ++
-                                  map fst testtypes
-                            else []) ++
+      imports      = nub $ [easyCheckModule, searchTreeModule, generatorModule,
+                            "System"] ++
+                           map fst testtypes ++
                            map (publicModuleName . moduleName) modules
   writeCurryProgram (CurryProg mainmodname imports [] (mainFunction : funcs) [])
 
@@ -427,15 +455,13 @@ createTestDataGenerator mainmodname qt@(mn,_) = do
     if null cdecls
     then error $ "Cannot create value generator for type '" ++ qtString ++
                  "' without constructors!"
-    else CFunc (typename2genopname mainmodname qt) (length tvars) Public
+    else CFunc (typename2genopname mainmodname [] qt) (length tvars) Public
                (foldr (~>) (CTCons searchTreeTC [CTCons qt ctvars])
                            (map (\v -> CTCons searchTreeTC [v]) ctvars))
                [simpleRule (map CPVar cvars)
                   (foldr1 (\e1 e2 -> applyF (generatorModule,"|||") [e1,e2])
                           (map cons2gen cdecls))]
    where
-    searchTreeTC = (searchTreeModule,"SearchTree")
-    
     cons2gen (FC.Cons qn ar _ ctypes) =
       if ar>maxArity
       then error $ "Test data constructors with more than " ++ show maxArity ++
@@ -448,7 +474,7 @@ createTestDataGenerator mainmodname qt@(mn,_) = do
       error $ "Type '" ++ qtString ++
               "': cannot create value generators for functions!"
     type2gen (FC.TCons qtc argtypes) =
-      applyF (typename2genopname mainmodname qtc) (map type2gen argtypes)
+      applyF (typename2genopname mainmodname [] qtc) (map type2gen argtypes)
 
     ctvars = map (\i -> CTVar (i,"a"++show i)) tvars
     cvars  = map (\i -> (i,"a"++show i)) tvars
@@ -501,6 +527,10 @@ easyCheckModule = "Test.EasyCheck"
 searchTreeModule :: String
 searchTreeModule = "SearchTree"
 
+--- Name of SearchTree type constructor.
+searchTreeTC :: QName
+searchTreeTC = (searchTreeModule,"SearchTree")
+    
 --- Name of the SearchTreeGenerator module.
 generatorModule :: String
 generatorModule = "SearchTreeGenerators"

@@ -1,4 +1,5 @@
 import Test.EasyCheck
+import SearchTreeGenerators
 
 rev :: [a] -> [a]
 rev []     = []
@@ -60,3 +61,59 @@ qsort []     = []
 qsort (x:l)  = qsort (filter (<x) l) ++ x : qsort (filter (>=x) l)
 
 qsortIsSorting xs = qsort xs <~> psort xs
+
+--------------------------------------------------------------------------
+-- Generating test data:
+
+neg_or b1 b2 = not (b1 || b2) -=- not b1 && not b2
+
+
+-- Natural numbers defined by s-terms (Z=zero, S=successor):
+data Nat = Z | S Nat
+
+-- addition on natural numbers:
+add :: Nat -> Nat -> Nat
+add Z     n = n
+add (S m) n = S(add m n)
+
+-- Property: the addition operator is commutative
+addIsCommutative x y = add x y -=- add y x
+
+-- Property: the addition operator is associative
+addIsAssociative x y z = add (add x y) z -=- add x (add y z)
+
+
+-- A general tree type:
+data Tree a = Leaf a | Node [Tree a]
+
+-- The leaves of a tree:
+leaves (Leaf x) = [x]
+leaves (Node ts) = concatMap leaves ts
+
+-- Mirror a tree:
+mirror (Leaf x) = Leaf x
+mirror (Node ts) = Node (reverse (map mirror ts))
+
+-- Property: double mirroring is the identity
+doubleMirror t = mirror (mirror t) -=- t
+
+-- Property: the leaves of a mirrored are in reverse order
+leavesOfMirrorAreReversed t = leaves t -=- reverse (leaves (mirror t))
+
+-- Factorial function
+sumUp n = if n==0 then 0 else n + sumUp (n-1)
+
+sumUpIsCorrect n = n>=0 ==> sumUp n -=- n * (n+1) `div` 2
+
+-- To test sumUpIsCorrect explicitly on non-ngeative integers,
+-- we define a new data type to wrap integers:
+data NonNeg = NonNeg { nonNeg :: Int }
+
+-- We define our own generator for producing only non-negative integers:
+genNonNeg = genCons1 NonNeg genNN
+ where
+   genNN = genCons0 0 ||| genCons1 (\n -> 2*(n+1)) genNN
+                      ||| genCons1 (\n -> 2*n+1)   genNN
+
+-- Now we write our own test:
+sumUpIsCorrectOnNonNeg = sumUpIsCorrect . nonNeg

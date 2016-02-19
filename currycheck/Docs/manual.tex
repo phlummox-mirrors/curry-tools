@@ -12,7 +12,9 @@ by combinators proposed for EasyCheck, which are actually
 influenced by QuickCheck \cite{ClaessenHughes00}
 but extended to the demands of functional logic programming.
 
-As an example, consider the following naive definition of
+\subsection{Testing Properties}
+
+To start with a concrete example, consider the following naive definition of
 reversing a list:
 \begin{curry}
 rev :: [a] -> [a]
@@ -224,8 +226,9 @@ The following property specifies the correctness of quicksort:
 qsortIsSorting xs = qsort xs <~> psort xs
 \end{curry}
 Actually, if we test this property, we obtain a failure:
+%
 \begin{curry}
-currycheck ExampleTests
+> currycheck ExampleTests
 ...
 qsortIsSorting (module ExampleTests, line 53) failed
 Falsified by third test.
@@ -234,6 +237,7 @@ Arguments:
 Results:
 [1]
 \end{curry}
+%
 The result shows that, for the given argument \code{[1,1]},
 an element has been dropped in the result.
 Hence, we correct our implementation, e.g., by replacing
@@ -252,4 +256,207 @@ Since CurryCheck executes the tests written in a source program
 in their textual order, one can write several I/O tests that are
 executed in a well-defined order.
 
-%  LocalWords: CurryCheck
+
+\subsection{Generating Test Data}
+
+CurryCheck test properties by enumerating test data and
+checking a given property with these values.
+Since these values are generated in a systematic way,
+one can even prove a property if the number of test cases
+is finite. For instance, consider the following property
+from Boolean logic:
+\begin{curry}
+neg_or b1 b2 = not (b1 || b2) -=- not b1 && not b2
+\end{curry}
+This property is validated by checking it with all possible values:
+%
+\begin{curry}
+> currycheck -v ExampleTests
+...
+0:
+False
+False
+1:
+False
+True
+2:
+True
+False
+3:
+True
+True
+neg_or (module ExampleTests, line 67):
+ Passed 4 tests.
+\end{curry}
+%
+However, if the test data is infinite, like lists of integers,
+CurryCheck stops checking after a given limit for all tests.
+As a default, the limit is 100 tests but it can be changed
+by the command-line flag \ccode{-m}. For instance, to test
+each property with 200 tests, CurryCheck can be invoked by
+%
+\begin{curry}
+> currycheck -m 200 ExampleTests
+\end{curry}
+%
+For a given type, CurryCheck automatically enumerates all values
+of this type (except for the type \code{Float}).
+In KiCS2, this is done by exploiting the functional logic features
+of Curry, i.e., by simply collecting all values of a free variable.
+For instance, the library \code{Test.EasyCheck} defines an operation
+\begin{curry}
+valuesOf :: a -> [a]
+\end{curry}
+which computes the list of all values of the given argument
+according to a fixed strategy (in the current implementation:
+randomized level diagonalization \cite{ChristiansenFischer08FLOPS}).
+For instance, we can get 20 values for a list of integers by
+%
+\begin{curry}
+Test.EasyCheck> take 20 (valuesOf (_::[Int]))
+[[],[-1],[-3],[0],[1],[-1,0],[-2],[0,0],[3],[-1,1],[-3,0],[0,1],[2],
+[-1,-1],[-5],[0,-1],[5],[-1,2],[-9],[0,2]]
+\end{curry}
+%
+Since the features of PAKCS for search space exploration are more limited,
+PAKCS uses in CurryCheck explicit generators for search tree structures
+which are defined in the module \code{SearchTreeGenerators}.
+For instance, the operations
+%
+\begin{curry}
+genInt :: SearchTree Int$\listline$
+genList :: SearchTree a -> SearchTree [a]
+\end{curry}
+generates (infinite) trees of integer and lists values.
+To extract all values in a search tree, the library \code{Test.EasyCheck}
+also defines an operation
+\begin{curry}
+valuesOfSearchTree :: SearchTree a -> [a]
+\end{curry}
+so that we obtain 20 values for a list of integers in PAKCS by
+%
+\begin{curry}
+...> take 20 (valuesOfSearchTree (genList genInt))
+[[],[1],[1,1],[1,-1],[2],[6],[3],[5],[0],[0,1],[0,0],[-1],[-1,0],[-2],
+[-3],[1,5],[1,0],[2,-1],[4],[3,-1]]
+\end{curry}
+%
+Apart from the different implementations,
+CurryCheck can test properties on predefined types, as already shown,
+as well as on user-defined types.
+For instance, we can define our own Peano representation of
+natural numbers with an addition operation and two properties as follows:
+%
+\begin{curry}
+data Nat = Z | S Nat$\listline$
+add :: Nat -> Nat -> Nat
+add Z     n = n
+add (S m) n = S(add m n)$\listline$
+addIsCommutative x y = add x y -=- add y x$\listline$
+addIsAssociative x y z = add (add x y) z -=- add x (add y z)
+\end{curry}
+%
+Properties can also be defined for polymorphic types.
+For instance, we can define general polymorphic trees,
+operations to compute the leaves of a tree and mirroring a tree
+as follows:
+\begin{curry}
+data Tree a = Leaf a | Node [Tree a]$\listline$
+leaves (Leaf x) = [x]
+leaves (Node ts) = concatMap leaves ts$\listline$
+mirror (Leaf x) = Leaf x
+mirror (Node ts) = Node (reverse (map mirror ts))
+\end{curry}
+Then we can state and check two properties on mirroring:
+\begin{curry}
+doubleMirror t = mirror (mirror t) -=- t$\listline$
+leavesOfMirrorAreReversed t = leaves t -=- reverse (leaves (mirror t))
+\end{curry}
+%
+In some cases, it might be desirable to define own test data
+since the generated structures are not appropriate for testing
+(e.g., balanced trees to check algorithms that require work
+on balanced trees).
+Of course, one could drop undesired values by an explicit condition.
+For instance, consider the following operation that adds all numbers
+from 0 to a given limit:
+%
+\begin{curry}
+sumUp n = if n==0 then 0 else n + sumUp (n-1)
+\end{curry}
+%
+Since there is also a simple formula to compute this sum,
+we can check it:
+%
+\begin{curry}
+sumUpIsCorrect n = n>=0 ==> sumUp n -=- n * (n+1) `div` 2
+\end{curry}
+Note that the condition is important since \code{sumUp}
+diverges on negative numbers.
+CurryCheck tests this property by enumerating integers,
+i.e., also many negative numbers which are dropped for the tests.
+In order to generate only valid test data, we define
+our own generator for a search tree containing only valid data:
+%
+\begin{curry}
+genInt = genCons0 0 ||| genCons1 (+1) genInt
+\end{curry}
+%
+The combinator \code{genCons0} constructs a search tree
+containing only this value, whereas \code{genCons1}
+constructs from a given search tree a new tree where the function
+given in the first argument is applied to all values.
+Similarly, there are also combinators \code{genCons2},
+\code{genCons3} etc.\ for more than one argument.
+The combinator \ccode{|||} combines two search trees.
+
+If the Curry program containing properties defines a generator
+operation with the name \code{gen$\tau$},
+then CurryCheck uses this generator to test properties
+with argument type $\tau$.
+Hence, if we put the definition of \code{genInt}
+in the Curry program where \code{sumUpIsCorrect} is defined,
+the values to check this property are only non-negative integers.
+Since these integers are slowly increasing, i.e., the search tree
+is actually degenerated to a list, we can also use
+the following definition to obtain a more balanced search tree:
+%
+\begin{curry}
+genInt = genCons0 0 ||| genCons1 (\n -> 2*(n+1)) genInt
+                    ||| genCons1 (\n -> 2*n+1)   genInt
+\end{curry}
+The library \code{SearchTree} defines the structure of search trees
+as well as operations on search trees, like limiting the depth
+of a search tree (\code{limitSearchTree}) or showing a search tree
+(\code{showSearchTree}). For instance, to structure
+of the generated search tree up to some depth
+can be visualized as follows:
+\begin{curry}
+...SearchTree> putStr (showSearchTree (limitSearchTree 6 genInt))
+\end{curry}
+%
+If we want to use our own generator only for specific properties,
+we can do so by introducing a new data type and defining a generator
+for this data type.
+For instance, to test only the operation \code{sumUpIsCorrect} with non-negative
+integers, we do not define a generator \code{genInt} as above,
+but define a wrapper type for non-negative integers and
+a generator for this type:
+%
+\begin{curry}
+data NonNeg = NonNeg { nonNeg :: Int }$\listline$
+genNonNeg = genCons1 NonNeg genNN
+ where
+   genNN = genCons0 0 ||| genCons1 (\n -> 2*(n+1)) genNN
+                      ||| genCons1 (\n -> 2*n+1)   genNN
+\end{curry}
+Now we can either redefine \code{sumUpIsCorrect} on this type
+\begin{curry}
+sumUpIsCorrectOnNonNeg (NonNeg n) = sumUp n -=- n * (n+1) `div` 2
+\end{curry}
+or we simply reuse the old definition by
+\begin{curry}
+sumUpIsCorrectOnNonNeg = sumUpIsCorrect . nonNeg
+\end{curry}
+
+% LocalWords: CurryCheck
