@@ -344,19 +344,99 @@ transformTests (CurryProg modName imports typeDecls functions opDecls) =
  where
   (rawTests, funcs) = partition isTest functions
 
-  preCondFuns = map ((\ (mn,fn) -> (mn,stripSuffix fn "'pre")) . funcName)
-                    (filter (\fd -> "'pre" `isSuffixOf` snd (funcName fd))
+  preCondOps = map ((\ (mn,fn) -> (mn,stripSuffix fn "'pre")) . funcName)
+                   (filter (\fd -> "'pre" `isSuffixOf` snd (funcName fd))
+                           functions)
+
+  postCondOps = map ((\ (mn,fn) -> (mn,stripSuffix fn "'post")) . funcName)
+                    (filter (\fd -> "'post" `isSuffixOf` snd (funcName fd))
                             functions)
 
-  detOpTests = genDetOpTests preCondFuns functions -- determinism tests
+  specOps    = map ((\ (mn,fn) -> (mn,stripSuffix fn "'spec")) . funcName)
+                   (filter (\fd -> "'spec" `isSuffixOf` snd (funcName fd))
+                           functions)
+
+  -- generate post condition tests:
+  postCondTests = concatMap (genPostCondTest preCondOps postCondOps) functions
+
+  -- generate specification tests:
+  specOpTests = concatMap (genSpecTest preCondOps specOps) functions
+
+  -- generate determinism tests:
+  detOpTests = genDetOpTests preCondOps functions
 
   -- names of deterministic operations:
   detOpNames = map (stripIsDet . funcName) detOpTests
 
   stripIsDet (mn,fn) = (mn, take (length fn -15) fn)
 
-  alltests = concatMap poly2bool (rawTests ++ detOpTests)
+  alltests = concatMap poly2bool
+                       (rawTests ++ postCondTests ++ specOpTests ++ detOpTests)
 
+
+-- Transforms a function type into a property type, i.e.,
+-- t1 -> ... -> tn -> t  is transformed into  t1 -> ... -> tn -> Prop
+propResultType :: CTypeExpr -> CTypeExpr
+propResultType (CTVar _) = propType
+propResultType (CTCons _ _) = propType
+propResultType (CFuncType from to) = CFuncType from (propResultType to)
+
+
+-- Transforms a function declaration into a post condition test if
+-- there is a post condition for this function (i.e., a relation named
+-- f'post). The specification test is of the form
+-- fSatisfiesPostCondition x1...xn y =
+--   let r = f x1...xn
+--    in f'pre x1...xn && r==r  ==> always (f'post x1...xn r)
+genPostCondTest :: [QName] -> [QName] -> CFuncDecl -> [CFuncDecl]
+genPostCondTest prefuns postops (CmtFunc _ qf ar vis texp rules) =
+  genSpecTest prefuns postops (CFunc qf ar vis texp rules)
+genPostCondTest prefuns postops (CFunc qf@(mn,fn) ar _ texp _) =
+ if qf `notElem` postops then [] else
+  [CFunc (mn, fn ++ postCondSuffix) ar Public
+    (propResultType texp)
+    [simpleRule (map CPVar cvars) $
+      CLetDecl [CLocalPat (CPVar rvar)
+                          (CSimpleRhs (applyF qf (map CVar cvars)) [])]
+               (applyF (easyCheckModule,"==>")
+                       [preCond,
+                        applyF (easyCheckModule,"always")
+                               [applyF (mn,fn++"'post")
+                                       (map CVar (cvars ++ [rvar]))]])]]
+ where
+  cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
+  rvar  = (0,"r")
+
+  preCond =
+   let eqResult = applyF (pre "==") [CVar rvar, CVar rvar]
+    in if qf `elem` prefuns
+       then applyF (pre "&&")
+                   [applyF (mn,fn++"'pre") (map CVar cvars), eqResult]
+       else eqResult
+
+-- Transforms a function declaration into a specification test if
+-- there is a specification for this function (i.e., an operation named
+-- f'spec). The specification test is of the form
+-- fSatisfiesSpecification x1...xn =
+--   f'pre x1...xn  ==> (f x1...xn <~> f'spec x1...xn)
+genSpecTest :: [QName] -> [QName] -> CFuncDecl -> [CFuncDecl]
+genSpecTest prefuns specops (CmtFunc _ qf ar vis texp rules) =
+  genSpecTest prefuns specops (CFunc qf ar vis texp rules)
+genSpecTest prefuns specops (CFunc qf@(mn,fn) ar _ texp _) =
+ if qf `notElem` specops then [] else
+  [CFunc (mn, fn ++ satSpecSuffix) ar Public
+    (propResultType texp)
+    [simpleRule (map CPVar cvars) $
+       addPreCond (applyF (pre "<~>")
+                          [applyF qf (map CVar cvars),
+                           applyF (mn,fn++"'spec") (map CVar cvars)])]]
+ where
+  cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
+
+  addPreCond exp = if qf `elem` prefuns
+                   then applyF (easyCheckModule,"==>")
+                               [applyF (mn,fn++"'pre") (map CVar cvars), exp]
+                   else exp
 
 -- Revert the transformation for deterministic operations performed
 -- by currypp, i.e., replace rule "f x = selectValue (set f_ORGNDFUN x)"
@@ -377,6 +457,15 @@ genDetOpTests prefuns fdecls =
  where
   isDetOrgOp fdecl = "_ORGNDFUN" `isSuffixOf` snd (funcName fdecl)
 
+postCondSuffix :: String
+postCondSuffix = "SatisfiesPostCondition"
+
+satSpecSuffix :: String
+satSpecSuffix = "SatisfiesSpecification"
+
+isDetSuffix :: String
+isDetSuffix = "IsDeterministic"
+
 -- Transforms a declaration of a deterministic operation f_ORGNDFUN
 -- into a determinisim property test of the form
 -- fIsDeterministic x1...xn = let r = f x1...xn
@@ -385,11 +474,10 @@ genDetProp :: [QName] -> CFuncDecl -> CFuncDecl
 genDetProp prefuns (CmtFunc _ qf ar vis texp rules) =
   genDetProp prefuns (CFunc qf ar vis texp rules)
 genDetProp prefuns (CFunc (mn,fn) ar _ texp _) =
-  CFunc (mn, forg ++ "IsDeterministic") ar Public
+  CFunc (mn, forg ++ isDetSuffix) ar Public
    (propResultType texp)
    [simpleRule (map CPVar cvars) $
-      CLetDecl [CLocalPat (CPVar rvar)
-                          (CSimpleRhs forgcall [])]
+      CLetDecl [CLocalPat (CPVar rvar) (CSimpleRhs forgcall [])]
                (applyF (easyCheckModule,"==>")
                        [preCond,
                         applyF (easyCheckModule,"always")
@@ -400,16 +488,13 @@ genDetProp prefuns (CFunc (mn,fn) ar _ texp _) =
   cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
   rvar  = (0,"r")
 
-  eqResult = applyF (pre "==") [CVar rvar, CVar rvar]
+  preCond =
+   let eqResult = applyF (pre "==") [CVar rvar, CVar rvar]
+    in if (mn,forg) `elem` prefuns
+       then applyF (pre "&&")
+                   [applyF (mn,forg++"'pre") (map CVar cvars), eqResult]
+       else eqResult
 
-  preCond = if (mn,forg) `elem` prefuns
-            then applyF (pre "&&")
-                        [applyF (mn,forg++"'pre") (map CVar cvars), eqResult]
-            else eqResult
-
-  propResultType (CTVar _) = propType
-  propResultType (CTCons _ _) = propType
-  propResultType (CFuncType from to) = CFuncType from (propResultType to)
 
 -- Generates auxiliary (Boolean-instantiated) test functions for
 -- polymorphically typed test function.
@@ -437,8 +522,12 @@ orgTestName :: QName -> QName
 orgTestName (mn,tname)
   | "_ON_BOOL" `isSuffixOf` tname
   = orgTestName (mn, take (length tname - 8) tname)
-  | "IsDeterministic" `isSuffixOf` tname
+  | isDetSuffix `isSuffixOf` tname
   = orgTestName (mn, take (length tname - 15) tname)
+  | postCondSuffix `isSuffixOf` tname
+  = orgTestName (mn, stripSuffix tname postCondSuffix)
+  | satSpecSuffix `isSuffixOf` tname
+  = orgTestName (mn, stripSuffix tname satSpecSuffix)
   | otherwise = (mn,tname)
 
 -- This function implement the first phase of CurryCheck: it analyses
