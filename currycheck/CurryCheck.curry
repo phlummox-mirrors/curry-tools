@@ -3,6 +3,8 @@
 --- This tool extracts all EasyCheck tests contained in a Curry module
 --- and transforms them such that they are automatically tested
 --- and the test results are reported.
+--- Moreover, for all functions declared as deterministic,
+--- determinism properties are generated and checked.
 ---
 --- @author Jan-Patrick Baye, Michael Hanus
 --- @version February 2016
@@ -34,7 +36,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 19/02/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 21/02/2016)"
    bannerLine = take (length bannerText) (repeat '=')
 
 -- print the help
@@ -257,7 +259,8 @@ makeAllPublic (CurryProg modname imports typedecls functions opdecls) =
 
   -- since we create a copy of the module, we can ignore unnecessary data
   ignoreComment :: CFuncDecl -> CFuncDecl
-  ignoreComment (CmtFunc _ name arity visibility typeExpr rules) = CFunc name arity visibility typeExpr rules
+  ignoreComment (CmtFunc _ name arity visibility typeExpr rules) =
+    CFunc name arity visibility typeExpr rules
   ignoreComment x@(CFunc      _     _          _        _     _) = x
 
   makePublic :: CFuncDecl -> CFuncDecl
@@ -286,8 +289,10 @@ genMainFunction opts testModule tests =
   easyCheckExprs = list2ac $ map makeExpr tests
 
   makeExpr :: Test -> CExpr
-  makeExpr (PropTest (mn, name) _ _) = constF (testModule, name ++ "_" ++ modNameToId mn)
-  makeExpr (AssertTest (mn, name) _) = constF (testModule, name ++ "_" ++modNameToId  mn)
+  makeExpr (PropTest (mn, name) _ _) =
+    constF (testModule, name ++ "_" ++ modNameToId mn)
+  makeExpr (AssertTest (mn, name) _) =
+    constF (testModule, name ++ "_" ++modNameToId  mn)
 
 
 -- generate the name of the modified module
@@ -306,7 +311,9 @@ isTest = isTestType . funcType
   isTestType :: CTypeExpr -> Bool
   isTestType ct = isPropIOType ct || resultType ct == propType
 
-  propType = listType (baseType (easyCheckModule, "Test"))
+-- The type of EasyCheck properties.
+propType :: CTypeExpr
+propType = listType (baseType (easyCheckModule, "Test"))
    
 isPropIOType :: CTypeExpr -> Bool
 isPropIOType texp = case texp of
@@ -325,17 +332,84 @@ classifyTests = map makeProperty
 
   assertion f = AssertTest (funcName f) 0
 
--- Extracts all tests and transforms all polymoprhic tests into Boolean tests.
+-- Extracts all tests and transforms all polymorphic tests into Boolean tests.
 transformTests :: CurryProg -> ([(Bool,CFuncDecl)], CurryProg)
 transformTests (CurryProg modName imports typeDecls functions opDecls) =
-  (tests, CurryProg modName imports typeDecls newFunctions opDecls)
+  (alltests,
+   CurryProg modName
+             (nub (easyCheckModule:imports))
+             typeDecls
+             (map (revertDetOpTrans detOpNames) funcs ++ map snd alltests)
+             opDecls)
  where
   (rawTests, funcs) = partition isTest functions
 
-  tests = concatMap poly2bool rawTests
+  preCondFuns = map ((\ (mn,fn) -> (mn,stripSuffix fn "'pre")) . funcName)
+                    (filter (\fd -> "'pre" `isSuffixOf` snd (funcName fd))
+                            functions)
 
-  newFunctions = funcs ++ map snd tests
+  detOpTests = genDetOpTests preCondFuns functions -- determinism tests
 
+  -- names of deterministic operations:
+  detOpNames = map (stripIsDet . funcName) detOpTests
+
+  stripIsDet (mn,fn) = (mn, take (length fn -15) fn)
+
+  alltests = concatMap poly2bool (rawTests ++ detOpTests)
+
+
+-- Revert the transformation for deterministic operations performed
+-- by currypp, i.e., replace rule "f x = selectValue (set f_ORGNDFUN x)"
+-- with "f = f_ORGNDFUN".
+revertDetOpTrans :: [QName] -> CFuncDecl -> CFuncDecl
+revertDetOpTrans  detops (CmtFunc _ qf ar vis texp rules) =
+  revertDetOpTrans detops (CFunc qf ar vis texp rules)
+revertDetOpTrans detops fdecl@(CFunc qf@(mn,fn) ar vis texp _) =
+  if qf `elem` detops
+  then CFunc qf ar vis texp [simpleRule [] (constF (mn,fn++"_ORGNDFUN"))]
+  else fdecl
+
+-- Look for operations named f_ORGNDFUN and create a determinism property
+-- for f.
+genDetOpTests :: [QName] -> [CFuncDecl] -> [CFuncDecl]
+genDetOpTests prefuns fdecls =
+  map (genDetProp prefuns) (filter isDetOrgOp fdecls)
+ where
+  isDetOrgOp fdecl = "_ORGNDFUN" `isSuffixOf` snd (funcName fdecl)
+
+-- Transforms a declaration of a deterministic operation f_ORGNDFUN
+-- into a determinisim property test of the form
+-- fIsDeterministic x1...xn = let r = f x1...xn
+--                             in r==r ==> always (f x1...xn == r)
+genDetProp :: [QName] -> CFuncDecl -> CFuncDecl
+genDetProp prefuns (CmtFunc _ qf ar vis texp rules) =
+  genDetProp prefuns (CFunc qf ar vis texp rules)
+genDetProp prefuns (CFunc (mn,fn) ar _ texp _) =
+  CFunc (mn, forg ++ "IsDeterministic") ar Public
+   (propResultType texp)
+   [simpleRule (map CPVar cvars) $
+      CLetDecl [CLocalPat (CPVar rvar)
+                          (CSimpleRhs forgcall [])]
+               (applyF (easyCheckModule,"==>")
+                       [preCond,
+                        applyF (easyCheckModule,"always")
+                               [applyF (pre "==") [forgcall, CVar rvar]]])]
+ where
+  forg  = take (length fn - 9) fn
+  forgcall = applyF (mn,forg) (map CVar cvars)
+  cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
+  rvar  = (0,"r")
+
+  eqResult = applyF (pre "==") [CVar rvar, CVar rvar]
+
+  preCond = if (mn,forg) `elem` prefuns
+            then applyF (pre "&&")
+                        [applyF (mn,forg++"'pre") (map CVar cvars), eqResult]
+            else eqResult
+
+  propResultType (CTVar _) = propType
+  propResultType (CTCons _ _) = propType
+  propResultType (CFuncType from to) = CFuncType from (propResultType to)
 
 -- Generates auxiliary (Boolean-instantiated) test functions for
 -- polymorphically typed test function.
@@ -360,20 +434,24 @@ poly2bool fdecl@(CFunc (mn,fname) arity vis ftype _)
 -- Transforms a possibly changed test name (like "test_ON_BOOL")
 -- back to its original name.
 orgTestName :: QName -> QName
-orgTestName (mn,tname) =
-  (mn, if "_ON_BOOL" `isSuffixOf` tname
-       then take (length tname - 8) tname
-       else tname)
+orgTestName (mn,tname)
+  | "_ON_BOOL" `isSuffixOf` tname
+  = orgTestName (mn, take (length tname - 8) tname)
+  | "IsDeterministic" `isSuffixOf` tname
+  = orgTestName (mn, take (length tname - 15) tname)
+  | otherwise = (mn,tname)
 
--- this function and genTestEnvironment implement the first phase of CurryCheck
--- analysing the module, i.e. finding tests,
--- and transforming a copy of the module for CurryChecks usage
+-- This function implement the first phase of CurryCheck: it analyses
+-- a module to be checked, i.e., it finds the tests,
+-- creates new tests (e.g., for polymorphic properties, deterministic functions)
+-- and generates a copy of the module appropriate for the main operation
+-- of CurryCheck (e.g., all operations are made public).
 genAndAnalyseModule :: [CmdFlag] -> String -> IO TestModule
 genAndAnalyseModule opts modname = do
   putStrIfNormal opts $ "Analyzing tests in module '" ++ modname ++ "'...\n"
   prog    <- readCurryWithParseOptions modname (setQuiet True defaultParams)
   progtxt <- readFile (modNameToPath modname ++ ".curry")
-  let words = map firstWord (lines progtxt)
+  let words                   = map firstWord (lines progtxt)
       (alltests, pubmod)      = transformModule prog
       (rawTests,ignoredTests) = partition fst alltests
   putStrIfNormal opts $
@@ -403,8 +481,7 @@ genAndAnalyseModule opts modname = do
     AssertTest name $ getLineNumber words (orgTestName name)
 
   getLineNumber :: [String] -> QName -> Int
-  getLineNumber words (_, name) = lineNumber + 1
-   where Just lineNumber = elemIndex name words
+  getLineNumber words (_, name) = maybe 0 (+1) (elemIndex name words)
 
 -- Extracts all user-defined defined generators defined in a module.
 generatorsOfProg :: CurryProg -> [QName]
@@ -416,9 +493,6 @@ generatorsOfProg = map funcName . filter isGen . functions
    isSearchTreeType (CTVar _) = False
    isSearchTreeType (CFuncType _ _) = False
    isSearchTreeType (CTCons tc _) = tc == searchTreeTC
-
-genTestEnvironment :: [CmdFlag] -> [String] -> IO [TestModule]
-genTestEnvironment opts = mapIO (genAndAnalyseModule opts)
 
 -- Create the main test module containing all tests of all test modules as
 -- a Curry program with name `mainmodname`.
@@ -504,7 +578,7 @@ main = do
   unless (null opterrors) (putStr (unlines opterrors) >> showUsage)
   putStrIfNormal opts ccBanner 
   when (null args) showUsage
-  testModules <- genTestEnvironment opts (map stripCurrySuffix args)
+  testModules <- mapIO (genAndAnalyseModule opts) (map stripCurrySuffix args)
   putStrIfNormal opts $ "Generating main test module '"++mainmodname++"'..."
   genTestModule opts mainmodname testModules
   putStrIfNormal opts $ "and compiling it...\n"
@@ -514,6 +588,12 @@ main = do
 
 -------------------------------------------------------------------------
 -- Auxiliaries
+
+-- Strips a suffix from a string.
+stripSuffix :: String -> String -> String
+stripSuffix str suf = if suf `isSuffixOf` str
+                      then take (length str - length suf) str
+                      else str
 
 -- Translate a module name to an identifier, i.e., replace '.' by '_':
 modNameToId :: String -> String
