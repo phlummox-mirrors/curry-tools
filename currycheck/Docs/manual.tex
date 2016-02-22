@@ -65,13 +65,15 @@ revNull (module Rev, line 7):
  Passed 1 test.
 rev123 (module Rev, line 8):
  Passed 1 test.
-revRevIsId_ON_BOOL (module Rev, line 10):
+revRevIsId_ON_BASETYPE (module Rev, line 10):
  OK, passed 100 tests.
 \end{curry}
 Since the operation \code{rev} is polymorphic,
 the property \code{revRevIsId} is also polymorphic in its argument.
 In order to select concrete values to test this property,
-CurryCheck replaces such polymorphic tests by Boolean tests.
+CurryCheck replaces such polymorphic tests by defaulting the type
+variable to \code{Bool} (the actual default type can also be set by a
+command-line flag).
 If we want to test this property on integers numbers,
 we can explicitly provide a type signature,
 where \code{Prop} is the type of tests:

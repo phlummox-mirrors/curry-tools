@@ -3,7 +3,7 @@
 
 CURRYBIN="../../../bin"
 
-ALLTESTS="ExampleTests ExamplesFromManual DefaultRulesTest SEBF Nats Tree Sum"
+ALLTESTS="ExampleTests ExamplesFromManual DefaultRulesTest SEBF Nats Tree Sum DetOperations SortSpec"
 
 VERBOSE=no
 if [ "$1" = "-v" ] ; then

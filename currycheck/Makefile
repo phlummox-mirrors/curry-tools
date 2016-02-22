@@ -2,7 +2,7 @@
 
 TOOL=$(BINDIR)/currycheck
 
-DEPS = CurryCheck.curry $(LIBDIR)/Test/EasyCheck.curry
+DEPS = *.curry $(LIBDIR)/Test/EasyCheck.curry
 
 .PHONY: all compile install clean uninstall
 
