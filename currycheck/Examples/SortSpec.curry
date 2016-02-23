@@ -5,7 +5,10 @@
 -- and the post-condition.
 
 perm []     = []
-perm (xs++[x]++ys) = x : perm (xs++ys)
+perm (x:xs) = insert x (perm xs)
+ where
+   insert x ys     = x : ys
+   insert x (y:ys) = y : insert x ys
 
 sorted []       = True
 sorted [_]      = True
