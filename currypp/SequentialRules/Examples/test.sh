@@ -18,14 +18,17 @@ export PATH
 $CURRYBIN/cleancurry
 
 # execute all tests:
+# The option --nosource is necessary since currypp introduces calls
+# to Prelude.=:<= in the source program when transforming sequential rules
+CCOPTS=--nosource
 LOGFILE=xxx$$
 if [ $VERBOSE = yes ] ; then
-  $CURRYBIN/currycheck $ALLTESTS
+  $CURRYBIN/currycheck $CCOPTS $ALLTESTS
   if [ $? -gt 0 ] ; then
     exit 1
   fi
 else
-  $CURRYBIN/currycheck $ALLTESTS > $LOGFILE 2>&1
+  $CURRYBIN/currycheck $CCOPTS $ALLTESTS > $LOGFILE 2>&1
   if [ $? -gt 0 ] ; then
     echo "ERROR in currycheck:"
     cat $LOGFILE
