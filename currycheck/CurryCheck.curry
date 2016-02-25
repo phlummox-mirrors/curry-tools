@@ -37,8 +37,8 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 23/02/2016)"
-   bannerLine = take (length bannerText) (repeat '=')
+     "CurryCheck: a tool for testing Curry programs (version of 25/02/2016)"
+   bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
 usageText :: String
@@ -167,6 +167,7 @@ genTestMsg file test =
   snd (getTestName test) ++
   " (module " ++ file ++ ", line " ++ show (getTestLine test) ++ ")"
 
+-------------------------------------------------------------------------
 -- Representation of the information about a module to be tested:
 -- * the original name of the module to be tested
 -- * the name of the transformed (public) test module
@@ -182,20 +183,14 @@ data TestModule = TestModule
   , generators     :: [QName]
   }
 
+-- A test module with only static errors.
+staticErrorTestMod :: String -> [String] -> TestModule
+staticErrorTestMod modname staterrs =
+ TestModule modname modname staterrs [] []
+
 -- Is this a test module that should be tested?
 testThisModule :: TestModule -> Bool
 testThisModule tm = null (staticErrors tm) && not (null (propTests tm))
-
--- Extracts the first word of a string
-firstWord :: String -> String
-firstWord = head . splitOn "\t" . head . splitOn " "
-
--- The configuration option for EasyCheck
-easyCheckConfig :: Options -> QName
-easyCheckConfig opts =
-  (easyCheckModule, if isQuiet opts     then "quietConfig"   else
-                    if optVerb opts > 1 then "verboseConfig"
-                                        else "easyConfig")
 
 -- Extracts all user data types used as test data generators.
 userTestDataOfModule :: TestModule -> [QName]
@@ -211,7 +206,8 @@ userTestDataOfModule testmod = concatMap testDataOf (propTests testmod)
           (unionOn userTypesOf argtypes)
 
   unionOn f = foldr union [] . map f
-  
+
+-------------------------------------------------------------------------
 -- Transform all tests of a module into an appropriate call of EasyCheck:
 createTests :: Options -> String -> TestModule -> [CFuncDecl]
 createTests opts mainmodname tm = map createTest (propTests tm)
@@ -277,6 +273,14 @@ createTests opts mainmodname tm = map createTest (propTests tm)
     [simpleRule [] $ applyF (easyCheckModule, "checkPropIOWithMsg")
                             [stdConfigOp, msgOf test, CSymbol (testmname,name)]]
 
+-- The configuration option for EasyCheck
+easyCheckConfig :: Options -> QName
+easyCheckConfig opts =
+  (easyCheckModule, if isQuiet opts     then "quietConfig"   else
+                    if optVerb opts > 1 then "verboseConfig"
+                                        else "easyConfig")
+
+-- Translates a type expression into calls to generator operations.
 type2genop :: String -> TestModule -> CTypeExpr -> CExpr
 type2genop _ _ (CTVar _)       = error "No polymorphic generator!"
 type2genop _ _ (CFuncType _ _) = error "No generator for functional types!"
@@ -595,7 +599,13 @@ orgTestName (mn,tname)
 analyseModule :: Options -> String -> IO [TestModule]
 analyseModule opts modname = do
   putStrIfNormal opts $ "Analyzing module '" ++ modname ++ "'...\n"
-  prog    <- readCurryWithParseOptions modname (setQuiet True defaultParams)
+  catch (readCurryWithParseOptions modname (setQuiet True defaultParams) >>=
+         analyseCurryProg opts modname)
+        (\_ -> return [staticErrorTestMod modname
+                         ["Module '"++modname++"': incorrect source program"]])
+
+analyseCurryProg :: Options -> String -> CurryProg -> IO [TestModule]
+analyseCurryProg opts modname prog = do
   progtxt <- readFile (modNameToPath modname ++ ".curry")
   putStrIfVerbose opts "Checking source code for illegal uses of primitives...\n"
   useerrs <- if optSource opts then checkBlacklistUse prog else return []
@@ -769,6 +779,7 @@ main = do
       finaltestmodules = filter testThisModule (concat testModules)
   if not (null staticerrs)
    then do showStaticErrors staticerrs
+           putStrLn "Testing aborted!"
            cleanup opts mainmodname finaltestmodules
            exitWith 1
    else if null finaltestmodules then exitWith 0 else do
@@ -782,11 +793,15 @@ main = do
     exitWith ret
  where
   showStaticErrors errs = putStrLn $
-    unlines (line : "ILLEGAL USAGE OF CURRY FEATURES:" : errs) ++ line
+    unlines (line : "STATIC ERRORS IN PROGRAMS:" : errs) ++ line
   line = take 78 (repeat '=')
 
 -------------------------------------------------------------------------
 -- Auxiliaries
+
+-- Extracts the first word of a string
+firstWord :: String -> String
+firstWord = head . splitOn "\t" . head . splitOn " "
 
 -- Strips a suffix from a string.
 stripSuffix :: String -> String -> String
