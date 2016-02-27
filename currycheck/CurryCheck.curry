@@ -37,7 +37,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 25/02/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 28/02/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -65,7 +65,7 @@ defaultOptions = Options
   , optVerb    = 1
   , optMaxTest = 0
   , optMaxFail = 0
-  , optDefType = "Bool"
+  , optDefType = "Ordering"
   , optSource  = True
   , optProp    = True
   , optSpec    = True
@@ -90,7 +90,7 @@ options =
            "maximal number of condition failures\n(default: 10000)"
   , Option "d" ["deftype"]
             (ReqArg checkDefType "<t>")
-           "type for defaulting polymorphic tests:\nBool (default) | Int | Char"
+           "type for defaulting polymorphic tests:\nBool | Int | Char | Ordering (default)"
   , Option "" ["nosource"]
            (NoArg (\opts -> opts { optSource = False }))
            "do not perform source code checks"
@@ -115,7 +115,7 @@ options =
                      then opts { optVerb = n }
                      else error "Illegal verbosity level (try `-h' for help)"
 
-  checkDefType s opts = if s `elem` ["Bool","Int","Char"]
+  checkDefType s opts = if s `elem` ["Bool","Int","Char","Ordering"]
                         then opts { optDefType = s }
                         else error "Illegal default type (try `-h' for help)"
 

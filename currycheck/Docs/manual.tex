@@ -72,7 +72,7 @@ Since the operation \code{rev} is polymorphic,
 the property \code{revRevIsId} is also polymorphic in its argument.
 In order to select concrete values to test this property,
 CurryCheck replaces such polymorphic tests by defaulting the type
-variable to \code{Bool} (the actual default type can also be set by a
+variable to \code{Ordering} (the actual default type can also be set by a
 command-line flag).
 If we want to test this property on integers numbers,
 we can explicitly provide a type signature,
