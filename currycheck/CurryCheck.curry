@@ -7,7 +7,7 @@
 --- determinism properties are generated and checked.
 ---
 --- @author Michael Hanus, Jan-Patrick Baye
---- @version February 2016
+--- @version March 2016
 -------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -37,7 +37,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 28/02/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 02/03/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -150,6 +150,20 @@ isDetSuffix = "IsDeterministic"
 -- A test is either a property test (with a name, type, source line number)
 -- or an IO test (with a name and source line number).
 data Test = PropTest QName CTypeExpr Int | AssertTest QName Int
+
+-- Is the test an IO test?
+isIOTest :: Test -> Bool
+isIOTest t = case t of AssertTest _ _ -> True
+                       _              -> False
+-- Is the test a unit test?
+isUnitTest :: Test -> Bool
+isUnitTest t = case t of PropTest _ texp _ -> null (argTypes texp)
+                         _                 -> False
+
+-- Is the test a property test?
+isPropTest :: Test -> Bool
+isPropTest t = case t of PropTest _ texp _ -> not (null (argTypes texp))
+                         _                 -> False
 
 -- The name of a test:
 getTestName :: Test -> QName
@@ -763,6 +777,19 @@ cleanup opts mainmodname modules =
     system $ installDir ++ "/bin/cleancurry " ++ modname
     system $ "rm -f " ++ modname ++ ".curry"
 
+-- Show some statistics about number of tests:
+showTestStatistics :: [TestModule] -> IO ()
+showTestStatistics testmodules = do
+  let numtests  = sumOf (const True) testmodules
+      unittests = sumOf isUnitTest   testmodules
+      proptests = sumOf isPropTest   testmodules
+      iotests   = sumOf isIOTest     testmodules
+  putStr $ "TOTAL NUMBER OF TESTS: " ++ show numtests
+  putStrLn $ " (UNIT: " ++ show unittests ++ ", PROPERTIES: " ++
+             show proptests ++ ", IO: " ++ show iotests ++ ")"
+ where
+  sumOf p = foldr (+) 0 . map (length . filter p . propTests)
+
 main :: IO ()
 main = do
   argv <- getArgs
@@ -790,6 +817,7 @@ main = do
                      [installDir++"/bin/curry",":set v0",":set parser -Wnone",
                       ":l "++mainmodname,":eval main :q"]
     cleanup opts mainmodname finaltestmodules
+    unless (isQuiet opts) $ showTestStatistics finaltestmodules
     exitWith ret
  where
   showStaticErrors errs = putStrLn $
