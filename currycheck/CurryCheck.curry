@@ -1,10 +1,16 @@
 -------------------------------------------------------------------------
 --- This is the implementation of the currycheck tool.
---- This tool extracts all EasyCheck tests contained in a Curry module
---- and transforms them such that they are automatically tested
---- and the test results are reported.
---- Moreover, for all functions declared as deterministic,
---- determinism properties are generated and checked.
+--- It performs various checks on Curry programs:
+---
+--- * Correct usage of set functions and non-strict unification
+--- * All EasyCheck tests are extracted and checked
+--- * For all functions declared as deterministic,
+---   determinism properties are generated and checked.
+--- * For functions with post-conditions (f'post), checks for post-conditions
+---   are generated (together with possible pre-conditions)
+--- * For functions with specification (f'spec), checks for satisfaction
+---   of these specifications are generated
+---   (together with possible pre-conditions).
 ---
 --- @author Michael Hanus, Jan-Patrick Baye
 --- @version March 2016
@@ -37,7 +43,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 02/03/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 03/03/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -149,12 +155,12 @@ isDetSuffix = "IsDeterministic"
 -- Internal representation of tests extracted from a Curry module.
 -- A test is either a property test (with a name, type, source line number)
 -- or an IO test (with a name and source line number).
-data Test = PropTest QName CTypeExpr Int | AssertTest QName Int
+data Test = PropTest QName CTypeExpr Int | IOTest QName Int
 
 -- Is the test an IO test?
 isIOTest :: Test -> Bool
-isIOTest t = case t of AssertTest _ _ -> True
-                       _              -> False
+isIOTest t = case t of IOTest _ _ -> True
+                       _          -> False
 -- Is the test a unit test?
 isUnitTest :: Test -> Bool
 isUnitTest t = case t of PropTest _ texp _ -> null (argTypes texp)
@@ -167,13 +173,13 @@ isPropTest t = case t of PropTest _ texp _ -> not (null (argTypes texp))
 
 -- The name of a test:
 getTestName :: Test -> QName
-getTestName (PropTest   n _ _) = n
-getTestName (AssertTest n   _) = n
+getTestName (PropTest n _ _) = n
+getTestName (IOTest   n   _) = n
 
 -- The line number of a test:
 getTestLine :: Test -> Int
-getTestLine (PropTest   _ _ n) = n
-getTestLine (AssertTest _   n) = n
+getTestLine (PropTest _ _ n) = n
+getTestLine (IOTest   _   n) = n
 
 -- Generates a useful error message for tests (with module and line number)
 genTestMsg :: String -> Test -> String
@@ -210,7 +216,7 @@ testThisModule tm = null (staticErrors tm) && not (null (propTests tm))
 userTestDataOfModule :: TestModule -> [QName]
 userTestDataOfModule testmod = concatMap testDataOf (propTests testmod)
  where
-  testDataOf (AssertTest _ _) = []
+  testDataOf (IOTest _ _) = []
   testDataOf (PropTest _ texp _) = unionOn userTypesOf (argTypes texp)
 
   userTypesOf (CTVar _) = []
@@ -230,7 +236,7 @@ createTests opts mainmodname tm = map createTest (propTests tm)
     cfunc (mainmodname, (genTestName $ getTestName test)) 0 Public
           (ioType (maybeType stringType))
           (case test of PropTest   name t _ -> propBody name (argTypes t) test
-                        AssertTest name   _ -> assertBody name test)
+                        IOTest name       _ -> ioTestBody name test)
 
   msgOf test = string2ac $ genTestMsg (orgModuleName tm) test
 
@@ -283,7 +289,7 @@ createTests opts mainmodname tm = map createTest (propTests tm)
     
   stdConfigOp = constF (easyCheckConfig opts)
     
-  assertBody (_, name) test =
+  ioTestBody (_, name) test =
     [simpleRule [] $ applyF (easyCheckModule, "checkPropIOWithMsg")
                             [stdConfigOp, msgOf test, CSymbol (testmname,name)]]
 
@@ -367,17 +373,13 @@ isPropIOType texp = case texp of
     CTCons tcons [] -> tcons == (easyCheckModule,"PropIO")
     _               -> False
 
--- classify the tests as either PropTest or AssertTest
+-- classify the tests as either PropTest or IOTest
 classifyTests :: [CFuncDecl] -> [Test]
 classifyTests = map makeProperty
  where
   makeProperty test = if isPropIOType (funcType test)
-                        then assertion test
-                        else property test
-
-  property  f = PropTest (funcName f) (funcType f) 0
-
-  assertion f = AssertTest (funcName f) 0
+                      then IOTest (funcName test) 0
+                      else PropTest (funcName test) (funcType test) 0
 
 -- Extracts all tests and transforms all polymorphic tests into tests on a
 -- base type.
@@ -662,8 +664,8 @@ analyseCurryProg opts modname prog = do
   addLineNumber :: [String] -> Test -> Test
   addLineNumber words (PropTest   name texp _) =
     PropTest   name texp $ getLineNumber words (orgTestName name)
-  addLineNumber words (AssertTest name _) =
-    AssertTest name $ getLineNumber words (orgTestName name)
+  addLineNumber words (IOTest name _) =
+    IOTest name $ getLineNumber words (orgTestName name)
 
   getLineNumber :: [String] -> QName -> Int
   getLineNumber words (_, name) = maybe 0 (+1) (elemIndex name words)
@@ -721,7 +723,7 @@ genMainFunction opts testModule tests =
   makeExpr :: Test -> CExpr
   makeExpr (PropTest (mn, name) _ _) =
     constF (testModule, name ++ "_" ++ modNameToId mn)
-  makeExpr (AssertTest (mn, name) _) =
+  makeExpr (IOTest (mn, name) _) =
     constF (testModule, name ++ "_" ++modNameToId  mn)
 
 
