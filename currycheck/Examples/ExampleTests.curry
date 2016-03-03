@@ -16,8 +16,7 @@ not_True  = not True  -=- False
 not_False = not False -=- True
 
 -- However, we can also use EasyCheck to guess input values to check
--- parameterized properties (currently, checking of parameterized properties
--- is only supported by KiCS2, therefore, such tests are ignored in PAKCS):
+-- parameterized properties:
 not_not_is_id b = not (not b) -=- b
 
 -- In the former test, EasyCheck makes an exhaustive test by enumerating
@@ -31,7 +30,7 @@ plusComm x y = x + y -=- y + x
 rev_rev_is_id :: [a] -> Prop
 rev_rev_is_id xs = reverse (reverse xs) -=- xs
 -- A polymorphic test will be automatically transformed into the same
--- test specialized to Booleans.
+-- test specialized to values of type Ordering.
 
 -- Nevertheless, we can still define our own specialization:
 rev_rev_is_id_int :: [Int] -> Prop
@@ -95,10 +94,11 @@ evar = "abc123"
 -- First, we check whether setting this variable works:
 set_environ = (setEnviron evar "SET" >> getEnviron evar) `returns` "SET"
 
--- Now we check whether unsetting workds:
+-- Now we check whether unsetting works:
 unset_environ = (unsetEnviron evar >> getEnviron evar) `returns` ""
 
--- We can also compare the results of two actions with `sameAs`:
+-- We can also compare the results of two actions with `sameReturns`:
 sameIO = return (6*7) `sameReturns` return 42
 
 --------------------------------------------------------------------------
+

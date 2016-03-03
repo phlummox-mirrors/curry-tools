@@ -20,9 +20,9 @@ sort'post xs ys = length xs == length ys
 -- Specification of sort:
 -- A list is a sorted result of an input if it is a permutation and sorted.
 sort'spec :: [Int] -> [Int]
-sort'spec x | y == perm x && sorted y = y  where y free
+sort'spec xs | ys == perm xs && sorted ys = ys  where ys free
 
 -- An implementation of sort with quicksort:
 sort :: [Int] -> [Int]
-sort [] = []
+sort []     = []
 sort (x:xs) = sort (filter (<x) xs) ++ [x] ++ sort (filter (>=x) xs)

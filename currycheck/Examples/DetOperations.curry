@@ -8,13 +8,13 @@
 import System
 
 -- Computes the last element of a list.
-last :: [a] -> DET a
+last :: [a] ->DET a
 last (_ ++ [x]) = x
 
 last'pre = not . null
 
 -- Definition of bubble sort with default rule as a deterministic operaion.
-sort :: [Int] -> DET [Int]
+sort :: [Int] ->DET [Int]
 sort (xs++[x,y]++ys) |  x>y = sort (xs++[y,x]++ys)
 sort'default xs = xs
 
