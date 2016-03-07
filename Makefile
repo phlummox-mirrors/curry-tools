@@ -59,3 +59,4 @@ runtest:
 	cd runcurry/Examples && ./test.sh
 	cd currycheck/Examples && ./test.sh
 	cd spicey/Examples && ./test.sh
+	cd xmldata/Examples && ./test.sh
