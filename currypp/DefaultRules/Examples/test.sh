@@ -18,9 +18,9 @@ export PATH
 $CURRYBIN/cleancurry
 
 # execute all tests:
-# The option -m50 is necessary for testing the determinism properties,
+# The option -m40 is necessary for testing the determinism properties,
 # otherwise the search space is too big for some tests.
-CCOPTS=-m50
+CCOPTS=-m40
 LOGFILE=xxx$$
 
 if [ $VERBOSE = yes ] ; then
