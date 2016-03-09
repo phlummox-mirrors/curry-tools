@@ -13,13 +13,18 @@ else
     exit 1
 fi
 
+VERBOSE=no
+if [ "$1" = "-v" ] ; then
+  VERBOSE=yes
+fi
+
 LOGFILE=xxx$$
 PATH=$CURRYBIN:$PATH
 export PATH
 $CURRYBIN/cleancurry
 rm -f $LOGFILE
 
-cat << EOM | /bin/sh | tee $LOGFILE
+cat << EOM | /bin/sh > $LOGFILE
 runcurry Test.curry rtarg1 rtarg2
 cat Test.curry | runcurry
 echo "main = print 42" | runcurry
@@ -31,17 +36,20 @@ EOM
 # Clean:
 /bin/rm -f curryscript.sh.bin
 
+if [ $VERBOSE = yes ] ; then
+    cat $LOGFILE
+    echo
+fi
+
 # Check differences:
 DIFF=diff$$
 diff TESTRESULT.$CURRYEXEC $LOGFILE > $DIFF
 if [ "`cat $DIFF`" = "" ] ; then
-  echo
   echo "Regression test successfully executed!"
   /bin/rm -f $LOGFILE $DIFF
   $CURRYBIN/cleancurry
 else
-  echo
-  echo "Differences in regression test occurred:"
+  echo "DIFFERENCES IN REGRESSION TEST OCCURRED:"
   cat $DIFF
   /bin/rm -f $DIFF
   /bin/mv -f $LOGFILE LOGFILE
