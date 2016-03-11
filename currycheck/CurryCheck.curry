@@ -22,7 +22,7 @@ import AbstractCurry.Select
 import AbstractCurry.Build
 import AbstractCurry.Pretty    (showCProg)
 import AbstractCurry.Transform (renameCurryModule)
-import UsageCheck              (checkBlacklistUse, checkSetUse)
+import AnsiCodes
 import Distribution
 import qualified FlatCurry.Types as FC
 import FlatCurry.Files
@@ -33,6 +33,7 @@ import List
 import Maybe                   (fromJust, isJust)
 import ReadNumeric             (readNat)
 import System                  (system, exitWith, getArgs, getPID)
+import UsageCheck              (checkBlacklistUse, checkSetUse)
 
 --- Maximal arity of check functions and tuples currently supported:
 maxArity :: Int
@@ -62,6 +63,7 @@ data Options = Options
   , optProp    :: Bool
   , optSpec    :: Bool
   , optDet     :: Bool
+  , optColor   :: Bool
   }
 
 -- Default command line options.
@@ -76,6 +78,7 @@ defaultOptions = Options
   , optProp    = True
   , optSpec    = True
   , optDet     = True
+  , optColor   = True
   }
 
 -- Definition of actual command line options.
@@ -109,6 +112,9 @@ options =
   , Option "" ["nodet"]
            (NoArg (\opts -> opts { optDet = False }))
            "do not perform determinism tests"
+  , Option "" ["nocolor"]
+           (NoArg (\opts -> opts { optColor = False }))
+           "do not use colors when showing tests"
   ]
  where
   safeReadNat opttrans s opts =
@@ -125,6 +131,12 @@ options =
                         then opts { optDefType = s }
                         else error "Illegal default type (try `-h' for help)"
 
+--- Further option processing, e.g., setting coloring mode.
+processOpts :: Options -> IO Options
+processOpts opts = do
+  isterm <- hIsTerminalDevice stdout
+  return $ if isterm then opts else opts { optColor = False}
+
 isQuiet :: Options -> Bool
 isQuiet opts = optVerb opts == 0
 
@@ -135,6 +147,10 @@ putStrIfNormal opts s = unless (isQuiet opts) (putStr s >> hFlush stdout)
 --- Print second argument if verbosity level > 1:
 putStrIfVerbose :: Options -> String -> IO ()
 putStrIfVerbose opts s = when (optVerb opts > 1) (putStr s >> hFlush stdout)
+
+--- use some coloring (from library AnsiCodes) if color option is on:
+withColor :: Options -> (String -> String) -> String -> String
+withColor opts coloring = if optColor opts then coloring else id
 
 -------------------------------------------------------------------------
 -- The names of suffixes added to specific tests.
@@ -253,7 +269,7 @@ createTests opts mainmodname tm = map createTest (propTests tm)
   propBody (_, name) argtypes test =
     [simpleRule [] $
        CLetDecl [CLocalPat (CPVar msgvar) (CSimpleRhs (msgOf test) [])]
-                (applyF (easyCheckModule,"checkPropWithMsg")
+                (applyF (easyCheckModule, "checkPropWithMsg")
                   [CVar msgvar
                   ,applyF (easyCheckFuncName (length argtypes)) $
                      [configOpWithMaxFail, CVar msgvar] ++
@@ -614,7 +630,8 @@ orgTestName (mn,tname)
 -- so that these definitions are tested.
 analyseModule :: Options -> String -> IO [TestModule]
 analyseModule opts modname = do
-  putStrIfNormal opts $ "Analyzing module '" ++ modname ++ "'...\n"
+  putStrIfNormal opts $ withColor opts blue $
+                        "Analyzing module '" ++ modname ++ "'...\n"
   catch (readCurryWithParseOptions modname (setQuiet True defaultParams) >>=
          analyseCurryProg opts modname)
         (\_ -> return [staticErrorTestMod modname
@@ -651,8 +668,8 @@ analyseCurryProg opts modname prog = do
                          []
                          (addLinesNumbers words (classifyTests rawDetTests))
                          (generatorsOfProg pubmod)
-  when (testThisModule tm) $ writeCurryProgram pubmod
-  when (testThisModule dettm) $ writeCurryProgram pubdetmod
+  when (testThisModule tm) $ writeCurryProgram pubmod ""
+  when (testThisModule dettm) $ writeCurryProgram pubdetmod ""
   return (if testThisModule dettm then [tm,dettm] else [tm])
  where
   showOpError words (qf,err) =
@@ -697,10 +714,11 @@ genMainTestModule opts mainmodname modules = do
       mainFunction = genMainFunction opts mainmodname
                                      (concatMap propTests modules)
       imports      = nub $ [easyCheckModule, searchTreeModule, generatorModule,
-                            "System"] ++
+                            "AnsiCodes","Maybe","System"] ++
                            map fst testtypes ++ map testModuleName modules
+  appendix <- readFile (installDir ++ "/currytools/currycheck/TestApp.curry")
   writeCurryProgram (CurryProg mainmodname imports [] (mainFunction : funcs) [])
-
+                    appendix
 
 -- Generates the main function which executes all property tests
 -- of all test modules.
@@ -714,7 +732,9 @@ genMainFunction opts testModule tests =
         else [CSExpr (applyF (pre "putStrLn")
                              [string2ac "Executing all tests..."])]) ++
      [ CSPat (cpvar "x1") $ -- run all tests:
-          applyF (easyCheckModule, "runPropertyTests") [easyCheckExprs]
+          applyF (testModule, "runPropertyTests")
+                 [constF (pre (if optColor opts then "True" else "False")),
+                  easyCheckExprs]
      , CSExpr $ applyF ("System", "exitWith") [cvar "x1"]
      ]
 
@@ -780,15 +800,15 @@ cleanup opts mainmodname modules =
     system $ "rm -f " ++ modname ++ ".curry"
 
 -- Show some statistics about number of tests:
-showTestStatistics :: [TestModule] -> IO ()
-showTestStatistics testmodules = do
+showTestStatistics :: [TestModule] -> String
+showTestStatistics testmodules =
   let numtests  = sumOf (const True) testmodules
       unittests = sumOf isUnitTest   testmodules
       proptests = sumOf isPropTest   testmodules
       iotests   = sumOf isIOTest     testmodules
-  putStr $ "TOTAL NUMBER OF TESTS: " ++ show numtests
-  putStrLn $ " (UNIT: " ++ show unittests ++ ", PROPERTIES: " ++
-             show proptests ++ ", IO: " ++ show iotests ++ ")"
+   in "TOTAL NUMBER OF TESTS: " ++ show numtests ++
+      " (UNIT: " ++ show unittests ++ ", PROPERTIES: " ++
+      show proptests ++ ", IO: " ++ show iotests ++ ")"
  where
   sumOf p = foldr (+) 0 . map (length . filter p . propTests)
 
@@ -797,8 +817,7 @@ main = do
   argv <- getArgs
   pid  <- getPID
   let (funopts, args, opterrors) = getOpt Permute options argv
-      opts = foldl (flip id) defaultOptions funopts
-      mainmodname = "TEST" ++ show pid
+  opts <- processOpts (foldl (flip id) defaultOptions funopts)
   unless (null opterrors)
          (putStr (unlines opterrors) >> putStrLn usageText >> exitWith 1)
   putStrIfNormal opts ccBanner 
@@ -806,23 +825,26 @@ main = do
   testModules <- mapIO (analyseModule opts) (map stripCurrySuffix args)
   let staticerrs       = concatMap staticErrors (concat testModules)
       finaltestmodules = filter testThisModule (concat testModules)
+      testmodname = "TEST" ++ show pid
   if not (null staticerrs)
-   then do showStaticErrors staticerrs
-           putStrLn "Testing aborted!"
-           cleanup opts mainmodname finaltestmodules
+   then do showStaticErrors opts staticerrs
+           putStrLn $ withColor opts red "Testing aborted!"
+           cleanup opts testmodname finaltestmodules
            exitWith 1
    else if null finaltestmodules then exitWith 0 else do
-    putStrIfNormal opts $ "Generating main test module '"++mainmodname++"'..."
-    genMainTestModule opts mainmodname finaltestmodules
-    putStrIfNormal opts $ "and compiling it...\n"
+    putStrIfNormal opts $ withColor opts blue $
+                          "Generating main test module '"++testmodname++"'..."
+    genMainTestModule opts testmodname finaltestmodules
+    putStrIfNormal opts $ withColor opts blue $ "and compiling it...\n"
     ret <- system $ unwords $
                      [installDir++"/bin/curry",":set v0",":set parser -Wnone",
-                      ":l "++mainmodname,":eval main :q"]
-    cleanup opts mainmodname finaltestmodules
-    unless (isQuiet opts) $ showTestStatistics finaltestmodules
+                      ":l "++testmodname,":eval main :q"]
+    cleanup opts testmodname finaltestmodules
+    unless (isQuiet opts || ret /= 0) $
+      putStrLn $ withColor opts green $ showTestStatistics finaltestmodules
     exitWith ret
  where
-  showStaticErrors errs = putStrLn $
+  showStaticErrors opts errs = putStrLn $ withColor opts red $
     unlines (line : "STATIC ERRORS IN PROGRAMS:" : errs) ++ line
   line = take 78 (repeat '=')
 
@@ -859,10 +881,11 @@ searchTreeTC = (searchTreeModule,"SearchTree")
 generatorModule :: String
 generatorModule = "SearchTreeGenerators"
 
--- Writes a Curry module to its file.
-writeCurryProgram :: CurryProg -> IO ()
-writeCurryProgram p =
-  writeFile (modNameToPath (progName p) ++ ".curry") (showCProg p ++ "\n")
+-- Writes a Curry module (together with an appendix) to its file.
+writeCurryProgram :: CurryProg -> String -> IO ()
+writeCurryProgram p appendix =
+  writeFile (modNameToPath (progName p) ++ ".curry")
+            (showCProg p ++ "\n" ++ appendix ++ "\n")
 
 isPAKCS :: Bool
 isPAKCS = curryCompiler == "pakcs"
