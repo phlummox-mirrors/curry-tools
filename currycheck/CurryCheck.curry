@@ -24,6 +24,7 @@ import AbstractCurry.Pretty    (showCProg)
 import AbstractCurry.Transform (renameCurryModule)
 import AnsiCodes
 import Distribution
+import FilePath                ((</>))
 import qualified FlatCurry.Types as FC
 import FlatCurry.Files
 import qualified FlatCurry.Goodies as FCG
@@ -44,7 +45,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 03/03/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 14/03/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -525,7 +526,7 @@ genSpecTest prefuns specops (CFunc qf@(mn,fn) ar _ texp _) =
   [CFunc (mn, fn ++ satSpecSuffix) ar Public
     (propResultType texp)
     [simpleRule (map CPVar cvars) $
-       addPreCond (applyF (pre "<~>")
+       addPreCond (applyF (easyCheckModule,"<~>")
                           [applyF qf (map CVar cvars),
                            applyF (mn,fn++"'spec") (map CVar cvars)])]]
  where
@@ -716,7 +717,8 @@ genMainTestModule opts mainmodname modules = do
       imports      = nub $ [easyCheckModule, searchTreeModule, generatorModule,
                             "AnsiCodes","Maybe","System"] ++
                            map fst testtypes ++ map testModuleName modules
-  appendix <- readFile (installDir ++ "/currytools/currycheck/TestApp.curry")
+  appendix <- readFile (installDir </> "currytools" </> "currycheck"
+                                   </> "TestAppendix.curry")
   writeCurryProgram (CurryProg mainmodname imports [] (mainFunction : funcs) [])
                     appendix
 
@@ -796,7 +798,7 @@ cleanup opts mainmodname modules =
     mapIO_ removeCurryModule (map testModuleName modules)
  where
   removeCurryModule modname = do
-    system $ installDir ++ "/bin/cleancurry " ++ modname
+    system $ installDir </> "bin" </> "cleancurry" ++ " " ++ modname
     system $ "rm -f " ++ modname ++ ".curry"
 
 -- Show some statistics about number of tests:
@@ -836,9 +838,10 @@ main = do
                           "Generating main test module '"++testmodname++"'..."
     genMainTestModule opts testmodname finaltestmodules
     putStrIfNormal opts $ withColor opts blue $ "and compiling it...\n"
-    ret <- system $ unwords $
-                     [installDir++"/bin/curry",":set v0",":set parser -Wnone",
-                      ":l "++testmodname,":eval main :q"]
+    ret <- system $ unwords $ [installDir </> "bin" </> "curry"
+                              ,":set v0"
+                              ,":set parser -Wnone"
+                              ,":l "++testmodname,":eval main :q"]
     cleanup opts testmodname finaltestmodules
     unless (isQuiet opts || ret /= 0) $
       putStrLn $ withColor opts green $ showTestStatistics finaltestmodules
