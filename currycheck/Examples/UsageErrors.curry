@@ -14,3 +14,6 @@ test5 = set1 (\x->x) (1?2) -- unintended!
 
 test6 x = set1 f x         -- not allowed since f is not a top-level function
  where f y = y
+
+test7 xs = set1 (++) xs    -- not allowed since (++) has arity 2
+

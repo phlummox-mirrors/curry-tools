@@ -1,6 +1,8 @@
 \section{CurryCheck: A Tool for Testing Curry Programs}
+\label{sec-currycheck}
 
-CurryCheck is a tool that supports the automation of
+CurryCheck\index{CurryCheck}\index{testing programs}\index{program!testing}
+is a tool that supports the automation of
 testing Curry programs.
 The tests to be executed can be unit tests as well as
 property tests parameterized over some arguments.
@@ -42,6 +44,8 @@ Note that each property is defined as a Curry operation
 where the arguments are the parameters of the property.
 Altogether, our program is as follows:
 \begin{curry}
+module Rev(rev) where
+
 import Test.EasyCheck
 
 rev :: [a] -> [a]
@@ -72,11 +76,11 @@ Since the operation \code{rev} is polymorphic,
 the property \code{revRevIsId} is also polymorphic in its argument.
 In order to select concrete values to test this property,
 CurryCheck replaces such polymorphic tests by defaulting the type
-variable to \code{Ordering} (the actual default type can also be set by a
-command-line flag).
+variable to prelude type \code{Ordering}
+(the actual default type can also be set by a command-line flag).
 If we want to test this property on integers numbers,
 we can explicitly provide a type signature,
-where \code{Prop} is the type of tests:
+where \code{Prop} denotes the type of a test:
 \begin{curry}
 revRevIsId :: [Int] -> Prop
 revRevIsId xs = rev (rev xs) -=- xs
@@ -92,7 +96,8 @@ Hence, \code{currycheck} can be easily integrated in tool chains
 for automatic testing.
 
 In order to support the inclusion of properties in the source code,
-the operations defined the properties do not have to be exported.
+the operations defined the properties do not have to be exported,
+as show in the module \code{Rev} above.
 Hence, one can add properties to any library and export only
 library-relevant operations. To test these properties,
 CurryCheck creates a copy of the library where all operations
@@ -121,7 +126,7 @@ if the multi-set of values of both sides are equal.
 Hence, this operator can be used to compare the number
 of computed solutions of two expressions.
 \item
-The property \code{always $x$} is satisfied if all values $x$ are true.
+The property \code{always $x$} is satisfied if all values of $x$ are true.
 \item
 The property \code{eventually $x$} is satisfied if some value
 of $x$ is true.
@@ -133,7 +138,7 @@ The property \code{$x$ \# $n$} is satisfied if $x$ has $n$
 different values.
 \end{itemize}
 %
-For instance, consider theinsertion of an element at an arbitrary
+For instance, consider the insertion of an element at an arbitrary
 position in a list:
 \begin{curry}
 insert :: a -> [a] -> [a]
@@ -460,5 +465,110 @@ or we simply reuse the old definition by
 \begin{curry}
 sumUpIsCorrectOnNonNeg = sumUpIsCorrect . nonNeg
 \end{curry}
+
+\subsection{Checking Contracts and Specifications}
+
+The expressive power of Curry supports
+writing high-level specifications
+as well as efficient implementations for a given problem
+in the same programming language,
+as discussed in \cite{AntoyHanus12PADL}.
+If a specification or contract is provided for some function,
+then CurryCheck automatically generates properties
+to test this specification or contract.
+
+Following the notation proposed in \cite{AntoyHanus12PADL},
+a \emph{specification}\index{specification}
+for an operation $f$ is an operation \code{$f$'spec}
+of the same type as $f$.
+A \emph{contract}\index{constract} consists
+of a pre- and a postcondition, where the precondition could be omitted.
+A \emph{precondition}\index{precondition} for an operation $f$
+of type $\tau \to \tau'$ is an operation
+\begin{curry}
+$f$'pre :: $\tau$ ->$~$Bool
+\end{curry}
+whereas
+a \emph{postcondition}\index{postcondition} for $f$
+is an operation
+\begin{curry}
+$f$'post :: $\tau$ ->$~\tau'$ ->$~$Bool
+\end{curry}
+which relates input and output values
+(the generalization to operations with more than one argument
+is straightforward).
+
+As a concrete example, consider again the problem of sorting a list.
+We can write a postcondition and a specification for
+a sort operation \code{sort} and an implementation via quicksort
+as follows (where \code{sorted} and \code{perm}
+are defined as above):
+
+\begin{curry}
+-- Postcondition: input and output lists should have the same length
+sort'post xs ys = length xs == length ys
+
+-- Specification:
+-- A correct result is a permutation of the input which is sorted.
+sort'spec :: [Int] -> [Int]
+sort'spec xs | ys == perm xs && sorted ys = ys  where ys free
+
+-- An implementation of sort with quicksort:
+sort :: [Int] -> [Int]
+sort []     = []
+sort (x:xs) = sort (filter (<x) xs) ++ [x] ++ sort (filter (>=x) xs)
+\end{curry}
+%
+If we process this program with CurryCheck,
+properties to check the specification and postcondition
+are automatically generated. For instance,
+a specification is satisfied if it yields the same values as
+the implementation, and a postcondition is satisfied
+if each value computed for some input satisfies the postcondition
+relation between input and output. For our example, CurryCheck generates
+the following properties (if there are also
+preconditions for some operation, these preconditions are used
+to restrict the test cases via the condition operater \ccode{==>}):
+
+\begin{curry}
+sortSatisfiesPostCondition :: [Int] -> Prop
+sortSatisfiesPostCondition x =
+  let r = sort x
+  in (r == r) ==> always (sort'post x r)
+
+sortSatisfiesSpecification :: [Int] -> Prop
+sortSatisfiesSpecification x = sort x <~> sort'spec x
+\end{curry}
+
+\subsection{Checking Usage of Specific Operations}
+
+In addition to testing dynamic properties of programs,
+CurryCheck also examines the source code of the given
+program for unintended uses of specific operations
+(these checks can be omitted via the option \ccode{--nosource}).
+Currently, the following source code checks are performed:
+
+\begin{itemize}
+\item
+The prelude operation \ccode{=:<=} is used to implement
+functional patterns \cite{AntoyHanus05LOPSTR}. It should not be
+used in source programs to avoid unintended uses.
+Hence, CurryCheck reports such unintended uses.
+\item
+Set functions \cite{AntoyHanus09} are used to encapsulate
+all non-deterministic results of some function in a set structure.
+Hence, for each top-level function $f$ of arity $n$,
+the corresponding set function can be expressed in Curry
+(via operations defined in the module
+\code{SetFunctions}, see Section~\ref{Library:SetFunctions})
+by the application \ccode{set$n$ $f$} (this application is used
+in order to extend the syntax of Curry with a specific notation
+for set functions).
+However, it is not intended to apply the operator \ccode{set$n$}
+to lambda abstractions, locally defined operations
+or operations with an arity different from $n$.
+Hence, CurryCheck reports such unintended uses of set functions.
+\end{itemize}
+
 
 % LocalWords: CurryCheck
