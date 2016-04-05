@@ -12,7 +12,6 @@ rev123  = rev [1,2,3] -=- [3,2,1]
 -- Property: reversing two times is the identity:
 revRevIsId xs = rev (rev xs) -=- xs
 
-
 -- Non-deterministic list insertion:
 insert :: a -> [a] -> [a]
 insert x xs     = x : xs
@@ -100,7 +99,7 @@ doubleMirror t = mirror (mirror t) -=- t
 -- Property: the leaves of a mirrored are in reverse order
 leavesOfMirrorAreReversed t = leaves t -=- reverse (leaves (mirror t))
 
--- Factorial function
+-- Sum up all numbers:
 sumUp n = if n==0 then 0 else n + sumUp (n-1)
 
 sumUpIsCorrect n = n>=0 ==> sumUp n -=- n * (n+1) `div` 2
@@ -117,3 +116,4 @@ genNonNeg = genCons1 NonNeg genNN
 
 -- Now we write our own test:
 sumUpIsCorrectOnNonNeg = sumUpIsCorrect . nonNeg
+
