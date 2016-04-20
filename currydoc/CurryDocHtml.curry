@@ -363,9 +363,7 @@ genHtmlFunc docparams modname progcmts funcprops anainfo ops
    in anchoredDiv fname
        [borderedTable [[
          [par $
-           [code [opnameDoc
-                   [href (modname++"_curry.html#"++fname)
-                         [htxt (showId fname)]],
+           [code [opnameDoc [showCodeHRef fname],
                   HtmlText (" :: "++ showType fmod False ftype)],
             nbsp, nbsp] ++
            genFuncPropIcons anainfo (fmod,fname)] ++
@@ -377,8 +375,9 @@ genHtmlFunc docparams modname progcmts funcprops anainfo ops
           else [dlist
                  [([explainCat "Properties:"],
                    [par (intercalate [breakline]
-                           (map (\ (pn,pc) -> [code [htxt pc], nbsp,
-                                               htxt $ "("++pn++")"])
+                           (map (\ (pn,pc) ->
+                                  [code [htxt pc], nbsp,
+                                   htxt "(", showCodeHRef pn, htxt ")"])
                                 funProperties))])]] ) ++
          -- show further infos for this function, if present:
          (if furtherInfos == []
@@ -386,6 +385,8 @@ genHtmlFunc docparams modname progcmts funcprops anainfo ops
           else [dlist [([explainCat "Further infos:"],
                         [ulist furtherInfos])]] )]]]
  where
+  showCodeHRef fn = href (modname++"_curry.html#"++fn) [htxt (showId fn)]
+
   funProperties = maybe [] id (lookup fname funcprops)
 
   furtherInfos = genFuncPropComments anainfo (fmod,fname) rules ops
@@ -394,15 +395,15 @@ genHtmlFunc docparams modname progcmts funcprops anainfo ops
     let params = map (span isIdChar) (getCommentType "param" paramcmts)
         ret    = getCommentType "return" paramcmts
      in  ifNotNull params (\parCmts ->
-          [ par [ explainCat "Example call:", nbsp
-                , code [htxt (showCall fname (map fst params))]
-                ]
-          , par [explainCat "Parameters:"]
-          , ulist (map (\(parid,parcmt) ->
+          [ dlist [([explainCat "Example call:"],
+                    [code [htxt (showCall fname (map fst params))]])
+                  ]
+          , dlist [([explainCat "Parameters:"],
+                    [ulist (map (\ (parid,parcmt) ->
                            [code [htxt parid], htxt " : "] ++
                            removeTopPar (docComment2HTML docparams
                                                          (removeDash parcmt)))
-                       parCmts)
+                       parCmts)])]
           ])
       ++ ifNotNull ret (\retCmt -> [dlist (map (\rescmt ->
           ([explainCat "Returns:"],
