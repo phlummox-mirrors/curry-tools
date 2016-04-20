@@ -7,6 +7,7 @@
 
 module CurryDocHtml where
 
+import CurryDocAnaInfo
 import CurryDocParams
 import CurryDocRead
 import CurryDocConfig
@@ -14,6 +15,8 @@ import TotallyDefined(Completeness(..))
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Select
+import AbstractCurry.Build
+import AbstractCurry.Pretty
 import qualified FlatCurry.Types as FC
 import qualified FlatCurry.Goodies as FCG
 import FilePath
@@ -28,6 +31,7 @@ import Distribution
 import CategorizedHtmlList
 import Markdown
 import Maybe
+import Pretty(pretty,empty)
 
 infixl 0 `withTitle`
 
@@ -45,6 +49,7 @@ generateHtmlDocs docparams anainfo modname modcmts progcmts = do
   let
     exptypes   = filter isExportedType types
     expfuns    = filter isExportedFun  functions
+    properties = filter isProperty     functions
     navigation =
       [ bold [htxt "Exported names:"]
       , genHtmlExportIndex (map tName      exptypes)
@@ -56,18 +61,22 @@ generateHtmlDocs docparams anainfo modname modcmts progcmts = do
         `addClass` "nav nav-sidebar"
       ]
     content =
-         genHtmlModule docparams modcmts
-      ++ [ h2 [htxt "Summary of exported operations:"]
-         , borderedTable (map (genHtmlFuncShort docparams progcmts anainfo) expfuns)
-         ]
-      ++ ifNotNull exptypes (\tys ->
-          [anchoredSection "exported_datatypes"
-           (h2 [htxt "Exported datatypes:"] : hrule : concatMap (genHtmlType docparams progcmts) tys)])
-      ++ [anchoredSection "exported_operations"
-           (h2 [htxt "Exported operations:"] : map (genHtmlFunc docparams modname progcmts anainfo ops) expfuns)
-         ]
+      genHtmlModule docparams modcmts ++
+      [ h2 [htxt "Summary of exported operations:"]
+      , borderedTable (map (genHtmlFuncShort docparams progcmts anainfo) expfuns)
+      ] ++
+      ifNotNull exptypes (\tys ->
+         [anchoredSection "exported_datatypes"
+           (h2 [htxt "Exported datatypes:"] : hrule :
+           concatMap (genHtmlType docparams progcmts) tys)]) ++
+      [anchoredSection "exported_operations"
+         (h2 [htxt "Exported operations:"] :
+          map (genHtmlFunc docparams modname progcmts
+                 (attachProperties2Funcs properties progcmts) anainfo ops)
+              expfuns)
+      ]
   mainPage title [htmltitle] (lefttopmenu types functions) rightTopMenu 
-    navigation content
+           navigation content
  where
   title = "Module " ++ modname
 
@@ -80,6 +89,31 @@ generateHtmlDocs docparams anainfo modname modcmts progcmts = do
     = [[href "?" [htxt title]], [href "#imported_modules" [htxt "Imports"]]]
    ++ ifNotNull ts (const [[href "#exported_datatypes"  [htxt "Datatypes" ]]])
    ++ ifNotNull fs (const [[href "#exported_operations" [htxt "Operations"]]])
+
+-- Associate the properties (first argument) to functions according to
+-- their positions in the source code (we assume that they follow the function
+-- definitions). Each property is represented by its name and the code.
+attachProperties2Funcs :: [CFuncDecl] -> [(SourceLine,String)]
+                       -> [(String,[(String,String)])]
+attachProperties2Funcs _ [] = []
+attachProperties2Funcs props ((sourceline,_) : slines) =
+  case sourceline of
+    FuncDef fn -> let (fprops,rslines) = span isPropFuncDef slines
+                   in (fn, concatMap showProp fprops) :
+                      attachProperties2Funcs props rslines
+    _          -> attachProperties2Funcs props slines
+ where
+  propNames = map (snd . funcName) props
+
+  showProp (FuncDef fn,_) =
+    let propdecl = fromJust (find (\fd -> snd (funcName fd) == fn) props)
+     in map (\rhs -> (fn, prettyRHS rhs)) (map ruleRHS (funcRules propdecl))
+
+  prettyRHS = pretty 78 . ppCRhs empty (setNoQualification defaultOptions)
+
+  isPropFuncDef (sline,_) =
+    case sline of FuncDef fn -> fn `elem` propNames
+                  _          -> False
 
 
 --- Translate a documentation comment to HTML and use markdown translation
@@ -173,6 +207,16 @@ getExportedFields = map fldName . filter isExportedField . concatMap getFields
   getFields (CCons   _ _ _ ) = []
   getFields (CRecord _ _ fs) = fs
 
+-- Is a function definition a property?
+isProperty :: CFuncDecl -> Bool
+isProperty fdecl = fst (funcName fdecl) /= easyCheckModule
+                   && isPropType (funcType fdecl)
+ where
+  isPropType :: CTypeExpr -> Bool
+  isPropType ct =  ct == baseType (easyCheckModule,"Prop") -- I/O test?
+                || resultType ct == baseType (easyCheckModule,"Prop")
+
+  easyCheckModule = "Test.EasyCheck" 
 
 --- generate HTML documentation for a module:
 genHtmlModule :: DocParams -> String -> [HtmlExp]
@@ -287,7 +331,8 @@ genHtmlField docparams fldcmts cname fldCons (CField (fmod,fname) _ ty)
                             (getConsComment fldcmts fname)
 
 -- generate short HTML documentation for a function:
-genHtmlFuncShort :: DocParams -> [(SourceLine,String)] -> AnaInfo -> CFuncDecl -> [[HtmlExp]]
+genHtmlFuncShort :: DocParams -> [(SourceLine,String)] -> AnaInfo -> CFuncDecl
+                 -> [[HtmlExp]]
 genHtmlFuncShort docparams progcmts anainfo
                  (CFunc (fmod,fname) _ _ ftype _) =
  [[code [opnameDoc
@@ -305,11 +350,14 @@ genHtmlFuncShort docparams progcmts anainfo (CmtFunc _ n a vis ftype rules) =
   genHtmlFuncShort docparams progcmts anainfo (CFunc n a vis ftype rules)
 
 -- generate HTML documentation for a function:
-genHtmlFunc :: DocParams -> String -> [(SourceLine,String)] -> AnaInfo
+genHtmlFunc :: DocParams -> String -> [(SourceLine,String)]
+            -> [(String,[(String,String)])] -> AnaInfo
             -> [COpDecl] -> CFuncDecl -> HtmlExp
-genHtmlFunc docparams modname progcmts anainfo ops (CmtFunc _ n a vis ftype rules) =
-  genHtmlFunc docparams modname progcmts anainfo ops (CFunc n a vis ftype rules)
-genHtmlFunc docparams modname progcmts anainfo ops
+genHtmlFunc docparams modname progcmts funcprops anainfo ops
+            (CmtFunc _ n a vis ftype rules) =
+  genHtmlFunc docparams modname progcmts funcprops anainfo ops
+              (CFunc n a vis ftype rules)
+genHtmlFunc docparams modname progcmts funcprops anainfo ops
             (CFunc (fmod,fname) _ _ ftype rules) =
   let (funcmt,paramcmts) = splitComment (getFuncComment fname progcmts)
    in anchoredDiv fname
@@ -323,12 +371,23 @@ genHtmlFunc docparams modname progcmts anainfo ops
            genFuncPropIcons anainfo (fmod,fname)] ++
          docComment2HTML docparams funcmt ++
          genParamComment paramcmts ++
+         -- show properties, if present:
+         (if null funProperties
+          then []
+          else [dlist
+                 [([explainCat "Properties:"],
+                   [par (intercalate [breakline]
+                           (map (\ (pn,pc) -> [code [htxt pc], nbsp,
+                                               htxt $ "("++pn++")"])
+                                funProperties))])]] ) ++
          -- show further infos for this function, if present:
          (if furtherInfos == []
           then []
           else [dlist [([explainCat "Further infos:"],
                         [ulist furtherInfos])]] )]]]
  where
+  funProperties = maybe [] id (lookup fname funcprops)
+
   furtherInfos = genFuncPropComments anainfo (fmod,fname) rules ops
 
   genParamComment paramcmts =
@@ -339,8 +398,11 @@ genHtmlFunc docparams modname progcmts anainfo ops
                 , code [htxt (showCall fname (map fst params))]
                 ]
           , par [explainCat "Parameters:"]
-          , ulist (map (\(parid,parcmt) -> [code [htxt parid], htxt " : "]
-             ++ removeTopPar (docComment2HTML docparams (removeDash parcmt))) parCmts)
+          , ulist (map (\(parid,parcmt) ->
+                           [code [htxt parid], htxt " : "] ++
+                           removeTopPar (docComment2HTML docparams
+                                                         (removeDash parcmt)))
+                       parCmts)
           ])
       ++ ifNotNull ret (\retCmt -> [dlist (map (\rescmt ->
           ([explainCat "Returns:"],

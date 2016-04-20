@@ -2,22 +2,21 @@
 --- Some auxiliary operations of CurryDoc to read programs.
 ---
 --- @author Michael Hanus, Jan Tikovsky
---- @version January 2016
+--- @version April 2016
 ----------------------------------------------------------------------
 
 module CurryDocRead where
 
-import FlatCurry.Types
-import TotallyDefined(Completeness(..))
 import Char
+import FlatCurry.Types
+import List(isSuffixOf)
 
 --------------------------------------------------------------------------
 -- read the comments of a source file to be put in the HTML documentation
 readComments :: String -> IO (String,[(SourceLine,String)])
-readComments filename =
- do prog <- readFile filename
-    return (groupLines . filter (/=OtherLine) . map classifyLine . lines
-            $ prog)
+readComments filename = do
+  prog <- readFile filename
+  return (groupLines . filter (/=OtherLine) . map classifyLine . lines $ prog)
 
 --- This datatype is used to classify all input lines.
 --- @cons Comment   - a comment for CurryDoc
@@ -87,21 +86,30 @@ classifyLine line
                     then OtherLine
                     else if id1 == "data" || id1 == "type" || id1 == "newtype"
                           then DataDef (getDatatypeName line)
-                          else FuncDef id1
+                          else if "'default" `isSuffixOf` id1
+                                then OtherLine -- ignore default rules
+                                else FuncDef id1
  where
    getDatatypeName = takeWhile isIdChar . dropWhile (==' ') . dropWhile isIdChar
 
 -- get the first identifier (name or operator in brackets) in a string:
 getFirstId :: String -> String
 getFirstId [] = ""
-getFirstId (c:cs) | isAlpha c = takeWhile isIdChar (c:cs)
-                  | c == '('  = takeWhile (/=')') cs
-                  | otherwise = ""
+getFirstId (c:cs)
+  | isAlpha c = takeWhile isIdChar (c:cs)
+  | c == '('  = let bracketid = takeWhile (/=')') cs
+                 in if all (`elem` infixIDs) bracketid
+                    then bracketid
+                    else ""
+  | otherwise = ""
 
 -- is an alphanumeric character, underscore, or apostroph?
 isIdChar :: Char -> Bool
 isIdChar c = isAlphaNum c || c == '_' || c == '\''
 
+-- All characters occurring in infix operators.
+infixIDs :: String
+infixIDs =  "~!@#$%^&*+-=<>?./|\\:"
 
 -- group the classified lines into module comment and list of
 -- (Func/DataDef,comment) pairs:
@@ -213,34 +221,6 @@ splitCommentParams param paramcmt (l:ls) =
                              (dropWhile isAlpha (tail l)) ls)
 
 -----------------------------------------------------------------------
--- Datatype for passing analysis results:
-
-data AnaInfo =
-   AnaInfo (QName -> Bool)          -- non-deterministic?
-           (QName -> Completeness)  -- completely defined?
-           (QName -> Bool)          -- indeterministically defined?
-           (QName -> Bool)          -- solution complete?
-
-getNondetInfo :: AnaInfo -> QName -> Bool
-getNondetInfo (AnaInfo oi _ _ _) = oi
-
-getCompleteInfo :: AnaInfo -> QName -> Completeness
-getCompleteInfo (AnaInfo _ cdi _ _) = cdi
-
-getIndetInfo :: AnaInfo -> QName -> Bool
-getIndetInfo (AnaInfo _ _ idi _) = idi
-
-getOpCompleteInfo :: AnaInfo -> QName -> Bool
-getOpCompleteInfo (AnaInfo _ _ _ oci) = oci
-
--- Translate a standard analysis result into functional form:
-getFunctionInfo :: [(QName,a)] -> QName -> a
-getFunctionInfo [] n = error ("No analysis result for function "++show n)
-getFunctionInfo ((fn,fi):fnis) n = if fn == n then fi
-                                              else getFunctionInfo fnis n
-
-
---------------------------------------------------------------------------
 -- auxiliaries:
 
 isFunctionType :: TypeExpr -> Bool

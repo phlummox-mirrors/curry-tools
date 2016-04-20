@@ -383,7 +383,7 @@ isTest = isTestType . funcType
 
 -- The type of EasyCheck properties.
 propType :: CTypeExpr
-propType = listType (baseType (easyCheckModule, "Test"))
+propType = baseType (easyCheckModule, "Prop")
    
 isPropIOType :: CTypeExpr -> Bool
 isPropIOType texp = case texp of

@@ -11,8 +11,8 @@ ANADIR     = ../analysis
 TOOL       = $(BINDIR)/currydoc
 
 # Source modules of currydoc
-DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
-       CurryDocTeX.curry CurryDocCDoc.curry \
+DEPS = CurryDoc.curry CurryDocRead.curry CurryDocAnaInfo.curry \
+       CurryDocHtml.curry CurryDocTeX.curry CurryDocCDoc.curry \
        CurryDocParams.curry CurryDocConfig.curry \
        $(LIBDIR)/Markdown.curry \
        $(LIBDIR)/FlatCurry/FlexRigid.curry \

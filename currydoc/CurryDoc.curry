@@ -47,6 +47,7 @@ import TotallyDefined
 import Indeterministic
 import SolutionCompleteness
 
+import CurryDocAnaInfo
 import CurryDocParams
 import CurryDocRead
 import CurryDocHtml
@@ -202,7 +203,7 @@ makeSystemLibsIndex docdir modnames = do
   groupByCategory = groupBy ((==) `on` fst3)
   sortByName      = sortBy ((<=) `on` snd3)
 
-getModInfo :: String -> IO (Category,String, String)
+getModInfo :: String -> IO (Category,String,String)
 getModInfo modname = do
   mmodsrc <- lookupModuleSourceInLoadPath modname
   case mmodsrc of

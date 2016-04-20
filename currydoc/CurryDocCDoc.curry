@@ -7,6 +7,7 @@
 
 module CurryDocCDoc where
 
+import CurryDocAnaInfo
 import CurryDocParams
 import CurryDocRead
 import FlatCurry.Types
