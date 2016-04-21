@@ -13,7 +13,7 @@
 ---   (together with possible pre-conditions).
 ---
 --- @author Michael Hanus, Jan-Patrick Baye
---- @version March 2016
+--- @version April 2016
 -------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -45,7 +45,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 14/03/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 21/04/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -265,12 +265,12 @@ createTests opts mainmodname tm = map createTest (propTests tm)
     if arity>maxArity
     then error $ "Properties with more than " ++ show maxArity ++
                  " parameters are currently not supported!"
-    else (easyCheckModule,"checkWithValues" ++ show arity)
+    else (easyCheckExecModule,"checkWithValues" ++ show arity)
 
   propBody (_, name) argtypes test =
     [simpleRule [] $
        CLetDecl [CLocalPat (CPVar msgvar) (CSimpleRhs (msgOf test) [])]
-                (applyF (easyCheckModule, "checkPropWithMsg")
+                (applyF (easyCheckExecModule, "checkPropWithMsg")
                   [CVar msgvar
                   ,applyF (easyCheckFuncName (length argtypes)) $
                      [configOpWithMaxFail, CVar msgvar] ++
@@ -307,7 +307,7 @@ createTests opts mainmodname tm = map createTest (propTests tm)
   stdConfigOp = constF (easyCheckConfig opts)
     
   ioTestBody (_, name) test =
-    [simpleRule [] $ applyF (easyCheckModule, "checkPropIOWithMsg")
+    [simpleRule [] $ applyF (easyCheckExecModule,"checkPropIOWithMsg")
                             [stdConfigOp, msgOf test, CSymbol (testmname,name)]]
 
 -- The configuration option for EasyCheck
@@ -714,8 +714,9 @@ genMainTestModule opts mainmodname modules = do
                                generators
       mainFunction = genMainFunction opts mainmodname
                                      (concatMap propTests modules)
-      imports      = nub $ [easyCheckModule, searchTreeModule, generatorModule,
-                            "AnsiCodes","Maybe","System"] ++
+      imports      = nub $ [ easyCheckModule, easyCheckExecModule
+                           , searchTreeModule, generatorModule
+                           , "AnsiCodes","Maybe","System"] ++
                            map fst testtypes ++ map testModuleName modules
   appendix <- readFile (installDir </> "currytools" </> "currycheck"
                                    </> "TestAppendix.curry")
@@ -871,6 +872,10 @@ modNameToId = intercalate "_" . split (=='.')
 --- Name of the EasyCheck module.
 easyCheckModule :: String
 easyCheckModule = "Test.EasyCheck" 
+
+--- Name of the EasyCheckExec module.
+easyCheckExecModule :: String
+easyCheckExecModule = "Test.EasyCheckExec" 
 
 --- Name of the SearchTree module.
 searchTreeModule :: String
