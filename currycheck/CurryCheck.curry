@@ -293,13 +293,13 @@ createTests opts mainmodname tm = map createTest (propTests tm)
     configOpWithMaxTest =
       let n = optMaxTest opts
        in if n==0 then stdConfigOp
-                  else applyF (easyCheckModule,"setMaxTest")
+                  else applyF (easyCheckExecModule,"setMaxTest")
                               [cInt n, stdConfigOp]
                             
     configOpWithMaxFail =
       let n = optMaxFail opts
        in if n==0 then configOpWithMaxTest
-                  else applyF (easyCheckModule,"setMaxFail")
+                  else applyF (easyCheckExecModule,"setMaxFail")
                               [cInt n, configOpWithMaxTest]
                             
     msgvar = (0,"msg")
@@ -313,9 +313,10 @@ createTests opts mainmodname tm = map createTest (propTests tm)
 -- The configuration option for EasyCheck
 easyCheckConfig :: Options -> QName
 easyCheckConfig opts =
-  (easyCheckModule, if isQuiet opts     then "quietConfig"   else
-                    if optVerb opts > 1 then "verboseConfig"
-                                        else "easyConfig")
+  (easyCheckExecModule,
+   if isQuiet opts     then "quietConfig"   else
+   if optVerb opts > 1 then "verboseConfig"
+                       else "easyConfig")
 
 -- Translates a type expression into calls to generator operations.
 type2genop :: String -> TestModule -> CTypeExpr -> CExpr
