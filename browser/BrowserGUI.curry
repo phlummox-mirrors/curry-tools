@@ -3,7 +3,7 @@
 --- programs.
 ---
 --- @author Michael Hanus
---- @version January 2015
+--- @version April 2016
 ---------------------------------------------------------------------
 
 module BrowserGUI where
@@ -203,7 +203,7 @@ getFuns gs = readIORef gs >>= \ (GS _ _ _ funs _ _ _) -> return funs
 storeSelectedFunctions :: IORef GuiState -> [FuncDecl] -> IO ()
 storeSelectedFunctions gs funs = do
   (GS t mm ms _ ct flag fana) <- readIORef gs
-  writeIORef gs (GS t mm ms (mergeSort leqFunc funs) ct flag fana)
+  writeIORef gs (GS t mm ms (mergeSortBy leqFunc funs) ct flag fana)
 
 setMainContentsModule :: IORef GuiState -> String -> ContentsKind -> String
                       -> IO ()
@@ -580,7 +580,8 @@ browserGUI gstate rmod rtxt names =
     if mod==Nothing || null self then done else
       getFuns gstate >>= \funs ->
       let mainfun = funs!!(readNat self)
-          qfnames = mergeSort leqQName (union [funcName mainfun] (callsDirectly mainfun))
+          qfnames = mergeSortBy leqQName
+                      (union [funcName mainfun] (callsDirectly mainfun))
        in getAllFunctions gstate (showDoing gp) (fromJust mod) >>= \allfuns ->
           storeSelectedFunctions gstate (map (findDecl4name allfuns) qfnames) >>
           setFunctionListKind gstate False >>
@@ -594,7 +595,7 @@ browserGUI gstate rmod rtxt names =
       getFuns gstate >>= \funs ->
       let mainfun = funcName (funs!!(readNat self)) in
       getAllFunctions gstate (showDoing gp) (fromJust mod) >>= \allfuns ->
-      let qfnames = mergeSort leqQName
+      let qfnames = mergeSortBy leqQName
               (union [mainfun]
                      (fromJust (lookup mainfun (indirectlyDependent allfuns))))
        in storeSelectedFunctions gstate (map (findDecl4name allfuns) qfnames) >>

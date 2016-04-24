@@ -2,7 +2,7 @@
 --- Operations to generate documentation in HTML format.
 ---
 --- @author Michael Hanus, Jan Tikovsky
---- @version January 2016
+--- @version April 2016
 ----------------------------------------------------------------------
 
 module CurryDocHtml where
@@ -622,7 +622,8 @@ indexPage modnames =
   (if length modnames == 1
    then []
    else [ulist (map (\m->[href (m++".html") [htxt (m++".curry ")]])
-                    (mergeSort leqStringIgnoreCase modnames))]) ++ [explainIcons]
+                    (mergeSortBy leqStringIgnoreCase modnames))])
+  ++ [explainIcons]
                     
 -- Paragraph to explain the meaning of the icons:
 explainIcons :: HtmlExp
@@ -667,7 +668,7 @@ showModNameRef (modname,name) =
   )
 
 sortNames :: [(a,String)] -> [(a,String)]
-sortNames names = mergeSort (\(_,n1) (_,n2)->leqStringIgnoreCase n1 n2) names
+sortNames names = mergeSortBy (\(_,n1) (_,n2)->leqStringIgnoreCase n1 n2) names
 
 
 --------------------------------------------------------------------------
@@ -888,7 +889,7 @@ opnameDoc = style "opname"
 
 -- Sorts a list of strings.
 sortStrings :: [String] -> [String]
-sortStrings strings = mergeSort leqStringIgnoreCase strings
+sortStrings strings = mergeSortBy leqStringIgnoreCase strings
 
 -- Returns the first sentence in a string:
 firstSentence :: String -> String

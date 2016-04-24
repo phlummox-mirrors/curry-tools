@@ -9,7 +9,7 @@
 --- the argument `True` to compute the result `False`.
 ---
 --- @author Michael Hanus
---- @version June 2015
+--- @version April 2016
 -----------------------------------------------------------------------------
 
 module RequiredValues(AType(..),showAType,AFType(..),showAFType,lubAType,
@@ -21,7 +21,7 @@ import FlatCurry.Types
 import FlatCurry.Goodies
 import GenericProgInfo
 import List hiding (union,intersect)
-import Sort(mergeSort)
+import Sort(mergeSortBy)
 
 import TotallyDefined(siblingCons)
 import Unsafe(trace)
@@ -118,7 +118,7 @@ dropEnv n (env,rtype) = (drop n env, rtype)
 
 -- Sorts a list of environment/type pairs by the type.
 sortEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)]
-sortEnvTypes = mergeSort (\ (e1,t1) (e2,t2) -> (t1,e1) <= (t2,e2))
+sortEnvTypes = mergeSortBy (\ (e1,t1) (e2,t2) -> (t1,e1) <= (t2,e2))
 
 ------------------------------------------------------------------------------
 --- The maximum number of different constructors considered for the

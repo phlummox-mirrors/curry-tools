@@ -496,7 +496,7 @@ listView erdname (Entity entityName attrlist) _ _ =
                     ],
                     applyF (pre "map") [
                       constF (viewModuleName entityName,"list"++entityName),
-                      applyF ("Sort","mergeSort") [
+                      applyF ("Sort","mergeSortBy") [
                           constF (viewModuleName entityName,"leq"++entityName),
                           CVar entsvar
                       ]

@@ -6,7 +6,7 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version May 2013
+--- @version April 2016
 --------------------------------------------------------------------------
 
 module Configuration
@@ -80,7 +80,7 @@ updateRCFile = do
            distprops
 
 rcKeys :: [(String, String)] -> [String]
-rcKeys = mergeSort (<=) . map fst
+rcKeys = mergeSort . map fst
 
 --- Reads the user property file (which must be installed!)
 --- and store the properties in a global variable for next access.

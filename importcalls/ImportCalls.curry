@@ -2,7 +2,7 @@
 --- Show all calls to imported functions in a module
 ---
 --- @author Michael Hanus
---- @version September 2015
+--- @version April 2016
 -----------------------------------------------------------------------------
 
 module ImportCalls(main,showImportCalls) where
@@ -49,8 +49,8 @@ formatImpCalls impcalls =
 getAllImpCalls :: Prog -> [(String,[String])]
 getAllImpCalls (Prog mod imps _ funs _) =
   calls2impCalls imps
-                (mergeSort (\ (_,n1) (_,n2) -> n1 <= n2)
-                           (allFunCalls mod funs))
+                (mergeSortBy (\ (_,n1) (_,n2) -> n1 <= n2)
+                             (allFunCalls mod funs))
 
 calls2impCalls :: [String] -> [QName] -> [(String,[String])]
 calls2impCalls [] _ = []

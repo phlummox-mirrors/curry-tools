@@ -9,7 +9,7 @@
 --- generated from a FlatCurry program.
 ---
 --- @author Michael Hanus, Bjoern Peemoeller
---- @version June 2015
+--- @version April 2016
 ------------------------------------------------------------------------------
 
 module ShowFlatCurry
@@ -22,7 +22,7 @@ module ShowFlatCurry
 import Char   (isAlpha)
 import List   (intercalate)
 import Pretty (pPrint)
-import Sort   (mergeSort,leqString)
+import Sort   (mergeSortBy,leqString)
 
 import FlatCurry.Types
 import FlatCurry.Files
@@ -41,12 +41,12 @@ showFlatCurry = pPrint . ppProg defaultOptions
 showInterface :: Bool -> Prog -> String
 showInterface genstub (Prog mod imports types funcs ops) =
   concatMap showInterfaceImport imports ++ "\n" ++
-  concatMap showInterfaceOpDecl (mergeSort leqOp ops) ++
+  concatMap showInterfaceOpDecl (mergeSortBy leqOp ops) ++
   (if null ops then "" else "\n") ++
   concatMap (showInterfaceType (showQNameInModule mod))
-            (mergeSort leqType types) ++ "\n" ++
+            (mergeSortBy leqType types) ++ "\n" ++
   concatMap (showInterfaceFunc (showQNameInModule mod) genstub)
-            (mergeSort leqFunc funcs) ++ "\n"
+            (mergeSortBy leqFunc funcs) ++ "\n"
 
 -- show import declaration
 showInterfaceImport :: String -> String

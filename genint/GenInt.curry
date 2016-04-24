@@ -9,7 +9,7 @@
 --- generated from a FlatCurry program.
 ---
 --- @author Michael Hanus
---- @version November 2014
+--- @version April 2016
 ------------------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -Wno-incomplete-patterns -Wno-missing-signatures #-}
@@ -23,7 +23,7 @@ import Char(isAlpha)
 import System(getArgs,getEnviron,system)
 import Directory
 import FileGoodies
-import Sort(mergeSort,leqString)
+import Sort(mergeSortBy,leqString)
 import Distribution(stripCurrySuffix,modNameToPath
                    ,lookupModuleSourceInLoadPath)
 
@@ -82,12 +82,12 @@ genInt genstub progname = do
  (Prog mod imports types funcs ops) <- getFlatInt progname
  return $ "module " ++ mod ++ " where\n" ++
           concatMap showInterfaceImport imports ++ "\n" ++
-          concatMap showInterfaceOpDecl (mergeSort leqOp ops) ++
+          concatMap showInterfaceOpDecl (mergeSortBy leqOp ops) ++
           (if null ops then "" else "\n") ++
           concatMap (showInterfaceType (showQNameInModule mod))
-                    (mergeSort leqType types) ++ "\n" ++
+                    (mergeSortBy leqType types) ++ "\n" ++
           concatMap (showInterfaceFunc (showQNameInModule mod) genstub)
-                    (mergeSort leqFunc funcs) ++ "\n"
+                    (mergeSortBy leqFunc funcs) ++ "\n"
 
 -- Get a FlatCurry program (parse only if necessary):
 getFlatInt :: String -> IO Prog
