@@ -155,7 +155,7 @@ attachProperties2Funcs props ((sourceline,_) : slines) =
           [code [htxt $ prettyWith ppCPattern (last ps) ++ " = " ++
                         prettyWith ppCPattern
                                    (CPComb qn (take (length ps - 1) ps)) ],
-                 italic [htxt " must satisfy "],
+                 italic [htxt " satisfies "],
                  code [htxt (safeTail rhs)]])
    _ -> -- we don't put must effort to format complex postconditions:
         (PostCond, fnpost, [code [htxt $ prettyRule qp rule]])
@@ -164,7 +164,7 @@ attachProperties2Funcs props ((sourceline,_) : slines) =
    CRule _ (CSimpleRhs _ _) ->
      let (lhs,rhs) = break (=='=') (prettyRule qn rule)
       in (SpecFun, fnspec, [code [htxt $ "(" ++ stripSpaces lhs ++ ")"],
-                            italic [htxt " must be equivalent to "],
+                            italic [htxt " is equivalent to "],
                             code [htxt (safeTail rhs)]])
    _ -> -- we don't put must effort to format complex specifications:
         (SpecFun, fnspec, [code [htxt $ prettyRule qp rule]])
