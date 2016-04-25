@@ -45,7 +45,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 24/04/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 25/04/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -484,14 +484,14 @@ propResultType (CFuncType from to) = CFuncType from (propResultType to)
 
 -- Transforms a function declaration into a post condition test if
 -- there is a post condition for this function (i.e., a relation named
--- f'post). The specification test is of the form
+-- f'post). The post condition test is of the form
 -- fSatisfiesPostCondition x1...xn y =
 --   let r = f x1...xn
 --    in f'pre x1...xn && r==r  ==> always (f'post x1...xn r)
 genPostCondTest :: [QName] -> [QName] -> CFuncDecl -> [CFuncDecl]
 genPostCondTest prefuns postops (CmtFunc _ qf ar vis texp rules) =
   genSpecTest prefuns postops (CFunc qf ar vis texp rules)
-genPostCondTest prefuns postops (CFunc qf@(mn,fn) ar _ texp _) =
+genPostCondTest prefuns postops (CFunc qf@(mn,fn) _ _ texp _) =
  if qf `notElem` postops then [] else
   [CFunc (mn, fn ++ postCondSuffix) ar Public
     (propResultType texp)
@@ -506,6 +506,7 @@ genPostCondTest prefuns postops (CFunc qf@(mn,fn) ar _ texp _) =
  where
   cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
   rvar  = (0,"r")
+  ar    = arityOfType texp
 
   preCond =
    let eqResult = applyF (pre "==") [CVar rvar, CVar rvar]
@@ -522,7 +523,7 @@ genPostCondTest prefuns postops (CFunc qf@(mn,fn) ar _ texp _) =
 genSpecTest :: [QName] -> [QName] -> CFuncDecl -> [CFuncDecl]
 genSpecTest prefuns specops (CmtFunc _ qf ar vis texp rules) =
   genSpecTest prefuns specops (CFunc qf ar vis texp rules)
-genSpecTest prefuns specops (CFunc qf@(mn,fn) ar _ texp _) =
+genSpecTest prefuns specops (CFunc qf@(mn,fn) _ _ texp _) =
  if qf `notElem` specops then [] else
   [CFunc (mn, fn ++ satSpecSuffix) ar Public
     (propResultType texp)
@@ -532,6 +533,7 @@ genSpecTest prefuns specops (CFunc qf@(mn,fn) ar _ texp _) =
                            applyF (mn,fn++"'spec") (map CVar cvars)])]]
  where
   cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
+  ar    = arityOfType texp
 
   addPreCond exp = if qf `elem` prefuns
                    then applyF (easyCheckModule,"==>")
@@ -880,6 +882,10 @@ stripSuffix str suf = if suf `isSuffixOf` str
 -- Translate a module name to an identifier, i.e., replace '.' by '_':
 modNameToId :: String -> String
 modNameToId = intercalate "_" . split (=='.')
+
+-- Computes the arity from a type expression.
+arityOfType :: CTypeExpr -> Int
+arityOfType = length . argTypes
 
 --- Name of the Test.Prop module (the clone of the EasyCheck module).
 propModule :: String
