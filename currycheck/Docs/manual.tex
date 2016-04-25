@@ -31,7 +31,14 @@ rev123  = rev [1,2,3] -=- [3,2,1]
 \end{curry}
 The operator \ccode{-=-} specifies a test where both sides must
 have a single identical value. Since this operator (as many more, see below)
-are defined in the library \code{Test.EasyCheck},
+are defined in the library \code{Test.Prop}\pindex{Test.Prop},\footnote{%
+The library \code{Test.Prop} is a clone of the library
+\code{Test.EasyCheck}\pindex{Test.EasyCheck}
+which defines only the interface but not the actual test implementations.
+Thus, the library \code{Test.Prop} has less import dependencies.
+When CurryCheck generates programs to execute the tests,
+it automatically replaces references to \code{Test.Prop}
+by references to \code{Test.EasyCheck} in the generated programs.}
 we also have to import this library.
 Apart from unit tests, which are often tedious to write,
 we can also write a property, i.e., a test parameterized over
@@ -46,7 +53,7 @@ Altogether, our program is as follows:
 \begin{curry}
 module Rev(rev) where
 
-import Test.EasyCheck
+import Test.Prop
 
 rev :: [a] -> [a]
 rev []     = []
@@ -104,7 +111,7 @@ CurryCheck creates a copy of the library where all operations
 are public, i.e., CurryCheck requires write permission on the
 directory where the source code is stored.
 
-The library \code{Test.EasyCheck} defines many combinators
+The library \code{Test.Prop} defines many combinators
 to construct properties. In particular, there are a couple of
 combinators for dealing with non-deterministic operations
 (note that this list is incomplete):
@@ -310,7 +317,8 @@ For a given type, CurryCheck automatically enumerates all values
 of this type (except for the type \code{Float}).
 In KiCS2, this is done by exploiting the functional logic features
 of Curry, i.e., by simply collecting all values of a free variable.
-For instance, the library \code{Test.EasyCheck} defines an operation
+For instance, the library \code{Test.EasyCheck}\pindex{Test.EasyCheck}
+defines an operation
 \begin{curry}
 valuesOf :: a -> [a]
 \end{curry}

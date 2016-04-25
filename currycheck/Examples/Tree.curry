@@ -1,6 +1,6 @@
 -- Some examples for the use of CurryCheck with user-defined data
 
-import Test.EasyCheck
+import Test.Prop
 
 -- A general tree type:
 data Tree a = Leaf a | Node [Tree a]

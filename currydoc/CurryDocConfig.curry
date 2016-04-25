@@ -12,7 +12,7 @@ import Distribution(curryCompiler)
 
 --- Version of currydoc
 currydocVersion :: String
-currydocVersion = "Version 0.8.1 of April 23, 2016"
+currydocVersion = "Version 0.8.1 of April 24, 2016"
 
 --- The URL of the base directory containing the styles, images, etc.
 styleBaseURL :: String

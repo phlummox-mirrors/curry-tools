@@ -1,6 +1,6 @@
 -- Some examples for the use of CurryCheck with user-defined data
 
-import Test.EasyCheck
+import Test.Prop
 
 -- Natural numbers defined by s-terms (Z=zero, S=successor):
 data Nat = Z | S Nat

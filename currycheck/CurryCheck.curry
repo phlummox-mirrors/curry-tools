@@ -21,7 +21,7 @@ import AbstractCurry.Files
 import AbstractCurry.Select
 import AbstractCurry.Build
 import AbstractCurry.Pretty    (showCProg)
-import AbstractCurry.Transform (renameCurryModule)
+import AbstractCurry.Transform (renameCurryModule,updCProg,updQNamesInCProg)
 import AnsiCodes
 import Distribution
 import FilePath                ((</>))
@@ -45,7 +45,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 21/04/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 24/04/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -384,7 +384,7 @@ isTest = isTestType . funcType
 
 -- The type of EasyCheck properties.
 propType :: CTypeExpr
-propType = baseType (easyCheckModule, "Prop")
+propType = baseType (easyCheckModule,"Prop")
    
 isPropIOType :: CTypeExpr -> Bool
 isPropIOType texp = case texp of
@@ -438,7 +438,7 @@ transformTests opts (CurryProg mname imports typeDecls functions opDecls) =
            (if optSpec opts then postCondTests ++ specOpTests else [])
 
 -- Extracts all determinism tests and transforms deterministic operations
--- backinto non-deterministic operations.
+-- back into non-deterministic operations.
 -- The result contains a pair consisting of all actual determinism tests
 -- and all ignored tests (since they are polymorphic).
 transformDetTests :: Options -> CurryProg -> ([CFuncDecl],[CFuncDecl],CurryProg)
@@ -640,7 +640,9 @@ analyseModule opts modname = do
                          ["Module '"++modname++"': incorrect source program"]])
 
 analyseCurryProg :: Options -> String -> CurryProg -> IO [TestModule]
-analyseCurryProg opts modname prog = do
+analyseCurryProg opts modname orgprog = do
+  -- First we rename all references to Test.Prop into Test.EasyCheck
+  let prog = renameProp2EasyCheck orgprog
   progtxt <- readFile (modNameToPath modname ++ ".curry")
   putStrIfVerbose opts "Checking source code for illegal uses of primitives...\n"
   useerrs <- if optSource opts then checkBlacklistUse prog else return []
@@ -856,6 +858,15 @@ main = do
 -------------------------------------------------------------------------
 -- Auxiliaries
 
+-- Rename all module references to "Test.Prog" into "Test.EasyCheck"
+renameProp2EasyCheck :: CurryProg -> CurryProg
+renameProp2EasyCheck prog =
+  updCProg id (map rnmMod) id id id
+           (updQNamesInCProg (\ (mod,n) -> (rnmMod mod,n)) prog)
+ where
+  rnmMod mod | mod == propModule = easyCheckModule
+             | otherwise         = mod
+
 -- Extracts the first word of a string
 firstWord :: String -> String
 firstWord = head . splitOn "\t" . head . splitOn " "
@@ -869,6 +880,10 @@ stripSuffix str suf = if suf `isSuffixOf` str
 -- Translate a module name to an identifier, i.e., replace '.' by '_':
 modNameToId :: String -> String
 modNameToId = intercalate "_" . split (=='.')
+
+--- Name of the Test.Prop module (the clone of the EasyCheck module).
+propModule :: String
+propModule = "Test.Prop" 
 
 --- Name of the EasyCheck module.
 easyCheckModule :: String

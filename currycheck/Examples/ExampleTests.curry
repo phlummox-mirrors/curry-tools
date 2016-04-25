@@ -1,5 +1,5 @@
--- In order to write a test, we have to import the module Test.EasyCheck:
-import Test.EasyCheck
+-- In order to write a test, we have to import the module Test.Prop:
+import Test.Prop
 
 -- We import the System module for performing some I/O tests on operations
 -- in this module:

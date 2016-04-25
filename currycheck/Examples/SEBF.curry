@@ -1,8 +1,8 @@
 --------------------------------------------------------------------------
 -- Some tests from Sebastian's tutorial on EasyCheck.
 
--- In order to write a test, we have to import the module Test.EasyCheck:
-import Test.EasyCheck
+-- In order to write a test, we have to import the module Test.Prop:
+import Test.Prop
 
 --------------------------------------------------------------------------
 -- Deterministic tests:

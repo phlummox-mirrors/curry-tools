@@ -1,4 +1,4 @@
-import Test.EasyCheck
+import Test.Prop
 import SearchTreeGenerators
 
 rev :: [a] -> [a]

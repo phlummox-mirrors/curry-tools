@@ -238,9 +238,12 @@ isProperty fdecl = fst (funcName fdecl) /= easyCheckModule
  where
   isPropType :: CTypeExpr -> Bool
   isPropType ct =  ct == baseType (easyCheckModule,"Prop") -- I/O test?
+                || ct == baseType (propModule,"Prop") -- I/O test?
                 || resultType ct == baseType (easyCheckModule,"Prop")
+                || resultType ct == baseType (propModule,"Prop")
 
   easyCheckModule = "Test.EasyCheck" 
+  propModule      = "Test.Prop" 
 
 -- Is a function definition part of a specification, i.e.,
 -- a full specification (suffix 'spec), a precondition (suffix 'pre),
