@@ -142,7 +142,8 @@ attachProperties2Funcs props ((sourceline,_) : slines) =
   showPreCond fnpre qp qn rule = case rule of
    CRule _ (CSimpleRhs _ _) ->
      let (lhs,rhs) = break (=='=') (prettyRule qn rule)
-      in (PreCond, fnpre, [code [htxt lhs], italic [htxt " requires "],
+      in (PreCond, fnpre, [code [htxt $ "(" ++ stripSpaces lhs ++ ")"],
+                           italic [htxt " requires "],
                            code [htxt (safeTail rhs)]])
    _ -> -- we don't put must effort to format complex preconditions:
         (PreCond, fnpre, [code [htxt $ prettyRule qp rule]])
@@ -162,7 +163,7 @@ attachProperties2Funcs props ((sourceline,_) : slines) =
   showSpec fnspec qp qn rule = case rule of
    CRule _ (CSimpleRhs _ _) ->
      let (lhs,rhs) = break (=='=') (prettyRule qn rule)
-      in (SpecFun, fnspec, [code [htxt lhs],
+      in (SpecFun, fnspec, [code [htxt $ "(" ++ stripSpaces lhs ++ ")"],
                             italic [htxt " must be equivalent to "],
                             code [htxt (safeTail rhs)]])
    _ -> -- we don't put must effort to format complex specifications:
@@ -916,6 +917,9 @@ ehref url desc = href url desc `addAttr` ("target","_blank")
 
 --------------------------------------------------------------------------
 -- auxiliaries:
+
+stripSpaces :: String -> String
+stripSpaces = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
 -- style for explanation categories, like "Constructors:", "Parameters:",...
 explainCat :: String -> HtmlExp
