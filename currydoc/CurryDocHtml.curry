@@ -5,6 +5,8 @@
 --- @version April 2016
 ----------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -Wno-incomplete-patterns #-}
+
 module CurryDocHtml where
 
 import CurryDocAnaInfo
@@ -49,7 +51,8 @@ generateHtmlDocs docparams anainfo modname modcmts progcmts = do
   let
     exptypes   = filter isExportedType types
     expfuns    = filter isExportedFun  functions
-    propspecs  = filter (\fd -> isProperty fd || isSpecFunc fd) functions
+    propspecs  = map cmtFunc2Func
+                     (filter (\fd -> isProperty fd || isSpecFunc fd) functions)
     navigation =
       [ bold [htxt "Exported names:"]
       , genHtmlExportIndex (map tName      exptypes)
@@ -90,6 +93,10 @@ generateHtmlDocs docparams anainfo modname modcmts progcmts = do
    ++ ifNotNull ts (const [[href "#exported_datatypes"  [htxt "Datatypes" ]]])
    ++ ifNotNull fs (const [[href "#exported_operations" [htxt "Operations"]]])
 
+  cmtFunc2Func fdecl = case fdecl of
+                         CmtFunc _ qn a v tExp rs -> CFunc qn a v tExp rs
+                         _                        -> fdecl
+
 -- Datatype to classify the kind of information attached to a function:
 data FuncAttachment = Property | PreCond | PostCond | SpecFun
 
@@ -97,9 +104,9 @@ data FuncAttachment = Property | PreCond | PostCond | SpecFun
 -- to functions according to their positions and name in the source code
 -- (we assume that they follow the actual function definitions).
 -- Each property or contract is represented by its kind ('FuncAttachment'),
--- its name, and its code (a string) shown in the documentation.
+-- its name, and its documentation (HTML document).
 attachProperties2Funcs :: [CFuncDecl] -> [(SourceLine,String)]
-                       -> [(String,[(FuncAttachment,String,String)])]
+                       -> [(String,[(FuncAttachment,String,[HtmlExp])])]
 attachProperties2Funcs _ [] = []
 attachProperties2Funcs props ((sourceline,_) : slines) =
   case sourceline of
@@ -113,27 +120,59 @@ attachProperties2Funcs props ((sourceline,_) : slines) =
   showProp (FuncDef fn,_) =
     let propdecl = fromJust (find (\fd -> snd (funcName fd) == fn) props)
      in if isProperty propdecl
-        then map (\rhs -> (Property, fn, prettyWith (ppCRhs empty) rhs))
+        then map (\rhs -> (Property, fn,
+                           [code [htxt $ prettyWith (ppCRhs empty) rhs]]))
                  (map ruleRHS (funcRules propdecl))
         else []
 
   showContracts fn =
-    maybe []
-          (\predecl  -> [(PreCond, fnpre, prettyFDecl predecl)])
-          (find (\fd -> snd (funcName fd) == fnpre) props) ++
-    maybe []
-          (\postdecl -> [(PostCond, fnpost, prettyFDecl postdecl)])
-          (find (\fd -> snd (funcName fd) == fnpost) props) ++
-    maybe []
-          (\specdecl -> [(SpecFun, fnspec, prettyFDecl specdecl)])
-          (find (\fd -> snd (funcName fd) == fnspec) props)
-   where
-    fnpre  = fn++"'pre"
-    fnpost = fn++"'post"
-    fnspec = fn++"'spec"
+    showContract (fn++"'pre")  showPreCond ++
+    showContract (fn++"'post") showPostCond ++
+    showContract (fn++"'spec") showSpec
 
-  prettyWith ppfun = pretty 78 . ppfun (setNoQualification defaultOptions)
-  prettyFDecl = prettyWith ppCFuncDeclWithoutSig
+  showContract fnsuff formatrule =
+    maybe []
+          (\contractdecl -> showRulesWith formatrule fnsuff contractdecl)
+          (find (\fd -> snd (funcName fd) == fnsuff) props)
+
+  showRulesWith formatrule fnsuff (CFunc qn@(mn,fn) _ _ _ rules) =
+    let stripSuffix = reverse . tail . dropWhile (/='\'') . reverse
+     in map (formatrule fnsuff qn (mn,stripSuffix fn)) rules
+
+  showPreCond fnpre qp qn rule = case rule of
+   CRule _ (CSimpleRhs _ _) ->
+     let (lhs,rhs) = break (=='=') (prettyRule qn rule)
+      in (PreCond, fnpre, [code [htxt lhs], italic [htxt " requires "],
+                           code [htxt (safeTail rhs)]])
+   _ -> -- we don't put must effort to format complex preconditions:
+        (PreCond, fnpre, [code [htxt $ prettyRule qp rule]])
+
+  showPostCond fnpost qp qn rule = case rule of
+   CRule ps (CSimpleRhs _ _) ->
+     let (_,rhs) = break (=='=') (prettyRule qn rule)
+      in (PostCond, fnpost,
+          [code [htxt $ prettyWith ppCPattern (last ps) ++ " = " ++
+                        prettyWith ppCPattern
+                                   (CPComb qn (take (length ps - 1) ps)) ],
+                 italic [htxt " must satisfy "],
+                 code [htxt (safeTail rhs)]])
+   _ -> -- we don't put must effort to format complex postconditions:
+        (PostCond, fnpost, [code [htxt $ prettyRule qp rule]])
+
+  showSpec fnspec qp qn rule = case rule of
+   CRule _ (CSimpleRhs _ _) ->
+     let (lhs,rhs) = break (=='=') (prettyRule qn rule)
+      in (SpecFun, fnspec, [code [htxt lhs],
+                            italic [htxt " must be equivalent to "],
+                            code [htxt (safeTail rhs)]])
+   _ -> -- we don't put must effort to format complex specifications:
+        (SpecFun, fnspec, [code [htxt $ prettyRule qp rule]])
+
+  prettyWith ppfun = pretty 78 . ppfun prettyOpts
+  prettyRule qn rl = pretty 78 (ppCRule prettyOpts qn rl)
+  prettyOpts       = setNoQualification defaultOptions
+
+  safeTail xs = if null xs then xs else tail xs
 
   isPropFuncDef (sline,_) =
     case sline of FuncDef fn -> fn `elem` propNames
@@ -388,7 +427,7 @@ genHtmlFuncShort docparams progcmts anainfo (CmtFunc _ n a vis ftype rules) =
 
 -- generate HTML documentation for a function:
 genHtmlFunc :: DocParams -> String -> [(SourceLine,String)]
-            -> [(String,[(FuncAttachment,String,String)])] -> AnaInfo
+            -> [(String,[(FuncAttachment,String,[HtmlExp])])] -> AnaInfo
             -> [COpDecl] -> CFuncDecl -> HtmlExp
 genHtmlFunc docparams modname progcmts funcattachments anainfo ops
             (CmtFunc _ n a vis ftype rules) =
@@ -407,14 +446,10 @@ genHtmlFunc docparams modname progcmts funcattachments anainfo ops
          docComment2HTML docparams funcmt ++
          genParamComment paramcmts ++
          -- show contracts and properties (if present):
-         showAttachments "Precondition"
-                         (filter (\ (k,_,_) -> k==PreCond)  funAttached) ++
-         showAttachments "Postcondition"
-                         (filter (\ (k,_,_) -> k==PostCond) funAttached) ++
-         showAttachments "Specification"
-                         (filter (\ (k,_,_) -> k==SpecFun)  funAttached) ++
-         showAttachments "Properties"
-                         (filter (\ (k,_,_) -> k==Property) funAttached) ++
+         showAttachments "Precondition"  PreCond  ++
+         showAttachments "Postcondition" PostCond ++
+         showAttachments "Specification" SpecFun  ++
+         showAttachments "Properties"    Property ++
          -- show further infos for this function, if present:
          (if furtherInfos == []
           then []
@@ -423,15 +458,15 @@ genHtmlFunc docparams modname progcmts funcattachments anainfo ops
  where
   showCodeHRef fn = href (modname++"_curry.html#"++fn) [htxt (showId fn)]
 
-  funAttached   = maybe [] id (lookup fname funcattachments)
-
-  showAttachments aname attachfuns = if null attachfuns then [] else
-    [dlist [([explainCat (aname++":")],
-             [par (intercalate [breakline]
-                     (map (\ (_,pn,pc) ->
-                            [code [htxt pc], nbsp,
-                             htxt "(", showCodeHRef pn, htxt ")"])
-                          attachfuns))])]]
+  showAttachments aname attachkind =
+   let attachfuns = filter (\ (k,_,_) -> k==attachkind)
+                           (maybe [] id (lookup fname funcattachments))
+    in if null attachfuns then [] else
+        [dlist [([explainCat (aname++":")],
+                 [par (intercalate [breakline]
+                         (map (\ (_,pn,pc) -> pc ++
+                                 [nbsp, htxt "(", showCodeHRef pn, htxt ")"])
+                              attachfuns))])]]
 
   furtherInfos = genFuncPropComments anainfo (fmod,fname) rules ops
 
