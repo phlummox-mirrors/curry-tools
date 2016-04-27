@@ -135,9 +135,20 @@ attachProperties2Funcs props ((sourceline,_) : slines) =
           (\contractdecl -> showRulesWith formatrule fnsuff contractdecl)
           (find (\fd -> snd (funcName fd) == fnsuff) props)
 
-  showRulesWith formatrule fnsuff (CFunc qn@(mn,fn) _ _ _ rules) =
+  showRulesWith formatrule fnsuff (CFunc qn@(mn,fn) ar _ ftype rules) =
     let stripSuffix = reverse . tail . dropWhile (/='\'') . reverse
-     in map (formatrule fnsuff qn (mn,stripSuffix fn)) rules
+     in map (formatrule fnsuff qn (mn,stripSuffix fn)
+              . etaExpand ar (length (argTypes ftype))) rules
+
+  -- eta expand simple rules for more reasonable documentation
+  etaExpand arity tarity rule = case rule of
+    CRule ps (CSimpleRhs exp ldecls) ->
+      if arity == tarity
+      then rule
+      else let evars = map (\i -> (i,"x"++show i)) [(arity+1) .. tarity]
+            in CRule (ps ++ map CPVar evars)
+                     (CSimpleRhs (foldl CApply exp (map CVar evars)) ldecls)
+    _ -> rule -- don't do it for complex rules
 
   showPreCond fnpre qp qn rule = case rule of
    CRule _ (CSimpleRhs _ _) ->
