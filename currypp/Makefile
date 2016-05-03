@@ -19,11 +19,13 @@ MLDIR       = $(PARSEDIR)/ML
 SQLDIR      = $(PARSEDIR)/SQL
 SEQRULESDIR = $(CURDIR)/SequentialRules
 DEFRULESDIR = $(CURDIR)/DefaultRules
+CONTRACTDIR = $(CURDIR)/ContractWrapper
 
 # preprocessor input path and dependencies:
-PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR)
+PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR):$(CONTRACTDIR)
 DEPS   = Main.curry $(ICODEDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
-          $(SQLDIR)/*.curry $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry
+          $(SQLDIR)/*.curry $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry \
+	  $(CONTRACTDIR)/*.curry
 
 .PHONY: all compile install clean uninstall
 

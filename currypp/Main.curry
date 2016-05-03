@@ -7,7 +7,7 @@
 --- is supported (option `foreigncode`, see module `Translator`).
 ---
 --- @author Michael Hanus
---- @version February 2016
+--- @version May 2016
 ------------------------------------------------------------------------------
 
 import Char(isDigit,digitToInt)
@@ -19,20 +19,22 @@ import System
 import TransICode(translateICFile)
 import TransDefRules(transDefaultRules)
 import TransSeqRules(transSequentialRules)
+import TransContracts(transContracts)
 
 cppBanner :: String
 cppBanner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Curry Preprocessor (version of 01/02/2016)"
+   bannerText = "Curry Preprocessor (version of 03/05/2016)"
    bannerLine = take (length bannerText) (repeat '=')
 
 --- Preprocessor targets:
-data PPTarget = ForeignCode | SequentialRules | DefaultRules
+data PPTarget = ForeignCode | SequentialRules | DefaultRules | Contracts
 
 parseTarget :: String -> Maybe PPTarget
 parseTarget t | t=="foreigncode"  = Just ForeignCode
               | t=="defaultrules" = Just DefaultRules
 	      | t=="seqrules"     = Just SequentialRules
+	      | t=="contracts"    = Just Contracts
 	      | otherwise         = Nothing
 	      
 --- Preprocessor options:
@@ -161,8 +163,10 @@ preprocess opts orgfile infile outfile
 	  renameFile savefile orgfile
   | SequentialRules `elem` pptargets
    = transSequentialRules verb orgfile infile outfile
-  | DefaultRules    `elem` pptargets
+  | DefaultRules `elem` pptargets
    = transDefaultRules verb (optMore opts) orgfile infile outfile
+  | Contracts `elem` pptargets
+   = transContracts verb (optMore opts) orgfile infile outfile
   | otherwise = error "currypp: internal error"
  where
   pptargets = optTgts opts
