@@ -23,6 +23,17 @@ For this purpose use the option "-e" as follows:
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts --optF=-e #-}
 
 ------------------------------------------------------------------------
+Options:
+
+The contract preprocessor accepts the following options:
+
+-o : write the transformed Curry program into file <prog>.curry.CURRYPP
+-e : encapsulate nondeterminism of assertions
+-t : assert contracts only to top-level (but not to direct recursive) calls;
+     this might lead to a faster execution but less (incomplete!)
+     contract checking
+
+------------------------------------------------------------------------
 Assumptions:
 
 - Naming conventions: for an operation f,

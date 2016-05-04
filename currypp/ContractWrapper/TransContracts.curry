@@ -8,17 +8,16 @@ module TransContracts(main,transContracts) where
 
 import AbstractCurry.Types
 import AbstractCurry.Files
-import AbstractCurryComments
 import AbstractCurry.Pretty
 import AbstractCurry.Build
 import AbstractCurry.Select
 import AbstractCurry.Transform
+import Char
 import Directory
 import Distribution
 import List
 import Maybe(fromJust)
 import System
-import Time
 
 banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
@@ -36,10 +35,11 @@ transContracts verb moreopts orgfile infile outfile = do
       modname = stripCurrySuffix orgfile
   renameFile orgfile savefile
   starttime <- getCPUTime
-  readFile infile >>= writeFile orgfile . replaceOptionsLine
+  srcprog <- readFile infile
+  writeFile orgfile (replaceOptionsLine srcprog)
   inputProg <- tryReadCurry modname savefile
   renameFile savefile orgfile
-  transformCProg opts (addCmtFuncInProg inputProg) modname modname outfile
+  transformCProg opts srcprog (addCmtFuncInProg inputProg) modname outfile
   stoptime <- getCPUTime
   when (verb>1) $ putStrLn
     ("Contract wrapper transformation time: " ++
@@ -47,7 +47,8 @@ transContracts verb moreopts orgfile infile outfile = do
  where
   processOpts opts ppopts = case ppopts of
     []          -> return opts
-    ("-e":more) -> processOpts (opts { withEncapsulate = True }) more
+    ("-e":more) -> processOpts (opts { withEncapsulate   = True }) more
+    ("-t":more) -> processOpts (opts { topLevelContracts = True }) more
     _           -> showError
    where
     showError = do
@@ -69,18 +70,24 @@ replaceOptionsLine = unlines . map replOptLine . lines
 ------------------------------------------------------------------------
 -- Data type for transformation parameters
 data Options = Options
-  { withEncapsulate :: Bool -- encapsulate assertion checking by set functions?
-  , executeProg     :: Bool -- load and execute transformed program?
+  { -- encapsulate assertion checking by set functions?
+    withEncapsulate   :: Bool
+    -- should contracts be asserted only to top-level entries of an operation
+    -- or also to all (recursive) calls?
+  , topLevelContracts :: Bool
+    -- load and execute transformed program?
+  , executeProg       :: Bool
   }
 
 defaultOptions :: Options
 defaultOptions = Options
-  { withEncapsulate = False
-  , executeProg     = False
+  { withEncapsulate   = False
+  , topLevelContracts = False
+  , executeProg       = False
   }
 
 ------------------------------------------------------------------------
-
+-- Start the contract wrapper in "stand-alone mode":
 main :: IO ()
 main = do
   putStrLn banner
@@ -88,18 +95,21 @@ main = do
   processArgs defaultOptions args
  where
   processArgs opts args = case args of
-     ("-e":moreargs) -> processArgs (opts { withEncapsulate = True }) moreargs
-     ("-r":moreargs) -> processArgs (opts { executeProg     = True }) moreargs
+     ("-e":margs) -> processArgs (opts { withEncapsulate   = True }) margs
+     ("-t":margs) -> processArgs (opts { topLevelContracts = True }) margs
+     ("-r":margs) -> processArgs (opts { executeProg       = True }) margs
      [mnamec]        -> let mname = stripCurrySuffix mnamec
                          in transform opts mname
                                       (transformedModName mname ++ ".curry")
 
-     _ -> putStrLn $
-          "ERROR: Illegal arguments for transformation: " ++
-          unwords args ++ "\n" ++
-          "Usage: dsdcurry [-e|-r] <module_name>\n"++
-          "-e   : encapsulate nondeterminism of assertions\n"++
-          "-r   : load the transformed program into Curry system\n"
+     _ -> putStrLn $ unlines $
+           ["ERROR: Illegal arguments for transformation: " ++ unwords args
+           ,""
+           ,"Usage: cwrapper [-e] [-t] [-r] <module_name>"
+           ,"-e   : encapsulate nondeterminism of assertions"
+           ,"-t   : assert contracts only to top-level (not recursive) calls"
+           ,"-r   : load the transformed program into Curry system"
+           ]
 
 -- Specifies how the name of the transformed module is built from the
 -- name of the original module.
@@ -116,16 +126,22 @@ loadIntoCurry m = do
 -- The main transformation function.
 transform :: Options -> String -> String -> IO ()
 transform opts modname outfile = do
+  mmodsrc <- lookupModuleSourceInLoadPath modname
+  srcprog <- case mmodsrc of
+               Nothing -> error $
+                            "Source code of module '"++modname++"' not found!"
+               Just (_,progname) -> readFile progname
   let acyfile = abstractCurryFileName modname
   doesFileExist acyfile >>= \b -> if b then removeFile acyfile else done
-  prog <- readCurryWithComments modname >>= return . addCmtFuncInProg
+  prog <- readCurry modname >>= return . addCmtFuncInProg
   doesFileExist acyfile >>= \b -> if b then done
                                        else error "Source program incorrect"
-  transformCProg opts prog modname (transformedModName modname) outfile
+  transformCProg opts srcprog prog (transformedModName modname) outfile
 
-transformCProg :: Options -> CurryProg -> String -> String -> String -> IO ()
-transformCProg opts prog modname outmodname outfile = do
-  let fdecls    = functions prog
+transformCProg :: Options -> String -> CurryProg -> String -> String -> IO ()
+transformCProg opts srctxt prog outmodname outfile = do
+  let funposs   = linesOfFDecls srctxt prog
+      fdecls    = functions prog
       funspecs  = getFunDeclsWith isSpecName prog
       specnames = map (dropSpecName . snd . funcName) funspecs
       preconds  = getFunDeclsWith isPreCondName prog
@@ -136,7 +152,7 @@ transformCProg opts prog modname outmodname outfile = do
       onlyprecond  = prenames  \\ map (snd . funcName) fdecls
       onlypostcond = postnames \\ map (snd . funcName) fdecls
       onlyspec     = specnames \\ map (snd . funcName) fdecls
-      newprog      = transformProgram opts fdecls funspecs preconds
+      newprog      = transformProgram opts funposs fdecls funspecs preconds
                                       postconds prog
   unless (null onlyprecond) $
      error ("Operations with precondition but without an implementation: "
@@ -156,15 +172,15 @@ transformCProg opts prog modname outmodname outfile = do
            if executeProg opts
             then loadIntoCurry outmodname
             else done
-  
+
 -- Get functions from a Curry module with a name satisfying the predicate:
 getFunDeclsWith :: (String -> Bool) -> CurryProg -> [CFuncDecl]
 getFunDeclsWith pred prog = filter (pred . snd . funcName) (functions prog)
 
 -- Transform a given program w.r.t. given specifications and pre/postconditions
-transformProgram :: Options -> [CFuncDecl] -> [CFuncDecl] -> [CFuncDecl]
-                 -> [CFuncDecl] -> CurryProg -> CurryProg
-transformProgram opts allfdecls specdecls predecls postdecls
+transformProgram :: Options -> [(QName,Int)]-> [CFuncDecl] -> [CFuncDecl]
+                 -> [CFuncDecl] -> [CFuncDecl] -> CurryProg -> CurryProg
+transformProgram opts funposs allfdecls specdecls predecls postdecls
                  (CurryProg mname imps tdecls fdecls opdecls) =
  let newpostconds = concatMap (genPostCond4Spec opts allfdecls postdecls)
                               specdecls
@@ -177,9 +193,9 @@ transformProgram opts allfdecls specdecls predecls postdecls
                (nub ("Test.Contract":"SetFunctions":imps))
                tdecls
                (map deleteCmtIfEmpty
-                    (map (addContract opts allfdecls predecls contractpcs)
-                         wonewfuns ++
-                     newpostconds))
+                  (map (addContract opts funposs allfdecls predecls contractpcs)
+                       wonewfuns ++
+                   newpostconds))
                opdecls
 
 -- Add an empty comment to each function which has no comment
@@ -196,6 +212,7 @@ addCmtFuncInProg (CurryProg mname imps tdecls fdecls opdecls) =
 -- otherwise generate a set containment check.
 genPostCond4Spec :: Options -> [CFuncDecl] -> [CFuncDecl] -> CFuncDecl
                  -> [CFuncDecl]
+genPostCond4Spec _ _ _ (CFunc _ _ _ _ _) = error "genPostCond4Spec"
 genPostCond4Spec _ allfdecls postdecls (CmtFunc _ (m,f) ar vis texp _) =
  let fname     = dropSpecName f
      detspec   = isDetSpecName f -- determ. spec? (later: use prog.ana.)
@@ -262,10 +279,11 @@ genPostCond4Spec _ allfdecls postdecls (CmtFunc _ (m,f) ar vis texp _) =
      ]
 
 -- adds contract checking to a function if it has a pre- or postcondition
-addContract :: Options -> [CFuncDecl] -> [CFuncDecl] -> [CFuncDecl]
-            -> CFuncDecl -> CFuncDecl
-addContract opts allfdecls predecls postdecls
-            fdecl@(CmtFunc cmt (m,f) ar vis texp _) =
+addContract :: Options -> [(QName,Int)] -> [CFuncDecl] -> [CFuncDecl]
+            -> [CFuncDecl] -> CFuncDecl -> CFuncDecl
+addContract _ _ _ _ _ (CFunc _ _ _ _ _) = error "addContract"
+addContract opts funposs allfdecls predecls postdecls
+            fdecl@(CmtFunc cmt qn@(m,f) ar vis texp _) =
  let argvars   = map (\i -> (i,"x"++show i)) [1..ar]
      predecl   = find (\fd -> dropPreCondName(snd(funcName fd)) == f) predecls
      prename   = funcName (fromJust predecl)
@@ -274,6 +292,11 @@ addContract opts allfdecls predecls postdecls
      encapsSuf = if withEncapsulate opts then "ND" else ""
      encaps fn n = if withEncapsulate opts then setFun n fn [] else constF fn
      rename qf = if qf==(m,f) then (m,f++"'org") else qf
+     fref      = string2ac $
+                  "'" ++ f ++ "' (module " ++ m ++
+                         maybe ")"
+                               (\l -> ", line " ++ show l ++ ")")
+                               (lookup qn funposs)
      orgfunexp = constF (rename (m,f))
      obsfunexp = constF $
                   maybe (pre "id")
@@ -282,22 +305,22 @@ addContract opts allfdecls predecls postdecls
                              allfdecls)
      asrtCall  = if predecl==Nothing
                  then applyF (cMod $ "withPostContract" ++ show ar ++ encapsSuf)
-                        ([string2ac f, encaps postname (ar+1), obsfunexp,
-                          orgfunexp] ++
+                        ([fref, encaps postname (ar+1), obsfunexp, orgfunexp] ++
                          map CVar argvars)
                  else if postdecl==Nothing
                  then applyF (cMod $ "withPreContract" ++ show ar ++ encapsSuf)
-                        ([string2ac f, encaps prename ar, orgfunexp] ++
+                        ([fref, encaps prename ar, orgfunexp] ++
                          map CVar argvars)
                  else applyF (cMod $ "withContract" ++ show ar ++ encapsSuf)
-                        ([string2ac f, encaps prename ar,
+                        ([fref, encaps prename ar,
                           encaps postname (ar+1), obsfunexp, orgfunexp] ++
                          map CVar argvars)
+     oldfdecl = if topLevelContracts opts
+                then updQNamesInCLocalDecl rename (CLocalFunc (deleteCmt fdecl))
+                else CLocalFunc (renameFDecl rename (deleteCmt fdecl))
   in if predecl==Nothing && postdecl==Nothing then fdecl else
        cmtfunc cmt (m,f) ar vis texp
-         [simpleRuleWithLocals (map CPVar argvars)
-                asrtCall
-                [updQNamesInCLocalDecl rename (CLocalFunc (deleteCmt fdecl))]]
+               [simpleRuleWithLocals (map CPVar argvars) asrtCall [oldfdecl]]
 
 
 -- Is this the name of a specification?
@@ -349,6 +372,7 @@ setFun :: Int -> QName -> [CExpr] -> CExpr
 setFun n qn args = applyF (sfMod $ "set"++show n) (constF qn : args)
 
 ------------------------------------------------------------------------
+-- Auxiliary operations:
 
 -- Replaces a result type of a function type by a new type
 replaceResultType :: CTypeExpr -> CTypeExpr -> CTypeExpr
@@ -363,28 +387,11 @@ extendFuncType t@(CTVar _) texp = t ~> texp
 extendFuncType t@(CTCons _ _) texp = t ~> texp
 extendFuncType (CFuncType t1 t2) texp = t1 ~> (extendFuncType t2 texp)
 
-------------------------------------------------------------------------
--- Auxiliary operations:
+--- Renames a function declaration (but not the body).
+renameFDecl :: (QName -> QName) -> CFuncDecl -> CFuncDecl
+renameFDecl rn (CFunc qn ar vis texp rules) = CFunc (rn qn) ar vis texp rules
+renameFDecl _ (CmtFunc _ _ _ _ _ _) = error "renameFDecl"
 
---- Copy a file on demand, i.e., do not copy it if the target file
---- exists with the same time stamp and size.
-copyFileOnDemand :: String -> String -> IO ()
-copyFileOnDemand source target = do
-  let copycmd  = do putStrLn "Copying auxiliary module:"
-                    putStrLn (source++" -> "++target)
-                    system ("cp "++source++" "++target) >> done
-  exfile <- doesFileExist target
-  if exfile
-   then do odate <- getModificationTime source
-           ndate <- getModificationTime target
-           osize <- fileSize source
-           nsize <- fileSize target
-           if compareClockTime ndate odate /= LT && osize == nsize
-            then done
-            else copycmd
-   else copycmd
-
-------------------------------------------------------------------------
 --- Deletes the comment in a function declaration.
 deleteCmt :: CFuncDecl -> CFuncDecl
 deleteCmt (CFunc     qn ar vis texp rules) = CFunc qn ar vis texp rules
@@ -396,5 +403,33 @@ deleteCmtIfEmpty (CFunc qn ar vis texp rules)     = CFunc qn ar vis texp rules
 deleteCmtIfEmpty (CmtFunc cmt qn ar vis texp rules) =
   if null cmt then CFunc qn ar vis texp rules
               else CmtFunc cmt qn ar vis texp rules
+
+------------------------------------------------------------------------
+-- Compute names and lines numbers of all top-level operations in a program.
+linesOfFDecls :: String -> CurryProg -> [(QName,Int)]
+linesOfFDecls srctxt prog =
+  map (addSourceLineNumber (map firstId (lines srctxt)))
+      (map funcName (functions prog))
+ where
+  addSourceLineNumber ids qn = (qn, maybe 0 (+1) (elemIndex (snd qn) ids))
+
+-- Compute the first identifier (name or operator in brackets) in a string:
+firstId :: String -> String
+firstId [] = ""
+firstId (c:cs)
+  | isAlpha c = takeWhile isIdChar (c:cs)
+  | c == '('  = let bracketid = takeWhile (/=')') cs
+                 in if all (`elem` infixIDs) bracketid
+                    then bracketid
+                    else ""
+  | otherwise = ""
+
+-- Is this an alphanumeric character, underscore, or apostroph?
+isIdChar :: Char -> Bool
+isIdChar c = isAlphaNum c || c == '_' || c == '\''
+
+-- All characters occurring in infix operators.
+infixIDs :: String
+infixIDs =  "~!@#$%^&*+-=<>?./|\\:"
 
 ------------------------------------------------------------------------

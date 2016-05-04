@@ -1,4 +1,4 @@
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts  #-}
 
 -- A specification of sorting a list and an implementation based
 -- on the quicksort algorithm
@@ -13,7 +13,7 @@ sorted [_]      = True
 sorted (x:y:ys) = x<=y && sorted (y:ys)
 
 -- Trivial precondition, just for testing
-sort'pre xs = length xs > 0
+sort'pre xs = length xs >= 0
 
 -- Postcondition: input and output lists should have the same length
 sort'post xs ys = length xs == length ys

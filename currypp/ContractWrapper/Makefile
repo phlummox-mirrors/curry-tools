@@ -8,7 +8,7 @@
 all: cwrapper
 
 # generate saved state for contract wrapper:
-cwrapper: TransContracts.curry AbstractCurryComments.curry
+cwrapper: TransContracts.curry
 	pakcs :l TransContracts :save :q && mv TransContracts cwrapper
 
 .PHONY: clean
