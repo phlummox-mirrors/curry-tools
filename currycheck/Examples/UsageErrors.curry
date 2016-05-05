@@ -37,3 +37,15 @@ deterr3 x = f x
   f x = x
 
 ---------------------------------------------------------------------------
+-- Examples for unintended uses of contracts:
+
+some'pre _ = True
+
+some'post _ _ = True
+
+some'spec x = x
+
+k'spec x = x
+k x _ = x
+
+---------------------------------------------------------------------------

@@ -23,6 +23,7 @@ import AbstractCurry.Build
 import AbstractCurry.Pretty    (showCProg)
 import AbstractCurry.Transform (renameCurryModule,updCProg,updQNamesInCProg)
 import AnsiCodes
+import CheckContractUsage      (checkContractUse)
 import CheckDetUsage           (checkDetUse)
 import Distribution
 import FilePath                ((</>))
@@ -646,14 +647,16 @@ analyseCurryProg :: Options -> String -> CurryProg -> IO [TestModule]
 analyseCurryProg opts modname orgprog = do
   -- First we rename all references to Test.Prop into Test.EasyCheck
   let prog = renameProp2EasyCheck orgprog
-  progtxt <- readFile (modNameToPath modname ++ ".curry")
   putStrIfVerbose opts "Checking source code for illegal uses of primitives...\n"
   useerrs <- if optSource opts then checkBlacklistUse prog else return []
   seterrs <- if optSource opts then readFlatCurry modname >>= checkSetUse
                                else return []
   untypedprog <- readUntypedCurry modname
   let detuseerrs = if optSource opts then checkDetUse untypedprog else []
+  contracterrs <- checkContractUse prog
+  let staticerrs = seterrs ++ useerrs ++ detuseerrs++contracterrs
   putStrIfVerbose opts "Generating property tests...\n"
+  progtxt <- readFile (modNameToPath modname ++ ".curry")
   let words                   = map firstWord (lines progtxt)
       (rawTests,ignoredTests,pubmod) =
         transformTests opts . renameCurryModule (modname++"_PUBLIC")
@@ -661,16 +664,17 @@ analyseCurryProg opts modname orgprog = do
       (rawDetTests,ignoredDetTests,pubdetmod) =
         transformDetTests opts . renameCurryModule (modname++"_PUBLICDET")
                                . makeAllPublic $ prog
-  unless (null rawTests && null rawDetTests) $ putStrIfNormal opts $
-    "Properties to be tested:\n" ++
-    unwords (map (snd . funcName) (rawTests++rawDetTests)) ++ "\n"
-  unless (null ignoredTests && null ignoredDetTests) $ putStrIfNormal opts $
-    "Properties ignored for testing:\n" ++
-    unwords (map (snd . funcName) (ignoredTests++ignoredDetTests)) ++ "\n"
+  unless (not (null staticerrs) || null rawTests && null rawDetTests) $
+    putStrIfNormal opts $
+      "Properties to be tested:\n" ++
+      unwords (map (snd . funcName) (rawTests++rawDetTests)) ++ "\n"
+  unless (not (null staticerrs) || null ignoredTests && null ignoredDetTests) $
+    putStrIfNormal opts $
+      "Properties ignored for testing:\n" ++
+      unwords (map (snd . funcName) (ignoredTests++ignoredDetTests)) ++ "\n"
   let tm    = TestModule modname
                          (progName pubmod)
-                         (map (showOpError words)
-                              (seterrs ++ useerrs ++ detuseerrs))
+                         (map (showOpError words) staticerrs)
                          (addLinesNumbers words (classifyTests rawTests))
                          (generatorsOfProg pubmod)
       dettm = TestModule modname
