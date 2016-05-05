@@ -23,6 +23,7 @@ import AbstractCurry.Build
 import AbstractCurry.Pretty    (showCProg)
 import AbstractCurry.Transform (renameCurryModule,updCProg,updQNamesInCProg)
 import AnsiCodes
+import CheckDetUsage           (checkDetUse)
 import Distribution
 import FilePath                ((</>))
 import qualified FlatCurry.Types as FC
@@ -650,6 +651,8 @@ analyseCurryProg opts modname orgprog = do
   useerrs <- if optSource opts then checkBlacklistUse prog else return []
   seterrs <- if optSource opts then readFlatCurry modname >>= checkSetUse
                                else return []
+  untypedprog <- readUntypedCurry modname
+  let detuseerrs = if optSource opts then checkDetUse untypedprog else []
   putStrIfVerbose opts "Generating property tests...\n"
   let words                   = map firstWord (lines progtxt)
       (rawTests,ignoredTests,pubmod) =
@@ -666,7 +669,8 @@ analyseCurryProg opts modname orgprog = do
     unwords (map (snd . funcName) (ignoredTests++ignoredDetTests)) ++ "\n"
   let tm    = TestModule modname
                          (progName pubmod)
-                         (map (showOpError words) (seterrs ++ useerrs))
+                         (map (showOpError words)
+                              (seterrs ++ useerrs ++ detuseerrs))
                          (addLinesNumbers words (classifyTests rawTests))
                          (generatorsOfProg pubmod)
       dettm = TestModule modname
