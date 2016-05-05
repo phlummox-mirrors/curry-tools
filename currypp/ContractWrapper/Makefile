@@ -4,8 +4,9 @@
 # installed via the ../Makefile of currypp)
 ########################################################################
 
-# for module ContractUsage:
-PPPATH = ../../currycheck
+TOOLDIR = ../..
+# for determinism analysis and for module ContractUsage:
+PPPATH = $(TOOLDIR)/analysis:$(TOOLDIR)/CASS:$(TOOLDIR)/currycheck
 
 .PHONY: all
 all: cwrapper

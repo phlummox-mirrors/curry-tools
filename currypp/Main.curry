@@ -10,15 +10,19 @@
 --- @version May 2016
 ------------------------------------------------------------------------------
 
+import AbstractCurry.Types
+import AbstractCurry.Files(readCurry, readUntypedCurry)
+import AbstractCurry.Pretty(showCProg)
+import AbstractCurry.Select(progName)
 import Char(isDigit,digitToInt)
 import Directory(copyFile,renameFile)
-import Distribution(installDir)
+import Distribution(installDir, stripCurrySuffix)
 import List(delete, isPrefixOf)
 import System
 
 import TransICode(translateICFile)
 import TransDefRules(transDefaultRules)
-import TransSeqRules(transSequentialRules)
+import Sequential(transSequentialRules)
 import TransContracts(transContracts)
 
 cppBanner :: String
@@ -124,6 +128,7 @@ usageText =
                                         "sql requests.\n"++
   "seqrules     : implement sequential rule selection strategy\n" ++
   "defaultrules : implement default rules\n" ++
+  "contracts    : implement dynamic contract checking\n" ++
   "\nand optional settings:\n" ++
   "-o           : store output also in file <OrgFileName>.CURRYPP\n" ++
   "-v           : show preprocessor version on stdout\n" ++
@@ -143,32 +148,87 @@ preprocess opts orgfile infile outfile
     putStrLn usageText
     exitWith 1
   | SequentialRules `elem` pptargets && DefaultRules `elem` pptargets
-   = do putStr cppBanner
-        putStrLn "ERROR: cannot use 'defaultrules' together with 'seqrules'!\n"
-        exitWith 1
+  = do putStr cppBanner
+       putStrLn "ERROR: cannot use 'defaultrules' together with 'seqrules'!\n"
+       exitWith 1
   | ForeignCode `elem` pptargets
-   = do starttime <- getCPUTime
-        translateICFile orgfile infile outfile (optModel opts)
-        stoptime <- getCPUTime
-        when (verb>1) $ putStrLn
-          ("Foreign code transformation time: " ++
-	   show (stoptime-starttime) ++ " ms")
-        let rpptargets = delete ForeignCode pptargets
-        unless (null rpptargets) $ do
-	  let savefile = orgfile ++ ".SAVEORGPP"
-	  renameFile orgfile savefile
-	  copyFile outfile orgfile
-	  copyFile orgfile infile
-	  preprocess opts{optTgts = rpptargets} orgfile infile outfile
-	  renameFile savefile orgfile
+  = do starttime <- getCPUTime
+       translateICFile orgfile infile outfile (optModel opts)
+       stoptime <- getCPUTime
+       when (verb>1) $ putStrLn
+         ("Foreign code transformation time: " ++
+         show (stoptime-starttime) ++ " ms")
+       let rpptargets = delete ForeignCode pptargets
+       unless (null rpptargets) $ do
+         let savefile = orgfile ++ ".SAVEORGPP"
+	 renameFile orgfile savefile
+	 copyFile outfile orgfile
+	 copyFile orgfile infile
+	 preprocess opts{optTgts = rpptargets} orgfile infile outfile
+	 renameFile savefile orgfile
   | SequentialRules `elem` pptargets
-   = transSequentialRules verb orgfile infile outfile
+  = ppWrapper verb (optMore opts) orgfile infile outfile readCurry
+      (if Contracts `elem` pptargets
+        then transSequentialRules `thenPP` transContracts
+        else transSequentialRules)
   | DefaultRules `elem` pptargets
-   = transDefaultRules verb (optMore opts) orgfile infile outfile
+  = ppWrapper verb (optMore opts) orgfile infile outfile readUntypedCurry
+      (if Contracts `elem` pptargets
+        -- specific handling since DefaultRules requires and prodces
+        -- untyped Curry but Contracts requires typed Curry:
+        then (\v os srctxt utprog -> do
+                prog <- transDefaultRules v os srctxt utprog
+                writeFile orgfile (showCProg prog)
+                readCurry (progName utprog) >>= transContracts v os srctxt)
+        else transDefaultRules)
   | Contracts `elem` pptargets
-   = transContracts verb (optMore opts) orgfile infile outfile
-  | otherwise = error "currypp: internal error"
+  = ppWrapper verb (optMore opts) orgfile infile outfile readCurry
+              transContracts
+  | otherwise
+  = error "currypp internal error during dispatching"
  where
   pptargets = optTgts opts
   verb      = optVerb opts
-  
+
+--- The type of a Curry preprocessor: it takes a verbosity level,
+--- further options, the source program, the AbstractCurry program,
+--- and produces a new AbstractCurry program.
+type CurryPP = Int -> [String] -> String -> CurryProg -> IO CurryProg
+
+--- Compose two preprocessors:
+thenPP :: CurryPP -> CurryPP -> CurryPP
+thenPP pp1 pp2 verb opts srctxt prog =
+  pp1 verb opts srctxt prog >>= pp2 verb opts srctxt
+
+--- The wrapper to execute a preprocessor (where the read operations
+--- for AbstractCurry files is provided as a paramter):
+ppWrapper :: Int -> [String] -> String -> String -> String
+          -> (String -> IO CurryProg) -> CurryPP -> IO ()
+ppWrapper verb moreopts orgfile infile outfile readcurry currypp = do
+  let savefile = orgfile++".SAVEPPORG"
+      modname = stripCurrySuffix orgfile
+  starttime <- getCPUTime
+  renameFile orgfile savefile
+  srcprog <- readFile infile
+  readFile infile >>= writeFile orgfile . replaceOptionsLine
+  newprog <- tryReadCurry modname savefile >>= currypp verb moreopts srcprog
+  renameFile savefile orgfile
+  writeFile outfile (showCProg newprog)
+  stoptime <- getCPUTime
+  when (verb>1) $ putStrLn
+    ("Transformation time: " ++
+     show (stoptime-starttime) ++ " ms")
+ where
+  tryReadCurry mn savefile =
+    catch (readcurry mn)
+          (\_ -> renameFile savefile orgfile >> exitWith 1)
+
+-- Replace OPTIONS_CYMAKE line in a source text by blank line:
+replaceOptionsLine :: String -> String
+replaceOptionsLine = unlines . map replOptLine . lines
+ where
+  replOptLine s = if "{-# OPTIONS_CYMAKE " `isPrefixOf` s -- -}
+                  then " "
+                  else s
+
+------------------------------------------------------------------------------

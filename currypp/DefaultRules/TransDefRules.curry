@@ -137,26 +137,17 @@ compileAcyFcy quiet progname = do
   callFrontendWithParams FCY params progname
 
 ------------------------------------------------------------------------
--- Start default rules transformation in "preprocessor mode":
-transDefaultRules :: Int -> [String] -> String -> String -> String -> IO ()
-transDefaultRules verb moreopts orgfile infile outfile = do
+-- Start default rules transformation in "preprocessor mode".
+-- The Curry program must be read with readUntypedCurry in order to
+-- process DET annotations!
+transDefaultRules :: Int -> [String] -> String -> CurryProg -> IO CurryProg
+transDefaultRules verb moreopts _ inputProg = do
   when (verb>0) $ putStr banner
   trscm <- processOpts moreopts
   when (verb>0) $ putStrLn ("Translation scheme: " ++ show trscm)
-  let savefile = orgfile++".SAVEDEFRULES"
-      modname = stripCurrySuffix orgfile
-  renameFile orgfile savefile
-  starttime <- getCPUTime
-  readFile infile >>= writeFile orgfile . replaceOptionsLine
-  inputProg <- tryReadUntypedCurry modname savefile
-  renameFile savefile orgfile
   let (detfuncnames,newprog) = translateProg trscm inputProg
-  writeFile outfile (showCProg newprog)
-  stoptime <- getCPUTime
-  when (verb>1) $ putStrLn
-    ("Default rules transformation time: " ++
-     show (stoptime-starttime) ++ " ms")
   printProofObligation detfuncnames
+  return newprog
  where
   processOpts opts = case opts of
     []       -> return defaultTransScheme
@@ -170,20 +161,9 @@ transDefaultRules verb moreopts orgfile infile outfile = do
             else showError
     _ -> showError
    where
-    showError = do putStrLn $ "Unknown options (ignored): " ++ show opts --unwords opts
-                   return defaultTransScheme
-
-  tryReadUntypedCurry mn savefile =
-    catch (readUntypedCurry mn)
-          (\_ -> renameFile savefile orgfile >> exitWith 1)
-
--- Replace OPTIONS_CYMAKE line in a source text by blank line:
-replaceOptionsLine :: String -> String
-replaceOptionsLine = unlines . map replOptLine . lines
- where
-  replOptLine s = if "{-# OPTIONS_CYMAKE " `isPrefixOf` s -- -}
-                  then " "
-                  else s
+    showError = do
+      putStrLn $ "Unknown options (ignored): " ++ unwords opts
+      return defaultTransScheme
 
 printProofObligation :: [QName] -> IO ()
 printProofObligation qfs = unless (null qfs) $ do

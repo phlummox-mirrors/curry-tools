@@ -22,9 +22,11 @@ DEFRULESDIR   = $(CURDIR)/DefaultRules
 CONTRACTDIR   = $(CURDIR)/ContractWrapper
 # for module ContractUsage:
 CURRYCHECKDIR = $(CURDIR)/../currycheck
+# for determinism analysis used in contract wrapper:
+DETANAPATH    = ../analysis:../CASS
 
 # preprocessor input path and dependencies:
-PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR):$(CONTRACTDIR):$(CURRYCHECKDIR)
+PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR):$(CONTRACTDIR):$(CURRYCHECKDIR):$(DETANAPATH)
 DEPS   = Main.curry $(ICODEDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
           $(SQLDIR)/*.curry $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry \
 	  $(CONTRACTDIR)/*.curry $(CURRYCHECKDIR)/ContractUsage.curry

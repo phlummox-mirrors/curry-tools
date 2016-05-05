@@ -16,6 +16,11 @@
 
 module TransContracts(main,transContracts) where
 
+-- to use the determinism analysis:
+import AnalysisServer    (analyzeGeneric)
+import GenericProgInfo   (ProgInfo, lookupProgInfo)
+import Deterministic     (Deterministic(..), nondetAnalysis)
+
 import AbstractCurry.Types
 import AbstractCurry.Files
 import AbstractCurry.Pretty
@@ -37,24 +42,14 @@ banner = unlines [bannerLine,bannerText,bannerLine]
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------
--- Start the contract wrapper in "preprocessor mode":
-transContracts :: Int -> [String] -> String -> String -> String -> IO ()
-transContracts verb moreopts orgfile infile outfile = do
+-- Execute the contract wrapper in "preprocessor mode".
+-- The Curry program must be read with readCurry in order to
+-- correctly process arities based on function types!
+transContracts :: Int -> [String] -> String -> CurryProg -> IO CurryProg
+transContracts verb moreopts srcprog inputProg = do
   when (verb>0) $ putStr banner
   opts <- processOpts defaultOptions moreopts
-  let savefile = orgfile++".SAVECONTRACTS"
-      modname = stripCurrySuffix orgfile
-  renameFile orgfile savefile
-  starttime <- getCPUTime
-  srcprog <- readFile infile
-  writeFile orgfile (replaceOptionsLine srcprog)
-  inputProg <- tryReadCurry modname savefile
-  renameFile savefile orgfile
-  transformCProg opts srcprog (addCmtFuncInProg inputProg) modname outfile
-  stoptime <- getCPUTime
-  when (verb>1) $ putStrLn
-    ("Contract wrapper transformation time: " ++
-     show (stoptime-starttime) ++ " ms")
+  transformCProg opts srcprog inputProg (progName inputProg)
  where
   processOpts opts ppopts = case ppopts of
     []          -> return opts
@@ -65,18 +60,6 @@ transContracts verb moreopts orgfile infile outfile = do
     showError = do
       putStrLn $ "Unknown options (ignored): " ++ show (unwords ppopts)
       return opts
-
-  tryReadCurry mn savefile =
-    catch (readCurry mn)
-          (\_ -> renameFile savefile orgfile >> exitWith 1)
-
--- Replace OPTIONS_CYMAKE line in a source text by blank line:
-replaceOptionsLine :: String -> String
-replaceOptionsLine = unlines . map replOptLine . lines
- where
-  replOptLine s = if "{-# OPTIONS_CYMAKE " `isPrefixOf` s -- -}
-                  then " "
-                  else s
 
 ------------------------------------------------------------------------
 -- Data type for transformation parameters
@@ -110,7 +93,7 @@ main = do
      ("-t":margs) -> processArgs (opts { topLevelContracts = True }) margs
      ("-r":margs) -> processArgs (opts { executeProg       = True }) margs
      [mnamec]        -> let mname = stripCurrySuffix mnamec
-                         in transformStandalon opts mname
+                         in transformStandalone opts mname
                                       (transformedModName mname ++ ".curry")
 
      _ -> putStrLn $ unlines $
@@ -123,8 +106,8 @@ main = do
            ]
 
 -- Prepare to call the main transformation for stand-alone mode:
-transformStandalon :: Options -> String -> String -> IO ()
-transformStandalon opts modname outfile = do
+transformStandalone :: Options -> String -> String -> IO ()
+transformStandalone opts modname outfile = do
   mmodsrc <- lookupModuleSourceInLoadPath modname
   srcprog <- case mmodsrc of
                Nothing -> error $
@@ -132,11 +115,12 @@ transformStandalon opts modname outfile = do
                Just (_,progname) -> readFile progname
   let acyfile = abstractCurryFileName modname
   doesFileExist acyfile >>= \b -> if b then removeFile acyfile else done
-  prog <- readCurry modname >>= return . addCmtFuncInProg
+  prog <- readCurry modname
   doesFileExist acyfile >>= \b -> if b then done
                                        else error "Source program incorrect"
   let outmodname = transformedModName modname
-  transformCProg opts srcprog prog outmodname outfile
+  newprog <- transformCProg opts srcprog prog outmodname
+  writeFile outfile (showCProg newprog)
   when (executeProg opts) $ loadIntoCurry outmodname
 
 -- Specifies how the name of the transformed module is built from the
@@ -157,15 +141,17 @@ loadIntoCurry m = do
 --- * source text of the module
 --- * AbstractCurry representation of the module
 --- * name of the output module (if it should be renamed)
---- * file name to write the transformed module
-transformCProg :: Options -> String -> CurryProg -> String -> String -> IO ()
-transformCProg opts srctxt prog outmodname outfile = do
+transformCProg :: Options -> String -> CurryProg -> String -> IO CurryProg
+transformCProg opts srctxt orgprog outmodname = do
+  let prog = addCmtFuncInProg orgprog -- to avoid constructor CFunc
   usageerrors <- checkContractUse prog
   unless (null usageerrors) $ do
     putStr (unlines $ "ERROR: ILLEGAL USE OF CONTRACTS:" :
                map (\ ((mn,fn),err) -> fn ++ " (module " ++ mn ++ "): " ++ err)
                    usageerrors)
     error "Contract transformation aborted"
+  detinfo <- analyzeGeneric nondetAnalysis (progName prog)
+                                               >>= return . either id error
   let funposs   = linesOfFDecls srctxt prog
       fdecls    = functions prog
       funspecs  = getFunDeclsWith isSpecName prog
@@ -175,27 +161,29 @@ transformCProg opts srctxt prog outmodname outfile = do
       postconds = getFunDeclsWith isPostCondName prog
       postnames = map (fromPostCondName  . snd . funcName) postconds
       checkfuns = union specnames (union prenames postnames)
-      newprog      = transformProgram opts funposs fdecls funspecs preconds
-                                      postconds prog
+      newprog   = transformProgram opts funposs fdecls detinfo 
+                                   funspecs preconds postconds prog
   if null checkfuns then done else
     putStrLn $ "Adding contract checking to: " ++ unwords checkfuns
   if null (funspecs++preconds++postconds)
    then do
      putStrLn "Contract transformation not required since no contracts found!"
-     writeFile outfile srctxt
-   else writeFile outfile (showCProg (renameCurryModule outmodname newprog))
+     return orgprog
+   else return (renameCurryModule outmodname newprog)
 
 -- Get functions from a Curry module with a name satisfying the predicate:
 getFunDeclsWith :: (String -> Bool) -> CurryProg -> [CFuncDecl]
 getFunDeclsWith pred prog = filter (pred . snd . funcName) (functions prog)
 
 -- Transform a given program w.r.t. given specifications and pre/postconditions
-transformProgram :: Options -> [(QName,Int)]-> [CFuncDecl] -> [CFuncDecl]
+transformProgram :: Options -> [(QName,Int)]-> [CFuncDecl]
+                 -> ProgInfo Deterministic -> [CFuncDecl]
                  -> [CFuncDecl] -> [CFuncDecl] -> CurryProg -> CurryProg
-transformProgram opts funposs allfdecls specdecls predecls postdecls
+transformProgram opts funposs allfdecls detinfo specdecls predecls postdecls
                  (CurryProg mname imps tdecls fdecls opdecls) =
- let newpostconds = concatMap (genPostCond4Spec opts allfdecls postdecls)
-                              specdecls
+ let newpostconds = concatMap
+                      (genPostCond4Spec opts allfdecls detinfo postdecls)
+                      specdecls
      newfunnames  = map (snd . funcName) newpostconds
      wonewfuns    = filter (\fd -> snd (funcName fd) `notElem` newfunnames)
                            fdecls -- remove functions having new gen. defs.
@@ -222,12 +210,13 @@ addCmtFuncInProg (CurryProg mname imps tdecls fdecls opdecls) =
 -- by an "observation function".
 -- If the specification is deterministic, generate an equality check,
 -- otherwise generate a set containment check.
-genPostCond4Spec :: Options -> [CFuncDecl] -> [CFuncDecl] -> CFuncDecl
-                 -> [CFuncDecl]
-genPostCond4Spec _ _ _ (CFunc _ _ _ _ _) = error "genPostCond4Spec"
-genPostCond4Spec _ allfdecls postdecls (CmtFunc _ (m,f) ar vis texp _) =
+genPostCond4Spec :: Options -> [CFuncDecl] -> ProgInfo Deterministic
+                 -> [CFuncDecl] -> CFuncDecl -> [CFuncDecl]
+genPostCond4Spec _ _ _ _ (CFunc _ _ _ _ _) = error "genPostCond4Spec"
+genPostCond4Spec _ allfdecls detinfo postdecls (CmtFunc _ (m,f) ar vis texp _) =
  let fname     = fromSpecName f
-     detspec   = isDetSpecName f -- determ. spec? (later: use prog.ana.)
+     -- is the specification deterministic?
+     detspec   = maybe False (== Det) (lookupProgInfo (m,f) detinfo)
      fpostname = toPostCondName fname
      fpgenname = fpostname++"'generic"
      oldfpostc = filter (\fd -> snd (funcName fd) == fpostname) postdecls
@@ -267,7 +256,7 @@ genPostCond4Spec _ allfdecls postdecls (CmtFunc _ (m,f) ar vis texp _) =
   in [cmtfunc
        ("Parametric postcondition for '"++fname++
         "' (generated from specification). "++oldcmt)
-       (m,fpgenname) (ar+2) vis
+       (m,fpgenname) (ar+2) Private
        ((resultType texp ~> gtype) ~> extendFuncType texp boolType)
        [if null oldfpostc
         then simpleRule (map CPVar (varg:argvars)) postcheck

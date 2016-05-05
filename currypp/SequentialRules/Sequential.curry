@@ -8,10 +8,16 @@
 
 import Reduction
 import AbstractCurry.Types
+import AbstractCurry.Select(progName)
 import List(partition)
-import Translation
 import Selection
 import System
+import Translation
+
+--- Start sequentializer in "preprocessor mode":
+transSequentialRules :: Int -> [String] -> String -> CurryProg -> IO CurryProg
+transSequentialRules _ _ _ inputProg =
+  return (translate inputProg (progName inputProg))
 
 --- Main operation to translate a Curry module into a new one implementing
 --- a sequential rule selection strategy. It consists of the selection
