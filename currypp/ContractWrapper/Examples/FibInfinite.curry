@@ -4,7 +4,7 @@
 -- recursive definition
 
 -- (Deterministic!) specification of all Fibonacci numbers:
-fibs'specd = map fib [0..]
+fibs'spec = map fib [0..]
  where fib n | n == 0 = 0
              | n == 1 = 1
              | otherwise = fib (n-1) + fib (n-2)

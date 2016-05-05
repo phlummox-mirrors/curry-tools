@@ -4,12 +4,15 @@
 # installed via the ../Makefile of currypp)
 ########################################################################
 
+# for module ContractUsage:
+PPPATH = ../../currycheck
+
 .PHONY: all
 all: cwrapper
 
 # generate saved state for contract wrapper:
 cwrapper: TransContracts.curry
-	pakcs :l TransContracts :save :q && mv TransContracts cwrapper
+	pakcs :set path $(PPPATH) :l TransContracts :save :q && mv TransContracts cwrapper
 
 .PHONY: clean
 clean: 

@@ -23,8 +23,8 @@ import AbstractCurry.Build
 import AbstractCurry.Pretty    (showCProg)
 import AbstractCurry.Transform (renameCurryModule,updCProg,updQNamesInCProg)
 import AnsiCodes
-import CheckContractUsage      (checkContractUse)
 import CheckDetUsage           (checkDetUse)
+import ContractUsage
 import Distribution
 import FilePath                ((</>))
 import qualified FlatCurry.Types as FC
@@ -47,7 +47,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 25/04/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 05/05/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -418,12 +418,12 @@ transformTests opts (CurryProg mname imports typeDecls functions opDecls) =
 
   preCondOps = preCondOperations functions
   
-  postCondOps = map ((\ (mn,fn) -> (mn,stripSuffix fn "'post")) . funcName)
-                    (filter (\fd -> "'post" `isSuffixOf` snd (funcName fd))
+  postCondOps = map ((\ (mn,fn) -> (mn, fromPostCondName fn)) . funcName)
+                    (filter (\fd -> isPostCondName (snd (funcName fd)))
                             functions)
 
-  specOps    = map ((\ (mn,fn) -> (mn,stripSuffix fn "'spec")) . funcName)
-                   (filter (\fd -> "'spec" `isSuffixOf` snd (funcName fd))
+  specOps    = map ((\ (mn,fn) -> (mn, fromSpecName fn)) . funcName)
+                   (filter (\fd -> isSpecName (snd (funcName fd)))
                            functions)
 
   -- generate post condition tests:
@@ -472,8 +472,8 @@ transformDetTests opts (CurryProg mname imports typeDecls functions opDecls) =
 -- Get all operations with a defined precondition from a list of functions.
 preCondOperations :: [CFuncDecl] -> [QName]
 preCondOperations fdecls =
-  map ((\ (mn,fn) -> (mn,stripSuffix fn "'pre")) . funcName)
-      (filter (\fd -> "'pre" `isSuffixOf` snd (funcName fd))
+  map ((\ (mn,fn) -> (mn,fromPreCondName fn)) . funcName)
+      (filter (\fd -> isPreCondName (snd (funcName fd)))
               fdecls)
 
 -- Transforms a function type into a property type, i.e.,
@@ -503,7 +503,7 @@ genPostCondTest prefuns postops (CFunc qf@(mn,fn) _ _ texp _) =
                (applyF (easyCheckModule,"==>")
                        [preCond,
                         applyF (easyCheckModule,"always")
-                               [applyF (mn,fn++"'post")
+                               [applyF (mn,toPostCondName fn)
                                        (map CVar (cvars ++ [rvar]))]])]]
  where
   cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
@@ -514,7 +514,7 @@ genPostCondTest prefuns postops (CFunc qf@(mn,fn) _ _ texp _) =
    let eqResult = applyF (pre "==") [CVar rvar, CVar rvar]
     in if qf `elem` prefuns
        then applyF (pre "&&")
-                   [applyF (mn,fn++"'pre") (map CVar cvars), eqResult]
+                   [applyF (mn,toPreCondName fn) (map CVar cvars), eqResult]
        else eqResult
 
 -- Transforms a function declaration into a specification test if
@@ -532,14 +532,14 @@ genSpecTest prefuns specops (CFunc qf@(mn,fn) _ _ texp _) =
     [simpleRule (map CPVar cvars) $
        addPreCond (applyF (easyCheckModule,"<~>")
                           [applyF qf (map CVar cvars),
-                           applyF (mn,fn++"'spec") (map CVar cvars)])]]
+                           applyF (mn,toSpecName fn) (map CVar cvars)])]]
  where
   cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
   ar    = arityOfType texp
 
   addPreCond exp = if qf `elem` prefuns
                    then applyF (easyCheckModule,"==>")
-                               [applyF (mn,fn++"'pre") (map CVar cvars), exp]
+                          [applyF (mn,toPreCondName fn) (map CVar cvars), exp]
                    else exp
 
 -- Revert the transformation for deterministic operations performed
@@ -587,7 +587,7 @@ genDetProp prefuns (CFunc (mn,fn) ar _ texp _) =
    let eqResult = applyF (pre "==") [CVar rvar, CVar rvar]
     in if (mn,forg) `elem` prefuns
        then applyF (pre "&&")
-                   [applyF (mn,forg++"'pre") (map CVar cvars), eqResult]
+                   [applyF (mn,toPreCondName forg) (map CVar cvars), eqResult]
        else eqResult
 
 

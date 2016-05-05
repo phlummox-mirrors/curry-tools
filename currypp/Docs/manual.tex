@@ -27,7 +27,15 @@ If this feature is used, one can add a default rule
 to operations defined in a Curry module.
 This provides a similar power than sequential rules
 but with a better operational behavior.
-The idea of default rules are described in \cite{AntoyHanus16PADL}.
+The idea of default rules is described in \cite{AntoyHanus16PADL}.
+\item[Contracts:]
+If this feature is used, the Curry preprocessor looks for contracts
+(i.e., specification, pre- and postconditions) occurring in a Curry module
+and adds them as assertions that are checked during
+the execution of the program.
+Currently, only strict assertion checking is supported
+which might change the operational behavior of the program.
+The idea and usage of contracts is described in \cite{AntoyHanus12PADL}.
 \end{description}
 %
 The preprocessor is an executable named \ccode{currypp},
@@ -45,10 +53,11 @@ This option tells the \CYS front end to process the Curry source program
 with \code{currypp} before actually parsing the source text.
 
 The option \ccode{defaultrules} has to be replaced by
-\ccode{seqrules} if the sequential rule matching should be replaced.
+\ccode{seqrules} if the sequential rule matching should be replaced,
+or by \ccode{contracts} to enable dynamic contract checking.
 To support integrated code, one has to set the option
 \ccode{foreigncode} (which can also be combined with
-either \ccode{defaultrules} or \ccode{seqrules}.
+either \ccode{defaultrules} or \ccode{seqrules}).
 If one wants to see the result of the transformation, one can
 also set the option \ccode{-o}. This has the effect that the
 transformed source program is stored in the file
@@ -328,6 +337,71 @@ safe'default xs = xs
 -- A solution to the n-queens puzzle is a safe permutation:
 queens :: Int -> [Int]
 queens n = safe (permute [1..n])
+\end{curry}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Contracts}
+
+Contracts are annotations in Curry program to specify the
+intended meaning and use of operations by other operations
+or predicates expressed in Curry.
+The idea of using contracts for the development
+of reliable software is discussed in \cite{AntoyHanus12PADL}.
+The Curry preprocessor supports dynamic contract checking
+by transforming contracts, i.e., specifications and
+pre-/postconditions, into assertions that are checked
+during the execution of a program.
+If some contract is violated, the program terminates
+with an error.
+
+The transformation of contracts into assertions is described
+in \cite{AntoyHanus12PADL}.
+Note that only strict assertion checking is supported
+at the moment.
+Strict assertion checking might change the operational behavior
+of the program.
+The notation of contracts has been shortly introduced
+in Section~\ref{sec:currycheck:contracts}.
+To transform such contracts into assertions,
+one has to use the option \ccode{contracts} for the preprocessor.
+
+As a concrete example, consider an implementation of quicksort
+with a postcondition and a specification as shown in
+Section~\ref{sec:currycheck:contracts}
+(where the code for \code{sorted} and \code{perm} is not shown here):
+%
+\begin{curry}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts #-}
+
+$\ldots$
+
+-- Trivial precondition:
+sort'pre xs = length xs >= 0
+
+-- Postcondition: input and output lists should have the same length
+sort'post xs ys = length xs == length ys
+
+-- Specification:
+-- A correct result is a permutation of the input which is sorted.
+sort'spec :: [Int] -> [Int]
+sort'spec xs | ys == perm xs && sorted ys = ys  where ys free
+
+-- A buggy implementation of quicksort:
+sort :: [Int] -> [Int]
+sort []     = []
+sort (x:xs) = sort (filter (<x) xs) ++ [x] ++ sort (filter (>x) xs)
+\end{curry}
+%
+If this program is executed, the generated assertions report
+a contract violation for some inputs:
+%
+\begin{curry}
+Quicksort> sort [3,1,4,2,1]
+Postcondition of 'sort' (module Quicksort, line 27) violated for:
+[1,2,1] -> [1,2]
+
+ERROR: Execution aborted due to contract violation!
 \end{curry}
 
 %  LocalWords:  preprocessor

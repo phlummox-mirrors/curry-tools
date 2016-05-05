@@ -13,19 +13,21 @@
 TOOL = $(BINDIR)/currypp
 
 # Source filepaths
-ICODEDIR    = $(CURDIR)/IntegratedCode
-PARSEDIR    = $(ICODEDIR)/Parser
-MLDIR       = $(PARSEDIR)/ML
-SQLDIR      = $(PARSEDIR)/SQL
-SEQRULESDIR = $(CURDIR)/SequentialRules
-DEFRULESDIR = $(CURDIR)/DefaultRules
-CONTRACTDIR = $(CURDIR)/ContractWrapper
+ICODEDIR      = $(CURDIR)/IntegratedCode
+PARSEDIR      = $(ICODEDIR)/Parser
+MLDIR         = $(PARSEDIR)/ML
+SQLDIR        = $(PARSEDIR)/SQL
+SEQRULESDIR   = $(CURDIR)/SequentialRules
+DEFRULESDIR   = $(CURDIR)/DefaultRules
+CONTRACTDIR   = $(CURDIR)/ContractWrapper
+# for module ContractUsage:
+CURRYCHECKDIR = $(CURDIR)/../currycheck
 
 # preprocessor input path and dependencies:
-PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR):$(CONTRACTDIR)
+PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR):$(CONTRACTDIR):$(CURRYCHECKDIR)
 DEPS   = Main.curry $(ICODEDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
           $(SQLDIR)/*.curry $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry \
-	  $(CONTRACTDIR)/*.curry
+	  $(CONTRACTDIR)/*.curry $(CURRYCHECKDIR)/ContractUsage.curry
 
 .PHONY: all compile install clean uninstall
 

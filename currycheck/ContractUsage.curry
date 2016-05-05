@@ -1,9 +1,19 @@
 ------------------------------------------------------------------------
---- Check the correct usage of specifications and
+--- This module contains some operations to access contracts (i.e.,
+--- specification and pre/postconditions) in a Curry program and
+--- an operation to check the correct usage of specifications and
 --- and pre/postconditions.
+---
+--- @author Michael Hanus
+--- @version May 2016
 ------------------------------------------------------------------------
 
-module CheckContractUsage where
+module ContractUsage
+  ( checkContractUse
+  , isSpecName, isDetSpecName, toSpecName, fromSpecName
+  , isPreCondName, toPreCondName, fromPreCondName
+  , isPostCondName, toPostCondName, fromPostCondName
+  )  where
 
 import AbstractCurry.Types
 import AbstractCurry.Select
@@ -13,11 +23,11 @@ checkContractUse :: CurryProg -> IO [(QName,String)]
 checkContractUse prog = do
   let mn           = progName prog
       allops       = map nameArityOfFunDecl (functions prog)
-      specops      = map (\ (n,a) -> (dropSpecName n, a))
+      specops      = map (\ (n,a) -> (fromSpecName n, a))
                          (funDeclsWithNameArity isSpecName prog)
-      preops       = map (\ (n,a) -> (dropPreCondName n, a))
+      preops       = map (\ (n,a) -> (fromPreCondName n, a))
                          (funDeclsWithNameArity isPreCondName prog)
-      postops      = map (\ (n,a) -> (dropPostCondName n, a-1))
+      postops      = map (\ (n,a) -> (fromPostCondName n, a-1))
                          (funDeclsWithNameArity isPostCondName prog)
       onlyprecond  = preops  \\ allops
       onlypostcond = postops \\ allops
@@ -51,30 +61,45 @@ isSpecName f = let rf = reverse f
 isDetSpecName :: String -> Bool
 isDetSpecName f = take 6 (reverse f) == "dceps'"
 
--- Drop the specification suffix from the name:
-dropSpecName :: String -> String
-dropSpecName f =
+--- Transform a name into a name of the corresponding specification
+--- by adding the suffix "'spec".
+toSpecName :: String -> String
+toSpecName = (++"'spec")
+
+-- Drop the specification suffix "'spec" from the name:
+fromSpecName :: String -> String
+fromSpecName f =
   let rf = reverse f
    in reverse (drop (if take 5 rf == "ceps'" then 5 else
                      if take 6 rf == "dceps'" then 6 else 0) rf)
 
 -- Is this the name of a precondition?
 isPreCondName :: String -> Bool
-isPreCondName f = take 4 (reverse f) == "erp'"
+isPreCondName f = "'pre" `isSuffixOf` f
 
--- Drop the precondition suffix from the name:
-dropPreCondName :: String -> String
-dropPreCondName f =
+--- Transform a name into a name of the corresponding precondition
+--- by adding the suffix "'pre".
+toPreCondName :: String -> String
+toPreCondName = (++"'pre")
+
+-- Drop the precondition suffix "'pre" from the name:
+fromPreCondName :: String -> String
+fromPreCondName f =
   let rf = reverse f
    in reverse (drop (if take 4 rf == "erp'" then 4 else 0) rf)
 
 -- Is this the name of a precondition?
 isPostCondName :: String -> Bool
-isPostCondName f = take 5 (reverse f) == "tsop'"
+isPostCondName f = "'post" `isSuffixOf` f
 
--- Drop the postcondition suffix from the name:
-dropPostCondName :: String -> String
-dropPostCondName f =
+--- Transform a name into a name of the corresponding prostcondition
+--- by adding the suffix "'post".
+toPostCondName :: String -> String
+toPostCondName = (++"'post")
+
+-- Drop the postcondition suffix "'post" from the name:
+fromPostCondName :: String -> String
+fromPostCondName f =
   let rf = reverse f
    in reverse (drop (if take 5 rf == "tsop'" then 5 else 0) rf)
 

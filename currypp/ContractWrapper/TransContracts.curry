@@ -2,6 +2,16 @@
 --- A transformation from a Curry program with pre/postconditions and/or
 --- specification into a Curry program where these conditions are integrated
 --- into the code as run-time assertions.
+---
+--- The general idea of contracts and this transformation is described in:
+---
+--- > S. Antoy, M. Hanus:
+--- > Contracts and Specifications for Functional Logic Programming
+--- > Proc. 14th International Symposium on Practical Aspects of
+--- > Declarative Languages (PADL 2012), pp. 33-47, Springer LNCS 7149, 2012
+---
+--- @author Michael Hanus
+--- @version May 2016
 ------------------------------------------------------------------------
 
 module TransContracts(main,transContracts) where
@@ -13,6 +23,7 @@ import AbstractCurry.Build
 import AbstractCurry.Select
 import AbstractCurry.Transform
 import Char
+import ContractUsage
 import Directory
 import Distribution
 import List
@@ -22,7 +33,7 @@ import System
 banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Contract Transformation Tool (Version of 03/05/16)"
+   bannerText = "Contract Transformation Tool (Version of 05/05/16)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------
@@ -99,7 +110,7 @@ main = do
      ("-t":margs) -> processArgs (opts { topLevelContracts = True }) margs
      ("-r":margs) -> processArgs (opts { executeProg       = True }) margs
      [mnamec]        -> let mname = stripCurrySuffix mnamec
-                         in transform opts mname
+                         in transformStandalon opts mname
                                       (transformedModName mname ++ ".curry")
 
      _ -> putStrLn $ unlines $
@@ -111,21 +122,9 @@ main = do
            ,"-r   : load the transformed program into Curry system"
            ]
 
--- Specifies how the name of the transformed module is built from the
--- name of the original module.
-transformedModName :: String -> String
-transformedModName m = m++"C"
-
--- start PAKCS and load a module:
-loadIntoCurry :: String -> IO ()
-loadIntoCurry m = do
-  putStrLn $ "\nStarting Curry system and loading module '"++m++"'..."
-  system $ installDir++"/bin/curry :l "++m
-  done
-
--- The main transformation function.
-transform :: Options -> String -> String -> IO ()
-transform opts modname outfile = do
+-- Prepare to call the main transformation for stand-alone mode:
+transformStandalon :: Options -> String -> String -> IO ()
+transformStandalon opts modname outfile = do
   mmodsrc <- lookupModuleSourceInLoadPath modname
   srcprog <- case mmodsrc of
                Nothing -> error $
@@ -136,42 +135,55 @@ transform opts modname outfile = do
   prog <- readCurry modname >>= return . addCmtFuncInProg
   doesFileExist acyfile >>= \b -> if b then done
                                        else error "Source program incorrect"
-  transformCProg opts srcprog prog (transformedModName modname) outfile
+  let outmodname = transformedModName modname
+  transformCProg opts srcprog prog outmodname outfile
+  when (executeProg opts) $ loadIntoCurry outmodname
 
+-- Specifies how the name of the transformed module is built from the
+-- name of the original module.
+transformedModName :: String -> String
+transformedModName m = m++"C"
+
+-- start Curry system (PAKCS, KiCS2) and load a module:
+loadIntoCurry :: String -> IO ()
+loadIntoCurry m = do
+  putStrLn $ "\nStarting Curry system and loading module '"++m++"'..."
+  system $ installDir++"/bin/curry :l "++m
+  done
+
+------------------------------------------------------------------------
+--- The main transformation operation with parameters:
+--- * options
+--- * source text of the module
+--- * AbstractCurry representation of the module
+--- * name of the output module (if it should be renamed)
+--- * file name to write the transformed module
 transformCProg :: Options -> String -> CurryProg -> String -> String -> IO ()
 transformCProg opts srctxt prog outmodname outfile = do
+  usageerrors <- checkContractUse prog
+  unless (null usageerrors) $ do
+    putStr (unlines $ "ERROR: ILLEGAL USE OF CONTRACTS:" :
+               map (\ ((mn,fn),err) -> fn ++ " (module " ++ mn ++ "): " ++ err)
+                   usageerrors)
+    error "Contract transformation aborted"
   let funposs   = linesOfFDecls srctxt prog
       fdecls    = functions prog
       funspecs  = getFunDeclsWith isSpecName prog
-      specnames = map (dropSpecName . snd . funcName) funspecs
+      specnames = map (fromSpecName . snd . funcName) funspecs
       preconds  = getFunDeclsWith isPreCondName prog
-      prenames  = map (dropPreCondName  . snd . funcName) preconds
+      prenames  = map (fromPreCondName  . snd . funcName) preconds
       postconds = getFunDeclsWith isPostCondName prog
-      postnames = map (dropPostCondName  . snd . funcName) postconds
+      postnames = map (fromPostCondName  . snd . funcName) postconds
       checkfuns = union specnames (union prenames postnames)
-      onlyprecond  = prenames  \\ map (snd . funcName) fdecls
-      onlypostcond = postnames \\ map (snd . funcName) fdecls
-      onlyspec     = specnames \\ map (snd . funcName) fdecls
       newprog      = transformProgram opts funposs fdecls funspecs preconds
                                       postconds prog
-  unless (null onlyprecond) $
-     error ("Operations with precondition but without an implementation: "
-            ++ unwords onlyprecond)
-  unless (null onlypostcond) $
-     error ("Operations with postcondition but without an implementation: "
-            ++ unwords onlypostcond)
-  unless (null onlyspec) $
-     error ("Operations with a specification but without an implementation: "
-            ++ unwords onlyspec)
   if null checkfuns then done else
     putStrLn $ "Adding contract checking to: " ++ unwords checkfuns
   if null (funspecs++preconds++postconds)
-   then putStrLn
-    "No specifications or pre/postconditions found, no transformation required!"
-   else do writeFile outfile (showCProg (renameCurryModule outmodname newprog))
-           if executeProg opts
-            then loadIntoCurry outmodname
-            else done
+   then do
+     putStrLn "Contract transformation not required since no contracts found!"
+     writeFile outfile srctxt
+   else writeFile outfile (showCProg (renameCurryModule outmodname newprog))
 
 -- Get functions from a Curry module with a name satisfying the predicate:
 getFunDeclsWith :: (String -> Bool) -> CurryProg -> [CFuncDecl]
@@ -214,9 +226,9 @@ genPostCond4Spec :: Options -> [CFuncDecl] -> [CFuncDecl] -> CFuncDecl
                  -> [CFuncDecl]
 genPostCond4Spec _ _ _ (CFunc _ _ _ _ _) = error "genPostCond4Spec"
 genPostCond4Spec _ allfdecls postdecls (CmtFunc _ (m,f) ar vis texp _) =
- let fname     = dropSpecName f
+ let fname     = fromSpecName f
      detspec   = isDetSpecName f -- determ. spec? (later: use prog.ana.)
-     fpostname = fname++"'post"
+     fpostname = toPostCondName fname
      fpgenname = fpostname++"'generic"
      oldfpostc = filter (\fd -> snd (funcName fd) == fpostname) postdecls
      oldcmt    = if null oldfpostc then ""
@@ -285,9 +297,9 @@ addContract _ _ _ _ _ (CFunc _ _ _ _ _) = error "addContract"
 addContract opts funposs allfdecls predecls postdecls
             fdecl@(CmtFunc cmt qn@(m,f) ar vis texp _) =
  let argvars   = map (\i -> (i,"x"++show i)) [1..ar]
-     predecl   = find (\fd -> dropPreCondName(snd(funcName fd)) == f) predecls
+     predecl   = find (\fd -> fromPreCondName (snd(funcName fd)) == f) predecls
      prename   = funcName (fromJust predecl)
-     postdecl  = find (\fd-> dropPostCondName(snd(funcName fd)) == f) postdecls
+     postdecl  = find (\fd-> fromPostCondName (snd(funcName fd)) == f) postdecls
      postname  = funcName (fromJust postdecl)
      encapsSuf = if withEncapsulate opts then "ND" else ""
      encaps fn n = if withEncapsulate opts then setFun n fn [] else constF fn
@@ -322,42 +334,6 @@ addContract opts funposs allfdecls predecls postdecls
        cmtfunc cmt (m,f) ar vis texp
                [simpleRuleWithLocals (map CPVar argvars) asrtCall [oldfdecl]]
 
-
--- Is this the name of a specification?
-isSpecName :: String -> Bool
-isSpecName f = let rf = reverse f
-                in take 5 rf == "ceps'" || take 6 rf == "dceps'"
-
--- Is this the name of a deterministic specification?
-isDetSpecName :: String -> Bool
-isDetSpecName f = take 6 (reverse f) == "dceps'"
-
--- Drop the specification suffix from the name:
-dropSpecName :: String -> String
-dropSpecName f =
-  let rf = reverse f
-   in reverse (drop (if take 5 rf == "ceps'" then 5 else
-                     if take 6 rf == "dceps'" then 6 else 0) rf)
-
--- Is this the name of a precondition?
-isPreCondName :: String -> Bool
-isPreCondName f = take 4 (reverse f) == "erp'"
-
--- Drop the precondition suffix from the name:
-dropPreCondName :: String -> String
-dropPreCondName f =
-  let rf = reverse f
-   in reverse (drop (if take 4 rf == "erp'" then 4 else 0) rf)
-
--- Is this the name of a precondition?
-isPostCondName :: String -> Bool
-isPostCondName f = take 5 (reverse f) == "tsop'"
-
--- Drop the postcondition suffix from the name:
-dropPostCondName :: String -> String
-dropPostCondName f =
-  let rf = reverse f
-   in reverse (drop (if take 5 rf == "tsop'" then 5 else 0) rf)
 
 -- An operation of the module Test.Contract:
 cMod :: String -> QName

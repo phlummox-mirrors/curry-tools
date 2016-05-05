@@ -1,4 +1,4 @@
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts  #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts #-}
 
 -- A specification of sorting a list and an implementation based
 -- on the quicksort algorithm
