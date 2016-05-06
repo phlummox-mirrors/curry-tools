@@ -1,5 +1,7 @@
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts #-}
 
+import Test.Prop
+
 -- A specification of sorting a list and an implementation based
 -- on the quicksort algorithm
 
@@ -29,3 +31,13 @@ sort [] = []
 sort (x:xs) = sort (filter (<x) xs) ++ [x] ++ sort (filter (>x) xs)
 
 input = [26,18,5,4,16,8,22,17]
+
+
+-- Buggy implementation ok for different elements:
+quickSortCorrect xs = allDifferent xs ==> always (sorted (sort xs))
+ where
+  allDifferent []     = True
+  allDifferent (x:xs) = x `notElem` xs && allDifferent xs
+
+-- In this example, the contract checks should produce an error:
+quickSortFailure = toError $ sort [1,2,1]

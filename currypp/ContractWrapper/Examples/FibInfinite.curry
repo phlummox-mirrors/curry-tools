@@ -1,5 +1,7 @@
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts #-}
 
+import Test.Prop
+
 -- An infinite list of Fibonacci numbers specified by traditional
 -- recursive definition
 
@@ -18,3 +20,5 @@ fibs = fiblist 0 1
   fiblist x y = x : fiblist (x+y) y
 
 main = take 4 fibs
+
+fibsViolation = toError (take 4 fibs)
