@@ -10,7 +10,7 @@
 
 module ContractUsage
   ( checkContractUse
-  , isSpecName, isDetSpecName, toSpecName, fromSpecName
+  , isSpecName, toSpecName, fromSpecName
   , isPreCondName, toPreCondName, fromPreCondName
   , isPostCondName, toPostCondName, fromPostCondName
   )  where
@@ -54,12 +54,7 @@ nameArityOfFunDecl fd = (snd (funcName fd), length (argTypes (funcType fd)))
 
 -- Is this the name of a specification?
 isSpecName :: String -> Bool
-isSpecName f = let rf = reverse f
-                in take 5 rf == "ceps'" || take 6 rf == "dceps'"
-
--- Is this the name of a deterministic specification?
-isDetSpecName :: String -> Bool
-isDetSpecName f = take 6 (reverse f) == "dceps'"
+isSpecName f = "'spec" `isSuffixOf` f
 
 --- Transform a name into a name of the corresponding specification
 --- by adding the suffix "'spec".
@@ -70,8 +65,7 @@ toSpecName = (++"'spec")
 fromSpecName :: String -> String
 fromSpecName f =
   let rf = reverse f
-   in reverse (drop (if take 5 rf == "ceps'" then 5 else
-                     if take 6 rf == "dceps'" then 6 else 0) rf)
+   in reverse (drop (if take 5 rf == "ceps'" then 5 else 0) rf)
 
 -- Is this the name of a precondition?
 isPreCondName :: String -> Bool
