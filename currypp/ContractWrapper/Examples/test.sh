@@ -3,7 +3,7 @@
 
 CURRYBIN="../../../../bin"
 
-ALLTESTS="Coin FibInfinite Quicksort"
+ALLTESTS="BubbleSort Coin FibInfinite Quicksort"
 
 VERBOSE=no
 if [ "$1" = "-v" ] ; then
