@@ -1,4 +1,5 @@
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=foreigncode --optF=defaultrules --optF=contracts --optF=-v2 #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp #-}
+{-# OPTIONS_CYMAKE -Wnone #-}
 
 -- Example for using integrated code, default rules, and contracts in one
 -- module

@@ -47,9 +47,9 @@ banner = unlines [bannerLine,bannerText,bannerLine]
 -- correctly process arities based on function types!
 transContracts :: Int -> [String] -> String -> CurryProg -> IO CurryProg
 transContracts verb moreopts srcprog inputProg = do
-  when (verb>0) $ putStr banner
+  when (verb>1) $ putStr banner
   opts <- processOpts defaultOptions moreopts
-  transformCProg opts srcprog inputProg (progName inputProg)
+  transformCProg verb opts srcprog inputProg (progName inputProg)
  where
   processOpts opts ppopts = case ppopts of
     []          -> return opts
@@ -119,7 +119,7 @@ transformStandalone opts modname outfile = do
   doesFileExist acyfile >>= \b -> if b then done
                                        else error "Source program incorrect"
   let outmodname = transformedModName modname
-  newprog <- transformCProg opts srcprog prog outmodname
+  newprog <- transformCProg 1 opts srcprog prog outmodname
   writeFile outfile (showCProg newprog)
   when (executeProg opts) $ loadIntoCurry outmodname
 
@@ -137,12 +137,14 @@ loadIntoCurry m = do
 
 ------------------------------------------------------------------------
 --- The main transformation operation with parameters:
+--- * verbosity level
 --- * options
 --- * source text of the module
 --- * AbstractCurry representation of the module
 --- * name of the output module (if it should be renamed)
-transformCProg :: Options -> String -> CurryProg -> String -> IO CurryProg
-transformCProg opts srctxt orgprog outmodname = do
+transformCProg :: Int -> Options -> String -> CurryProg -> String
+               -> IO CurryProg
+transformCProg verb opts srctxt orgprog outmodname = do
   let prog = addCmtFuncInProg orgprog -- to avoid constructor CFunc
   usageerrors <- checkContractUse prog
   unless (null usageerrors) $ do
@@ -163,11 +165,12 @@ transformCProg opts srctxt orgprog outmodname = do
       checkfuns = union specnames (union prenames postnames)
       newprog   = transformProgram opts funposs fdecls detinfo 
                                    funspecs preconds postconds prog
-  if null checkfuns then done else
+  if null checkfuns || verb==0 then done else
     putStrLn $ "Adding contract checking to: " ++ unwords checkfuns
   if null (funspecs++preconds++postconds)
    then do
-     putStrLn "Contract transformation not required since no contracts found!"
+     when (verb>0) $
+       putStrLn "Contract transformation not required since no contracts found!"
      return orgprog
    else return (renameCurryModule outmodname newprog)
 

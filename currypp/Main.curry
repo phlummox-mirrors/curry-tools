@@ -11,12 +11,12 @@
 ------------------------------------------------------------------------------
 
 import AbstractCurry.Types
-import AbstractCurry.Files(readCurry, readUntypedCurry)
+import AbstractCurry.Files
 import AbstractCurry.Pretty(showCProg)
 import AbstractCurry.Select(progName)
 import Char(isDigit,digitToInt)
 import Directory(copyFile,renameFile)
-import Distribution(installDir, stripCurrySuffix)
+import Distribution
 import List(delete, intersect, isPrefixOf, isInfixOf)
 import System
 
@@ -28,10 +28,10 @@ import TransContracts(transContracts)
 cppBanner :: String
 cppBanner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Curry Preprocessor (version of 03/05/2016)"
+   bannerText = "Curry Preprocessor (version of 08/05/2016)"
    bannerLine = take (length bannerText) (repeat '=')
 
---- Preprocessor targets:
+--- Preprocessor targets, i.e., kind of entities to be preprocessed:
 data PPTarget = ForeignCode | SequentialRules | DefaultRules | Contracts
 
 parseTarget :: String -> Maybe PPTarget
@@ -42,21 +42,24 @@ parseTarget t | t=="foreigncode"  = Just ForeignCode
 	      | otherwise         = Nothing
 	      
 --- Preprocessor options:
-data PPOpts = PPOpts { optHelp :: Bool
-                     , optSave :: Bool       -- save the transformed program?
-		     , optVerb :: Int        -- verbosity level
-		     , optTgts :: [PPTarget] -- target of preprocessor
-		     , optModel:: String     -- model for the SQL preprocessor
-                     , optMore :: [String]   -- further specific options
-		     }
+data PPOpts =
+  PPOpts { optHelp      :: Bool
+         , optSave      :: Bool       -- save the transformed program?
+         , optVerb      :: Int        -- verbosity 
+         , optTgts      :: [PPTarget] -- targets of the preprocessor
+         , optModel     :: String     -- model for the SQL preprocessor
+         , optDefRules  :: [String]   -- options for DefaultRules
+         , optContracts :: [String]   -- options for Contracts
+	 }
 
 initOpts :: PPOpts
-initOpts = PPOpts { optHelp = False
-                  , optSave = False
- 	          , optVerb = 0
-		  , optTgts = []
-                  , optModel = ""
-		  , optMore = []
+initOpts = PPOpts { optHelp      = False
+                  , optSave      = False
+ 	          , optVerb      = 1
+		  , optTgts      = []
+                  , optModel     = ""
+		  , optDefRules  = []
+		  , optContracts = []
 		  }
 		  
 --- The main function of the Curry Preprocessor.
@@ -70,14 +73,18 @@ main = do
 	       if optHelp opts
 	       then putStrLn (cppBanner ++ usageText) >> exitWith 1
 	       else do
-                when (optVerb opts > 0) $ putStr cppBanner
+                when (optVerb opts > 1) $ putStr cppBanner
                 when (optVerb opts > 2) $ do
 		  putStrLn ("Original file name: " ++ orgSourceFile)
 		  putStrLn ("Input    file name: " ++ inFile)
 		  putStrLn ("Output   file name: " ++ outFile)
                 preprocess opts orgSourceFile inFile outFile
                 when (optSave opts) $ saveFile orgSourceFile outFile
-		when (optVerb opts > 3) (readFile outFile >>= putStrLn) )
+		when (optVerb opts > 3) $ do
+                  putStrLn "TRANSFORMED PROGRAM:"
+                  putStrLn "===================="
+                  readFile outFile >>= putStrLn
+             )
 	     (processOptions initOpts options)
     _ -> maybe (showUsage args)
 	       (\opts -> if optHelp opts
@@ -90,7 +97,7 @@ main = do
     ("-h":_)          -> Just opts { optHelp = True}
     ("-?":_)          -> Just opts { optHelp = True}
     ("-o":os)         -> processOptions opts { optSave = True } os
-    ("-v":os)         -> processOptions opts { optVerb = 1 } os
+    ("-v":os)         -> processOptions opts { optVerb = 2 } os
     (['-','v',vl]:os) -> if isDigit vl
                          then processOptions opts { optVerb = digitToInt vl } os
 			 else Nothing
@@ -99,11 +106,18 @@ main = do
                                 opts {optModel = tail (dropWhile (/=':') ts) }
                                 os
                          else Nothing
-    (ts:os)           -> maybe (processOptions
-		                  opts {optMore = optMore opts ++ [ts]} os)
-                               (\t -> processOptions
-			                opts {optTgts = t : optTgts opts} os)
-    	 	               (parseTarget ts)
+    (o:os)  -> if o `elem` ["-e","-t"]
+               then processOptions
+                      opts {optContracts = optContracts opts ++ [o]} os
+               else
+                if o `elem` ["nodupscheme","specscheme"]
+                then processOptions
+                       opts {optDefRules = optDefRules opts ++ [o]} os
+                else
+                  maybe Nothing
+                        (\t -> processOptions
+                                 opts {optTgts = t : optTgts opts} os)
+                        (parseTarget o)
 
   saveFile orgSourceFile outFile = do
     let sFile = orgSourceFile++".CURRYPP"
@@ -117,36 +131,46 @@ main = do
     exitWith 1
 
 usageText :: String
-usageText = 
-  "Usage: currypp <OrgFileName> <InputFilePath> <OutputFilePath> <options>\n\n"++
-  "<OrgFileName>   : name of original program source file\n" ++
-  "<InputFilePath> : name of the actual input file\n" ++
-  "<OutputFilePath>: name of the file where output should be written\n\n" ++
-  "where <options> contain preprocessing targets\n\n" ++
-  "foreigncode  : translate foreign code pieces in the source file\n" ++
-  "--model:<ERD_Name>_UniSQLCode.info : data model to translate embedded "++
-                                        "sql requests.\n"++
-  "seqrules     : implement sequential rule selection strategy\n" ++
-  "defaultrules : implement default rules\n" ++
-  "contracts    : implement dynamic contract checking\n" ++
-  "\nand optional settings:\n" ++
-  "-o           : store output also in file <OrgFileName>.CURRYPP\n" ++
-  "-v           : show preprocessor version on stdout\n" ++
-  "-v<n>        : show more information about the preprocessor:\n" ++
-  "               <n>=1 : show version\n" ++
-  "               <n>=2 : show timing\n" ++
-  "               <n>=3 : show used file names\n" ++
-  "               <n>=4 : show transformed Curry program\n" ++
-  "-h|-?        : show help message and quit\n"
+usageText = unlines $
+ [ "Usage: currypp <OrgFileName> <InputFilePath> <OutputFilePath> <options>\n"
+ , "<OrgFileName>   : name of original program source file"
+ , "<InputFilePath> : name of the actual input file"
+ , "<OutputFilePath>: name of the file where output should be written\n"
+ , "where <options> contain preprocessing targets\n"
+ , "foreigncode  : translate foreign code pieces in the source file"
+ , "--model:<ERD_Name>_UniSQLCode.info :"
+ , "               data model to translate embedded sql requests."
+ , "seqrules     : implement sequential rule selection strategy"
+ , "defaultrules : implement default rules"
+ , "contracts    : implement dynamic contract checking"
+ , ""
+ , "and optional settings:"
+ , "-o           : store output also in file <OrgFileName>.CURRYPP"
+ , "-v           : same as -v2"
+ , "-v<n>        : show more information about the preprocessor:"
+ , "               <n>=0 : quiet"
+ , "               <n>=1 : show some information (default)"
+ , "               <n>=2 : show version and timing"
+ , "               <n>=3 : show used file names"
+ , "               <n>=4 : show transformed Curry program"
+ , "-h|-?        : show help message and quit"
+ , ""
+ , "For 'defaultrules':"
+ , "specscheme   : default translation scheme (as in PADL'16 paper)"
+ , "nodupscheme  : translation scheme without checking conditions twice"
+ , ""
+ , "For 'contracts':"
+ , "-e           : encapsulate nondeterminism of assertions"
+ , "-t           : assert contracts only to top-level (not recursive) calls"
+ ]
 
 -- Start the Curry preprocessor:
 preprocess :: PPOpts -> String -> String -> String -> IO ()
 preprocess opts orgfile infile outfile
-  | null pptargets = do
-    putStr cppBanner
-    putStrLn "ERROR: no preprocessing target (e.g., 'foreigncode') specified!\n"
-    putStrLn usageText
-    exitWith 1
+  | null pptargets
+  = -- no target specified: apply all reasonable transformations
+    preprocess opts { optTgts = [ForeignCode, DefaultRules, Contracts] }
+               orgfile infile outfile
   | SequentialRules `elem` pptargets && DefaultRules `elem` pptargets
   = do putStr cppBanner
        putStrLn "ERROR: cannot use 'defaultrules' together with 'seqrules'!\n"
@@ -158,7 +182,8 @@ preprocess opts orgfile infile outfile
        srcprog <- readFile infile >>= return . replaceOptionsLine
        -- remove currypp option to avoid recursive preprocessor calls:
        writeFile orgfile srcprog
-       outtxt <- catch (callPreprocessors opts srcprog orgfile infile outfile)
+       outtxt <- catch (callPreprocessors opts (optionLines srcprog)
+                                          srcprog orgfile outfile)
                        (\_ -> renameFile savefile orgfile >> exitWith 1)
        writeFile outfile outtxt
        renameFile savefile orgfile
@@ -169,43 +194,44 @@ preprocess opts orgfile infile outfile
  where
   pptargets = optTgts opts
 
--- Invoke the variaous preprocessors:
-callPreprocessors :: PPOpts -> String -> String -> String -> String -> IO String
-callPreprocessors opts srcprog orgfile infile outfile
+-- Invoke the various preprocessors:
+callPreprocessors :: PPOpts -> String -> String -> String -> String
+                  -> IO String
+callPreprocessors opts optlines srcprog orgfile outfile
   | ForeignCode `elem` pptargets
   = do icouttxt <- translateIntCode (optModel opts) orgfile srcprog
        if null (intersect [SequentialRules, DefaultRules, Contracts] pptargets)
         then return icouttxt -- no further preprocessors
         else do writeFile orgfile icouttxt
-                --writeFile infile  icouttxt -- just to be save
                 let rpptargets = delete ForeignCode pptargets
                 callPreprocessors opts {optTgts = rpptargets}
-                                  srcprog orgfile infile outfile
+                                  optlines srcprog orgfile outfile
   | SequentialRules `elem` pptargets
   = do seqprog <- readCurry modname >>=
-                  transSequentialRules verb moreopts srcprog
+                  transSequentialRules verb [] srcprog
        if Contracts `elem` pptargets
-        then transContracts verb moreopts srcprog seqprog >>= return . showCProg
+        then transContracts verb contopts srcprog seqprog >>= return . showCProg
         else return (showCProg seqprog)
   | DefaultRules `elem` pptargets
   = do -- specific handling since DefaultRules requires and process
        -- untyped Curry but Contracts requires typed Curry:
        defprog <- readUntypedCurry modname >>=
-                  transDefaultRules verb moreopts srcprog
+                  transDefaultRules verb defopts srcprog
        if Contracts `elem` pptargets
-        then do writeFile orgfile (showCProg defprog)
-                readCurry modname >>= transContracts verb moreopts srcprog
+        then do writeFile orgfile (optlines ++ showCProg defprog)
+                readCurry modname >>= transContracts verb contopts srcprog
                                   >>= return . showCProg
         else return (showCProg defprog)
   | Contracts `elem` pptargets
-  = readCurry modname >>= transContracts verb moreopts srcprog
+  = readCurry modname >>= transContracts verb contopts srcprog
                       >>= return . showCProg
   | otherwise
   = error "currypp internal error during dispatching"
  where
   pptargets = optTgts opts
   verb      = optVerb opts
-  moreopts  = optMore opts
+  defopts   = optDefRules opts
+  contopts  = optContracts opts
   modname   = stripCurrySuffix orgfile
 
 -- Replace OPTIONS_CYMAKE line containing currypp call
@@ -213,9 +239,16 @@ callPreprocessors opts srcprog orgfile infile outfile
 replaceOptionsLine :: String -> String
 replaceOptionsLine = unlines . map replOptLine . lines
  where
-  replOptLine s = if "{-# OPTIONS_CYMAKE " `isPrefixOf` s -- -}
-                     && "currypp" `isInfixOf` s
+  replOptLine s = if isOptionLine s && "currypp" `isInfixOf` s
                   then " "
                   else s
+
+-- Is this a OPTIONS_CYMAKE comment line?
+isOptionLine :: String -> Bool
+isOptionLine s = "{-# OPTIONS_CYMAKE " `isPrefixOf` s -- -}
+
+-- Extract all OPTIONS_CYMAKE lines:
+optionLines :: String -> String
+optionLines = unlines . filter isOptionLine . lines
 
 ------------------------------------------------------------------------------

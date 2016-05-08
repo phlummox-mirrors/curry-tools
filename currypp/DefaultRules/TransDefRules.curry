@@ -79,7 +79,7 @@ main = do
   -- process the further options of the preprocesser mode:
   processOptions tparam optargs = case optargs of
     []             -> Just tparam
-    ("-v":opts)    -> processOptions (setVerbosity 1 tparam) opts
+    ("-v":opts)    -> processOptions (setVerbosity 2 tparam) opts
     (['-','v',vl]:opts) ->
        if isDigit vl
          then processOptions (setVerbosity (digitToInt vl) tparam) opts
@@ -142,11 +142,11 @@ compileAcyFcy quiet progname = do
 -- process DET annotations!
 transDefaultRules :: Int -> [String] -> String -> CurryProg -> IO CurryProg
 transDefaultRules verb moreopts _ inputProg = do
-  when (verb>0) $ putStr banner
+  when (verb>1) $ putStr banner
   trscm <- processOpts moreopts
-  when (verb>0) $ putStrLn ("Translation scheme: " ++ show trscm)
+  when (verb>1) $ putStrLn ("Translation scheme: " ++ show trscm)
   let (detfuncnames,newprog) = translateProg trscm inputProg
-  printProofObligation detfuncnames
+  when (verb>0) $ printProofObligation detfuncnames
   return newprog
  where
   processOpts opts = case opts of
