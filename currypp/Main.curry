@@ -17,10 +17,10 @@ import AbstractCurry.Select(progName)
 import Char(isDigit,digitToInt)
 import Directory(copyFile,renameFile)
 import Distribution(installDir, stripCurrySuffix)
-import List(delete, isPrefixOf)
+import List(delete, intersect, isPrefixOf, isInfixOf)
 import System
 
-import TransICode(translateICFile)
+import TransICode(translateIntCode)
 import TransDefRules(transDefaultRules)
 import Sequential(transSequentialRules)
 import TransContracts(transContracts)
@@ -151,83 +151,70 @@ preprocess opts orgfile infile outfile
   = do putStr cppBanner
        putStrLn "ERROR: cannot use 'defaultrules' together with 'seqrules'!\n"
        exitWith 1
-  | ForeignCode `elem` pptargets
-  = do starttime <- getCPUTime
-       translateICFile orgfile infile outfile (optModel opts)
+  | otherwise
+  = do let savefile = orgfile++".SAVEPPORG"
+       starttime <- getCPUTime
+       renameFile orgfile savefile
+       srcprog <- readFile infile >>= return . replaceOptionsLine
+       -- remove currypp option to avoid recursive preprocessor calls:
+       writeFile orgfile srcprog
+       outtxt <- catch (callPreprocessors opts srcprog orgfile infile outfile)
+                       (\_ -> renameFile savefile orgfile >> exitWith 1)
+       writeFile outfile outtxt
+       renameFile savefile orgfile
        stoptime <- getCPUTime
-       when (verb>1) $ putStrLn
-         ("Foreign code transformation time: " ++
+       when (optVerb opts > 1) $ putStrLn
+         ("Transformation time: " ++
          show (stoptime-starttime) ++ " ms")
-       let rpptargets = delete ForeignCode pptargets
-       unless (null rpptargets) $ do
-         let savefile = orgfile ++ ".SAVEORGPP"
-	 renameFile orgfile savefile
-	 copyFile outfile orgfile
-	 copyFile orgfile infile
-	 preprocess opts{optTgts = rpptargets} orgfile infile outfile
-	 renameFile savefile orgfile
+ where
+  pptargets = optTgts opts
+
+-- Invoke the variaous preprocessors:
+callPreprocessors :: PPOpts -> String -> String -> String -> String -> IO String
+callPreprocessors opts srcprog orgfile infile outfile
+  | ForeignCode `elem` pptargets
+  = do icouttxt <- translateIntCode (optModel opts) orgfile srcprog
+       if null (intersect [SequentialRules, DefaultRules, Contracts] pptargets)
+        then return icouttxt -- no further preprocessors
+        else do writeFile orgfile icouttxt
+                --writeFile infile  icouttxt -- just to be save
+                let rpptargets = delete ForeignCode pptargets
+                callPreprocessors opts {optTgts = rpptargets}
+                                  srcprog orgfile infile outfile
   | SequentialRules `elem` pptargets
-  = ppWrapper verb (optMore opts) orgfile infile outfile readCurry
-      (if Contracts `elem` pptargets
-        then transSequentialRules `thenPP` transContracts
-        else transSequentialRules)
+  = do seqprog <- readCurry modname >>=
+                  transSequentialRules verb moreopts srcprog
+       if Contracts `elem` pptargets
+        then transContracts verb moreopts srcprog seqprog >>= return . showCProg
+        else return (showCProg seqprog)
   | DefaultRules `elem` pptargets
-  = ppWrapper verb (optMore opts) orgfile infile outfile readUntypedCurry
-      (if Contracts `elem` pptargets
-        -- specific handling since DefaultRules requires and prodces
-        -- untyped Curry but Contracts requires typed Curry:
-        then (\v os srctxt utprog -> do
-                prog <- transDefaultRules v os srctxt utprog
-                writeFile orgfile (showCProg prog)
-                readCurry (progName utprog) >>= transContracts v os srctxt)
-        else transDefaultRules)
+  = do -- specific handling since DefaultRules requires and process
+       -- untyped Curry but Contracts requires typed Curry:
+       defprog <- readUntypedCurry modname >>=
+                  transDefaultRules verb moreopts srcprog
+       if Contracts `elem` pptargets
+        then do writeFile orgfile (showCProg defprog)
+                readCurry modname >>= transContracts verb moreopts srcprog
+                                  >>= return . showCProg
+        else return (showCProg defprog)
   | Contracts `elem` pptargets
-  = ppWrapper verb (optMore opts) orgfile infile outfile readCurry
-              transContracts
+  = readCurry modname >>= transContracts verb moreopts srcprog
+                      >>= return . showCProg
   | otherwise
   = error "currypp internal error during dispatching"
  where
   pptargets = optTgts opts
   verb      = optVerb opts
+  moreopts  = optMore opts
+  modname   = stripCurrySuffix orgfile
 
---- The type of a Curry preprocessor: it takes a verbosity level,
---- further options, the source program, the AbstractCurry program,
---- and produces a new AbstractCurry program.
-type CurryPP = Int -> [String] -> String -> CurryProg -> IO CurryProg
-
---- Compose two preprocessors:
-thenPP :: CurryPP -> CurryPP -> CurryPP
-thenPP pp1 pp2 verb opts srctxt prog =
-  pp1 verb opts srctxt prog >>= pp2 verb opts srctxt
-
---- The wrapper to execute a preprocessor (where the read operations
---- for AbstractCurry files is provided as a paramter):
-ppWrapper :: Int -> [String] -> String -> String -> String
-          -> (String -> IO CurryProg) -> CurryPP -> IO ()
-ppWrapper verb moreopts orgfile infile outfile readcurry currypp = do
-  let savefile = orgfile++".SAVEPPORG"
-      modname = stripCurrySuffix orgfile
-  starttime <- getCPUTime
-  renameFile orgfile savefile
-  srcprog <- readFile infile
-  readFile infile >>= writeFile orgfile . replaceOptionsLine
-  newprog <- tryReadCurry modname savefile >>= currypp verb moreopts srcprog
-  renameFile savefile orgfile
-  writeFile outfile (showCProg newprog)
-  stoptime <- getCPUTime
-  when (verb>1) $ putStrLn
-    ("Transformation time: " ++
-     show (stoptime-starttime) ++ " ms")
- where
-  tryReadCurry mn savefile =
-    catch (readcurry mn)
-          (\_ -> renameFile savefile orgfile >> exitWith 1)
-
--- Replace OPTIONS_CYMAKE line in a source text by blank line:
+-- Replace OPTIONS_CYMAKE line containing currypp call
+-- in a source text by blank line (to avoid recursive calls):
 replaceOptionsLine :: String -> String
 replaceOptionsLine = unlines . map replOptLine . lines
  where
   replOptLine s = if "{-# OPTIONS_CYMAKE " `isPrefixOf` s -- -}
+                     && "currypp" `isInfixOf` s
                   then " "
                   else s
 

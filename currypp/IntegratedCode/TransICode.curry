@@ -97,14 +97,6 @@ formatWarnings ws@((p,_):_) = "\nWARNINGS in " ++ getFilename p ++ ":"
                      ++ " Col " ++ show (getCol (getWarnPos w))
                      ++ " | "   ++ getWarnMsg w
 
---- Translates a file with Curry with Integrated Code to a file with Curry Code.
---- @param orgfile - The file path to the original Curry file
---- @param infile - The file path to the input file
---- @param outfile - The file path to the output file
-translateICFile :: String -> String -> String -> String -> IO ()
-translateICFile orgfile infile outfile model =
-  readFile infile >>= translateICString model orgfile >>= writeFile outfile
-
 --- Translates a string containing a Curry program with Integrated Code
 --- into a string with pure Curry code.
 --- The first argument is, if non-empty, the name of an info file containing
@@ -114,8 +106,8 @@ translateICFile orgfile infile outfile model =
 --- @param fname - The name of the original Curry file
 --- @param s - The string that should be translated
 --- @return The translated string
-translateICString :: String -> String -> String -> IO String
-translateICString model fname s = do
+translateIntCode :: String -> String -> String -> IO String
+translateIntCode model fname s = do
   pinfo <- if model == ""
               then return (Left "No .info file provided!")
               else readParserInfo model

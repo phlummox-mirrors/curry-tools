@@ -3,7 +3,7 @@
 
 CURRYBIN="../../../../bin"
 
-ALLTESTS="BubbleSort Coin FibInfinite Quicksort"
+ALLTESTS="BubbleSort BubbleSortFormat Coin FibInfinite Quicksort"
 
 VERBOSE=no
 if [ "$1" = "-v" ] ; then
@@ -19,7 +19,7 @@ $CURRYBIN/cleancurry
 
 # execute all tests:
 # No specification testing since the example contains intended errors.
-CCOPTS="--nospec --deftype=Int"
+CCOPTS="--nospec --nodet --deftype=Int"
 LOGFILE=xxx$$
 
 if [ $VERBOSE = yes ] ; then

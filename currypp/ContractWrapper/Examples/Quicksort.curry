@@ -1,4 +1,5 @@
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts #-}
+{-# OPTIONS_CYMAKE -Wnone #-}
 
 import Test.Prop
 
