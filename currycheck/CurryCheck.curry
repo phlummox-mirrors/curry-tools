@@ -662,7 +662,8 @@ staticProgAnalysis opts modname progtxt prog = do
        if (containsDefaultRules prog || containsDetOperations untypedprog)
           && not (containsPPOptionLine progtxt)
        then ["'" ++ modname ++
-           "' uses default rules or det. operations but not the preprocessor!"]
+           "' uses default rules or det. operations but not the preprocessor!",
+           "Hint: insert line: {-# OPTIONS_CYMAKE -F --pgmF=currypp #-}"]
        else []
   return (missingCPP,staticerrs)
 
