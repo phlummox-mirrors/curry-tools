@@ -2,7 +2,8 @@
 --- This is the implementation of the currycheck tool.
 --- It performs various checks on Curry programs:
 ---
---- * Correct usage of set functions and non-strict unification
+--- * Correct usage of set functions, non-strict unification,
+---   default rules, DET annotations, contracts
 --- * All EasyCheck tests are extracted and checked
 --- * For all functions declared as deterministic,
 ---   determinism properties are generated and checked.
@@ -13,7 +14,7 @@
 ---   (together with possible pre-conditions).
 ---
 --- @author Michael Hanus, Jan-Patrick Baye
---- @version April 2016
+--- @version May 2016
 -------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -23,8 +24,9 @@ import AbstractCurry.Build
 import AbstractCurry.Pretty    (showCProg)
 import AbstractCurry.Transform (renameCurryModule,updCProg,updQNamesInCProg)
 import AnsiCodes
-import CheckDetUsage           (checkDetUse)
+import CheckDetUsage           (checkDetUse, containsDetOperations)
 import ContractUsage
+import DefaultRuleUsage        (checkDefaultRules, containsDefaultRules)
 import Distribution
 import FilePath                ((</>))
 import qualified FlatCurry.Types as FC
@@ -643,22 +645,38 @@ analyseModule opts modname = do
         (\_ -> return [staticErrorTestMod modname
                          ["Module '"++modname++"': incorrect source program"]])
 
+-- Analyse a Curry module for static errors:
+staticProgAnalysis :: Options -> String -> String -> CurryProg
+                   -> IO ([String],[(QName,String)])
+staticProgAnalysis opts modname progtxt prog = do
+  putStrIfVerbose opts "Checking source code for static errors...\n"
+  useerrs <- if optSource opts then checkBlacklistUse prog else return []
+  seterrs <- if optSource opts then readFlatCurry modname >>= checkSetUse
+                               else return []
+  let defruleerrs = if optSource opts then checkDefaultRules prog else []
+  untypedprog <- readUntypedCurry modname
+  let detuseerrs = if optSource opts then checkDetUse untypedprog else []
+  contracterrs <- checkContractUse prog
+  let staticerrs = concat [seterrs,useerrs,defruleerrs,detuseerrs,contracterrs]
+  let missingCPP =
+       if (containsDefaultRules prog || containsDetOperations untypedprog)
+          && not (containsPPOptionLine progtxt)
+       then ["'" ++ modname ++
+           "' uses default rules or det. operations but not the preprocessor!"]
+       else []
+  return (missingCPP,staticerrs)
+
+-- Analyse a Curry module and generate property tests:
 analyseCurryProg :: Options -> String -> CurryProg -> IO [TestModule]
 analyseCurryProg opts modname orgprog = do
   -- First we rename all references to Test.Prop into Test.EasyCheck
   let prog = renameProp2EasyCheck orgprog
-  putStrIfVerbose opts "Checking source code for illegal uses of primitives...\n"
-  useerrs <- if optSource opts then checkBlacklistUse prog else return []
-  seterrs <- if optSource opts then readFlatCurry modname >>= checkSetUse
-                               else return []
-  untypedprog <- readUntypedCurry modname
-  let detuseerrs = if optSource opts then checkDetUse untypedprog else []
-  contracterrs <- checkContractUse prog
-  let staticerrs = seterrs ++ useerrs ++ detuseerrs++contracterrs
-  putStrIfVerbose opts "Generating property tests...\n"
   progtxt <- readFile (modNameToPath modname ++ ".curry")
-  let words                   = map firstWord (lines progtxt)
-      (rawTests,ignoredTests,pubmod) =
+  (missingCPP,staticoperrs) <- staticProgAnalysis opts modname progtxt prog
+  let words      = map firstWord (lines progtxt)
+      staticerrs = missingCPP ++ map (showOpError words) staticoperrs
+  putStrIfVerbose opts "Generating property tests...\n"
+  let (rawTests,ignoredTests,pubmod) =
         transformTests opts . renameCurryModule (modname++"_PUBLIC")
                             . makeAllPublic $ prog
       (rawDetTests,ignoredDetTests,pubdetmod) =
@@ -674,7 +692,7 @@ analyseCurryProg opts modname orgprog = do
       unwords (map (snd . funcName) (ignoredTests++ignoredDetTests)) ++ "\n"
   let tm    = TestModule modname
                          (progName pubmod)
-                         (map (showOpError words) staticerrs)
+                         staticerrs
                          (addLinesNumbers words (classifyTests rawTests))
                          (generatorsOfProg pubmod)
       dettm = TestModule modname
@@ -927,5 +945,12 @@ writeCurryProgram p appendix =
 
 isPAKCS :: Bool
 isPAKCS = curryCompiler == "pakcs"
+
+-- Does a program text contains a OPTIONS_CYMAKE line to call currypp?
+containsPPOptionLine :: String -> Bool
+containsPPOptionLine = any isOptionLine . lines
+ where
+   isOptionLine s = "{-# OPTIONS_CYMAKE " `isPrefixOf` s -- -}
+                    && "currypp" `isInfixOf` s
 
 -------------------------------------------------------------------------

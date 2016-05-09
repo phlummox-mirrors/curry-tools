@@ -10,9 +10,20 @@
 --- @version May 2016
 ---------------------------------------------------------------------------
 
-module CheckDetUsage(checkDetUse) where
+module CheckDetUsage(containsDetOperations, checkDetUse) where
 
 import AbstractCurry.Types
+import AbstractCurry.Select
+
+---------------------------------------------------------------------
+--- Does a Curr program contains operations with DET annotations?
+containsDetOperations :: CurryProg -> Bool
+containsDetOperations (CurryProg _ _ _ fdecls _) =
+  any (detInTopLevelType . funcType) fdecls
+ where
+  detInTopLevelType (CTVar _)     = False
+  detInTopLevelType (CTCons tc _) = tc == pre "DET"
+  detInTopLevelType (CFuncType _ rt) = detInTopLevelType rt
 
 ---------------------------------------------------------------------
 --- Returns messages about unintended uses of type synonym `DET`

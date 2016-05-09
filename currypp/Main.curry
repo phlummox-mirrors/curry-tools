@@ -184,7 +184,7 @@ preprocess opts orgfile infile outfile
        writeFile orgfile srcprog
        outtxt <- catch (callPreprocessors opts (optionLines srcprog)
                                           srcprog orgfile outfile)
-                       (\_ -> renameFile savefile orgfile >> exitWith 1)
+                       (\err -> renameFile savefile orgfile >> ioError err)
        writeFile outfile outtxt
        renameFile savefile orgfile
        stoptime <- getCPUTime

@@ -152,8 +152,6 @@ transformCProg verb opts srctxt orgprog outmodname = do
                map (\ ((mn,fn),err) -> fn ++ " (module " ++ mn ++ "): " ++ err)
                    usageerrors)
     error "Contract transformation aborted"
-  detinfo <- analyzeGeneric nondetAnalysis (progName prog)
-                                               >>= return . either id error
   let funposs   = linesOfFDecls srctxt prog
       fdecls    = functions prog
       funspecs  = getFunDeclsWith isSpecName prog
@@ -163,16 +161,19 @@ transformCProg verb opts srctxt orgprog outmodname = do
       postconds = getFunDeclsWith isPostCondName prog
       postnames = map (fromPostCondName  . snd . funcName) postconds
       checkfuns = union specnames (union prenames postnames)
-      newprog   = transformProgram opts funposs fdecls detinfo 
-                                   funspecs preconds postconds prog
-  if null checkfuns || verb==0 then done else
-    putStrLn $ "Adding contract checking to: " ++ unwords checkfuns
-  if null (funspecs++preconds++postconds)
+  if null checkfuns
    then do
      when (verb>0) $
        putStrLn "Contract transformation not required since no contracts found!"
      return orgprog
-   else return (renameCurryModule outmodname newprog)
+   else do
+     when (verb>0) $
+       putStrLn $ "Adding contract checking to: " ++ unwords checkfuns
+     detinfo <- analyzeGeneric nondetAnalysis (progName prog)
+                                              >>= return . either id error
+     let newprog = transformProgram opts funposs fdecls detinfo 
+                                    funspecs preconds postconds prog
+     return (renameCurryModule outmodname newprog)
 
 -- Get functions from a Curry module with a name satisfying the predicate:
 getFunDeclsWith :: (String -> Bool) -> CurryProg -> [CFuncDecl]

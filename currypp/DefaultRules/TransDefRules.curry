@@ -12,6 +12,7 @@ import AbstractCurry.Select
 import AbstractCurry.Build
 import AbstractCurry.Pretty
 import Char(isDigit,digitToInt)
+import DefaultRuleUsage
 import Directory
 import Distribution
 import List(isPrefixOf,isSuffixOf,partition)
@@ -116,7 +117,7 @@ transMain (TParam scm verbosity compile execprog) progname = do
   putStrNQ banner
   prog <- readUntypedCurry progname
   system $ "cleancurry " ++ progname
-  let transprog = showCProg (snd (translateProg scm prog))
+  transprog <- translateProg scm prog >>= return . showCProg . snd
   putStrLnNQ "Transformed module:"
   putStrLnNQ transprog
   if not compile then done else do
@@ -145,7 +146,7 @@ transDefaultRules verb moreopts _ inputProg = do
   when (verb>1) $ putStr banner
   trscm <- processOpts moreopts
   when (verb>1) $ putStrLn ("Translation scheme: " ++ show trscm)
-  let (detfuncnames,newprog) = translateProg trscm inputProg
+  (detfuncnames,newprog) <- translateProg trscm inputProg
   when (verb>0) $ printProofObligation detfuncnames
   return newprog
  where
@@ -182,16 +183,23 @@ printProofObligation qfs = unless (null qfs) $ do
 -- (to show the proof obligations to ensure completeness of the
 -- transformation).
 
-translateProg :: TransScheme -> CurryProg -> ([QName],CurryProg)
-translateProg trscm prog@(CurryProg mn imps tdecls fdecls ops) =
-  if null deffuncs && null detfuncnames
-  then ([],prog)
-  else (detfuncnames, CurryProg mn newimps tdecls newfdecls ops)
+translateProg :: TransScheme -> CurryProg -> IO ([QName],CurryProg)
+translateProg trscm prog@(CurryProg mn imps tdecls fdecls ops) = do
+  let usageerrors = checkDefaultRules prog
+  unless (null usageerrors) $ do
+    putStr (unlines $ "ERROR: ILLEGAL USE OF DEFAULT RULES:" :
+               map (\ ((mn,fn),err) -> fn ++ " (module " ++ mn ++ "): " ++ err)
+                   usageerrors)
+    error "Transformation aborted"
+  -- now we do not have to check the correct usage of default rules...
+  return $ if null deffuncs && null detfuncnames
+            then ([],prog)
+            else (detfuncnames, CurryProg mn newimports tdecls newfdecls ops)
  where
-  newimps          = if setFunMod `elem` imps then imps else setFunMod:imps
+  newimports       = if setFunMod `elem` imps then imps else setFunMod:imps
   detfuncnames     = map funcName (filter isDetFun fdecls)
   undetfuncs       = concatMap (transDetFun detfuncnames) fdecls
-  (deffuncs,funcs) = partition isDefault undetfuncs
+  (deffuncs,funcs) = partition isDefaultFunc undetfuncs
   defrules         = map (func2rule funcs) deffuncs
   newfdecls        = concatMap (transFDecl trscm defrules) funcs
 
@@ -217,9 +225,9 @@ transDetFun detfnames fdecl@(CFunc qf@(mn,fn) ar vis texp rules)
  | qf `elem` detfnames
  = [CFunc qf ar vis (removeDetResultType texp) [newdetrule],
     CFunc neworgname ar Private (removeDetResultType texp) rules]
- | isDefault fdecl && (mn, default2orgname fn) `elem` detfnames
+ | isDefaultFunc fdecl && (mn, fromDefaultName fn) `elem` detfnames
   -- rename default rule of a deterministic function:
- = [CFunc (mn, default2orgname fn ++ orgsuffix ++ "'default") ar vis texp rules]
+ = [CFunc (mn, fromDefaultName fn ++ orgsuffix ++ "'default") ar vis texp rules]
  | otherwise = [fdecl]
  where
   -- new name for original function (TODO: check for unused name)
@@ -248,41 +256,22 @@ removeDetResultType (CTCons tc texps) =
 ------------------------------------------------------------------------
 -- implementation of default rule transformation:
 
-isDefault :: CFuncDecl -> Bool
-isDefault (CmtFunc _ qf ar vis texp rules) =
-  isDefault (CFunc qf ar vis texp rules)
-isDefault (CFunc (_,fname) _ _ _ _) = "'default" `isSuffixOf` fname
-
--- translate default name (i.e., with suffix 'default) into standard name:
-default2orgname :: String -> String
-default2orgname fname = reverse . drop 8 . reverse $ fname
-
 -- Extract the arity and default rule for a default function definition:
 func2rule :: [CFuncDecl] -> CFuncDecl -> (QName,(Int,CRule))
-func2rule funcs (CFunc (mn,fn) ar _ _ rules)
-  | (mn,defname) `notElem` map funcName funcs
-   = error $
-      "Default rule given for '"++defname++"' but no such function defined!"
-  | null rules
-   = error $ "Default rule for '"++defname++"' without right-hand side!"
-  | length rules > 1
-   = error $ "More than one default rule for function '"++defname++"'!"
-  | otherwise = ((mn, defname), (ar, head rules))
- where defname = default2orgname fn
+func2rule funcs (CFunc (mn,fn) ar _ _ rules) =
+  ((mn, fromDefaultName fn), (ar, head rules))
 func2rule funcs (CmtFunc _ qf ar vis texp rules) =
   func2rule funcs (CFunc qf ar vis texp rules)
 
 -- Translates a function declaration into a new one that respects
--- the potential default rule (which are provided as the first argument).
+-- the potential default rule (the second argument contains
+-- the list of all default rules).
 transFDecl :: TransScheme -> [(QName,(Int,CRule))] -> CFuncDecl -> [CFuncDecl]
 transFDecl trscm defrules (CmtFunc _ qf ar vis texp rules) =
   transFDecl trscm defrules (CFunc qf ar vis texp rules)
 transFDecl trscm defrules fdecl@(CFunc qf@(mn,fn) ar vis texp rules) =
   maybe [fdecl]
         (\ (dar,defrule) ->
-           if dar /= ar
-           then error $ "Default rule for '"++fn++"' has different arity!"
-           else
              if trscm == SpecScheme
              then [CFunc neworgname ar Private texp rules,
                    transFDecl2ApplyCond applyname fdecl,
