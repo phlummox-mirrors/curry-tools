@@ -21,6 +21,7 @@ $CURRYBIN/cleancurry
 # The option -m40 is necessary for testing the determinism properties,
 # otherwise the search space is too big for some tests.
 CCOPTS=-m40
+
 LOGFILE=xxx$$
 
 if [ $VERBOSE = yes ] ; then

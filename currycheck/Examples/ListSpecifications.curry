@@ -8,6 +8,13 @@
 import qualified List
 import Test.Prop
 
+nub :: [a] -> [a]
+nub = List.nub
+
+nub'spec :: [a] ->DET [a]
+nub'spec (xs++[e]++ys++[e]++zs) = nub'spec (xs++[e]++ys++zs)
+nub'spec'default xs = xs
+
 isPrefixOf :: [a] -> [a] -> Bool
 isPrefixOf = List.isPrefixOf
 

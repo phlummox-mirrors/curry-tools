@@ -28,7 +28,7 @@ import CheckDetUsage           (checkDetUse, containsDetOperations)
 import ContractUsage
 import DefaultRuleUsage        (checkDefaultRules, containsDefaultRules)
 import Distribution
-import FilePath                ((</>))
+import FilePath                ((</>), takeDirectory)
 import qualified FlatCurry.Types as FC
 import FlatCurry.Files
 import qualified FlatCurry.Goodies as FCG
@@ -38,6 +38,7 @@ import List
 import Maybe                   (fromJust, isJust)
 import ReadNumeric             (readNat)
 import System                  (system, exitWith, getArgs, getPID)
+import TheoremUsage
 import UsageCheck              (checkBlacklistUse, checkSetUse)
 
 --- Maximal arity of check functions and tuples currently supported:
@@ -445,8 +446,10 @@ transformTests opts (CurryProg mname imports typeDecls functions opDecls) =
 -- back into non-deterministic operations.
 -- The result contains a pair consisting of all actual determinism tests
 -- and all ignored tests (since they are polymorphic).
-transformDetTests :: Options -> CurryProg -> ([CFuncDecl],[CFuncDecl],CurryProg)
-transformDetTests opts (CurryProg mname imports typeDecls functions opDecls) =
+transformDetTests :: Options -> [String] -> CurryProg
+                  -> ([CFuncDecl],[CFuncDecl],CurryProg)
+transformDetTests opts prooffiles
+                  (CurryProg mname imports typeDecls functions opDecls) =
   (map snd realtests, map snd ignoredtests,
    CurryProg mname
              (nub (easyCheckModule:imports))
@@ -458,7 +461,7 @@ transformDetTests opts (CurryProg mname imports typeDecls functions opDecls) =
   preCondOps = preCondOperations functions
   
   -- generate determinism tests:
-  detOpTests = genDetOpTests preCondOps functions
+  detOpTests = genDetOpTests prooffiles preCondOps functions
 
   -- names of deterministic operations:
   detOpNames = map (stripIsDet . funcName) detOpTests
@@ -557,11 +560,15 @@ revertDetOpTrans detops fdecl@(CFunc qf@(mn,fn) ar vis texp _) =
 
 -- Look for operations named f_ORGNDFUN and create a determinism property
 -- for f.
-genDetOpTests :: [QName] -> [CFuncDecl] -> [CFuncDecl]
-genDetOpTests prefuns fdecls =
+genDetOpTests :: [String] -> [QName] -> [CFuncDecl] -> [CFuncDecl]
+genDetOpTests prooffiles prefuns fdecls =
   map (genDetProp prefuns) (filter isDetOrgOp fdecls)
  where
-  isDetOrgOp fdecl = "_ORGNDFUN" `isSuffixOf` snd (funcName fdecl)
+  isDetOrgOp fdecl =
+   let fn = snd (funcName fdecl)
+    in "_ORGNDFUN" `isSuffixOf` fn &&
+       not (existsProofFor (determinismTheoremFor (take (length fn - 9) fn))
+                           prooffiles)
 
 -- Transforms a declaration of a deterministic operation f_ORGNDFUN
 -- into a determinisim property test of the form
@@ -672,6 +679,9 @@ analyseCurryProg :: Options -> String -> CurryProg -> IO [TestModule]
 analyseCurryProg opts modname orgprog = do
   -- First we rename all references to Test.Prop into Test.EasyCheck
   let prog = renameProp2EasyCheck orgprog
+  prooffiles <- getProofFiles (takeDirectory (modNameToPath modname))
+  putStrIfVerbose opts $
+    unlines ("Proof files found:" : map ("- " ++) prooffiles)
   progtxt <- readFile (modNameToPath modname ++ ".curry")
   (missingCPP,staticoperrs) <- staticProgAnalysis opts modname progtxt prog
   let words      = map firstWord (lines progtxt)
@@ -681,8 +691,9 @@ analyseCurryProg opts modname orgprog = do
         transformTests opts . renameCurryModule (modname++"_PUBLIC")
                             . makeAllPublic $ prog
       (rawDetTests,ignoredDetTests,pubdetmod) =
-        transformDetTests opts . renameCurryModule (modname++"_PUBLICDET")
-                               . makeAllPublic $ prog
+        transformDetTests opts prooffiles
+              . renameCurryModule (modname++"_PUBLICDET")
+              . makeAllPublic $ prog
   unless (not (null staticerrs) || null rawTests && null rawDetTests) $
     putStrIfNormal opts $
       "Properties to be tested:\n" ++

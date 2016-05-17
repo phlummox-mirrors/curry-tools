@@ -30,7 +30,8 @@ PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR
 DEPS   = Main.curry $(ICODEDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
           $(SQLDIR)/*.curry $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry \
 	  $(CONTRACTDIR)/*.curry $(CURRYCHECKDIR)/ContractUsage.curry \
-	  $(CURRYCHECKDIR)/DefaultRuleUsage.curry
+	  $(CURRYCHECKDIR)/DefaultRuleUsage.curry \
+	  $(CURRYCHECKDIR)/TheoremUsage.curry
 
 .PHONY: all compile install clean uninstall
 

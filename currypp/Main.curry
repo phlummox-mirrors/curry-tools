@@ -17,7 +17,8 @@ import AbstractCurry.Select(progName)
 import Char(isDigit,digitToInt)
 import Directory(copyFile,renameFile)
 import Distribution
-import List(delete, intersect, isPrefixOf, isInfixOf)
+import FilePath (splitDirectories)
+import List
 import System
 
 import TransICode(translateIntCode)
@@ -28,7 +29,7 @@ import TransContracts(transContracts)
 cppBanner :: String
 cppBanner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Curry Preprocessor (version of 08/05/2016)"
+   bannerText = "Curry Preprocessor (version of 17/05/2016)"
    bannerLine = take (length bannerText) (repeat '=')
 
 --- Preprocessor targets, i.e., kind of entities to be preprocessed:
@@ -73,12 +74,14 @@ main = do
 	       if optHelp opts
 	       then putStrLn (cppBanner ++ usageText) >> exitWith 1
 	       else do
+                let modname = pathToModName (stripCurrySuffix orgSourceFile)
                 when (optVerb opts > 1) $ putStr cppBanner
-                when (optVerb opts > 2) $ do
-		  putStrLn ("Original file name: " ++ orgSourceFile)
-		  putStrLn ("Input    file name: " ++ inFile)
-		  putStrLn ("Output   file name: " ++ outFile)
-                preprocess opts orgSourceFile inFile outFile
+                when (optVerb opts > 2) $ putStr $ unlines
+		  ["Module name        : " ++ modname
+		  ,"Original file name : " ++ orgSourceFile
+		  ,"Input    file name : " ++ inFile
+		  ,"Output   file name : " ++ outFile ]
+                preprocess opts modname orgSourceFile inFile outFile
                 when (optSave opts) $ saveFile orgSourceFile outFile
 		when (optVerb opts > 3) $ do
                   putStrLn "TRANSFORMED PROGRAM:"
@@ -92,7 +95,13 @@ main = do
 	                 else showUsage args)
                (processOptions initOpts args)
  where
-  processOptions opts optargs = case optargs of
+  saveFile orgSourceFile outFile = do
+    let sFile = orgSourceFile++".CURRYPP"
+    copyFile outFile sFile
+    putStrLn $ "Translated Curry file written to '"++sFile++"'"
+
+processOptions :: PPOpts -> [String] -> Maybe PPOpts
+processOptions opts optargs = case optargs of
     []                -> Just opts
     ("-h":_)          -> Just opts { optHelp = True}
     ("-?":_)          -> Just opts { optHelp = True}
@@ -119,16 +128,12 @@ main = do
                                  opts {optTgts = t : optTgts opts} os)
                         (parseTarget o)
 
-  saveFile orgSourceFile outFile = do
-    let sFile = orgSourceFile++".CURRYPP"
-    copyFile outFile sFile
-    putStrLn $ "Translated Curry file written to '"++sFile++"'"
-
-  showUsage args = do
-    putStr cppBanner
-    putStrLn $ "\nERROR: Illegal arguments: " ++ unwords args ++ "\n"
-    putStrLn usageText
-    exitWith 1
+showUsage :: [String] -> IO ()
+showUsage args = do
+  putStr cppBanner
+  putStrLn $ "\nERROR: Illegal arguments: " ++ unwords args ++ "\n"
+  putStrLn usageText
+  exitWith 1
 
 usageText :: String
 usageText = unlines $
@@ -165,12 +170,12 @@ usageText = unlines $
  ]
 
 -- Start the Curry preprocessor:
-preprocess :: PPOpts -> String -> String -> String -> IO ()
-preprocess opts orgfile infile outfile
+preprocess :: PPOpts -> String -> String -> String -> String -> IO ()
+preprocess opts modname orgfile infile outfile
   | null pptargets
   = -- no target specified: apply all reasonable transformations
     preprocess opts { optTgts = [ForeignCode, DefaultRules, Contracts] }
-               orgfile infile outfile
+               modname orgfile infile outfile
   | SequentialRules `elem` pptargets && DefaultRules `elem` pptargets
   = do putStr cppBanner
        putStrLn "ERROR: cannot use 'defaultrules' together with 'seqrules'!\n"
@@ -183,7 +188,7 @@ preprocess opts orgfile infile outfile
        -- remove currypp option to avoid recursive preprocessor calls:
        writeFile orgfile srcprog
        outtxt <- catch (callPreprocessors opts (optionLines srcprog)
-                                          srcprog orgfile outfile)
+                                          modname srcprog orgfile outfile)
                        (\err -> renameFile savefile orgfile >> ioError err)
        writeFile outfile outtxt
        renameFile savefile orgfile
@@ -195,9 +200,9 @@ preprocess opts orgfile infile outfile
   pptargets = optTgts opts
 
 -- Invoke the various preprocessors:
-callPreprocessors :: PPOpts -> String -> String -> String -> String
+callPreprocessors :: PPOpts -> String -> String -> String -> String -> String
                   -> IO String
-callPreprocessors opts optlines srcprog orgfile outfile
+callPreprocessors opts optlines modname srcprog orgfile outfile
   | ForeignCode `elem` pptargets
   = do icouttxt <- translateIntCode (optModel opts) orgfile srcprog
        if null (intersect [SequentialRules, DefaultRules, Contracts] pptargets)
@@ -205,7 +210,7 @@ callPreprocessors opts optlines srcprog orgfile outfile
         else do writeFile orgfile icouttxt
                 let rpptargets = delete ForeignCode pptargets
                 callPreprocessors opts {optTgts = rpptargets}
-                                  optlines srcprog orgfile outfile
+                                  optlines modname srcprog orgfile outfile
   | SequentialRules `elem` pptargets
   = do seqprog <- readCurry modname >>=
                   transSequentialRules verb [] srcprog
@@ -232,7 +237,15 @@ callPreprocessors opts optlines srcprog orgfile outfile
   verb      = optVerb opts
   defopts   = optDefRules opts
   contopts  = optContracts opts
-  modname   = stripCurrySuffix orgfile
+
+--- Transforms a file path name for a module back into a hierarchical module
+--- since only the file path of a module is passed to the preprocessor.
+--- We assume that these are always the local file path names,
+--- otherwise it is difficult to reconstruct the original module name
+--- from the file path.
+pathToModName :: String -> String
+pathToModName = intercalate "." . splitDirectories
+
 
 -- Replace OPTIONS_CYMAKE line containing currypp call
 -- in a source text by blank line (to avoid recursive calls):

@@ -3,7 +3,7 @@
 --- and deterministic functions.
 ---
 --- @author Michael Hanus
---- @version January 2016
+--- @version May 2016
 -----------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -15,8 +15,10 @@ import Char(isDigit,digitToInt)
 import DefaultRuleUsage
 import Directory
 import Distribution
+import FilePath (takeDirectory)
 import List(isPrefixOf,isSuffixOf,partition)
 import System
+import TheoremUsage
 
 --------------------------------------------------------------------
 
@@ -24,7 +26,7 @@ banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "Transformation Tool for Curry with Default Rules (Version of 19/01/16)"
+     "Transformation Tool for Curry with Default Rules (Version of 17/05/16)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------
@@ -142,12 +144,15 @@ compileAcyFcy quiet progname = do
 -- The Curry program must be read with readUntypedCurry in order to
 -- process DET annotations!
 transDefaultRules :: Int -> [String] -> String -> CurryProg -> IO CurryProg
-transDefaultRules verb moreopts _ inputProg = do
+transDefaultRules verb moreopts _ prog = do
   when (verb>1) $ putStr banner
   trscm <- processOpts moreopts
   when (verb>1) $ putStrLn ("Translation scheme: " ++ show trscm)
-  (detfuncnames,newprog) <- translateProg trscm inputProg
-  when (verb>0) $ printProofObligation detfuncnames
+  (detfuncnames,newprog) <- translateProg trscm prog
+  -- check whether we have files with determinism proofs:
+  prfiles <- getProofFiles (takeDirectory (modNameToPath (progName prog)))
+  detfuncnamesWOproofs <- filterProofObligation verb prfiles detfuncnames
+  when (verb>0) $ printProofObligation detfuncnamesWOproofs
   return newprog
  where
   processOpts opts = case opts of
@@ -166,14 +171,30 @@ transDefaultRules verb moreopts _ inputProg = do
       putStrLn $ "Unknown options (ignored): " ++ unwords opts
       return defaultTransScheme
 
+-- Filter proof obligations for determinism annotation w.r.t. to existence
+-- of proof files:
+filterProofObligation :: Int -> [String] -> [QName] -> IO [QName]
+filterProofObligation verb prooffiles [] = return []
+filterProofObligation verb prooffiles (qf@(qn,fn) : qfs) = do
+  let hasdetproof = existsProofFor (determinismTheoremFor fn) prooffiles
+  when (hasdetproof && verb>0) $ putStrLn $
+    "Proofs for determinism property of " ++ showQName qf ++ " found:\n" ++
+    unlines (filter (isProofFileNameFor (determinismTheoremFor fn)) prooffiles)
+  filterqfs <- filterProofObligation verb prooffiles qfs
+  return (if hasdetproof then filterqfs else qf : filterqfs)
+
+
 printProofObligation :: [QName] -> IO ()
 printProofObligation qfs = unless (null qfs) $ do
   putStrLn line
   putStrLn "PROOF OBLIGATIONS:"
-  mapIO_ (\ (q,f) -> putStrLn (q++"."++f++" is a deterministic operation.")) qfs
+  mapIO_ (\qn -> putStrLn $ showQName qn ++" is a deterministic operation.") qfs
   putStrLn line
  where
   line = take 70 (repeat '=')
+
+showQName :: QName -> String
+showQName (qn,fn) = "'" ++ qn ++ "." ++ fn ++ "'"
 
 ------------------------------------------------------------------------
 -- Main transformation: transform a Curry program with default rules
@@ -188,7 +209,7 @@ translateProg trscm prog@(CurryProg mn imps tdecls fdecls ops) = do
   let usageerrors = checkDefaultRules prog
   unless (null usageerrors) $ do
     putStr (unlines $ "ERROR: ILLEGAL USE OF DEFAULT RULES:" :
-               map (\ ((mn,fn),err) -> fn ++ " (module " ++ mn ++ "): " ++ err)
+               map (\ ((_,fn),err) -> fn ++ " (module " ++ mn ++ "): " ++ err)
                    usageerrors)
     error "Transformation aborted"
   -- now we do not have to check the correct usage of default rules...
@@ -200,7 +221,7 @@ translateProg trscm prog@(CurryProg mn imps tdecls fdecls ops) = do
   detfuncnames     = map funcName (filter isDetFun fdecls)
   undetfuncs       = concatMap (transDetFun detfuncnames) fdecls
   (deffuncs,funcs) = partition isDefaultFunc undetfuncs
-  defrules         = map (func2rule funcs) deffuncs
+  defrules         = map func2rule deffuncs
   newfdecls        = concatMap (transFDecl trscm defrules) funcs
 
 ------------------------------------------------------------------------
@@ -257,11 +278,11 @@ removeDetResultType (CTCons tc texps) =
 -- implementation of default rule transformation:
 
 -- Extract the arity and default rule for a default function definition:
-func2rule :: [CFuncDecl] -> CFuncDecl -> (QName,(Int,CRule))
-func2rule funcs (CFunc (mn,fn) ar _ _ rules) =
+func2rule :: CFuncDecl -> (QName,(Int,CRule))
+func2rule (CFunc (mn,fn) ar _ _ rules) =
   ((mn, fromDefaultName fn), (ar, head rules))
-func2rule funcs (CmtFunc _ qf ar vis texp rules) =
-  func2rule funcs (CFunc qf ar vis texp rules)
+func2rule (CmtFunc _ qf ar vis texp rules) =
+  func2rule (CFunc qf ar vis texp rules)
 
 -- Translates a function declaration into a new one that respects
 -- the potential default rule (the second argument contains
@@ -271,7 +292,7 @@ transFDecl trscm defrules (CmtFunc _ qf ar vis texp rules) =
   transFDecl trscm defrules (CFunc qf ar vis texp rules)
 transFDecl trscm defrules fdecl@(CFunc qf@(mn,fn) ar vis texp rules) =
   maybe [fdecl]
-        (\ (dar,defrule) ->
+        (\ (_,defrule) ->
              if trscm == SpecScheme
              then [CFunc neworgname ar Private texp rules,
                    transFDecl2ApplyCond applyname fdecl,
