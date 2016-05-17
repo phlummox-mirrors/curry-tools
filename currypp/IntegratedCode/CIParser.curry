@@ -12,24 +12,43 @@ import Char
 
 import ParseTypes
 
--- The identifactors for Integrated Expressions
+-- The identificators for Integrated Expressions
+s_ident :: Char
 s_ident = '`'
+
+e_ident :: Char
 e_ident = '\''
+
+min_number :: Int
 min_number = 2
 
 -- Identifiers for block comments and line comments
+s_block_comment :: String
 s_block_comment = "{-"
+
+e_block_comment :: String
 e_block_comment = "-}"
+
+s_line_comment :: String
 s_line_comment = "--"
 
 -- Error messages
+err_missing_quote :: String
 err_missing_quote = "Missing corresponding closing quote!"
+
+err_missing_block :: String
 err_missing_block = "Missing corresponding closing comment block delimiter "
                      ++ e_block_comment ++ " !"
+
+err_missing_integ :: String
 err_missing_integ = "Integrated code not terminated with correct number " ++
                     "of " ++ [e_ident] ++ " chars"
+
+err_no_langtag    :: String
 err_no_langtag    = "Missing language tag for integrated code!"
-err_layout_code   = "Bad layout. Check amount of whitespaces!"
+
+err_layout_code   :: String
+err_layout_code   = "Bad layout. Check amount of white spaces!"
 
 --- The parse function is the main function of the Code Integration Parser.
 --- The functions partitions the input in normal code and integrated

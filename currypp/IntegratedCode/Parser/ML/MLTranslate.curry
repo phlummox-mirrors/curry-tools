@@ -29,8 +29,13 @@ showAttrs :: [Attribute] -> String
 showAttrs xs = "[" ++ (intercalate "," (map showAttr xs)) ++ "]"
 
 translate :: String -> LangParser
+translate kind | kind == "html" = translateHTML
+               | kind == "xml"  = translateXML
+               | otherwise = error "translate: unknown kind"
+
+translateHTML :: LangParser
 -- translates a HTML string to a Curry string
-translate "html" start input =
+translateHTML start input =
   return $ (warnOKPM (showStringList (map showTree trees)) ws)
  where
   (trees,ws) = parse H input (toSimplePos start,0)
@@ -40,7 +45,7 @@ translate "html" start input =
   showTree (Tree (Element a par) ys) =
     "HtmlStruct " ++ show a ++ " " ++ showAttrs par ++ " "
            ++ showStringList (map showTree ys)
-	   
+           
   showCont :: Text -> String
   showCont (Raw  s) = "HtmlText " ++ show s ++ ""
   showCont (ExpT s) = "htxt (" ++ s ++ ")"
@@ -48,7 +53,8 @@ translate "html" start input =
 
 
 -- translates a XML string to a Curry string
-translate "xml" start input =
+translateXML :: LangParser
+translateXML start input =
   return $ (warnOKPM (showStringList (map showTree trees)) ws)
  where
   (trees,ws) = parse X input (toSimplePos start,0)
@@ -64,7 +70,7 @@ translate "xml" start input =
 
   isExpC t = case t of ExpC _ -> True
                        _      -> False
-		       
+                       
   showCont :: Text -> String
   showCont (Raw  s) = "XText " ++ show (dropTrailingCR s) ++ ""
   showCont (ExpT s) = "xtxt (" ++ dropTrailingCR s ++ ")"

@@ -69,8 +69,8 @@ isVarInnerLetter :: Char -> Bool
 isVarInnerLetter c = c /= ','
 
 --- Map each type on a function in the Format library
-maptypes :: Char -> String
-maptypes c = "Format." ++ case c of
+mapTypes :: Char -> String
+mapTypes c = "Format." ++ case c of
   'c' -> "showChar"
   'd' -> "showInt"
   'i' -> "showInt"
@@ -83,6 +83,7 @@ maptypes c = "Format." ++ case c of
   'g' -> "showFloat"
   'G' -> "showFloat"
   's' -> "showString"
+  _   -> error "mapTypes: unknown character"
 
 --- The function parses and converts a String that is in the format of a C-like
 --- printf expression into a Curry Expression that makes use of the Format
@@ -110,7 +111,7 @@ genString (x1:x2:xs) = case x1 of
 
 specToString :: SpecifierWVar -> String
 specToString (SpecV f w p t v) =
-  "("    ++ maptypes t
+  "("    ++ mapTypes t
   ++ " " ++ showBr t
   ++ " " ++ showBr f
   ++ " " ++ showBr w

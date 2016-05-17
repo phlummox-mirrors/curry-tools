@@ -25,12 +25,15 @@ isPhrasingElement sym = isPlain sym || elem (map toLower (tgn sym)) phrasingElem
 isFlowElement :: Symbol -> Bool
 isFlowElement sym = isTag sym && elem (map toLower (tgn sym)) flowElements
 
+voidElements :: [String]
 voidElements = ["area","base","br","col","command","embed","hr",
                 "img","input","keygen","link","meta","param",
                 "source","track","wbr"]
 
+strictElements :: [String]
 strictElements = ["script","style","pre"]
 
+flowElements :: [String]
 flowElements = phrasingElements ++
                ["a","p","hr","pre","ul","ol","dl","div","h1",
                 "h2","h3","h4","h5","h6","hgroup","address",
@@ -40,6 +43,7 @@ flowElements = phrasingElements ++
                 "table","form","fieldset","menu","canvas",
                 "details"]
 
+phrasingElements :: [String]
 phrasingElements = ["a","em","strong","small","mark","abbr",
                     "dfn","i","b","s","u","code","var","samp",
                     "kbd","sup","sub","q","cite","span","bdo",
@@ -50,6 +54,7 @@ phrasingElements = ["a","em","strong","small","mark","abbr",
                     "datalist","keygen","progress","command",
                     "canvas","time","meter"]
 
+htmlElements :: [String]
 htmlElements = ["a","abbr","address","area","article","aside","audio",
                 "b","base","bdi","bdo","blockquote","body","br","button",
                 "caption","cite","code","col","colgroup","command",

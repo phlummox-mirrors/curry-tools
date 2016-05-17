@@ -7,9 +7,11 @@
 module ParsePos where
 
 -- Tab width
+tw :: Int
 tw = 8
 
 -- Unkown filename
+unknown_fname :: String
 unknown_fname = "Unknown file"
 
 type Filename = String

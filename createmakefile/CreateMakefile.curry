@@ -2,7 +2,7 @@
 --- A tool to create a simple makefile for a Curry application.
 ---
 --- @author Michael Hanus
---- @version October 2012
+--- @version May 2016
 -----------------------------------------------------------------
 
 module CreateMakefile where
@@ -15,6 +15,7 @@ import System
 import Distribution
 import FileGoodies
 
+main :: IO ()
 main = do
   args <- getArgs
   case args of
@@ -36,6 +37,7 @@ createMake mainmod target = do
   (maybe putStr writeFile target)
      (showMake mainmod (map replacePakcsLib allsources))
 
+showMake :: String -> [String] -> String
 showMake mainmod sourcefiles =
   "# Makefile for main module \""++mainmod++"\":\n\n"++
   "CURRYHOME="++installDir++"\n"++
@@ -50,6 +52,7 @@ showMake mainmod sourcefiles =
 
 -- add a directory name for a Curry source file by looking up the
 -- current load path (CURRYPATH):
+findSourceFileInLoadPath :: String -> IO String
 findSourceFileInLoadPath modname = do
   loadpath <- getLoadPathForModule modname
   mbfname <- lookupFileInPath (baseName modname) [".lcurry",".curry"] loadpath
@@ -60,6 +63,7 @@ findSourceFileInLoadPath modname = do
   dropLocal f = if take 2 f == "./" then drop 2 f else f
 
 -- replace CURRY lib directory prefix in a filename by $(CURRYLIB):
+replacePakcsLib :: String -> String
 replacePakcsLib filename =
   let pakcslib = installDir++"/lib"
       pllength = length pakcslib

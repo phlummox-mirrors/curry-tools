@@ -30,4 +30,5 @@ orInExpr (Let bs e) = any orInExpr (map snd bs) || orInExpr e
 orInExpr (Or _ _) = True
 orInExpr (Case _ e bs) = orInExpr e || any orInBranch bs
                    where orInBranch (Branch _ be) = orInExpr be
+orInExpr (Typed e _) = orInExpr e
 

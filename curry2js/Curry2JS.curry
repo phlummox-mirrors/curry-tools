@@ -82,6 +82,7 @@ genApply fs =
 
 
 flat2JS :: [TypeDecl] -> FuncDecl -> JSFDecl
+flat2JS _ (Func _ _ _ _ (External _)) = error "flat2JS: external"
 flat2JS tdecls (Func fname _ _ _ (Rule args rhs)) =
   JSFDecl (qname2JS fname) args
           (removeSingleVarsJSStatements
@@ -191,6 +192,9 @@ flatExp2JS decls maxo maxn patvars retvar (Case _ cexp branches) =
 
   expOfBranch (Branch _ exp) = exp
 
+flatExp2JS decls maxo maxn patvars retvar (Typed exp _) =
+  flatExp2JS decls maxo maxn patvars retvar exp
+
 flatExp2JS _ _ _ _ _ (Free _ _) =
   error "Translation of Free not yet supported!"
 
@@ -240,7 +244,8 @@ case2JS decls maxo maxn patvars retvar cexp branches =
   branchWithUniqueCase (Branch (Pattern cname _) _) =
     isUniqueConstructor decls cname
 
-branch2JS :: [TypeDecl] -> Int -> Int -> [(Int,(Int,Int))] -> Int -> Int -> [BranchExpr] -> [JSBranch]
+branch2JS :: [TypeDecl] -> Int -> Int -> [(Int,(Int,Int))] -> Int -> Int
+          -> [BranchExpr] -> [JSBranch]
 branch2JS _ maxo maxn _ _ _ [] | maxn=:=maxo = []
 branch2JS decls maxo maxn patvars casevar retvar
           (Branch (Pattern cname cargs) bexp : branches) =
@@ -250,6 +255,8 @@ branch2JS decls maxo maxn patvars casevar retvar
   in JSCase (consQName2JS cname)
             (flatExp2JS decls maxa maxi (newpatvars++patvars) retvar bexp) :
      branch2JS decls maxi maxn patvars casevar retvar branches
+branch2JS _ _ _ _ _ _ (Branch (LPattern _) _ : _) =
+  error "branch2JS: LPattern"
 
 -- Check whether some constructor is the only constructor of a type:
 isUniqueConstructor :: [TypeDecl] -> QName -> Bool
@@ -381,6 +388,7 @@ freeVarsInExp (Let bs e) = let (bvs,bes) = unzip bs in
   filter (`notElem` bvs) (concatMap freeVarsInExp (e : bes))
 freeVarsInExp (Free vs exp) = filter (`notElem` vs) (freeVarsInExp exp)
 freeVarsInExp (Case _ e bs) = freeVarsInExp e ++ concatMap freeVarsInBranch bs
+freeVarsInExp (Typed exp _) = freeVarsInExp exp
 
 freeVarsInBranch :: BranchExpr -> [Int]
 freeVarsInBranch (Branch (Pattern _ vs) e) =
@@ -401,6 +409,7 @@ maxVarIndexInExp exp = let allvars = allVarsInExp exp in
                              in bvs ++ concatMap allVarsInExp (e : bes)
   allVarsInExp (Free vs e) = vs ++ allVarsInExp e
   allVarsInExp (Case _ e bs) = allVarsInExp e ++ concatMap allVarsInBranch bs
+  allVarsInExp (Typed e _) = allVarsInExp e
   
   allVarsInBranch (Branch (Pattern _ vs) e) = vs ++ allVarsInExp e
   allVarsInBranch (Branch (LPattern _) e) = allVarsInExp e
@@ -432,6 +441,7 @@ pafsOfExpr (Let defs exp) =
   mapUnion (map pafsOfExpr (exp : map snd defs))
 pafsOfExpr (Free _ exp) = pafsOfExpr exp
 pafsOfExpr (Or exp1 exp2) = union (pafsOfExpr exp1) (pafsOfExpr exp2)
+pafsOfExpr (Typed exp _) = pafsOfExpr exp
 
 mapUnion :: [[a]] -> [a]
 mapUnion = foldr union []
@@ -466,7 +476,8 @@ jscOfExpr (Comb ct (m,f) args)
     Comb (FuncPartCall 1) fname [] -> Just fname
     _ -> Nothing
 
-  fstFlatCurry (Comb _ _ [arg,_]) = arg
+  fstFlatCurry e = case e of Comb _ _ [arg,_] -> arg
+                             _ -> error "jscOfExpr.fstFlatCurry"
 
   jscOfArgs = mapUnion (map jscOfExpr args)
 
@@ -476,6 +487,7 @@ jscOfExpr (Let defs exp) =
   mapUnion (map jscOfExpr (exp : map snd defs))
 jscOfExpr (Free _ exp) = jscOfExpr exp
 jscOfExpr (Or exp1 exp2) = union (jscOfExpr exp1) (jscOfExpr exp2)
+jscOfExpr (Typed exp _) = jscOfExpr exp
 
 
 ------------------------------------------------------------------------------
@@ -532,7 +544,9 @@ replaceJscOfExpr (Comb ct (m,f) args)
     Comb FuncCall (mod,fname) [] -> mod==wuiModName && take 5 fname == "wCons"
     _ -> False
 
-  wConsArity (Comb _ (_,fname) []) = fst (fromJust (readNat (drop 5 fname)))
+  wConsArity e = case e of
+    Comb _ (_,fname) [] -> fst (fromJust (readNat (drop 5 fname)))
+    _ -> error "replaceJscOfExpr.wConsArity"
 
   isDataCons exp = case exp of
     Comb (ConsPartCall 3) _ [] -> True
@@ -554,6 +568,8 @@ replaceJscOfExpr (Let defs exp) =
 replaceJscOfExpr (Free fvs exp) = Free fvs (replaceJscOfExpr exp)
 replaceJscOfExpr (Or exp1 exp2) =
   Or (replaceJscOfExpr exp1) (replaceJscOfExpr exp2)
+replaceJscOfExpr (Typed exp te) =
+  Typed (replaceJscOfExpr exp) te
 
 -- is a FlatCurry expression the representation of an empty list:
 flatEmptyList :: Expr -> Bool
@@ -650,6 +666,7 @@ uniqueDefsOfExps defs (exp:exps) =
   uniqueDefsOfExps (uniqueDefsOfExp defs exp) exps
 
 updateAssoc :: a -> b -> [(a,b)] -> [(a,b)]
+updateAssoc _ _ [] = error "updateAssoc on []"
 updateAssoc r newval ((i,val):assocs) =
   if r==i then (i,newval) : assocs
           else (i,val) : updateAssoc r newval assocs

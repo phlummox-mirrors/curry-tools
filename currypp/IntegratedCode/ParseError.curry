@@ -8,7 +8,10 @@ module ParseError where
 
 import ParsePos
 
+err_unknown_msg :: String
 err_unknown_msg = "Unknown error"
+
+err_unknown_fname :: String
 err_unknown_fname = "Unknown filename"
 
 --- The Error Monad

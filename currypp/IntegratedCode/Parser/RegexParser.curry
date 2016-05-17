@@ -5,6 +5,8 @@
 --- @version January 2014
 ------------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -Wno-missing-signatures -Wno-incomplete-patterns #-}
+
 module RegexParser(parse) where
 
 import Parser
