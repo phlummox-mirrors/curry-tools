@@ -34,12 +34,17 @@ theoremToAgda opts qtheoname allfuncs alltypes = do
          partition (\ (fn,_,_) -> isTheoremName (snd (readQN fn))) typedrules
       theoname = fromTheoremName (snd qtheoname)
       mname = "TO-PROVE-" ++ theoname
-      agdaprog = agdaHeader mname ++
-                 unlines (map typeDeclAsAgda alltypes) ++
-                 unlines (map (\ (fn,te,trs) ->
+      hrule = take 75 (repeat '-')
+      agdaprog = unlines $
+                  agdaHeader mname ++
+                  [hrule, "-- Translated Curry operations:",""] ++
+                  map typeDeclAsAgda alltypes ++
+                  map (\ (fn,te,trs) ->
                                   showTypedTRSAsAgda opts rename fn te trs)
-                              funcrules) ++
-                 unlines (map (theoremAsAgda rename) theorules)
+                      funcrules ++
+                  [hrule, ""] ++
+                  map (theoremAsAgda rename) theorules ++
+                  [hrule]
   --putStr agdaprog
   let agdafile = mname ++ ".agda"
   when (optVerb opts > 1 || not (optStore opts)) $ putStr agdaprog
@@ -49,8 +54,8 @@ theoremToAgda opts qtheoname allfuncs alltypes = do
      "Agda module '" ++ agdafile ++ "' written.\n" ++
      "If you completed the proof, rename it to 'PROOF-" ++ theoname ++ ".agda'."
 
-agdaHeader :: String -> String
-agdaHeader mname = unlines $
+agdaHeader :: String -> [String]
+agdaHeader mname =
   [ "-- Agda program using the Iowa Agda library\n"
   , "open import bool\n"
   , "module " ++ mname

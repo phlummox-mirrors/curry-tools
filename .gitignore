@@ -2,6 +2,7 @@
 *~
 .curry
 Curry_Main_Goal.curry
+*.agdai
 
 # executables
 addtypes/AddTypes
