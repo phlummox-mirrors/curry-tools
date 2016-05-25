@@ -17,7 +17,7 @@ import Rewriting.Rules
 import Rewriting.CriticalPairs
 import TheoremUsage
 import VerifyOptions
-
+import Unsafe
 -- to access the determinism analysis:
 import GenericProgInfo   (ProgInfo, lookupProgInfo)
 import Deterministic     (Deterministic(..))
@@ -111,7 +111,7 @@ funcDeclToTypedRule fdecl@(CmtFunc _ _ _ _ texp _) =
 -------------------------------------------------------------------------
 -- Transform a TRS for a function according to transformation method
 -- based in determinism information:
--- TODO: check overlapping rules and implement partial functions 
+-- TODO: implement partial functions 
 
 transformRule :: Options
               -> (String, CTypeExpr, TRS String)
@@ -131,13 +131,12 @@ transformRule opts (fn,texp,trs)
     let arity = case head rs of (TermCons _ args,_) -> length args
                                 _ -> error "transformRule: no arity"
         newargs = map TermVar [1 .. arity]
-        ruleName i = fn ++ "-rule" ++ show i
      in [(TermCons fn newargs,
           foldr1 (\x y -> TermCons "Prelude.?" [x,y])
-                 (map (\i -> TermCons (ruleName i) newargs)
+                 (map (\i -> TermCons (addRuleName fn i) newargs)
                       [1 .. length rs]))]
         ++ map (\(i,(TermCons _ args, rhs)) ->
-                   (TermCons (ruleName i ++ "#") args,rhs))
+                   (TermCons (addRuleName fn i ++ "\"") args,rhs))
                (zip [1 .. length rs] rs)
 
   addChoices (lhs,rhs) = (addLhsChoice choicevar lhs,
@@ -152,7 +151,7 @@ transformRule opts (fn,texp,trs)
    = let (ch1,cargs) = addChoiceInTerms (nextChoice ch) args
       in (ch1, TermCons "Prelude.if_then_else"
                         (TermCons "Prelude.choose" [currChoice ch] : cargs))
-   | lookupProgInfo (readQN f) detinfo == Just NDet
+   | lookupProgInfo (readQN (stripRuleName f)) detinfo == Just NDet
    = let (ch1,cargs) = addChoiceInTerms (nextChoice ch) args
       in (ch1, TermCons f (currChoice ch : cargs))
    | otherwise
@@ -169,6 +168,18 @@ transformRule opts (fn,texp,trs)
 
   nextChoice (Left ch) = Right (TermCons "Prelude.rchoice" [ch])
   nextChoice (Right ch) = Left ch
+
+-- Add a rule with a number to a name (to implement overlapping rules):
+addRuleName :: String -> Int -> String
+addRuleName fn i = fn ++ "-rule" ++ show i
+
+-- Revert `addRuleName`.
+stripRuleName :: String -> String
+stripRuleName n =
+   -- we assume that there are no more than 9 overlapping rules:
+  if take 5 (tail (reverse n)) == "elur-"
+   then take (length n - 6) n
+   else n
 
 -------------------------------------------------------------------------
 
@@ -224,7 +235,7 @@ showTypedTRSAsAgda opts rn fn texp trs =
     showRulesAsAgda (rule2 : rules)
 
 isLocalRule :: Rule String -> Bool
-isLocalRule rule = last (ruleFunc rule) == '#'
+isLocalRule rule = last (ruleFunc rule) == '"'
 
 ruleFunc :: Rule String -> String
 ruleFunc rl@(TermVar _,_) = error $ "Rule with variable lhs: " ++ showRule rl
@@ -235,7 +246,7 @@ unLocalLhs (TermVar _) = error $ "LHS with variable"
 unLocalLhs (TermCons f args) = TermCons (unLocalName f) args
 
 unLocalName :: String -> String
-unLocalName s = if last s == '#' then take (length s - 1) s else s
+unLocalName s = if last s == '"' then take (length s - 1) s else s
 
 showRuleAsAgda :: (String -> String) -> Rule String -> String
 showRuleAsAgda rn rl@(lhs,rhs) =
