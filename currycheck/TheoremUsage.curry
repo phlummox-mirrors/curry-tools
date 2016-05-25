@@ -6,7 +6,7 @@
 --- * A theorem is represented in a source file by the prefix
 ---   `theorem`, e.g.:
 ---
----       theorem'sortlength xs ys = length xs -=- length (sort xs)
+---       theorem'sortlength xs = length xs -=- length (sort xs)
 ---
 --- * A theorem is considered as proven and, thus, not be checked
 ---   by CurryCheck or the contract wrapper (see `currypp`), if there exists

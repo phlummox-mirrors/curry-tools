@@ -31,14 +31,17 @@ import Char
 import ContractUsage
 import Directory
 import Distribution
+import FilePath      (takeDirectory)
 import List
 import Maybe(fromJust)
+import SimplifyPostConds
 import System
+import TheoremUsage
 
 banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Contract Transformation Tool (Version of 05/05/16)"
+   bannerText = "Contract Transformation Tool (Version of 22/05/16)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------
@@ -120,7 +123,7 @@ transformStandalone opts modname outfile = do
                                        else error "Source program incorrect"
   let outmodname = transformedModName modname
   newprog <- transformCProg 1 opts srcprog prog outmodname
-  writeFile outfile (showCProg newprog)
+  writeFile outfile (showCProg newprog ++ "\n")
   when (executeProg opts) $ loadIntoCurry outmodname
 
 -- Specifies how the name of the transformed module is built from the
@@ -145,7 +148,8 @@ loadIntoCurry m = do
 transformCProg :: Int -> Options -> String -> CurryProg -> String
                -> IO CurryProg
 transformCProg verb opts srctxt orgprog outmodname = do
-  let prog = addCmtFuncInProg orgprog -- to avoid constructor CFunc
+  let -- to avoid constructor CFunc and references to Test.Prop
+      prog = addCmtFuncInProg (renameProp2EasyCheck orgprog)
   usageerrors <- checkContractUse prog
   unless (null usageerrors) $ do
     putStr (unlines $ "ERROR: ILLEGAL USE OF CONTRACTS:" :
@@ -158,8 +162,16 @@ transformCProg verb opts srctxt orgprog outmodname = do
       specnames = map (fromSpecName . snd . funcName) funspecs
       preconds  = getFunDeclsWith isPreCondName prog
       prenames  = map (fromPreCondName  . snd . funcName) preconds
-      postconds = getFunDeclsWith isPostCondName prog
-      postnames = map (fromPostCondName  . snd . funcName) postconds
+      opostconds= getFunDeclsWith isPostCondName prog
+      dtheofuncs= getFunDeclsWith isTheoremName prog -- declared theorems
+  -- filter theorems which have a proof file:
+  prooffiles <- getProofFiles (takeDirectory (modNameToPath (progName prog)))
+  let theofuncs = filter (\fd -> existsProofFor
+                                   (fromTheoremName (snd (funcName fd)))
+                                   prooffiles)
+                         dtheofuncs
+  postconds <- simplifyPostConditionWithTheorems verb theofuncs opostconds
+  let postnames = map (fromPostCondName  . snd . funcName) postconds
       checkfuns = union specnames (union prenames postnames)
   if null checkfuns
    then do
@@ -179,18 +191,24 @@ transformCProg verb opts srctxt orgprog outmodname = do
 getFunDeclsWith :: (String -> Bool) -> CurryProg -> [CFuncDecl]
 getFunDeclsWith pred prog = filter (pred . snd . funcName) (functions prog)
 
+------------------------------------------------------------------------
 -- Transform a given program w.r.t. given specifications and pre/postconditions
 transformProgram :: Options -> [(QName,Int)]-> [CFuncDecl]
                  -> ProgInfo Deterministic -> [CFuncDecl]
                  -> [CFuncDecl] -> [CFuncDecl] -> CurryProg -> CurryProg
 transformProgram opts funposs allfdecls detinfo specdecls predecls postdecls
-                 (CurryProg mname imps tdecls fdecls opdecls) =
- let newpostconds = concatMap
+                 (CurryProg mname imps tdecls orgfdecls opdecls) =
+ let -- replace in program old postconditions by new simplified postconditions:
+     fdecls = filter (\fd -> funcName fd `notElem` map funcName postdecls)
+                     orgfdecls ++ postdecls
+     newpostconds = concatMap
                       (genPostCond4Spec opts allfdecls detinfo postdecls)
                       specdecls
      newfunnames  = map (snd . funcName) newpostconds
+     -- remove old postconditions which are transformed into postconditions
+     -- with specification checking:
      wonewfuns    = filter (\fd -> snd (funcName fd) `notElem` newfunnames)
-                           fdecls -- remove functions having new gen. defs.
+                           fdecls
      -- compute postconditions actually used for contract checking:
      contractpcs  = postdecls++newpostconds
   in CurryProg mname
@@ -400,5 +418,25 @@ isIdChar c = isAlphaNum c || c == '_' || c == '\''
 -- All characters occurring in infix operators.
 infixIDs :: String
 infixIDs =  "~!@#$%^&*+-=<>?./|\\:"
+
+------------------------------------------------------------------------
+-- Auxiliaries
+
+-- Rename all module references to "Test.Prog" into "Test.EasyCheck"
+renameProp2EasyCheck :: CurryProg -> CurryProg
+renameProp2EasyCheck prog =
+  updCProg id (map rnmMod) id id id
+           (updQNamesInCProg (\ (mod,n) -> (rnmMod mod,n)) prog)
+ where
+  rnmMod mod | mod == propModule = easyCheckModule
+             | otherwise         = mod
+
+--- Name of the Test.Prop module (the clone of the EasyCheck module).
+propModule :: String
+propModule = "Test.Prop" 
+
+--- Name of the EasyCheck module.
+easyCheckModule :: String
+easyCheckModule = "Test.EasyCheck" 
 
 ------------------------------------------------------------------------

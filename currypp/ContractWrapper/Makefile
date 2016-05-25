@@ -12,7 +12,7 @@ PPPATH = $(TOOLDIR)/analysis:$(TOOLDIR)/CASS:$(TOOLDIR)/currycheck
 all: cwrapper
 
 # generate saved state for contract wrapper:
-cwrapper: TransContracts.curry
+cwrapper: TransContracts.curry SimplifyPostConds.curry
 	pakcs :set path $(PPPATH) :l TransContracts :save :q && mv TransContracts cwrapper
 
 .PHONY: clean

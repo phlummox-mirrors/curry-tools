@@ -12,6 +12,7 @@ CASS/cass_worker
 createmakefile/CreateMakefile
 curry2js/Curry2JS
 currypp/Main
+currypp/ContractWrapper/cwrapper
 currycheck/CurryCheck
 currydoc/CurryDoc
 currytest/CurryTest
@@ -24,4 +25,5 @@ optimize/bindingopt
 optimize/binding_optimization/BindingOpt
 runcurry/RunCurry
 spicey/spiceup
+verification/ToVerifier
 xmldata/Data2Xml
