@@ -5,7 +5,7 @@
 --- @version May 2016
 -------------------------------------------------------------------------
 
-module ToAgda(theoremToAgda) where
+--module ToAgda(theoremToAgda) where
 
 import AbstractCurry.Types
 import AbstractCurry.Select
@@ -63,7 +63,7 @@ agdaHeader mname =
   , "  (lchoice : Choice → Choice)\n  (rchoice : Choice → Choice)"
   , "  where\n"
   , unlines (map (\im -> "open import " ++ im)
-                 ["eq","bool","nat","list","maybe"])
+                 ["eq","nat","list","maybe"])
   ]
 
 -------------------------------------------------------------------------
@@ -128,8 +128,8 @@ transformRule opts (fn,texp,trs)
   choicevar = TermVar 46
 
   elimOverlaps rs = if null critPairs then rs else
-    let arity = case head rs of (TermCons _ args,_) -> length args
-                                _ -> error "transformRule: no arity"
+    let arity   = case head rs of (TermCons _ args,_) -> length args
+                                  _ -> error "transformRule: no arity"
         newargs = map TermVar [1 .. arity]
      in [(TermCons fn newargs,
           foldr1 (\x y -> TermCons "Prelude.?" [x,y])
@@ -139,35 +139,49 @@ transformRule opts (fn,texp,trs)
                    (TermCons (addRuleName fn i ++ "\"") args,rhs))
                (zip [1 .. length rs] rs)
 
-  addChoices (lhs,rhs) = (addLhsChoice choicevar lhs,
-                          snd (addChoiceInTerm (Right choicevar) rhs))
+  addChoices (lhs,rhs) =
+   (addLhsChoice choicevar lhs,
+    snd (addChoiceInTerm (choicesFor (numNondetOps rhs) choicevar) rhs))
 
-  addLhsChoice _ v@(TermVar _) = v
+  addLhsChoice _ v@(TermVar _)      = v  -- this case should not occur
   addLhsChoice ch (TermCons f args) = TermCons f (ch : args)
 
-  addChoiceInTerm ch v@(TermVar _) = (ch,v)
-  addChoiceInTerm ch (TermCons f args)
+  isNondetOp f = lookupProgInfo (readQN (stripRuleName f)) detinfo == Just NDet
+
+  -- compute number of non-deterministic operations in a term:
+  numNondetOps (TermVar _) = 0
+  numNondetOps (TermCons f args) =
+    (if f == curryChoice || isNondetOp f then 1 else 0) +
+    sum (map numNondetOps args)
+
+  addChoiceInTerm chs v@(TermVar _) = (chs,v)
+  addChoiceInTerm chs (TermCons f args)
    | f == "Prelude.?" && length args == 2
-   = let (ch1,cargs) = addChoiceInTerms (nextChoice ch) args
-      in (ch1, TermCons "Prelude.if_then_else"
-                        (TermCons "Prelude.choose" [currChoice ch] : cargs))
-   | lookupProgInfo (readQN (stripRuleName f)) detinfo == Just NDet
-   = let (ch1,cargs) = addChoiceInTerms (nextChoice ch) args
-      in (ch1, TermCons f (currChoice ch : cargs))
+   = let (chs1,cargs) = addChoiceInTerms (tail chs) args
+      in (chs1, TermCons "Prelude.if_then_else"
+                         (TermCons "Prelude.choose" [head chs] : cargs))
+   | isNondetOp f
+     -- non-deterministic operation:
+   = let (chs1,cargs) = addChoiceInTerms (tail chs) args
+      in (chs1, TermCons f (head chs : cargs))
    | otherwise
-   = let (ch1,cargs) = addChoiceInTerms ch args
-      in (ch1, TermCons f cargs)
+   = let (chs1,cargs) = addChoiceInTerms chs args
+      in (chs1, TermCons f cargs)
 
   addChoiceInTerms ch [] = (ch,[])
   addChoiceInTerms ch (t:ts) = let (ch1,ct ) = addChoiceInTerm  ch t
                                    (ch2,cts) = addChoiceInTerms ch1 ts
                                 in (ch2,ct:cts)
 
-  currChoice (Left ch) = TermCons "Prelude.lchoice" [ch]
-  currChoice (Right ch) = ch
-
-  nextChoice (Left ch) = Right (TermCons "Prelude.rchoice" [ch])
-  nextChoice (Right ch) = Left ch
+-- Compute a list of disjoint choices for a given number of choices
+-- and a base choice variable.
+choicesFor :: Int -> Term String -> [Term String]
+choicesFor n ch =
+  if n <= 1
+  then [ch]
+  else
+    map (\c -> TermCons "Prelude.lchoice" [c]) (choicesFor (n `div` 2) ch) ++
+    map (\c -> TermCons "Prelude.rchoice" [c]) (choicesFor (n - n `div` 2) ch)
 
 -- Add a rule with a number to a name (to implement overlapping rules):
 addRuleName :: String -> Int -> String
@@ -333,6 +347,10 @@ showTCon tc
  | tc == pre "Choice" = "Choice"
  | tc == nat "Nat"    = "\x2115"
  | otherwise = snd tc
+
+-------------------------------------------------------------------------
+curryChoice :: String
+curryChoice = showQN (pre "?")
 
 nat :: String -> QName
 nat s = ("Nat",s)
