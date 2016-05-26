@@ -104,8 +104,8 @@ getAllFunctions :: Options -> [CFuncDecl] -> [CurryProg] -> [QName]
                 -> IO (Options, [CurryProg], [CFuncDecl])
 getAllFunctions opts currfuncs currmods [] = return (opts, currmods, currfuncs)
 getAllFunctions opts currfuncs currmods (newfun:newfuncs)
-  | newfun `elem`
-            standardConstructors ++ primFuncs opts ++ map funcName currfuncs
+  | newfun `elem` standardConstructors ++ map funcName currfuncs
+    || isPrimFunc opts newfun
   = getAllFunctions opts currfuncs currmods newfuncs
   | null (fst newfun) -- local declarations have empty module qualifier
   = getAllFunctions opts currfuncs currmods newfuncs

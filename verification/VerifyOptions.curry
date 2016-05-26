@@ -22,7 +22,7 @@ data Options = Options
   , optVerb    :: Int
   , optStore   :: Bool    -- store result in file?
   , optTarget  :: String
-  , primFuncs  :: [QName] -- primitive functions (not translated)
+  , isPrimFunc :: (QName -> Bool) -- primitive function? (not translated)
   , primTypes  :: [QName] -- primitive types (not translated)
   , detInfos   :: ProgInfo Deterministic -- info about deteterministic funcs
   , totInfos   :: ProgInfo Bool          -- info about totally defined funcs
@@ -35,19 +35,17 @@ defaultOptions = Options
   , optVerb    = 1
   , optStore   = True
   , optTarget  = "agda"
-  , primFuncs  = defPrimFuns
+  , isPrimFunc = isUntranslatedFunc
   , primTypes  = defPrimTypes
   , detInfos   = emptyProgInfo
   , totInfos   = emptyProgInfo
   }
 
 -- Primitive functions that are not extracted and translated to the verifier.
-defPrimFuns :: [QName]
-defPrimFuns = [pre "?", pre "==", pre "+", pre "*", pre "length"] ++ propFuns
- where
-  propFuns = concatMap (\f -> [("Test.Prop",f),("Test.EasyCheck",f)])
-                       propFunNames
-  propFunNames = ["-=-","<~>","always"]
+isUntranslatedFunc :: QName -> Bool
+isUntranslatedFunc qn =
+  qn `elem` [pre "?", pre "==", pre "+", pre "*", pre "length"] ||
+  fst qn `elem` ["Test.Prop","Test.EasyCheck"]
 
 -- Primitive functions that are not extracted and translated to the verifier.
 defPrimTypes :: [QName]

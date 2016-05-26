@@ -11,6 +11,7 @@ import AbstractCurry.Types
 import AbstractCurry.Select
 import AbstractCurry.Build
 import List
+import Maybe (fromJust)
 import Rewriting.Files
 import Rewriting.Term
 import Rewriting.Rules
@@ -29,7 +30,7 @@ import Deterministic     (Deterministic(..))
 theoremToAgda :: Options -> QName -> [CFuncDecl] -> [CTypeDecl] -> IO ()
 theoremToAgda opts qtheoname allfuncs alltypes = do
   let (rename, orgtypedrules)  = funcDeclsToTypedRules allfuncs
-      typedrules = map (transformRule opts) orgtypedrules
+      typedrules = concatMap (transformRule opts) orgtypedrules
       (theorules,funcrules) =
          partition (\ (fn,_,_) -> isTheoremName (snd (readQN fn))) typedrules
       theoname = fromTheoremName (snd qtheoname)
@@ -39,9 +40,7 @@ theoremToAgda opts qtheoname allfuncs alltypes = do
                   agdaHeader mname ++
                   [hrule, "-- Translated Curry operations:",""] ++
                   map typeDeclAsAgda alltypes ++
-                  map (\ (fn,te,trs) ->
-                                  showTypedTRSAsAgda opts rename fn te trs)
-                      funcrules ++
+                  showTypedTRSAsAgda opts rename [] funcrules ++
                   [hrule, ""] ++
                   map (theoremAsAgda rename) theorules ++
                   [hrule]
@@ -78,12 +77,15 @@ funcDeclsToTypedRules fdecls = (rename, typedrules)
   allrules    = concatMap (\ (_,_,rules) -> rules) typedrules
   rename      = rename4agda (map readQN (allNamesOfTRS allrules))
 
-allNamesOfTRS :: TRS String -> [String]
+-- All function names occurring in a TRS.
+allNamesOfTRS :: TRS a -> [a]
 allNamesOfTRS =
-  nub . concatMap allNamesOfTerm . concatMap (\ (lhs,rhs) -> [lhs,rhs])
- where
-  allNamesOfTerm (TermVar _) = []
-  allNamesOfTerm (TermCons f ts) = f : concatMap allNamesOfTerm ts
+  foldr union [] . map allNamesOfTerm . concatMap (\ (lhs,rhs) -> [lhs,rhs])
+
+-- All function names occurring in a term.
+allNamesOfTerm :: Term a -> [a]
+allNamesOfTerm (TermVar _) = []
+allNamesOfTerm (TermCons f ts) = foldr union [f] (map allNamesOfTerm ts)
 
 -- Perform some renamings of qualified names for Agda.
 -- In particular, drop the module qualifier from a name if it is still unique
@@ -115,29 +117,32 @@ funcDeclToTypedRule fdecl@(CmtFunc _ _ _ _ texp _) =
 
 transformRule :: Options
               -> (String, CTypeExpr, TRS String)
-              -> (String, CTypeExpr, TRS String)
+              -> [(String, CTypeExpr, TRS String)]
 transformRule opts (fn,texp,trs)
   | lookupProgInfo (readQN fn) detinfo == Just Det
-  = (fn,texp,trs)
+  = [(fn,texp,trs)]
   | otherwise
-  = (fn, CFuncType (baseType (pre "Choice")) texp,
-     map addChoices (elimOverlaps trs))
+  = map (\ (f,t,rs) -> (f, CFuncType (baseType (pre "Choice")) t,
+                             map addChoices rs))
+        elimOverlaps
  where
   detinfo   = detInfos opts
   critPairs = cPairs trs
   choicevar = TermVar 46
 
-  elimOverlaps rs = if null critPairs then rs else
-    let arity   = case head rs of (TermCons _ args,_) -> length args
-                                  _ -> error "transformRule: no arity"
+  elimOverlaps :: [(String, CTypeExpr, TRS String)]
+  elimOverlaps = if null critPairs then [(fn,texp,trs)] else
+    let arity   = case head trs of (TermCons _ args,_) -> length args
+                                   _ -> error "transformRule: no arity"
         newargs = map TermVar [1 .. arity]
-     in [(TermCons fn newargs,
-          foldr1 (\x y -> TermCons "Prelude.?" [x,y])
-                 (map (\i -> TermCons (addRuleName fn i) newargs)
-                      [1 .. length rs]))]
-        ++ map (\(i,(TermCons _ args, rhs)) ->
-                   (TermCons (addRuleName fn i ++ "\"") args,rhs))
-               (zip [1 .. length rs] rs)
+     in (fn,texp,[(TermCons fn newargs,
+                   foldr1 (\x y -> TermCons "Prelude.?" [x,y])
+                          (map (\i -> TermCons (addRuleName fn i) newargs)
+                               [1 .. length trs]))]) :
+        map (\ (i,(TermCons _ args, rhs)) ->
+               let rname = addRuleName fn i
+                in (rname, texp, [(TermCons rname args, rhs)]))
+            (zip [1 .. length trs] trs)
 
   addChoices (lhs,rhs) =
    (addLhsChoice choicevar lhs,
@@ -219,53 +224,41 @@ theoremAsAgda rn (fn, texp, (TermCons _ largs,rhs) : rules) =
     _ -> error "Inconsistent type in theorem " ++ fn
 
   term2theorem t = case t of
-    TermCons "-=-"    args -> TermCons "\x2261" args
-    TermCons "<~>"    args -> TermCons "\x2261" args
-    TermCons "always" args -> TermCons "\x2261" (args ++ [agdaTrue])
+    TermCons "-=-"     args -> TermCons "\x2261" args
+    TermCons "<~>"     args -> TermCons "\x2261" args
+    TermCons "always"  args -> TermCons "\x2261" (args ++ [agdaTrue])
+    TermCons "failing" args -> TermCons "\x2261" (args ++ [agdaFalse])
     _ -> t
 
 -- Show a TRS for an operation whose type is given as Agda definitions.
-showTypedTRSAsAgda :: Options -> (String -> String) -> String -> CTypeExpr
-                   -> TRS String -> String
-showTypedTRSAsAgda opts rn fn texp trs =
+-- Type signatures of mutual recursive functions must be written earlier.
+-- Therefore, we pass the list of already printed functions as the
+-- third argument.
+showTypedTRSAsAgda :: Options -> (String -> String) -> [String]
+                   -> [(String,CTypeExpr,TRS String)] -> [String]
+showTypedTRSAsAgda _ _ _ [] = []
+showTypedTRSAsAgda opts rn prefuns ((fn,texp,trs) : morefuncs) =
+  (concatMap (\ff -> let (f,t,_) = fromJust (find (\tf -> fst3 tf == ff)
+                                                  morefuncs)
+                        in ["-- Forward declaration:",
+                            showTypeSignatureAsAgda (rn f) t,""])
+             forwardfuncs) ++
   (if lookupProgInfo (readQN fn) (totInfos opts) == Just True
-    then ""
-    else "-- WARNING: function '" ++ fn ++ "' is partial!\n") ++
-  (if any isLocalRule trs
-    then "-- WARNING: function '" ++ fn ++ "' has overlapping rules!\n"
-    else "") ++
-  showTypeSignatureAsAgda (rn fn) texp ++"\n"++
-  unlines (showRulesAsAgda trs)
+    then []
+    else ["-- WARNING: function '" ++ fn ++ "' is partial!"]) ++
+  (if fn `elem` prefuns then [] else [showTypeSignatureAsAgda (rn fn) texp]) ++
+  map (showRuleAsAgda rn) trs ++ [""] ++
+  showTypedTRSAsAgda opts rn (forwardfuncs ++ prefuns) morefuncs
  where
-  showRulesAsAgda [] = []
-  showRulesAsAgda [rule] = [showRuleAsAgda rn rule]
-  showRulesAsAgda (rule1 : rule2 : rules) =
-    [showRuleAsAgda rn rule1] ++
-    (if not (isLocalRule rule1) && isLocalRule rule2 then [" where"] else []) ++
-    (if ruleFunc rule1 /= ruleFunc rule2
-     then ["","   " ++ showTypeSignatureAsAgda
-                         (rn (unLocalName (ruleFunc rule2))) texp]
-     else []) ++
-    showRulesAsAgda (rule2 : rules)
-
-isLocalRule :: Rule String -> Bool
-isLocalRule rule = last (ruleFunc rule) == '"'
+  forwardfuncs = filter (`elem` map fst3 morefuncs) (allNamesOfTRS trs \\ [fn])
 
 ruleFunc :: Rule String -> String
 ruleFunc rl@(TermVar _,_) = error $ "Rule with variable lhs: " ++ showRule rl
 ruleFunc (TermCons f _,_) = f
 
-unLocalLhs :: Term String -> Term String
-unLocalLhs (TermVar _) = error $ "LHS with variable"
-unLocalLhs (TermCons f args) = TermCons (unLocalName f) args
-
-unLocalName :: String -> String
-unLocalName s = if last s == '"' then take (length s - 1) s else s
-
 showRuleAsAgda :: (String -> String) -> Rule String -> String
-showRuleAsAgda rn rl@(lhs,rhs) =
-  (if isLocalRule rl then "   " else "") ++
-  showTermAsAgda False (mapTerm rn (unLocalLhs lhs)) ++ " = " ++
+showRuleAsAgda rn (lhs,rhs) =
+  showTermAsAgda False (mapTerm rn lhs) ++ " = " ++
   showTermAsAgda False (mapTerm rn rhs)
 
 showTermAsAgda :: Bool -> Term String -> String
@@ -357,5 +350,11 @@ nat s = ("Nat",s)
 
 agdaTrue :: Term String
 agdaTrue = TermCons "tt" []
+
+agdaFalse :: Term String
+agdaFalse = TermCons "ff" []
+
+fst3 :: (a,b,c) -> a
+fst3 (x,_,_) = x
 
 -------------------------------------------------------------------------

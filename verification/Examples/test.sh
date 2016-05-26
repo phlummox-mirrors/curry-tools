@@ -3,7 +3,7 @@
 
 CURRYBIN="../../../bin"
 
-ALLTESTS="Double MyList Perm"
+ALLTESTS="Double EvenOdd MyList Perm"
 
 VERBOSE=no
 if [ "$1" = "-v" ] ; then
