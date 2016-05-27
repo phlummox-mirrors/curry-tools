@@ -21,7 +21,8 @@ data Options = Options
   { optHelp    :: Bool
   , optVerb    :: Int
   , optStore   :: Bool    -- store result in file?
-  , optTarget  :: String
+  , optTarget  :: String  -- translation target
+  , optScheme  :: String  -- translation scheme
   , isPrimFunc :: (QName -> Bool) -- primitive function? (not translated)
   , primTypes  :: [QName] -- primitive types (not translated)
   , detInfos   :: ProgInfo Deterministic -- info about deteterministic funcs
@@ -35,6 +36,7 @@ defaultOptions = Options
   , optVerb    = 1
   , optStore   = True
   , optTarget  = "agda"
+  , optScheme  = "choice"
   , isPrimFunc = isUntranslatedFunc
   , primTypes  = defPrimTypes
   , detInfos   = emptyProgInfo
@@ -68,6 +70,9 @@ options =
   , Option "t" ["target"]
            (ReqArg checkTarget "<t>")
            "translation target:\nAgda (default)"
+  , Option "s" ["scheme"]
+           (ReqArg checkScheme "<s>")
+           "translation scheme:\nfor target Agda: 'choice' (default) or 'nondet'"
   ]
  where
   safeReadNat opttrans s opts =
@@ -80,8 +85,14 @@ options =
                      then opts { optVerb = n }
                      else error "Illegal verbosity level (try `-h' for help)"
 
-  checkTarget s opts = if map toLower s `elem` ["agda"]
-                       then opts { optTarget = map toLower s }
-                       else error "Illegal target (try `-h' for help)"
+  checkTarget s opts =
+    if map toLower s `elem` ["agda"]
+     then opts { optTarget = map toLower s }
+     else error $ "Illegal target `" ++ s ++ "' (try `-h' for help)"
+
+  checkScheme s opts =
+    if map toLower s `elem` ["choice","nondet"]
+     then opts { optScheme = map toLower s }
+     else error $ "Illegal scheme `" ++ s ++ "' (try `-h' for help)"
 
 -------------------------------------------------------------------------

@@ -3,7 +3,8 @@
 
 CURRYBIN="../../../bin"
 
-ALLTESTS="Double EvenOdd MyList Perm"
+AGDACHOICETESTS="Double EvenOdd MyList Perm"
+AGDANONDETTESTS="$AGDACHOICETESTS Game"
 
 VERBOSE=no
 if [ "$1" = "-v" ] ; then
@@ -20,6 +21,7 @@ LOGFILE=xxx$$
 $CURRYBIN/cleancurry
 rm -f TO-PROVE-* $LOGFILE
 
+
 # execute all tests:
 # Check whether the Agda compiler compiles the generated programs.
 AGDA=`which agda`
@@ -31,15 +33,19 @@ if [ -z "$AGDA" ] ; then
   exit
 fi
 
-for CP in $ALLTESTS ; do
+compile_to_agda()
+{
+  PROG=$1
+  # curry2very options:
+  CVOPTS=$2
   if [ $VERBOSE = yes ] ; then
-    $CURRYBIN/curry2verify $CP
+    $CURRYBIN/curry2verify -t agda $CVOPTS $PROG
     $AGDA $AGDAIMPORTS $AGDAOPTS TO-PROVE-*
     if [ $? -gt 0 ] ; then
       exit 1
     fi
   else
-    $CURRYBIN/curry2verify $CP >> $LOGFILE 2>&1
+    $CURRYBIN/curry2verify -t agda $CVOPTS $PROG >> $LOGFILE 2>&1
     $AGDA $AGDAIMPORTS $AGDAOPTS TO-PROVE-* >> $LOGFILE 2>&1
     if [ $? -gt 0 ] ; then
       echo "ERROR in curry2verify:"
@@ -47,9 +53,17 @@ for CP in $ALLTESTS ; do
       exit 1
     fi
   fi
-  /bin/rm TO-PROVE-*
+  /bin/rm -f TO-PROVE-*
+}
+
+for CP in $AGDACHOICETESTS ; do
+  compile_to_agda $CP "-s choice"
+done
+for CP in $AGDANONDETTESTS ; do
+  compile_to_agda $CP "-s nondet"
 done
 
 ################ end of tests ####################
 # Clean:
 $CURRYBIN/cleancurry
+/bin/rm -f $LOGFILE nondet.agda*

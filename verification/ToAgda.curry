@@ -10,6 +10,9 @@
 import AbstractCurry.Types
 import AbstractCurry.Select
 import AbstractCurry.Build
+import Directory
+import Distribution      (installDir)
+import FilePath          ((</>))
 import List
 import Maybe (fromJust)
 import Rewriting.Files
@@ -17,8 +20,9 @@ import Rewriting.Term
 import Rewriting.Rules
 import Rewriting.CriticalPairs
 import TheoremUsage
+import Time
 import VerifyOptions
-import Unsafe
+
 -- to access the determinism analysis:
 import GenericProgInfo   (ProgInfo, lookupProgInfo)
 import Deterministic     (Deterministic(..))
@@ -30,14 +34,16 @@ import Deterministic     (Deterministic(..))
 theoremToAgda :: Options -> QName -> [CFuncDecl] -> [CTypeDecl] -> IO ()
 theoremToAgda opts qtheoname allfuncs alltypes = do
   let (rename, orgtypedrules)  = funcDeclsToTypedRules allfuncs
-      typedrules = concatMap (transformRule opts) orgtypedrules
+      transform = if optScheme opts == "nondet" then transformRuleWithNondet
+                                                else transformRuleWithChoices
+      typedrules = concatMap (transform opts) orgtypedrules
       (theorules,funcrules) =
          partition (\ (fn,_,_) -> isTheoremName (snd (readQN fn))) typedrules
       theoname = fromTheoremName (snd qtheoname)
       mname = "TO-PROVE-" ++ theoname
       hrule = take 75 (repeat '-')
       agdaprog = unlines $
-                  agdaHeader mname ++
+                  agdaHeader opts mname ++
                   [hrule, "-- Translated Curry operations:",""] ++
                   map typeDeclAsAgda alltypes ++
                   showTypedTRSAsAgda opts rename [] funcrules ++
@@ -49,20 +55,24 @@ theoremToAgda opts qtheoname allfuncs alltypes = do
   when (optVerb opts > 1 || not (optStore opts)) $ putStr agdaprog
   when (optStore opts) $ do
     writeFile agdafile agdaprog
+    copyImport "nondet.agda"
     when (optVerb opts > 0) $ putStrLn $
      "Agda module '" ++ agdafile ++ "' written.\n" ++
      "If you completed the proof, rename it to 'PROOF-" ++ theoname ++ ".agda'."
 
-agdaHeader :: String -> [String]
-agdaHeader mname =
+agdaHeader :: Options -> String -> [String]
+agdaHeader opts mname =
   [ "-- Agda program using the Iowa Agda library\n"
   , "open import bool\n"
-  , "module " ++ mname
-  , "  (Choice : Set)\n  (choose : Choice → 𝔹)"
-  , "  (lchoice : Choice → Choice)\n  (rchoice : Choice → Choice)"
-  , "  where\n"
+  , "module " ++ mname ] ++
+  (if optScheme opts == "choice"
+   then ["  (Choice : Set)\n  (choose : Choice → 𝔹)"
+        , "  (lchoice : Choice → Choice)\n  (rchoice : Choice → Choice)"]
+   else []) ++
+  ["  where\n"
   , unlines (map (\im -> "open import " ++ im)
-                 ["eq","nat","list","maybe"])
+                 (["eq","nat","list","maybe"] ++
+                  (if optScheme opts == "nondet" then ["nondet"] else [])))
   ]
 
 -------------------------------------------------------------------------
@@ -92,7 +102,9 @@ allNamesOfTerm (TermCons f ts) = foldr union [f] (map allNamesOfTerm ts)
 -- to improve the readability of the Agda code.
 rename4agda :: [QName] -> String -> String
 rename4agda allnames s
-  | (qn,fn) == pre ":"     = "::"
+  | (qn,fn) == pre ":"     = "_::_"
+  | (qn,fn) == pre "+"     = "_+_"
+  | (qn,fn) == pre "*"     = "_*_"
   | (qn,fn) == pre "True"  = "tt"
   | (qn,fn) == pre "False" = "ff"
   | (qn,fn) == nat "Z"     = "zero"
@@ -100,7 +112,7 @@ rename4agda allnames s
   | otherwise
   = maybe fn (const s) (find (\ (q,f) -> f==fn && q /= qn) allnames)
  where
-  (qn,fn) = readQN s
+  (qn,fn) = if '.' `elem` s then readQN s else ("",s)
 
 -- Map a function declaration into the function name, type, and TRS.
 funcDeclToTypedRule :: CFuncDecl -> (String, CTypeExpr, TRS String)
@@ -111,38 +123,82 @@ funcDeclToTypedRule fdecl@(CmtFunc _ _ _ _ texp _) =
    in (fn, texp, trs)
 
 -------------------------------------------------------------------------
--- Transform a TRS for a function according to transformation method
--- based in determinism information:
--- TODO: implement partial functions 
+-- Eliminate overlapping rules by introducing a new operation
+-- for each rule.
 
-transformRule :: Options
-              -> (String, CTypeExpr, TRS String)
-              -> [(String, CTypeExpr, TRS String)]
-transformRule opts (fn,texp,trs)
-  | lookupProgInfo (readQN fn) detinfo == Just Det
+elimOverlappingRules :: Options
+                     -> Bool
+                     -> (String, CTypeExpr, TRS String)
+                     -> [(String, CTypeExpr, TRS String)]
+elimOverlappingRules opts withpartialfail (fn,texp,trs)
+  | lookupProgInfo (readQN fn) detinfo == Just Det || null critPairs
   = [(fn,texp,trs)]
   | otherwise
-  = map (\ (f,t,rs) -> (f, CFuncType (baseType (pre "Choice")) t,
-                             map addChoices rs))
-        elimOverlaps
+  = (fn,texp,[(TermCons fn newargs,
+               foldr1 (\x y -> TermCons "Prelude.?" [x,y])
+                      (map (\i -> TermCons (addRuleName fn i) newargs)
+                           [1 .. length trs]))]) :
+    map (\ (i,(TermCons _ args, rhs)) ->
+           let rname = addRuleName fn i
+            in (rname, texp,
+                [(TermCons rname args, rhs)] ++
+                if withpartialfail then [failRule rname] else []))
+        (zip [1 .. length trs] trs)
  where
   detinfo   = detInfos opts
   critPairs = cPairs trs
+  arity     = case head trs of (TermCons _ args,_) -> length args
+                               _ -> error "elimOverlappingRules: no arity"
+  newargs   = map TermVar [1 .. arity]
+
+  failRule f = (TermCons f (map TermVar [0 .. (arity-1)]),
+                TermCons "Prelude.failed" [])
+
+-- Add a rule with a number to a name (to implement overlapping rules):
+addRuleName :: String -> Int -> String
+addRuleName fn i = fn ++ "-rule" ++ show i
+
+-- Revert `addRuleName`.
+stripRuleName :: String -> String
+stripRuleName n =
+   -- we assume that there are no more than 9 overlapping rules:
+  if take 5 (tail (reverse n)) == "elur-"
+   then take (length n - 6) n
+   else n
+
+-------------------------------------------------------------------------
+-- Transform a TRS for a function according to transformation method
+-- based on choice arguments:
+-- TODO: implement partial functions 
+
+transformRuleWithChoices :: Options
+                         -> (String, CTypeExpr, TRS String)
+                         -> [(String, CTypeExpr, TRS String)]
+transformRuleWithChoices opts (fn,texp,trs)
+  | lookupProgInfo (readQN fn) detinfo == Just Det
+  = [(fn,texp,map transTheorem trs)]
+  | otherwise
+  = map (\ (f,t,rs) -> (f, CFuncType (baseType (pre "Choice")) t,
+                           map (transTheorem . addChoices) rs))
+        (elimOverlappingRules opts False (fn,texp,trs))
+ where
+  detinfo   = detInfos opts
   choicevar = TermVar 46
 
-  elimOverlaps :: [(String, CTypeExpr, TRS String)]
-  elimOverlaps = if null critPairs then [(fn,texp,trs)] else
-    let arity   = case head trs of (TermCons _ args,_) -> length args
-                                   _ -> error "transformRule: no arity"
-        newargs = map TermVar [1 .. arity]
-     in (fn,texp,[(TermCons fn newargs,
-                   foldr1 (\x y -> TermCons "Prelude.?" [x,y])
-                          (map (\i -> TermCons (addRuleName fn i) newargs)
-                               [1 .. length trs]))]) :
-        map (\ (i,(TermCons _ args, rhs)) ->
-               let rname = addRuleName fn i
-                in (rname, texp, [(TermCons rname args, rhs)]))
-            (zip [1 .. length trs] trs)
+  transTheorem rl@(lhs,rhs) =
+   if isTheoremName (snd (readQN (ruleFunc rl)))
+   then (lhs, prop2agda rhs)
+   else rl
+
+  -- Translate CurryCheck proposition into Agda theorem:
+  prop2agda v@(TermVar _) = v
+  prop2agda t@(TermCons f args) =
+     case snd (readQN f) of
+      "-=-"     -> TermCons "_\x2261_" args
+      "<~>"     -> TermCons "_\x2261_" args
+      "always"  -> TermCons "_\x2261_" (args ++ [agdaTrue])
+      "failing" -> TermCons "_\x2261_" (args ++ [agdaFalse])
+      _         -> t
 
   addChoices (lhs,rhs) =
    (addLhsChoice choicevar lhs,
@@ -188,20 +244,95 @@ choicesFor n ch =
     map (\c -> TermCons "Prelude.lchoice" [c]) (choicesFor (n `div` 2) ch) ++
     map (\c -> TermCons "Prelude.rchoice" [c]) (choicesFor (n - n `div` 2) ch)
 
--- Add a rule with a number to a name (to implement overlapping rules):
-addRuleName :: String -> Int -> String
-addRuleName fn i = fn ++ "-rule" ++ show i
+-------------------------------------------------------------------------
+-- Transform a TRS for a function according to transformation method
+-- based on trees of non-determistic values:
 
--- Revert `addRuleName`.
-stripRuleName :: String -> String
-stripRuleName n =
-   -- we assume that there are no more than 9 overlapping rules:
-  if take 5 (tail (reverse n)) == "elur-"
-   then take (length n - 6) n
-   else n
+transformRuleWithNondet :: Options
+                        -> (String, CTypeExpr, TRS String)
+                        -> [(String, CTypeExpr, TRS String)]
+transformRuleWithNondet opts (fn,texp,trs)
+  | lookupProgInfo (readQN fn) detinfo == Just Det
+  = [(fn, texp, map transTheorem trs)]
+  | otherwise
+  = map (\ (f,t,rs) -> (f, addNDToResultType t, map addNondet rs))
+        (elimOverlappingRules opts True (fn,texp,trs))
+ where
+  detinfo   = detInfos opts
+
+  addNDToResultType te = case te of
+    CFuncType t1 t2 -> CFuncType t1 (addNDToResultType t2)
+    _ -> CTCons (pre "ND") [te]
+
+  addNondet rl@(lhs,rhs)
+   | isTheoremName (snd (readQN (ruleFunc rl)))
+   = (lhs, prop2agda $ case rhs of TermVar _ -> rhs -- impossible case
+                                   TermCons f args ->
+                                     TermCons f (map addNondetInTerm args))
+   | otherwise
+   = (lhs, addNondetInTerm rhs)
+
+  transTheorem rl@(lhs,rhs) =
+    if isTheoremName (snd (readQN (ruleFunc rl)))
+     then (lhs, prop2agda rhs)
+     else rl
+
+  prop2agda v@(TermVar _) = v
+  prop2agda (TermCons f args) =
+   let (mn,pn) = readQN f in
+     case pn of
+      "-=-"     -> TermCons "_\x2261_" args -- to be changed by user
+      "<~>"     -> TermCons "_\x2261_" args -- to be changed by user
+      "always"  -> TermCons "_\x2261_"
+                      [TermCons (showQN (mn,"always")) args, agdaTrue]
+      "failing" -> TermCons "_\x2261_"
+                      [TermCons (showQN (mn,"failing")) args, agdaTrue]
+      _         -> TermCons f args
+
+  isOp f = lookupProgInfo (readQN (stripRuleName f)) detinfo /= Nothing
+
+  isNondetOp f = lookupProgInfo (readQN (stripRuleName f)) detinfo == Just NDet
+
+  addNondetInTerm v@(TermVar _) = agdaVal v
+  addNondetInTerm t@(TermCons f args)
+   | f == "Prelude.?" && length args == 2
+   = TermCons "Prelude._??_" (map addNondetInTerm args)
+   | f == "Prelude.failed" && null args
+   = TermCons (showQN (nondet "Fail")) []
+   | not (hasNondetSubterms t)
+   = agdaVal (TermCons f args)
+   | otherwise
+   = let (detargs,ndargs) = break hasNondetSubterms args
+      in if isNondetOp f
+          then
+           if null ndargs
+            then t
+            else addArgsWithNdArg
+                  (TermCons (withNdArgName (length ndargs))
+                            [TermCons f detargs, addNondetInTerm (head ndargs)])
+                  (tail ndargs)
+          else addArgsWithNdArg
+                  (TermCons (showQN (nondet "mapND"))
+                        [TermCons f detargs, addNondetInTerm (head ndargs)])
+                  (tail ndargs)
+
+  addArgsWithNdArg t [] = t
+  addArgsWithNdArg t (arg:args) =
+   if hasNondetSubterms arg
+   then addArgsWithNdArg
+         (TermCons (showQN (nondet "with-nd-arg")) [t, addNondetInTerm arg]) args
+   else addArgsWithNdArg (TermCons (showQN (pre "apply")) [t,arg]) args
+  
+  withNdArgName i = showQN (nondet "with-nd-arg") ++ (if i>1 then show i else "")
+
+  hasNondetSubterms (TermVar _) = False
+  hasNondetSubterms (TermCons f args) = f == "Prelude.?" ||
+    isNondetOp f || any hasNondetSubterms args
+
+agdaVal :: Term String -> Term String
+agdaVal t = TermCons (showQN (nondet "Val")) [t]
 
 -------------------------------------------------------------------------
-
 -- Show typed rules (properties) as theorems in Agda.
 theoremAsAgda :: (String -> String) -> (String, CTypeExpr, TRS String) -> String
 theoremAsAgda _ (_,_,[]) = ""
@@ -210,7 +341,7 @@ theoremAsAgda _ (fn,_,(TermVar _ ,_) : _) =
 theoremAsAgda rn (fn, texp, (TermCons _ largs,rhs) : rules) =
   rn fn ++ " : " ++ (if null tvars then "" else showForAll tvars) ++
   showTypeWOResult largs texp ++
-  showTermAsAgda False (term2theorem (mapTerm rn rhs)) ++ "\n" ++
+  showTermAsAgda False (mapTerm rn rhs) ++ "\n" ++
   showTermAsAgda False (mapTerm rn (TermCons fn largs)) ++ " = ?\n" ++
   theoremAsAgda rn (fn,texp,rules)
  where
@@ -221,14 +352,7 @@ theoremAsAgda rn (fn, texp, (TermCons _ largs,rhs) : rules) =
     CFuncType t1 t2 -> "(" ++ showTermAsAgda False (mapTerm rn arg) ++ " : " ++
                        showTypeAsAgda False t1 ++
                        ") \x2192 " ++ showTypeWOResult args t2
-    _ -> error "Inconsistent type in theorem " ++ fn
-
-  term2theorem t = case t of
-    TermCons "-=-"     args -> TermCons "\x2261" args
-    TermCons "<~>"     args -> TermCons "\x2261" args
-    TermCons "always"  args -> TermCons "\x2261" (args ++ [agdaTrue])
-    TermCons "failing" args -> TermCons "\x2261" (args ++ [agdaFalse])
-    _ -> t
+    _ -> error "Inconsistent type in theorem '" ++ fn ++ "': " ++ show te
 
 -- Show a TRS for an operation whose type is given as Agda definitions.
 -- Type signatures of mutual recursive functions must be written earlier.
@@ -252,10 +376,6 @@ showTypedTRSAsAgda opts rn prefuns ((fn,texp,trs) : morefuncs) =
  where
   forwardfuncs = filter (`elem` map fst3 morefuncs) (allNamesOfTRS trs \\ [fn])
 
-ruleFunc :: Rule String -> String
-ruleFunc rl@(TermVar _,_) = error $ "Rule with variable lhs: " ++ showRule rl
-ruleFunc (TermCons f _,_) = f
-
 showRuleAsAgda :: (String -> String) -> Rule String -> String
 showRuleAsAgda rn (lhs,rhs) =
   showTermAsAgda False (mapTerm rn lhs) ++ " = " ++
@@ -268,18 +388,19 @@ showTermAsAgda withbrackets (TermCons c args) = inBrackets $
    then let is = map (showTermAsAgda False) args
         in unwords ["if", is!!0, "then", is!!1, "else", is!!2]
    else
-    if c `elem` knownInfixOps
-     then if length ts == 2
-           then unwords [head ts, c, head (tail ts)]
-           else unwords (("_"++c++"_") : ts)
-     else unwords $ (c : ts)
+    if c == "apply" && length ts == 2
+     then unwords ts
+     else
+      if isInfixOp c && length ts == 2
+       then unwords [head ts, take (length c - 2) (tail c), head (tail ts)]
+       else unwords (c : ts)
  where
   ts = map (showTermAsAgda True) args
   inBrackets s = if not (null ts) && withbrackets then "(" ++ s ++ ")" else s
 
--- Infix operators known in Agda:
-knownInfixOps :: [String]
-knownInfixOps = ["::","==","+","*","\x2261"]
+-- Is infix operators in Agda?
+isInfixOp :: String -> Bool
+isInfixOp s = length s > 2 && head s == '_' && last s == '_'
 
 showVarAsAgda :: Int -> String
 showVarAsAgda v | v >= 0 = if q == 0
@@ -290,6 +411,7 @@ showVarAsAgda v | v >= 0 = if q == 0
     c = "xyzuvwrstijklmnopqabcdefgh" !! r
 
 -------------------------------------------------------------------------
+--- Show a type declaration as an Agda data declaration.
 typeDeclAsAgda :: CTypeDecl -> String
 typeDeclAsAgda (CTypeSyn tc _ _ _) =
   error $ "Type synonyms not supported: " ++ showQN tc
@@ -333,12 +455,12 @@ showTypeAsAgda withbrackets texp = case texp of
 
 showTCon :: QName -> String
 showTCon tc
- | tc == pre "[]"     = "\x1d543"
- | tc == pre "Int"    = "\x2115"
- | tc == pre "Bool"   = "\x1d539"
- | tc == pre "Maybe"  = "maybe"
- | tc == pre "Choice" = "Choice"
- | tc == nat "Nat"    = "\x2115"
+ | tc == pre "[]"        = "\x1d543"
+ | tc == pre "Int"       = "\x2115"
+ | tc == pre "Bool"      = "\x1d539"
+ | tc == pre "Maybe"     = "maybe"
+ | tc == pre "Choice"    = "Choice"
+ | tc == nat "Nat"       = "\x2115"
  | otherwise = snd tc
 
 -------------------------------------------------------------------------
@@ -348,13 +470,35 @@ curryChoice = showQN (pre "?")
 nat :: String -> QName
 nat s = ("Nat",s)
 
+nondet :: String -> QName
+nondet s = ("nondet",s)
+
 agdaTrue :: Term String
 agdaTrue = TermCons "tt" []
 
 agdaFalse :: Term String
 agdaFalse = TermCons "ff" []
 
+ruleFunc :: Rule String -> String
+ruleFunc rl@(TermVar _,_) = error $ "Rule with variable lhs: " ++ showRule rl
+ruleFunc (TermCons f _,_) = f
+
 fst3 :: (a,b,c) -> a
 fst3 (x,_,_) = x
+
+-------------------------------------------------------------------------
+--- Copy file from import dir into current dir if it is not newer
+--- in the current dir.
+copyImport :: String -> IO ()
+copyImport library = do
+  let importfile = installDir </> "currytools" </> "verification" </> "imports"
+                              </> library
+  libexists <- doesFileExist library
+  if not libexists
+   then copyFile importfile library
+   else do
+     itime <- getModificationTime importfile
+     ltime <- getModificationTime library
+     unless (compareClockTime ltime itime == GT) $ copyFile importfile library
 
 -------------------------------------------------------------------------

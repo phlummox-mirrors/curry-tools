@@ -34,7 +34,7 @@ cvBanner :: String
 cvBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "curry2verify: Curry programs -> Verifiers (version of 24/05/2016)"
+     "curry2verify: Curry programs -> Verifiers (version of 27/05/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -142,7 +142,7 @@ standardConstructors :: [QName]
 standardConstructors = [pre "[]", pre ":", pre "()"]
 
 -------------------------------------------------------------------------
--- Extract all function (and constructor) names occurring called in
+-- Extract all function (and constructor) names occurring in
 -- a function declaration:
 
 funsOfCFuncDecl :: CFuncDecl -> [QName]
