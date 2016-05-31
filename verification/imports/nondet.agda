@@ -37,6 +37,12 @@ always Fail       = tt
 always (Val b)    = b
 always (t1 ?? t2) = always t1 && always t2
 
+-- There exists some true value in a Boolean tree:
+eventually : ND 𝔹 → 𝔹
+eventually Fail       = ff
+eventually (Val b)    = b
+eventually (t1 ?? t2) = eventually t1 || eventually t2
+
 -- all non-deterministic values satisfy a predicate:
 _satisfy_ : {A : Set} → ND A → (A → 𝔹) → 𝔹
 _satisfy_ Fail       _ = tt

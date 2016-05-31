@@ -38,7 +38,7 @@ theoremToAgda opts qtheoname allfuncs alltypes = do
                                                 else transformRuleWithChoices
       typedrules = concatMap (transform opts) orgtypedrules
       (theorules,funcrules) =
-         partition (\ (fn,_,_) -> isTheoremName (snd (readQN fn))) typedrules
+         partition (\ (fn,_,_,_) -> isTheoremName (snd (readQN fn))) typedrules
       theoname = fromTheoremName (snd qtheoname)
       mname = "TO-PROVE-" ++ theoname
       hrule = take 75 (repeat '-')
@@ -78,13 +78,13 @@ agdaHeader opts mname =
 -------------------------------------------------------------------------
 -- Map a list of function declarations into renaming function (for showing
 -- identifiers in the the Agda code)
---  and a list of function names, types, and TRS.
+-- and a list of function names, comment lines, types, and TRS.
 funcDeclsToTypedRules :: [CFuncDecl]
-                      -> (String -> String, [(String, CTypeExpr, TRS String)])
+           -> (String -> String, [(String, [String], CTypeExpr, TRS String)])
 funcDeclsToTypedRules fdecls = (rename, typedrules)
  where
   typedrules  = map funcDeclToTypedRule fdecls
-  allrules    = concatMap (\ (_,_,rules) -> rules) typedrules
+  allrules    = concatMap (\ (_,_,_,rules) -> rules) typedrules
   rename      = rename4agda (map readQN (allNamesOfTRS allrules))
 
 -- All function names occurring in a TRS.
@@ -114,13 +114,13 @@ rename4agda allnames s
  where
   (qn,fn) = if '.' `elem` s then readQN s else ("",s)
 
--- Map a function declaration into the function name, type, and TRS.
-funcDeclToTypedRule :: CFuncDecl -> (String, CTypeExpr, TRS String)
+-- Map a function declaration into the function name, comment, type, and TRS.
+funcDeclToTypedRule :: CFuncDecl -> (String, [String], CTypeExpr, TRS String)
 funcDeclToTypedRule (CFunc qn ar vis texp rules) =
   funcDeclToTypedRule (CmtFunc "" qn ar vis texp rules) 
 funcDeclToTypedRule fdecl@(CmtFunc _ _ _ _ texp _) =
   let (fn, trs) = fromFunc fdecl
-   in (fn, texp, trs)
+   in (fn, [], texp, trs)
 
 -------------------------------------------------------------------------
 -- Eliminate overlapping rules by introducing a new operation
@@ -128,19 +128,22 @@ funcDeclToTypedRule fdecl@(CmtFunc _ _ _ _ texp _) =
 
 elimOverlappingRules :: Options
                      -> Bool
-                     -> (String, CTypeExpr, TRS String)
-                     -> [(String, CTypeExpr, TRS String)]
-elimOverlappingRules opts withpartialfail (fn,texp,trs)
+                     -> (String, [String], CTypeExpr, TRS String)
+                     -> [(String, [String], CTypeExpr, TRS String)]
+elimOverlappingRules opts withpartialfail (fn,cmt,texp,trs)
   | lookupProgInfo (readQN fn) detinfo == Just Det || null critPairs
-  = [(fn,texp,trs)]
+  = [(fn,cmt,texp,trs)]
   | otherwise
-  = (fn,texp,[(TermCons fn newargs,
-               foldr1 (\x y -> TermCons "Prelude.?" [x,y])
-                      (map (\i -> TermCons (addRuleName fn i) newargs)
-                           [1 .. length trs]))]) :
+  = (fn, cmt ++ [splitCmt], texp,
+     [(TermCons fn newargs,
+       foldr1 (\x y -> TermCons "Prelude.?" [x,y])
+              (map (\i -> TermCons (addRuleName fn i) newargs)
+                   [1 .. length trs]))]) :
     map (\ (i,(TermCons _ args, rhs)) ->
            let rname = addRuleName fn i
-            in (rname, texp,
+            in (rname,
+                ["Rule " ++ show i ++ " of operation '" ++ fn ++ "':"],
+                texp,
                 [(TermCons rname args, rhs)] ++
                 if withpartialfail then [failRule rname] else []))
         (zip [1 .. length trs] trs)
@@ -153,6 +156,8 @@ elimOverlappingRules opts withpartialfail (fn,texp,trs)
 
   failRule f = (TermCons f (map TermVar [0 .. (arity-1)]),
                 TermCons "Prelude.failed" [])
+
+  splitCmt = "Overlapping rules of '" ++ fn ++ "' split into a new operation for each rule."
 
 -- Add a rule with a number to a name (to implement overlapping rules):
 addRuleName :: String -> Int -> String
@@ -172,23 +177,34 @@ stripRuleName n =
 -- TODO: implement partial functions 
 
 transformRuleWithChoices :: Options
-                         -> (String, CTypeExpr, TRS String)
-                         -> [(String, CTypeExpr, TRS String)]
-transformRuleWithChoices opts (fn,texp,trs)
+                         -> (String, [String], CTypeExpr, TRS String)
+                         -> [(String, [String], CTypeExpr, TRS String)]
+transformRuleWithChoices opts (fn,cmt,texp,trs)
   | lookupProgInfo (readQN fn) detinfo == Just Det
-  = [(fn,texp,map transTheorem trs)]
+  = [(fn, cmt ++ concatMap theoremComment trs, texp, map transTheorem trs)]
   | otherwise
-  = map (\ (f,t,rs) -> (f, CFuncType (baseType (pre "Choice")) t,
-                           map (transTheorem . addChoices) rs))
-        (elimOverlappingRules opts False (fn,texp,trs))
+  = map (\ (f,c,t,rs) -> (f, c ++ concatMap theoremComment rs,
+                          baseType (pre "Choice") ~> t,
+                          map (transTheorem . addChoices) rs))
+        (elimOverlappingRules opts False (fn,cmt,texp,trs))
  where
   detinfo   = detInfos opts
   choicevar = TermVar 46
 
   transTheorem rl@(lhs,rhs) =
-   if isTheoremName (snd (readQN (ruleFunc rl)))
-   then (lhs, prop2agda rhs)
-   else rl
+    if isTheoremRule rl then (lhs, prop2agda rhs) else rl
+
+  theoremComment rl@(_,rhs) =
+    if isTheoremRule rl
+     then case rhs of
+            TermVar _    -> []
+            TermCons f _ ->
+              case snd (readQN f) of
+                "-=-"       -> []
+                "<~>"       -> []
+                "always"    -> []
+                _           -> noTheoremTranslateCmt
+     else []
 
   -- Translate CurryCheck proposition into Agda theorem:
   prop2agda v@(TermVar _) = v
@@ -197,7 +213,6 @@ transformRuleWithChoices opts (fn,texp,trs)
       "-=-"     -> TermCons "_\x2261_" args
       "<~>"     -> TermCons "_\x2261_" args
       "always"  -> TermCons "_\x2261_" (args ++ [agdaTrue])
-      "failing" -> TermCons "_\x2261_" (args ++ [agdaFalse])
       _         -> t
 
   addChoices (lhs,rhs) =
@@ -244,19 +259,24 @@ choicesFor n ch =
     map (\c -> TermCons "Prelude.lchoice" [c]) (choicesFor (n `div` 2) ch) ++
     map (\c -> TermCons "Prelude.rchoice" [c]) (choicesFor (n - n `div` 2) ch)
 
+noTheoremTranslateCmt :: [String]
+noTheoremTranslateCmt =
+  ["WARNING: cannot translate property into an Agda theorem!"]
+
 -------------------------------------------------------------------------
 -- Transform a TRS for a function according to transformation method
 -- based on trees of non-determistic values:
 
 transformRuleWithNondet :: Options
-                        -> (String, CTypeExpr, TRS String)
-                        -> [(String, CTypeExpr, TRS String)]
-transformRuleWithNondet opts (fn,texp,trs)
+                        -> (String, [String], CTypeExpr, TRS String)
+                        -> [(String, [String], CTypeExpr, TRS String)]
+transformRuleWithNondet opts (fn,cmt,texp,trs)
   | lookupProgInfo (readQN fn) detinfo == Just Det
-  = [(fn, texp, map transTheorem trs)]
+  = [(fn, cmt ++ concatMap theoremComment trs, texp, map transTheorem trs)]
   | otherwise
-  = map (\ (f,t,rs) -> (f, addNDToResultType t, map addNondet rs))
-        (elimOverlappingRules opts True (fn,texp,trs))
+  = map (\ (f,c,t,rs) -> (f, c ++ concatMap theoremComment rs,
+                          addNDToResultType t, map addNondet rs))
+        (elimOverlappingRules opts True (fn,cmt,texp,trs))
  where
   detinfo   = detInfos opts
 
@@ -265,7 +285,7 @@ transformRuleWithNondet opts (fn,texp,trs)
     _ -> CTCons (pre "ND") [te]
 
   addNondet rl@(lhs,rhs)
-   | isTheoremName (snd (readQN (ruleFunc rl)))
+   | isTheoremRule rl
    = (lhs, prop2agda $ case rhs of TermVar _ -> rhs -- impossible case
                                    TermCons f args ->
                                      TermCons f (map addNondetInTerm args))
@@ -273,21 +293,39 @@ transformRuleWithNondet opts (fn,texp,trs)
    = (lhs, addNondetInTerm rhs)
 
   transTheorem rl@(lhs,rhs) =
-    if isTheoremName (snd (readQN (ruleFunc rl)))
-     then (lhs, prop2agda rhs)
-     else rl
+    if isTheoremRule rl then (lhs, prop2agda rhs) else rl
+
+  theoremComment rl@(_,rhs) =
+    if isTheoremRule rl
+     then case rhs of
+            TermVar _    -> []
+            TermCons f _ ->
+              case snd (readQN f) of
+                "-=-"       -> adaptOrderCmt
+                "<~>"       -> adaptOrderCmt
+                "always"    -> []
+                "eventually"-> []
+                "failing"   -> []
+                _           -> noTheoremTranslateCmt
+     else []
+   where
+     adaptOrderCmt =
+       ["This theorem should be adapted since the left- and right-hand sides",
+        "might have their values in a different order in the tree!"]
 
   prop2agda v@(TermVar _) = v
   prop2agda (TermCons f args) =
    let (mn,pn) = readQN f in
      case pn of
-      "-=-"     -> TermCons "_\x2261_" args -- to be changed by user
-      "<~>"     -> TermCons "_\x2261_" args -- to be changed by user
-      "always"  -> TermCons "_\x2261_"
-                      [TermCons (showQN (mn,"always")) args, agdaTrue]
-      "failing" -> TermCons "_\x2261_"
-                      [TermCons (showQN (mn,"failing")) args, agdaTrue]
-      _         -> TermCons f args
+      "-=-"        -> TermCons "_\x2261_" args -- to be changed by user
+      "<~>"        -> TermCons "_\x2261_" args -- to be changed by user
+      "always"     -> TermCons "_\x2261_"
+                        [TermCons (showQN (mn,"always")) args, agdaTrue]
+      "eventually" -> TermCons "_\x2261_"
+                        [TermCons (showQN (mn,"eventually")) args, agdaTrue]
+      "failing"    -> TermCons "_\x2261_"
+                        [TermCons (showQN (mn,"failing")) args, agdaTrue]
+      _            -> TermCons f args
 
   isOp f = lookupProgInfo (readQN (stripRuleName f)) detinfo /= Nothing
 
@@ -320,10 +358,11 @@ transformRuleWithNondet opts (fn,texp,trs)
   addArgsWithNdArg t (arg:args) =
    if hasNondetSubterms arg
    then addArgsWithNdArg
-         (TermCons (showQN (nondet "with-nd-arg")) [t, addNondetInTerm arg]) args
+        (TermCons (showQN (nondet "with-nd-arg")) [t, addNondetInTerm arg]) args
    else addArgsWithNdArg (TermCons (showQN (pre "apply")) [t,arg]) args
   
-  withNdArgName i = showQN (nondet "with-nd-arg") ++ (if i>1 then show i else "")
+  withNdArgName i = showQN (nondet "with-nd-arg") ++
+                    (if i>1 then show i else "")
 
   hasNondetSubterms (TermVar _) = False
   hasNondetSubterms (TermCons f args) = f == "Prelude.?" ||
@@ -334,16 +373,18 @@ agdaVal t = TermCons (showQN (nondet "Val")) [t]
 
 -------------------------------------------------------------------------
 -- Show typed rules (properties) as theorems in Agda.
-theoremAsAgda :: (String -> String) -> (String, CTypeExpr, TRS String) -> String
-theoremAsAgda _ (_,_,[]) = ""
-theoremAsAgda _ (fn,_,(TermVar _ ,_) : _) =
+theoremAsAgda :: (String -> String) -> (String, [String], CTypeExpr, TRS String)
+              -> String
+theoremAsAgda _ (_,_,_,[]) = ""
+theoremAsAgda _ (fn,_,_,(TermVar _ ,_) : _) =
   error $ "Theorem '" ++ fn ++ "': variable in left-hand side"
-theoremAsAgda rn (fn, texp, (TermCons _ largs,rhs) : rules) =
+theoremAsAgda rn (fn, cmt, texp, (TermCons _ largs,rhs) : rules) =
+  unlines (map ("-- "++) cmt) ++
   rn fn ++ " : " ++ (if null tvars then "" else showForAll tvars) ++
   showTypeWOResult largs texp ++
   showTermAsAgda False (mapTerm rn rhs) ++ "\n" ++
   showTermAsAgda False (mapTerm rn (TermCons fn largs)) ++ " = ?\n" ++
-  theoremAsAgda rn (fn,texp,rules)
+  theoremAsAgda rn (fn,cmt,texp,rules)
  where
   tvars = nub (tvarsOfType texp)
 
@@ -359,22 +400,25 @@ theoremAsAgda rn (fn, texp, (TermCons _ largs,rhs) : rules) =
 -- Therefore, we pass the list of already printed functions as the
 -- third argument.
 showTypedTRSAsAgda :: Options -> (String -> String) -> [String]
-                   -> [(String,CTypeExpr,TRS String)] -> [String]
+                   -> [(String,[String],CTypeExpr,TRS String)] -> [String]
 showTypedTRSAsAgda _ _ _ [] = []
-showTypedTRSAsAgda opts rn prefuns ((fn,texp,trs) : morefuncs) =
-  (concatMap (\ff -> let (f,t,_) = fromJust (find (\tf -> fst3 tf == ff)
-                                                  morefuncs)
+showTypedTRSAsAgda opts rn prefuns ((fn,cmt,texp,trs) : morefuncs) =
+  (concatMap (\ff -> let (f,_,t,_) = fromJust (find (\tf -> fst4 tf == ff)
+                                                    morefuncs)
                         in ["-- Forward declaration:",
                             showTypeSignatureAsAgda (rn f) t,""])
              forwardfuncs) ++
+  map ("-- "++) cmt ++
   (if lookupProgInfo (readQN fn) (totInfos opts) == Just True
+      || optScheme opts == "nondet"
     then []
-    else ["-- WARNING: function '" ++ fn ++ "' is partial!"]) ++
+    else ["-- WARNING: function '" ++ fn ++ "' is partial so that",
+          "-- it might be necessary to adapt the code!"]) ++
   (if fn `elem` prefuns then [] else [showTypeSignatureAsAgda (rn fn) texp]) ++
   map (showRuleAsAgda rn) trs ++ [""] ++
   showTypedTRSAsAgda opts rn (forwardfuncs ++ prefuns) morefuncs
  where
-  forwardfuncs = filter (`elem` map fst3 morefuncs) (allNamesOfTRS trs \\ [fn])
+  forwardfuncs = filter (`elem` map fst4 morefuncs) (allNamesOfTRS trs \\ [fn])
 
 showRuleAsAgda :: (String -> String) -> Rule String -> String
 showRuleAsAgda rn (lhs,rhs) =
@@ -483,8 +527,12 @@ ruleFunc :: Rule String -> String
 ruleFunc rl@(TermVar _,_) = error $ "Rule with variable lhs: " ++ showRule rl
 ruleFunc (TermCons f _,_) = f
 
-fst3 :: (a,b,c) -> a
-fst3 (x,_,_) = x
+-- Is this rule a theorem of the source program?
+isTheoremRule :: Rule String -> Bool
+isTheoremRule rule = isTheoremName (snd (readQN (ruleFunc rule)))
+
+fst4 :: (a,b,c,d) -> a
+fst4 (x,_,_,_) = x
 
 -------------------------------------------------------------------------
 --- Copy file from import dir into current dir if it is not newer

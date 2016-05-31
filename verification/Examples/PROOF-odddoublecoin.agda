@@ -2,7 +2,7 @@
 
 open import bool
 
-module PROOF-evendoublecoin
+module PROOF-odddoublecoin
   (Choice : Set)
   (choose : Choice → 𝔹)
   (lchoice : Choice → Choice)
@@ -21,16 +21,21 @@ add : ℕ → ℕ → ℕ
 add zero x = x
 add (suc y) z = suc (add y z)
 
+-- Forward declaration:
+odd : ℕ → 𝔹
+
+even : ℕ → 𝔹
+even zero = tt
+even (suc x) = odd x
+
 coin : Choice → ℕ → ℕ
 coin c1 x = if choose c1 then x else suc x
 
 double : ℕ → ℕ
 double x = add x x
 
-even : ℕ → 𝔹
-even zero = tt
-even (suc zero) = ff
-even (suc (suc x)) = even x
+odd zero = ff
+odd (suc x) = even x
 
 ---------------------------------------------------------------------------
 
@@ -39,12 +44,12 @@ add-suc zero y = refl
 add-suc (suc x) y rewrite add-suc x y = refl
 
 -- auxiliary property for x+x instead of double:
-even-add-x-x : ∀ (x : ℕ) → even (add x x) ≡ tt
-even-add-x-x zero = refl
-even-add-x-x (suc x) rewrite add-suc x x | even-add-x-x x = refl
+odd-add-x-x : ∀ (x : ℕ) → odd (add x x) ≡ ff
+odd-add-x-x zero = refl
+odd-add-x-x (suc x) rewrite add-suc x x | odd-add-x-x x = refl
 
-theorem'evendouble : (c1 : Choice) → (x : ℕ)
-                  → (even (double (coin c1 x))) ≡ tt
-theorem'evendouble c1 x rewrite even-add-x-x (coin c1 x) = refl
+theorem'odddoublecoin : (c1 : Choice) → (x : ℕ)
+                    → (odd (double (coin c1 x))) ≡ ff
+theorem'odddoublecoin c1 x rewrite odd-add-x-x (coin c1 x) = refl
 
 ---------------------------------------------------------------------------

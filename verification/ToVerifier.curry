@@ -15,9 +15,6 @@ import Distribution      (stripCurrySuffix)
 import GetOpt
 import List
 import Maybe             (fromJust)
-import Rewriting.Files
-import Rewriting.Term
-import Rewriting.Rules
 import System            (exitWith, getArgs)
 import TheoremUsage
 import ToAgda
@@ -34,7 +31,7 @@ cvBanner :: String
 cvBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "curry2verify: Curry programs -> Verifiers (version of 27/05/2016)"
+     "curry2verify: Curry programs -> Verifiers (version of 31/05/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text

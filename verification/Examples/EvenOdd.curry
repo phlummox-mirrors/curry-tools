@@ -15,5 +15,6 @@ odd :: Nat -> Bool
 odd Z = False
 odd (S n) = even n
 
-theorem'odddoublecoin x = failing (even (double (coin x)))
+theorem'odddoublecoin x = odd (double (coin x)) <~> False
+
 
