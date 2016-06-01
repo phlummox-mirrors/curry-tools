@@ -41,7 +41,7 @@ import TheoremUsage
 banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Contract Transformation Tool (Version of 22/05/16)"
+   bannerText = "Contract Transformation Tool (Version of 01/06/16)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------

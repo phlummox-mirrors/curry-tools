@@ -3,7 +3,7 @@
 --- postconditions w.r.t. a given list of theorems.
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version June 2016
 ------------------------------------------------------------------------
 
 module SimplifyPostConds(simplifyPostConditionWithTheorems) where
@@ -34,22 +34,27 @@ simplifyPostCondition verb theofuncs (CFunc qn ar vis texp rs) =
   simplifyPostCondition verb theofuncs (CmtFunc "" qn ar vis texp rs)
 simplifyPostCondition verb theofuncs (CmtFunc cmt qn ar vis texp rules) = do
   when (verb>0) $ putStr $ unlines
-    ["THEOREMS:", showTRS' theoTRS, "SIMPLIFICATION RULES:", showTRS' simprules]
+    ["THEOREMS:", showTRS snd theoTRS,
+     "SIMPLIFICATION RULES:", showTRS snd simprules]
   redrules <- mapIO (simplifyRule verb simprules qn) rules
   return $ if all isTrivial redrules
             then []
             else [CmtFunc cmt qn ar vis texp redrules]
  where
-  theoTRS   = concatMap (snd . fromFunc) theofuncs
+  theoTRS   = concatMap (snd . fromFuncDecl) theofuncs
   simprules = concatMap theoremToSimpRules theoTRS ++ standardSimpRules
 
-theoremToSimpRules :: Rule String -> [Rule String]
-theoremToSimpRules rl@(_, TermCons f args)
-  | f == "Test.EasyCheck.-=-" || f == "Test.EasyCheck.<~>"
-  = [(TermCons "Prelude.==" args, trueTerm),
-     (TermCons "Prelude.==" (reverse args), trueTerm)]
-  | f == "Test.EasyCheck.always" = [(head args, trueTerm)]
+theoremToSimpRules :: Rule QName -> [Rule QName]
+theoremToSimpRules (_, TermVar _) =
+  error $ "theoremToSimpRules: variable in rhs"
+theoremToSimpRules rl@(_, TermCons qf args)
+  | qf == easyCheck "-=-" || qf == easyCheck "<~>"
+  = [(TermCons (pre "==") args, trueTerm),
+     (TermCons (pre "==") (reverse args), trueTerm)]
+  | qf == easyCheck "always" = [(head args, trueTerm)]
   | otherwise = [rl]
+ where
+  easyCheck f = ("Test.EasyCheck",f)
 
 isTrivial :: CRule -> Bool
 isTrivial (CRule _ rhs) = case rhs of
@@ -62,16 +67,16 @@ maxSimpSteps :: Int
 maxSimpSteps = 100
 
 -- Simplify a rule of a postcondition.
-simplifyRule :: Int -> TRS String ->  QName -> CRule ->  IO CRule
+simplifyRule :: Int -> TRS QName ->  QName -> CRule ->  IO CRule
 simplifyRule verb simprules qn crule@(CRule rpats _) = do
   when (verb > 0 ) $ putStrLn $ unlines
-    ["POSTCONDITION: " ++ showRule' (lhs,rhs),
-     "POSTCONDEXP:   " ++ showTerm' postcondexp,
-     "SIMPLIFIEDEXP: " ++ showTerm' simpterm,
-     "SIMPPOSTCOND:  " ++ showRule' simppostcond ]     
+    ["POSTCONDITION: " ++ showRule snd (lhs,rhs),
+     "POSTCONDEXP:   " ++ showTerm snd postcondexp,
+     "SIMPLIFIEDEXP: " ++ showTerm snd simpterm,
+     "SIMPPOSTCOND:  " ++ showRule snd simppostcond ]     
   return (simpleRule rpats (term2acy (concatMap varsOfPat rpats) simppostrhs))
  where
-   (lhs,rhs)   = fromRule (showQN qn) crule
+   (lhs,rhs)   = fromRule qn crule
    postcondexp = postCondition2Term lhs rhs
    simpterm = simplifyTerm maxSimpSteps simprules postcondexp
    simppostrhs  = postConditionTermToRule lhs simpterm
@@ -79,26 +84,28 @@ simplifyRule verb simprules qn crule@(CRule rpats _) = do
 
 --- Transform a post-condition rule into a term by substituting
 ---  the last argument variable by the function call.
-postCondition2Term :: Term String -> Term String -> Term String
-postCondition2Term (TermCons f args) rhs =
+postCondition2Term :: Term QName -> Term QName -> Term QName
+postCondition2Term (TermVar _) _ =
+  error "postCondition2Term: variable term"
+postCondition2Term (TermCons (mn,fn) args) rhs =
   let TermVar i  = last args
-      (qn,fn)    = readQN f
-      fcall      = TermCons (showQN (qn, fromPostCondName fn))
+      fcall      = TermCons (mn, fromPostCondName fn)
                             (take (length args - 1) args)
       fcallsubst = extendSubst emptySubst i fcall
    in applySubst fcallsubst rhs
 
 --- Transform (simplified) post-condition back into rule by replacing
 --- function call by the last argument variable. by the function call.
-postConditionTermToRule :: Term String -> Term String -> Term String
-postConditionTermToRule (TermCons f args) term =
+postConditionTermToRule :: Term QName -> Term QName -> Term QName
+postConditionTermToRule (TermVar _) _ =
+  error "postConditionTermToRule: variable term"
+postConditionTermToRule (TermCons (mn,fn) args) term =
   let TermVar i  = last args
-      (qn,fn)    = readQN f
-      fcall      = TermCons (showQN (qn, fromPostCondName fn))
+      fcall      = TermCons (mn, fromPostCondName fn)
                             (take (length args - 1) args)
    in replaceAllTerms (fcall, TermVar i) term
 
-replaceAllTerms :: Rule String -> Term String -> Term String
+replaceAllTerms :: Rule QName -> Term QName -> Term QName
 replaceAllTerms (lhs,rhs) term =
   if null oneStep
    then term
@@ -108,7 +115,7 @@ replaceAllTerms (lhs,rhs) term =
 
 ------------------------------------------------------------------------
 
-simplifyTerm :: Int -> TRS String -> Term String -> Term String
+simplifyTerm :: Int -> TRS QName -> Term QName -> Term QName
 simplifyTerm maxsteps simprules term =
   if null oneStep || maxsteps==0
    then term
@@ -118,11 +125,11 @@ simplifyTerm maxsteps simprules term =
             | p <- positions term,
               rule <- simprules,
               let vMax = maximum (0: tVars term) + 1,
-              let (lhs,rhs) = renameVarsBy vMax rule,
+              let (lhs,rhs) = renameRVars vMax rule,
               sub <- maybeToList (match (term |> p) lhs) ]
 
 -- match t1 t2 = sub  iff  sub(t2) = t1
-match :: Term String -> Term String -> Maybe (Subst String)
+match :: Term QName -> Term QName -> Maybe (Subst QName)
 match = matchTerm emptySubst
  where
   matchTerm sub t1 (TermVar i) =
@@ -142,51 +149,37 @@ match = matchTerm emptySubst
 
 
 -- Some additional simplifcation rules (based on Prelude definitions):
-standardSimpRules :: TRS String
+standardSimpRules :: TRS QName
 standardSimpRules =
-  [ (TermCons "Prelude.&&" [trueTerm, x1], x1)
-  , (TermCons "Prelude.&&" [x1, trueTerm], x1)
+  [ (TermCons (pre "&&") [trueTerm, x1], x1)
+  , (TermCons (pre "&&") [x1, trueTerm], x1)
   ]
  where
   x1 = TermVar 1
 
-trueTerm :: Term String
-trueTerm = TermCons "Prelude.True" []
+trueTerm :: Term QName
+trueTerm = TermCons (pre "True") []
 
 ------------------------------------------------------------------------
 --- Translate terms into AbstractCurry expressions
 
 -- to be extended
-term2acy :: [CVarIName] -> Term String -> CExpr
+term2acy :: [CVarIName] -> Term QName -> CExpr
 term2acy cvars (TermVar i) =
   maybe (error "term2acy: cannot find variable")
         (\s -> CVar (i,s))
         (lookup i cvars)
-term2acy cvars (TermCons f args)
- | null args && head f == '%' = CLit (const2literal (tail f))
+term2acy cvars (TermCons (mn,fn) args)
+ | null args && head mn == '%' = CLit (const2literal (tail mn, fn))
  | otherwise
- = foldl CApply (CSymbol (readQN f)) (map (term2acy cvars) args)
+ = foldl CApply (CSymbol (mn,fn)) (map (term2acy cvars) args)
 
-const2literal :: String -> CLiteral
+const2literal :: QName -> CLiteral
 const2literal sl = case sl of
-  ('i':_:s) -> CIntc   (readQTerm s)
-  ('f':_:s) -> CFloatc (readQTerm s)
-  ('c':_:s) -> CCharc  (head s)
-  ('s':_:s) -> CStringc s
+  ("i",s) -> CIntc   (readQTerm s)
+  ("f",s) -> CFloatc (readQTerm s)
+  ("c",s) -> CCharc  (head s)
+  ("s",s) -> CStringc s
   _   -> error "const2literal: unknown literal"
-
-------------------------------------------------------------------------
--- for better readable output: drop module prefix
-dropMod :: String -> String
-dropMod = snd . readQN
-
-showTerm' :: Term String -> String
-showTerm' = showTerm . mapTerm dropMod
-
-showRule' :: Rule String -> String
-showRule' (lhs,rhs) = showRule (mapTerm dropMod lhs, mapTerm dropMod rhs)
-
-showTRS' :: TRS String -> String
-showTRS' = unlines . map showRule'
 
 ------------------------------------------------------------------------
