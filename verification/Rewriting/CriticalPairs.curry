@@ -14,7 +14,7 @@ module Rewriting.CriticalPairs
 import Either (rights)
 import List (maximum, nub)
 import Rewriting.Position (eps, positions, (|>), replaceTerm)
-import Rewriting.Rules (TRS, rVars, isVariantOf, renameVarsBy)
+import Rewriting.Rules (TRS, rVars, isVariantOf, renameRVars)
 import Rewriting.Substitution (applySubst)
 import Rewriting.Term (Term, showTerm, isVarTerm)
 import Rewriting.Unification (unify)
@@ -35,8 +35,9 @@ type CPair f = (Term f, Term f)
 -- \x3009 = RIGHT ANGLE BRACKET
 
 --- Transforms a critical pair into a string representation.
-showCPair :: CPair String -> String
-showCPair (l, r) = "\x3008" ++ showTerm l ++ ", " ++ showTerm r ++ "\x3009"
+showCPair :: (f -> String) -> CPair f -> String
+showCPair s (l, r)
+  = "\x3008" ++ (showTerm s l) ++ ", " ++ (showTerm s r) ++ "\x3009"
 
 -- ---------------------------------------------------------------------------
 -- Computation of critical pairs
@@ -47,9 +48,9 @@ cPairs :: TRS f -> [CPair f]
 cPairs trs = nub [(applySubst sub r1,
                    replaceTerm (applySubst sub l1) p (applySubst sub r2)) |
                   rule1@(l1, r1) <- trs,
-                  let vMax = maximum (0:(rVars rule1)) + 1,
-                  rule2@(l2, r2) <- map (renameVarsBy vMax) trs,
+                  let vMax = (maximum (0:(rVars rule1))) + 1,
+                  rule2@(l2, r2) <- map (renameRVars vMax) trs,
                   p <- positions l1,
-                  let l1_p = l1 |> p, not (isVarTerm l1_p),
-                  sub <- rights [unify [(l1_p, l2)]],
+                  let l1p = l1 |> p, not (isVarTerm l1p),
+                  sub <- rights [unify [(l1p, l2)]],
                   p /= eps || not (isVariantOf rule1 rule2)]

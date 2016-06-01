@@ -12,9 +12,8 @@
 
 module Rewriting.Term
   ( VarIdx, Term (..), TermEq, TermEqs
-  , showVarIdx, showTerm, showTermEq, showTermEqs
-  , mapTerm, tConst, tRoot, tCons, tVars
-  , isConsTerm, isVarTerm, isGround, isLinear
+  , showVarIdx, showTerm, showTermEq, showTermEqs, tConst, tRoot, tCons, tVars
+  , tVarsL, isConsTerm, isVarTerm, isGround, isLinear, mapTerm, renameTVars
   ) where
 
 import List (intercalate, nub)
@@ -29,9 +28,9 @@ type VarIdx = Int
 --- Representation of a first-order term, parameterized over the kind of
 --- function symbols, e.g., strings.
 ---
---- @cons TermVar i          - The variable with index `i`.
---- @cons TermCons name args - The constructor with constructor `name` and
----                            argument terms `args`.
+--- @cons TermVar v     - The variable with index `v`.
+--- @cons TermCons c ts - The constructor with constructor `c` and argument
+---                       terms `ts`.
 data Term f = TermVar VarIdx | TermCons f [Term f]
 
 --- A term equation represented as a pair of terms and parameterized over the
@@ -56,30 +55,25 @@ showVarIdx v | v >= 0 = if q == 0
     c = "abcdefghijklmnopqrstuvwxyz" !! r
 
 --- Transforms a term into a string representation.
-showTerm :: Term String -> String
-showTerm (TermVar v)     = showVarIdx v
-showTerm (TermCons c ts) = case ts of
-                             []    -> c
-                             (_:_) -> c ++ "(" ++ args ++ ")"
+showTerm :: (f -> String) -> Term f -> String
+showTerm _ (TermVar v)     = showVarIdx v
+showTerm s (TermCons c ts) = case ts of
+                               []    -> s c
+                               (_:_) -> (s c) ++ "(" ++ args ++ ")"
   where
-    args = intercalate ", " (map showTerm ts)
+    args = intercalate ", " (map (showTerm s) ts)
 
 --- Transforms a term equation into a string representation.
-showTermEq :: TermEq String -> String
-showTermEq (l, r) = showTerm l ++ " = " ++ showTerm r
+showTermEq :: (f -> String) -> TermEq f -> String
+showTermEq s (l, r) = (showTerm s l) ++ " = " ++ (showTerm s r)
 
 --- Transforms multiple term equations into a string representation.
-showTermEqs :: TermEqs String -> String
-showTermEqs eqs = unlines (map showTermEq eqs)
+showTermEqs :: (f -> String) -> TermEqs f -> String
+showTermEqs s eqs = unlines (map (showTermEq s) eqs)
 
 -- ---------------------------------------------------------------------------
 -- Functions for first-order terms
 -- ---------------------------------------------------------------------------
-
---- Transforms a term by applying a transformation on all function symbols.
-mapTerm :: (a -> b) -> Term a -> Term b
-mapTerm _ (TermVar v)       = TermVar v
-mapTerm m (TermCons f args) = TermCons (m f) (map (mapTerm m) args)
 
 --- Returns a term with the given constructor and no argument terms.
 tConst :: f -> Term f
@@ -97,8 +91,12 @@ tCons (TermCons c ts) = nub (c:(concatMap tCons ts))
 
 --- Returns all variables in a term.
 tVars :: Term _ -> [VarIdx]
-tVars (TermVar v)     = [v]
-tVars (TermCons _ ts) = nub (concatMap tVars ts)
+tVars = nub . tVarsL
+
+--- Returns a list of all variables in a term.
+tVarsL :: Term _ -> [VarIdx]
+tVarsL (TermVar v)     = [v]
+tVarsL (TermCons _ ts) = concatMap tVarsL ts
 
 --- Checks whether a term is a constructor.
 isConsTerm :: Term _ -> Bool
@@ -116,12 +114,24 @@ isGround = null . tVars
 
 --- Checks whether a term is linear (contains no variable more than once).
 isLinear :: Term _ -> Bool
-isLinear = unique . vars
-  where
-    unique :: [_] -> Bool
-    unique []                    = True
-    unique (x:xs) | notElem x xs = unique xs
-                  | otherwise    = False
-    vars :: Term _ -> [VarIdx]
-    vars (TermVar v)     = [v]
-    vars (TermCons _ ts) = concatMap vars ts
+isLinear = unique . tVarsL
+
+--- Transforms a term by applying a transformation on all function symbols.
+mapTerm :: (a -> b) -> Term a -> Term b
+mapTerm _ (TermVar v)     = TermVar v
+mapTerm f (TermCons c ts) = TermCons (f c) (map (mapTerm f) ts)
+
+--- Increases the variables in a term by the given number.
+renameTVars :: Int -> Term f -> Term f
+renameTVars i (TermVar v)     = TermVar (v + i)
+renameTVars i (TermCons c ts) = TermCons c (map (renameTVars i) ts)
+
+-- ---------------------------------------------------------------------------
+-- Definition of helper functions
+-- ---------------------------------------------------------------------------
+
+--- Checks whether a list contains no element more than once.
+unique :: [_] -> Bool
+unique []                    = True
+unique (x:xs) | notElem x xs = unique xs
+              | otherwise    = False
