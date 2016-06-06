@@ -7,7 +7,7 @@
 --- is supported (option `foreigncode`, see module `Translator`).
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version June 2016
 ------------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -29,7 +29,7 @@ import TransContracts(transContracts)
 cppBanner :: String
 cppBanner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Curry Preprocessor (version of 17/05/2016)"
+   bannerText = "Curry Preprocessor (version of 04/06/2016)"
    bannerLine = take (length bannerText) (repeat '=')
 
 --- Preprocessor targets, i.e., kind of entities to be preprocessed:
@@ -204,7 +204,7 @@ callPreprocessors :: PPOpts -> String -> String -> String -> String -> String
                   -> IO String
 callPreprocessors opts optlines modname srcprog orgfile outfile
   | ForeignCode `elem` pptargets
-  = do icouttxt <- translateIntCode (optModel opts) orgfile srcprog
+  = do icouttxt <- translateIntCode verb (optModel opts) orgfile srcprog
        if null (intersect [SequentialRules, DefaultRules, Contracts] pptargets)
         then return icouttxt -- no further preprocessors
         else do writeFile orgfile icouttxt

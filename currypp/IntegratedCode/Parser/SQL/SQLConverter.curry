@@ -42,18 +42,18 @@ parse parserInfo pos code =
          Right pi -> processCompilation pi pos code 
   
 --- Reader for parser information file.
----@param filename - path/name of the .info file
----@return either an error message or the parser
---- information 
-readParserInfo :: String -> IO (Either String ParserInfo)
-readParserInfo filename = 
-  do
-    handle <- openFile filename ReadMode
-    contents <- (hGetContents handle)
-    case (readsQTerm contents) of
-             []        -> return (Left ("ParserInfo-file was not found"++
-                                         " or is corrupted."))
-             ((a,_):_) -> return (Right a)
+--- @param verb - verbosity level
+--- @param filename - path/name of the .info file
+--- @return either an error message or the parser information 
+readParserInfo :: Int -> String -> IO (Either String ParserInfo)
+readParserInfo verb filename = do
+  when (verb > 0) $ putStrLn $ "Read SQL model info file '" ++filename++ "'..."
+  handle <- openFile filename ReadMode
+  contents <- (hGetContents handle)
+  case (readsQTerm contents) of
+           []        -> return (Left ("ParserInfo-file was not found"++
+                                       " or is corrupted."))
+           ((a,_):_) -> return (Right a)
  
 -- auxiliary function to check Result after each stage 
 checkResult :: PM a -> Either (PM String) (PM a)

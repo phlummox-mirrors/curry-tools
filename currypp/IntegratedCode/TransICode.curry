@@ -30,6 +30,7 @@
 ------------------------------------------------------------------------------
 module TransICode where
 
+import Directory(getDirectoryContents)
 import IO(stderr,hPutStrLn)
 import List
 import System
@@ -58,8 +59,8 @@ parsers = maybe iden pars
     pars l model p =
       case l of
         "sql"       -> case model of
-                            Left err -> (\_ -> return $ throwPM p err)
-                            _  -> SQLParser.parse model p
+                         Left err -> const (return $ throwPM p err)
+                         _        -> SQLParser.parse model p
         "dummy"     -> DummyParser.parse p
         "format"    -> FormatParser.parse ""       p
         "printf"    -> FormatParser.parse "putStr" p
@@ -99,21 +100,32 @@ formatWarnings ws@((p,_):_) = "\nWARNINGS in " ++ getFilename p ++ ":"
 
 --- Translates a string containing a Curry program with Integrated Code
 --- into a string with pure Curry code.
---- The first argument is, if non-empty, the name of an info file containing
+--- The second argument is, if non-empty, the name of an info file containing
 --- information about the data model in case of integrated SQL code.
+--- @param verb  - verbosity level
 --- @param model - name of file containing information about the datamodel
 ---                in case of SQL,  an empty string otherwise
 --- @param fname - The name of the original Curry file
 --- @param s - The string that should be translated
 --- @return The translated string
-translateIntCode :: String -> String -> String -> IO String
-translateIntCode model fname s = do
-  pinfo <- if model == ""
-              then return (Left "No .info file provided!")
-              else readParserInfo model
-  stw <- concatAllIOPM $ (applyLangParsers pinfo) $ ciparser fname s
+translateIntCode :: Int -> String -> String -> String -> IO String
+translateIntCode verb model fname s = do
+  pinfo <- tryReadParserInfoFile verb model
+  stw <- concatAllIOPM $ applyLangParsers pinfo
+                       $ ciparser fname s
   putStr (formatWarnings (getWarnings stw))
   escapePR (discardWarnings stw) errfun
+
+--- Try to read parser info file.
+tryReadParserInfoFile :: Int -> String -> IO (Either String ParserInfo)
+tryReadParserInfoFile verb model = do
+  if null model
+   then do dirfiles <- getDirectoryContents "." -- maybe modify?
+           case filter ("_SQLCode.info" `isSuffixOf`) dirfiles of
+             []  -> return (Left "No .info file provided or found!")
+             [m] -> readParserInfo verb m
+             _   -> return (Left "Multiple .info files found!")
+   else readParserInfo verb model
 
 --- Handles the IO and PM monads around the StandardTokens for the
 --- concatenation, so they will not disturb in the real concat function
@@ -204,12 +216,11 @@ splitByLine s = splitByLineIter "" s
 --- @param iotks - The input StandardTokens wrapped in IO and ParserMonad
 --- @result      - The translated StandardTokens wrapped in IO and ParserMonad
 applyLangParsers :: Either String ParserInfo
-                    -> IO (PM [StandardToken])
-                    -> IO (PM [StandardToken])
+                 -> IO (PM [StandardToken])
+                 -> IO (PM [StandardToken])
 applyLangParsers model iotks = do
   prtks <- iotks
-  prpr <- swapIOPM
-           (liftPM (\tks -> sequenceIO (map (applyLangParser model) tks)) prtks)
+  prpr <- swapIOPM (liftPM (mapIO (applyLangParser model)) prtks)
   return (crumplePM (liftPM (\prpt -> sequencePM prpt) prpr))
 
 --- Select the right translator and apply it to a single StandardToken
@@ -217,9 +228,9 @@ applyLangParsers model iotks = do
 ---                error message otherwise
 --- @param t - The input StandardToken
 --- result   - The translated StandardToken wrapped in IO and ParserMonad
-applyLangParser :: Either String ParserInfo -> 
-                   StandardToken -> 
-                   IO (PM StandardToken)
+applyLangParser :: Either String ParserInfo
+                -> StandardToken
+                -> IO (PM StandardToken)
 applyLangParser model (StTk p pexp l c) =
   do parsedStringNoIO <- (parsers l model) pexp c
      return (bindPM parsedStringNoIO (\s -> cleanPM (StTk p pexp l s)))
