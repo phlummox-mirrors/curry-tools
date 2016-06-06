@@ -154,7 +154,7 @@ analyseReqVal consinfo (Func (m,f) arity _ _ rule) calledfuncs
                  ,("$#",AFType [([AnyC,AnyC],AnyC)])
                  ,("$##",AFType [([AnyC,AnyC],AnyC)])
                  ,("compare",AFType [([AnyC,AnyC],AnyC)])
-		 ]
+                 ]
 
 analyseReqValRule :: ProgInfo [QName] -> [(QName,AFType)] -> [Int] -> Expr
                   -> AFType
