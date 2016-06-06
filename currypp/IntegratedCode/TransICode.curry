@@ -26,11 +26,12 @@
 --- sql    - see the SQLConverter and CDBI-library
 ---
 --- @author Jasper Sikorra (with changes by Michael Hanus)
---- @version November 2015
+--- @version June 2016
 ------------------------------------------------------------------------------
 module TransICode where
 
 import Directory(getDirectoryContents)
+import FilePath ((</>), takeDirectory)
 import IO(stderr,hPutStrLn)
 import List
 import System
@@ -75,10 +76,12 @@ addRealFname :: Filename -> Warning -> Warning
 addRealFname f w = setWarnPos w (setFilename (getWarnPos w) f)
 
 -- Formatting and terminating with Errors
-errfun :: [PError] -> IO _
-errfun (e1:es) = do
+formatErrors :: [PError] -> IO _
+formatErrors [] =
+  error "Internal error in 'TransICode.formatErrors': No errors in list!"
+formatErrors es@(e1:_) = do
   hPutStrLn stderr $ "\nERRORS in " ++ getFilename (getPErrorPos e1) ++ ":"
-                                    ++ concatMap formatErr (e1:es)
+                                    ++ concatMap formatErr es
   error "Failure during preprocessing of Curry source file!"
  where
   formatErr :: PError -> String
@@ -110,22 +113,25 @@ formatWarnings ws@((p,_):_) = "\nWARNINGS in " ++ getFilename p ++ ":"
 --- @return The translated string
 translateIntCode :: Int -> String -> String -> String -> IO String
 translateIntCode verb model fname s = do
-  pinfo <- tryReadParserInfoFile verb model
+  pinfo <- tryReadParserInfoFile verb model fname
   stw <- concatAllIOPM $ applyLangParsers pinfo
                        $ ciparser fname s
   putStr (formatWarnings (getWarnings stw))
-  escapePR (discardWarnings stw) errfun
+  escapePR (discardWarnings stw) formatErrors
 
---- Try to read parser info file.
-tryReadParserInfoFile :: Int -> String -> IO (Either String ParserInfo)
-tryReadParserInfoFile verb model = do
+--- Try to read parser info file for the SQL preprocessor.
+tryReadParserInfoFile :: Int -> String -> String
+                      -> IO (Either String ParserInfo)
+tryReadParserInfoFile verb model orgfname = do
   if null model
-   then do dirfiles <- getDirectoryContents "." -- maybe modify?
+   then do dirfiles <- getDirectoryContents orgdir
            case filter ("_SQLCode.info" `isSuffixOf`) dirfiles of
              []  -> return (Left "No .info file provided or found!")
-             [m] -> readParserInfo verb m
+             [m] -> readParserInfo verb (orgdir </> m)
              _   -> return (Left "Multiple .info files found!")
    else readParserInfo verb model
+ where
+   orgdir = takeDirectory orgfname
 
 --- Handles the IO and PM monads around the StandardTokens for the
 --- concatenation, so they will not disturb in the real concat function

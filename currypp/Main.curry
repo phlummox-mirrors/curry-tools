@@ -17,7 +17,7 @@ import AbstractCurry.Select(progName)
 import Char(isDigit,digitToInt)
 import Directory(copyFile,renameFile)
 import Distribution
-import FilePath (splitDirectories)
+import FilePath
 import List
 import System
 
@@ -38,10 +38,10 @@ data PPTarget = ForeignCode | SequentialRules | DefaultRules | Contracts
 parseTarget :: String -> Maybe PPTarget
 parseTarget t | t=="foreigncode"  = Just ForeignCode
               | t=="defaultrules" = Just DefaultRules
-	      | t=="seqrules"     = Just SequentialRules
-	      | t=="contracts"    = Just Contracts
-	      | otherwise         = Nothing
-	      
+              | t=="seqrules"     = Just SequentialRules
+              | t=="contracts"    = Just Contracts
+              | otherwise         = Nothing
+              
 --- Preprocessor options:
 data PPOpts =
   PPOpts { optHelp      :: Bool
@@ -51,18 +51,18 @@ data PPOpts =
          , optModel     :: String     -- model for the SQL preprocessor
          , optDefRules  :: [String]   -- options for DefaultRules
          , optContracts :: [String]   -- options for Contracts
-	 }
+         }
 
 initOpts :: PPOpts
 initOpts = PPOpts { optHelp      = False
                   , optSave      = False
- 	          , optVerb      = 1
-		  , optTgts      = []
+                  , optVerb      = 1
+                  , optTgts      = []
                   , optModel     = ""
-		  , optDefRules  = []
-		  , optContracts = []
-		  }
-		  
+                  , optDefRules  = []
+                  , optContracts = []
+                  }
+                  
 --- The main function of the Curry Preprocessor.
 main :: IO ()
 main = do
@@ -70,29 +70,29 @@ main = do
   case args of
     (orgSourceFile:inFile:outFile:options) ->
        maybe (showUsage args)
-	     (\opts ->
-	       if optHelp opts
-	       then putStrLn (cppBanner ++ usageText) >> exitWith 1
-	       else do
-                let modname = pathToModName (stripCurrySuffix orgSourceFile)
+             (\opts ->
+               if optHelp opts
+               then putStrLn (cppBanner ++ usageText) >> exitWith 1
+               else do
+                let modname = pathToModName orgSourceFile
                 when (optVerb opts > 1) $ putStr cppBanner
                 when (optVerb opts > 2) $ putStr $ unlines
-		  ["Module name        : " ++ modname
-		  ,"Original file name : " ++ orgSourceFile
-		  ,"Input    file name : " ++ inFile
-		  ,"Output   file name : " ++ outFile ]
+                  ["Module name        : " ++ modname
+                  ,"Original file name : " ++ orgSourceFile
+                  ,"Input    file name : " ++ inFile
+                  ,"Output   file name : " ++ outFile ]
                 preprocess opts modname orgSourceFile inFile outFile
                 when (optSave opts) $ saveFile orgSourceFile outFile
-		when (optVerb opts > 3) $ do
+                when (optVerb opts > 3) $ do
                   putStrLn "TRANSFORMED PROGRAM:"
                   putStrLn "===================="
                   readFile outFile >>= putStrLn
              )
-	     (processOptions initOpts options)
+             (processOptions initOpts options)
     _ -> maybe (showUsage args)
-	       (\opts -> if optHelp opts
-	                 then putStrLn (cppBanner ++ usageText)
-	                 else showUsage args)
+               (\opts -> if optHelp opts
+                         then putStrLn (cppBanner ++ usageText)
+                         else showUsage args)
                (processOptions initOpts args)
  where
   saveFile orgSourceFile outFile = do
@@ -109,7 +109,7 @@ processOptions opts optargs = case optargs of
     ("-v":os)         -> processOptions opts { optVerb = 2 } os
     (['-','v',vl]:os) -> if isDigit vl
                          then processOptions opts { optVerb = digitToInt vl } os
-			 else Nothing
+                         else Nothing
     (('-':'-':ts):os) -> if isPrefixOf "model:" ts
                          then processOptions 
                                 opts {optModel = tail (dropWhile (/=':') ts) }
@@ -240,12 +240,16 @@ callPreprocessors opts optlines modname srcprog orgfile outfile
 
 --- Transforms a file path name for a module back into a hierarchical module
 --- since only the file path of a module is passed to the preprocessor.
---- We assume that these are always the local file path names,
---- otherwise it is difficult to reconstruct the original module name
+--- This is done if if it is a local file path name,
+--- otherwise only theit is difficult to reconstruct the original module name
 --- from the file path.
 pathToModName :: String -> String
-pathToModName = intercalate "." . splitDirectories
-
+pathToModName psf =
+  if isRelative p
+   then intercalate "." (splitDirectories  p)
+   else takeBaseName p
+ where
+  p = stripCurrySuffix psf
 
 -- Replace OPTIONS_CYMAKE line containing currypp call
 -- in a source text by blank line (to avoid recursive calls):
