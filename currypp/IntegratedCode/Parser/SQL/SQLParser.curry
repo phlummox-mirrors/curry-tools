@@ -928,7 +928,7 @@ parseIdentifier espm
 parseOperator :: Operand -> SPMParser Condition
 parseOperator operand espm 
   | hasToken espm =  
-     case headToken espm of	
+     case headToken espm of
          Between -> combineSPMs (\op2 op3 -> ABetween operand op2 op3) 
                                 parseOperand
                                 ((terminalOrProc (LogOp And) follow) 
@@ -973,7 +973,7 @@ parseValueList espm
 
 --Parser for all simple kind of binary operator. 
 --Jumps to next symbol in Follow-set in case of error.
-parseBinOperator :: SPMParser AstOp	
+parseBinOperator :: SPMParser AstOp
 parseBinOperator espm  
   | hasToken espm =
      case headToken espm of

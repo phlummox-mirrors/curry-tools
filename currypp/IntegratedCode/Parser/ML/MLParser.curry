@@ -195,19 +195,19 @@ dataTokenizer (sym,ws) = case tok sym of
   dtk :: String -> [Text] -> [Text]
   dtk [] ds = reverse (map reverseText (filter (not . textNull) ds))
   dtk (c:cs) ys@((Raw  s):ds) | c == OB && (not . null) cs && head cs == OB
-			       = dtk (tail cs) ((ExpC ""):ys)
+                               = dtk (tail cs) ((ExpC ""):ys)
                               | c == OB = dtk cs ((ExpT ""):ys)
                               | c == BS && (not . null) cs && head cs == OB
-  			       = dtk (tail cs) ((Raw (OB:c:s)):ds)
+                               = dtk (tail cs) ((Raw (OB:c:s)):ds)
                               | otherwise = dtk cs ((Raw (c:s)):ds)
   dtk (c:cs) ys@((ExpT s):ds) | c == CB = dtk cs ((Raw ""):ys)
                               | c == BS && (not . null) cs && head cs == CB
-  			       = dtk (tail cs) ((ExpT (CB:c:s)):ds)
+                               = dtk (tail cs) ((ExpT (CB:c:s)):ds)
                               | otherwise = dtk cs ((ExpT (c:s)):ds)
   dtk (c:cs) ys@((ExpC s):ds) | c == CB && (not . null) cs && head cs == CB
-			       = dtk (tail cs) ((Raw ""):ys)
+                               = dtk (tail cs) ((Raw ""):ys)
                               | c == BS && (not . null) cs && head cs == CB
-  			       = dtk (tail cs) ((ExpC (CB:c:s)):ds)
+                               = dtk (tail cs) ((ExpC (CB:c:s)):ds)
                               | otherwise = dtk cs ((ExpC (c:s)):ds)
 
   reverseText :: Text -> Text

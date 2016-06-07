@@ -32,7 +32,8 @@ DEPS   = Main.curry $(ICODEDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
           $(SQLDIR)/*.curry $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry \
 	  $(CONTRACTDIR)/*.curry $(CURRYCHECKDIR)/ContractUsage.curry \
 	  $(CURRYCHECKDIR)/DefaultRuleUsage.curry \
-	  $(CURRYCHECKDIR)/TheoremUsage.curry
+	  $(CURRYCHECKDIR)/TheoremUsage.curry \
+	  $(LIBDIR)/AbstractCurry/*.curry
 
 .PHONY: all compile install clean uninstall
 
