@@ -2,7 +2,7 @@
 --- A transformation of Curry programs into Agda programs.
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version June 2016
 -------------------------------------------------------------------------
 
 --module ToAgda(theoremToAgda) where

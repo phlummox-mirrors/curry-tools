@@ -15,6 +15,7 @@ import Distribution      (stripCurrySuffix)
 import GetOpt
 import List
 import Maybe             (fromJust)
+import SCC               (scc)
 import System            (exitWith, getArgs)
 import TheoremUsage
 import ToAgda
@@ -31,7 +32,7 @@ cvBanner :: String
 cvBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "curry2verify: Curry programs -> Verifiers (version of 06/06/2016)"
+     "curry2verify: Curry programs -> Verifiers (version of 07/06/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -76,7 +77,7 @@ generateTheorem opts qtheoname = do
 --- of the given functions.
 getAllTypeDecls :: Options -> [CurryProg] -> [QName] -> [CTypeDecl]
                -> IO [CTypeDecl]
-getAllTypeDecls _ _ [] currtypes = return currtypes
+getAllTypeDecls _ _ [] currtypes = return (sortTypeDecls currtypes)
 getAllTypeDecls opts currmods (tc:tcs) currtypes
   | tc `elem` primTypes opts ++ map typeName currtypes
   = getAllTypeDecls opts currmods tcs currtypes
@@ -95,6 +96,15 @@ getAllTypeDecls opts currmods (tc:tcs) currtypes
          putStrLn $ "Loading module '" ++ mname ++ "'..."
        newmod <- readCurry mname
        getAllTypeDecls opts (newmod:currmods) (tc:tcs) currtypes
+
+-- Sort the type declarations according to their dependencies.
+sortTypeDecls :: [CTypeDecl] -> [CTypeDecl]
+sortTypeDecls tdecls = concat (scc definedBy usedIn tdecls)
+ where
+  definedBy tdecl = [typeName tdecl]
+  usedIn (CType    _ _ _ cdecls) = nub (concatMap typesOfConsDecl cdecls)
+  usedIn (CTypeSyn _ _ _ texp)   = nub (typesOfTypeExpr texp)
+  usedIn (CNewType _ _ _ cdecl)  = nub (typesOfConsDecl cdecl)
 
 -------------------------------------------------------------------------
 
