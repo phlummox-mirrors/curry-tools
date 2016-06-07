@@ -26,6 +26,7 @@ import VerifyOptions
 -- to access the determinism analysis:
 import GenericProgInfo   (ProgInfo, lookupProgInfo)
 import Deterministic     (Deterministic(..))
+import TotallyDefined    (Completeness(..))
 
 -------------------------------------------------------------------------
 
@@ -276,10 +277,20 @@ transformRuleWithNondet opts (fn,cmt,texp,trs)
   = [(fn, cmt ++ concatMap theoremComment trs, texp, map transTheorem trs)]
   | otherwise
   = map (\ (f,c,t,rs) -> (f, c ++ concatMap theoremComment rs,
-                          addNDToResultType t, map addNondet rs))
+                          addNDToResultType t,
+                          map addNondet rs ++ failRule f))
         (elimOverlappingRules opts True (fn,cmt,texp,trs))
  where
-  detinfo   = detInfos opts
+  detinfo = detInfos opts
+
+  arity     = case head trs of (TermCons _ args,_) -> length args
+                               _ -> error "transformRuleWithNondet: no arity"
+
+  failRule f = if lookupProgInfo fn (patInfos opts) == Just Complete
+                  || not (null (cPairs trs))
+               then []
+               else [(TermCons f (map TermVar [0 .. (arity-1)]),
+                      TermCons (nondet "Fail") [])]
 
   addNDToResultType te = case te of
     CFuncType t1 t2 -> CFuncType t1 (addNDToResultType t2)
@@ -357,8 +368,8 @@ transformRuleWithNondet opts (fn,cmt,texp,trs)
   addArgsWithNdArg t (arg:args) =
    if hasNondetSubterms arg
    then addArgsWithNdArg
-          (TermCons (nondet "with-nd-arg") [t, addNondetInTerm arg]) args
-   else addArgsWithNdArg (TermCons (pre "apply") [t,arg]) args
+          (TermCons (nondet "apply-nd") [t, addNondetInTerm arg]) args
+   else addArgsWithNdArg (TermCons (nondet "apply-nd") [t,agdaVal arg]) args
   
   withNdArgName i = nondet ("with-nd-arg" ++ (if i>1 then show i else ""))
 
@@ -407,7 +418,7 @@ showTypedTRSAsAgda opts rn prefuns ((fn,cmt,texp,trs) : morefuncs) =
                             showTypeSignatureAsAgda (rn f) t,""])
              forwardfuncs) ++
   map ("-- "++) cmt ++
-  (if lookupProgInfo fn (totInfos opts) == Just True
+  (if lookupProgInfo fn (patInfos opts) /= Just Complete
       || optScheme opts == "nondet"
     then []
     else ["-- WARNING: function '" ++ showQName fn ++ "' is partial so that",

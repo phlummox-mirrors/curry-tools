@@ -175,7 +175,7 @@ transformCProg verb opts srctxt orgprog outmodname = do
       checkfuns = union specnames (union prenames postnames)
   if null checkfuns
    then do
-     when (verb>0) $
+     when (verb>1) $
        putStrLn "Contract transformation not required since no contracts found!"
      return orgprog
    else do

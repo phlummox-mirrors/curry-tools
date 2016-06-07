@@ -2,7 +2,7 @@
 --- A transformation of Curry programs into verification tools.
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version June 2016
 -------------------------------------------------------------------------
 
 module ToVerifier where
@@ -24,14 +24,14 @@ import VerifyOptions
 import AnalysisServer    (analyzeGeneric)
 import GenericProgInfo
 import Deterministic     (Deterministic(..), nondetAnalysis)
-import TotallyDefined    (totalAnalysis)
+import TotallyDefined    (Completeness(..), patCompAnalysis)
 
 -- Banner of this tool:
 cvBanner :: String
 cvBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "curry2verify: Curry programs -> Verifiers (version of 31/05/2016)"
+     "curry2verify: Curry programs -> Verifiers (version of 06/06/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -84,7 +84,9 @@ getAllTypeDecls opts currmods (tc:tcs) currtypes
   = maybe
       (-- if we don't find the qname, it must be a primitive type:
         getAllTypeDecls opts currmods tcs currtypes)
-      (\tdecl -> getAllTypeDecls opts currmods tcs (tdecl : currtypes))
+      (\tdecl -> getAllTypeDecls opts currmods
+                                 (tcs ++ nub (typesOfCTypeDecl tdecl))
+                                 (tdecl : currtypes))
       (find (\td -> typeName td == tc)
             (types (fromJust (find (\m -> progName m == fst tc) currmods))))
   | otherwise -- we must load a new module
@@ -114,7 +116,7 @@ getAllFunctions opts currfuncs currmods (newfun:newfuncs)
                     (if null (funcRules fdecl)
                       then currfuncs -- ignore external functions
                       else fdecl : currfuncs)
-                    currmods (newfuncs ++ funsOfCFuncDecl fdecl))
+                    currmods (newfuncs ++ nub (funcsOfCFuncDecl fdecl)))
       (find (\fd -> funcName fd == newfun)
             (functions
                (fromJust (find (\m -> progName m == fst newfun) currmods))))
@@ -127,55 +129,15 @@ getAllFunctions opts currfuncs currmods (newfun:newfuncs)
          putStrLn $ "Analyzing module '" ++ mname ++ "'..."
        pdetinfo <- analyzeGeneric nondetAnalysis mname
                                                 >>= return . either id error
-       ptotinfo <- analyzeGeneric totalAnalysis mname
+       pcmpinfo <- analyzeGeneric patCompAnalysis mname
                                                 >>= return . either id error
        getAllFunctions
          opts { detInfos = combineProgInfo (detInfos opts) pdetinfo
-              , totInfos = combineProgInfo (totInfos opts) ptotinfo }
+              , patInfos = combineProgInfo (patInfos opts) pcmpinfo }
          currfuncs (newmod:currmods) (newfun:newfuncs)
 
 -- Some standard constructors from the prelude.
 standardConstructors :: [QName]
 standardConstructors = [pre "[]", pre ":", pre "()"]
-
--------------------------------------------------------------------------
--- Extract all function (and constructor) names occurring in
--- a function declaration:
-
-funsOfCFuncDecl :: CFuncDecl -> [QName]
-funsOfCFuncDecl =
-  nub . trCFuncDecl (\_ _ _ _ _ rules -> concatMap funsOfCRule rules)
-
-funsOfCRule :: CRule -> [QName]
-funsOfCRule = trCRule (\_ rhs -> funsOfCRhs rhs)
-
-funsOfCRhs :: CRhs -> [QName]
-funsOfCRhs =
-  trCRhs (\e  ldecls -> funsOfExpr e ++ concatMap funsOfLDecl ldecls)
-         (\gs ldecls -> concatMap (\ (g,e) -> funsOfExpr g ++ funsOfExpr e) gs
-                        ++ concatMap funsOfLDecl ldecls)
-
-funsOfLDecl :: CLocalDecl -> [QName]
-funsOfLDecl = trCLocalDecl funsOfCFuncDecl (const funsOfCRhs) (const [])
-
-funsOfExpr :: CExpr -> [QName]
-funsOfExpr =
-  trExpr (const [])
-         (const [])
-         (\n -> [n])
-         (++)
-         (const id)
-         (\ldecls e -> concatMap funsOfLDecl ldecls ++ e)
-         (concatMap funsOfStat)
-         (\e stats -> e ++ concatMap funsOfStat stats)
-         (\_ e brs -> e ++ concatMap (funsOfCRhs . snd) brs)
-         (\e _ -> e)
-         (\_ fields -> concatMap snd fields)
-         (\e fields -> e ++ concatMap snd fields)
-         
-funsOfStat :: CStatement -> [QName]
-funsOfStat = trCStatement funsOfExpr
-                          (const funsOfExpr)
-                          (concatMap funsOfLDecl)
 
 -------------------------------------------------------------------------

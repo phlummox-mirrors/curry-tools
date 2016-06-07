@@ -13,6 +13,7 @@ import GetOpt
 import ReadNumeric       (readNat)
 import GenericProgInfo
 import Deterministic     (Deterministic(..))
+import TotallyDefined    (Completeness(..))
 
 -------------------------------------------------------------------------
 -- Representation of command line options and information relevant
@@ -26,7 +27,7 @@ data Options = Options
   , isPrimFunc :: (QName -> Bool) -- primitive function? (not translated)
   , primTypes  :: [QName] -- primitive types (not translated)
   , detInfos   :: ProgInfo Deterministic -- info about deteterministic funcs
-  , totInfos   :: ProgInfo Bool          -- info about totally defined funcs
+  , patInfos   :: ProgInfo Completeness  -- info about pattern completeness
   }
 
 -- Default command line options.
@@ -40,13 +41,13 @@ defaultOptions = Options
   , isPrimFunc = isUntranslatedFunc
   , primTypes  = defPrimTypes
   , detInfos   = emptyProgInfo
-  , totInfos   = emptyProgInfo
+  , patInfos   = emptyProgInfo
   }
 
 -- Primitive functions that are not extracted and translated to the verifier.
 isUntranslatedFunc :: QName -> Bool
 isUntranslatedFunc qn =
-  qn `elem` [pre "?", pre "==", pre "+", pre "*", pre "length"] ||
+  qn `elem` [pre "?", pre "==", pre "+", pre "*", pre "length", pre "map"] ||
   fst qn `elem` ["Test.Prop","Test.EasyCheck"]
 
 -- Primitive functions that are not extracted and translated to the verifier.
