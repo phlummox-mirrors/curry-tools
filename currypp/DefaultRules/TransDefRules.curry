@@ -26,15 +26,10 @@ banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "Transformation Tool for Curry with Default Rules (Version of 17/05/16)"
+     "Transformation Tool for Curry with Default Rules (Version of 08/06/16)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------
--- Data type for transformation parameters
-data TParam = TParam TransScheme -- translation scheme to be used
-                     Int         -- verbosity level
-                     Bool        -- compile the transformed program?
-                     Bool        -- load and execute transformed program?
 
 -- Available translation schemes
 data TransScheme = SpecScheme -- as specified in the PADL'16 paper
@@ -46,114 +41,25 @@ defaultTransScheme = if curryCompiler == "kics2"
                      then SpecScheme -- due to bug in KiCS2
                      else SpecScheme -- NoDupScheme
 
-defaultTParam :: TParam
-defaultTParam = TParam defaultTransScheme 1 False False
-
-setScheme :: TransScheme -> TParam -> TParam
-setScheme scm (TParam _ vl cmp ep) = TParam scm vl cmp ep
-
-setVerbosity :: Int -> TParam -> TParam
-setVerbosity vl (TParam scm _ cmp ep) = TParam scm vl cmp ep
-
-setRunQuiet :: TParam -> TParam
-setRunQuiet = setVerbosity 0
-
-setCompile :: TParam -> TParam
-setCompile (TParam scm vl _ ep) = TParam scm vl True ep
-
-setExec :: TParam -> TParam
-setExec  (TParam scm vl _ _) = TParam scm vl True True
-
-------------------------------------------------------------------------
-
-main :: IO ()
-main = do
-  args <- getArgs
-  processArgs defaultTParam args
- where
-  processArgs tparam args = case args of
-     ["-h"]          -> putStrLn $ banner ++ usageInfo
-     ("-q":moreargs) -> processArgs (setRunQuiet  tparam) moreargs
-     ("-c":moreargs) -> processArgs (setCompile   tparam) moreargs
-     ("-r":moreargs) -> processArgs (setExec      tparam) moreargs
-     [mname]         -> transMain tparam (stripCurrySuffix mname)
-     _               -> printError args
-
-  -- process the further options of the preprocesser mode:
-  processOptions tparam optargs = case optargs of
-    []             -> Just tparam
-    ("-v":opts)    -> processOptions (setVerbosity 2 tparam) opts
-    (['-','v',vl]:opts) ->
-       if isDigit vl
-         then processOptions (setVerbosity (digitToInt vl) tparam) opts
-         else Nothing
-    (scheme:opts) ->
-       if scheme == "nodupscheme"
-       then processOptions (setScheme NoDupScheme tparam) opts
-       else if scheme == "specscheme"
-            then processOptions (setScheme SpecScheme tparam) opts
-            else Nothing
-
-  printError args =
-    putStrLn $ banner ++
-               "ERROR: Illegal arguments for transformation:\n" ++
-               unwords args ++ "\n" ++ usageInfo
-
-usageInfo :: String
-usageInfo =
-  "Usage: ... [-q|-c|-r] <module_name>\n"++
-  "-q : work quietly\n"++
-  "-c : compile the transformed program\n"++
-  "-r : load the transformed program into "++curryCompiler++" (implies -c)\n"
-
-------------------------------------------------------------------------
--- Transformation in "batch" mode:
-transMain :: TParam -> String -> IO ()
-transMain (TParam scm verbosity compile execprog) progname = do
-  let quiet = verbosity == 0
-      progfname = progname ++ ".curry"
-      saveprogfname = progname++"_ORG.curry"
-      transprogfname = progname++"_TRANS.curry"
-      putStrNQ s = if quiet then done else putStr s
-      putStrLnNQ s = if quiet then done else putStrLn s
-  putStrNQ banner
-  prog <- readUntypedCurry progname
-  system $ "cleancurry " ++ progname
-  transprog <- translateProg scm prog >>= return . showCProg . snd
-  putStrLnNQ "Transformed module:"
-  putStrLnNQ transprog
-  if not compile then done else do
-    renameFile progfname saveprogfname
-    writeFile progfname transprog
-    compileAcyFcy quiet progname
-    renameFile progfname transprogfname
-    renameFile saveprogfname progfname
-    putStrLnNQ $ "Transformed program written into '"++transprogfname++"'"
-    if not execprog then done else do
-      system $ "mate-terminal -x "++installDir++"/bin/curry :l "++progname
-      done
-
-compileAcyFcy :: Bool -> String -> IO ()
-compileAcyFcy quiet progname = do
-  params <- rcParams >>= return . setQuiet quiet
-  callFrontendWithParams ACY params progname
-  callFrontendWithParams FCY params progname
-
 ------------------------------------------------------------------------
 -- Start default rules transformation in "preprocessor mode".
 -- The Curry program must be read with readUntypedCurry in order to
 -- process DET annotations!
-transDefaultRules :: Int -> [String] -> String -> CurryProg -> IO CurryProg
+transDefaultRules :: Int -> [String] -> String -> CurryProg
+                  -> IO (Maybe CurryProg)
 transDefaultRules verb moreopts _ prog = do
   when (verb>1) $ putStr banner
   trscm <- processOpts moreopts
   when (verb>1) $ putStrLn ("Translation scheme: " ++ show trscm)
-  (detfuncnames,newprog) <- translateProg trscm prog
-  -- check whether we have files with determinism proofs:
-  prfiles <- getProofFiles (takeDirectory (modNameToPath (progName prog)))
-  detfuncnamesWOproofs <- filterProofObligation verb prfiles detfuncnames
-  when (verb>0) $ printProofObligation detfuncnamesWOproofs
-  return newprog
+  mbtransprog <- translateProg trscm prog
+  maybe (return Nothing)
+   (\ (detfuncnames,newprog) -> do
+      -- check whether we have files with determinism proofs:
+      prfiles <- getProofFiles (takeDirectory (modNameToPath (progName prog)))
+      detfuncnamesWOproofs <- filterProofObligation verb prfiles detfuncnames
+      when (verb>0) $ printProofObligation detfuncnamesWOproofs
+      return (Just newprog))
+   mbtransprog
  where
   processOpts opts = case opts of
     []       -> return defaultTransScheme
@@ -203,8 +109,9 @@ showQName (qn,fn) = "'" ++ qn ++ "." ++ fn ++ "'"
 -- Moreover, the list of deterministic functions is returned
 -- (to show the proof obligations to ensure completeness of the
 -- transformation).
+-- If the program was not transformed, `Nothing` is returned.
 
-translateProg :: TransScheme -> CurryProg -> IO ([QName],CurryProg)
+translateProg :: TransScheme -> CurryProg -> IO (Maybe ([QName],CurryProg))
 translateProg trscm prog@(CurryProg mn imps tdecls fdecls ops) = do
   let usageerrors = checkDefaultRules prog
   unless (null usageerrors) $ do
@@ -214,8 +121,8 @@ translateProg trscm prog@(CurryProg mn imps tdecls fdecls ops) = do
     error "Transformation aborted"
   -- now we do not have to check the correct usage of default rules...
   return $ if null deffuncs && null detfuncnames
-            then ([],prog)
-            else (detfuncnames, CurryProg mn newimports tdecls newfdecls ops)
+         then Nothing
+         else Just (detfuncnames, CurryProg mn newimports tdecls newfdecls ops)
  where
   newimports       = if setFunMod `elem` imps then imps else setFunMod:imps
   detfuncnames     = map funcName (filter isDetFun fdecls)

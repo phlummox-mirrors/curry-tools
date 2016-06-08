@@ -29,7 +29,7 @@ import TransContracts(transContracts)
 cppBanner :: String
 cppBanner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Curry Preprocessor (version of 04/06/2016)"
+   bannerText = "Curry Preprocessor (version of 07/06/2016)"
    bannerLine = take (length bannerText) (repeat '=')
 
 --- Preprocessor targets, i.e., kind of entities to be preprocessed:
@@ -188,7 +188,7 @@ preprocess opts modname orgfile infile outfile
        -- remove currypp option to avoid recursive preprocessor calls:
        writeFile orgfile srcprog
        outtxt <- catch (callPreprocessors opts (optionLines srcprog)
-                                          modname srcprog orgfile outfile)
+                                          modname srcprog orgfile)
                        (\err -> renameFile savefile orgfile >> ioError err)
        writeFile outfile outtxt
        renameFile savefile orgfile
@@ -199,10 +199,15 @@ preprocess opts modname orgfile infile outfile
  where
   pptargets = optTgts opts
 
--- Invoke the various preprocessors:
-callPreprocessors :: PPOpts -> String -> String -> String -> String -> String
+-- Invoke the various preprocessors. The arguments are:
+-- * the preprocessor options
+-- * the parser options lines to be added if the source text is written
+-- * the name of the module
+-- * the source text of the module (maybe modified by the code integrator)
+-- * the file name of the original module (to overwrite it by some pass)
+callPreprocessors :: PPOpts -> String -> String -> String -> String
                   -> IO String
-callPreprocessors opts optlines modname srcprog orgfile outfile
+callPreprocessors opts optlines modname srcprog orgfile
   | ForeignCode `elem` pptargets
   = do icouttxt <- translateIntCode verb (optModel opts) orgfile srcprog
        if null (intersect [SequentialRules, DefaultRules, Contracts] pptargets)
@@ -210,26 +215,30 @@ callPreprocessors opts optlines modname srcprog orgfile outfile
         else do writeFile orgfile icouttxt
                 let rpptargets = delete ForeignCode pptargets
                 callPreprocessors opts {optTgts = rpptargets}
-                                  optlines modname srcprog orgfile outfile
+                                  optlines modname icouttxt orgfile
   | SequentialRules `elem` pptargets
   = do seqprog <- readCurry modname >>=
                   transSequentialRules verb [] srcprog
        if Contracts `elem` pptargets
-        then transContracts verb contopts srcprog seqprog >>= return . showCProg
+        then transContracts verb contopts srcprog seqprog
+                           >>= return . maybe (showCProg seqprog) showCProg
         else return (showCProg seqprog)
   | DefaultRules `elem` pptargets
   = do -- specific handling since DefaultRules requires and process
        -- untyped Curry but Contracts requires typed Curry:
-       defprog <- readUntypedCurry modname >>=
-                  transDefaultRules verb defopts srcprog
+       mbdefprog <- readUntypedCurry modname >>=
+                    transDefaultRules verb defopts srcprog
        if Contracts `elem` pptargets
-        then do writeFile orgfile (optlines ++ showCProg defprog)
-                readCurry modname >>= transContracts verb contopts srcprog
-                                  >>= return . showCProg
-        else return (showCProg defprog)
+        then do
+          maybe done
+                (\defprog -> writeFile orgfile (optlines ++ showCProg defprog))
+                mbdefprog
+          readCurry modname >>= transContracts verb contopts srcprog 
+                            >>= return . maybe srcprog showCProg
+        else return (maybe srcprog showCProg mbdefprog)
   | Contracts `elem` pptargets
   = readCurry modname >>= transContracts verb contopts srcprog
-                      >>= return . showCProg
+                      >>= return . maybe srcprog showCProg
   | otherwise
   = error "currypp internal error during dispatching"
  where

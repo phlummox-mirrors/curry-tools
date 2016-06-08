@@ -45,10 +45,13 @@ banner = unlines [bannerLine,bannerText,bannerLine]
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------
--- Execute the contract wrapper in "preprocessor mode".
--- The Curry program must be read with readCurry in order to
--- correctly process arities based on function types!
-transContracts :: Int -> [String] -> String -> CurryProg -> IO CurryProg
+--- Execute the contract wrapper in "preprocessor mode".
+--- The Curry program must be read with `readCurry` (and not
+--- `readUntypedCurry`) in order to correctly process arities
+--- based on function types!
+--- The result is Nothing if no transformation was applied or Just the
+--- transformed program.
+transContracts :: Int -> [String] -> String -> CurryProg -> IO (Maybe CurryProg)
 transContracts verb moreopts srcprog inputProg = do
   when (verb>1) $ putStr banner
   opts <- processOpts defaultOptions moreopts
@@ -123,7 +126,7 @@ transformStandalone opts modname outfile = do
                                        else error "Source program incorrect"
   let outmodname = transformedModName modname
   newprog <- transformCProg 1 opts srcprog prog outmodname
-  writeFile outfile (showCProg newprog ++ "\n")
+  writeFile outfile (showCProg (maybe prog id newprog) ++ "\n")
   when (executeProg opts) $ loadIntoCurry outmodname
 
 -- Specifies how the name of the transformed module is built from the
@@ -145,8 +148,10 @@ loadIntoCurry m = do
 --- * source text of the module
 --- * AbstractCurry representation of the module
 --- * name of the output module (if it should be renamed)
+--- The result is Nothing if no transformation was applied or Just the
+--- transformed program.
 transformCProg :: Int -> Options -> String -> CurryProg -> String
-               -> IO CurryProg
+               -> IO (Maybe CurryProg)
 transformCProg verb opts srctxt orgprog outmodname = do
   let -- to avoid constructor CFunc and references to Test.Prop
       prog = addCmtFuncInProg (renameProp2EasyCheck orgprog)
@@ -177,7 +182,7 @@ transformCProg verb opts srctxt orgprog outmodname = do
    then do
      when (verb>1) $
        putStrLn "Contract transformation not required since no contracts found!"
-     return orgprog
+     return Nothing
    else do
      when (verb>0) $
        putStrLn $ "Adding contract checking to: " ++ unwords checkfuns
@@ -185,7 +190,7 @@ transformCProg verb opts srctxt orgprog outmodname = do
                                               >>= return . either id error
      let newprog = transformProgram opts funposs fdecls detinfo 
                                     funspecs preconds postconds prog
-     return (renameCurryModule outmodname newprog)
+     return (Just (renameCurryModule outmodname newprog))
 
 -- Get functions from a Curry module with a name satisfying the predicate:
 getFunDeclsWith :: (String -> Bool) -> CurryProg -> [CFuncDecl]
