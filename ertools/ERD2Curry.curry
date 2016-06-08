@@ -28,27 +28,28 @@ main :: String -> IO ()
 main erd2currydir = do
   putStrLn systemBanner
   args <- getArgs
-  callStart erd2currydir (parseArgs ("",False,SQLite ".",False) args)
+  callStart erd2currydir (parseArgs ("",False,SQLite ".",False,False) args)
 
-parseArgs :: (String,Bool,Storage,Bool) -> [String]
-          -> Maybe (String,Bool,Storage,Bool)
+parseArgs :: (String,Bool,Storage,Bool,Bool) -> [String]
+          -> Maybe (String,Bool,Storage,Bool,Bool)
 parseArgs _ [] = Nothing
-parseArgs (file,fromxml,storage,vis) (arg:args) = case arg of
-  "-t" -> parseArgs (file,False,storage,vis) args
-  "-x" -> parseArgs (file,True,storage,vis) args
-  "-l" -> parseArgs (file,fromxml,setSQLite storage,vis) args
+parseArgs (file,fromxml,storage,vis,trerdt) (arg:args) = case arg of
+  "-x" -> parseArgs (file,True,storage,vis,trerdt) args
+  "-l" -> parseArgs (file,fromxml,setSQLite storage,vis,trerdt) args
   "-f" -> if curryCompiler == "pakcs"
-          then parseArgs (file,fromxml,setFileDB storage,vis) args
+          then parseArgs (file,fromxml,setFileDB storage,vis,trerdt) args
           else error "Wrong parameter -f: file-based database only available in PAKCS!"
-  "-d" -> parseArgs (file,fromxml,DB,vis) args
+  "-d" -> parseArgs (file,fromxml,DB,vis,trerdt) args
   "-p" -> if null args then Nothing else
-          parseArgs (file,fromxml,setFilePath (head args) storage,vis)
+          parseArgs (file,fromxml,setFilePath (head args) storage,vis,trerdt)
                     (tail args)
-  "--dbpath" -> if null args then Nothing else
-                parseArgs (file,fromxml,setFilePath (head args) storage,vis)
-                          (tail args)
-  "-v" -> parseArgs (file,fromxml,storage,True) args
-  f    -> if null args then Just (f,fromxml,storage,vis) else Nothing
+  "--dbpath" ->
+          if null args then Nothing else
+            parseArgs (file,fromxml,setFilePath (head args) storage,vis,trerdt)
+                      (tail args)
+  "-t" -> parseArgs (file,fromxml,storage,vis,True) args
+  "-v" -> parseArgs (file,fromxml,storage,True,trerdt) args
+  f    -> if null args then Just (f,fromxml,storage,vis,trerdt) else Nothing
  where
   setFilePath path (Files  _) = Files  path
   setFilePath path (SQLite _) = SQLite path
@@ -69,24 +70,24 @@ helpText =
   "-l: generate interface to SQLite3 database (default)\n" ++
   "-f: generate interface to file-based database implementation (only in PAKCS)\n" ++
   "-d: generate interface to SQL database (experimental)\n" ++
-  "-t: generate from ERD term file (default)\n" ++
-  "-x: generate from ERD xmi document\n" ++
-  "-v: show visualization of ERD term file with dotty\n" ++
+  "-x: generate from ERD xmi document instead of ERD term file\n" ++
+  "-t: only transform ERD term file to ERDT term file\n" ++
+  "-v: only show visualization of ERD term file with dotty\n" ++
   "--dbpath <dir>: name of the directory where DB files are stored\n" ++
   "<file>: name of file containing xmi document or ERD term\n"
 
-callStart :: String -> Maybe (String,Bool,Storage,Bool) -> IO ()
+callStart :: String -> Maybe (String,Bool,Storage,Bool,Bool) -> IO ()
 callStart _ Nothing = do
   putStrLn $ "ERROR: Illegal arguments\n\n" ++ helpText
   exitWith 1
-callStart erd2currydir (Just (file,fromxml,storage,vis)) =
+callStart erd2currydir (Just (file,fromxml,storage,vis,trerdt)) =
  if vis
  then readERDTermFile file >>= viewERD
- else start erd2currydir (storage,WithConsistencyTest) fromxml file "."
+ else start erd2currydir (storage,WithConsistencyTest) fromxml trerdt file "."
 
 --- Main function to invoke the ERD->Curry translator.
-start :: String -> Option -> Bool -> String -> String -> IO ()
-start erd2currydir opt fromxml srcfile path = do
+start :: String -> Option -> Bool -> Bool -> String -> String -> IO ()
+start erd2currydir opt fromxml trerdt srcfile path = do
   (erdfile,erd) <- if fromxml
                    then transformXmlFile srcfile path
                    else readERDTermFile srcfile >>= \e -> return (srcfile,e)
@@ -98,18 +99,19 @@ start erd2currydir opt fromxml srcfile path = do
             ("{- ERD specification transformed from "++erdfile++" -}\n\n " ++
              showERD 2 transerd ++ "\n")
   putStrLn $ "Transformed ERD term written into file '"++transerdfile++"'."
-  copyAuxiliaryFiles
-  moveOldVersion curryfile
-  curdir <- getCurrentDirectory
-  setCurrentDirectory path
-  impprogs <- mapIO readCurry (imports erdprog)
-  setCurrentDirectory curdir
-  writeFile curryfile $
-    prettyCurryProg
-      (setOnDemandQualification (erdprog:impprogs) defaultOptions)
-      erdprog
-  putStrLn $ "Database operations generated into file '"++curryfile++"'\n"++
-             "with " ++ showOption (erdName erd) opt ++ ".\n"
+  unless trerdt $ do
+    copyAuxiliaryFiles
+    moveOldVersion curryfile
+    curdir <- getCurrentDirectory
+    setCurrentDirectory path
+    impprogs <- mapIO readCurry (imports erdprog)
+    setCurrentDirectory curdir
+    writeFile curryfile $
+      prettyCurryProg
+        (setOnDemandQualification (erdprog:impprogs) defaultOptions)
+        erdprog
+    putStrLn $ "Database operations generated into file '"++curryfile++"'\n"++
+               "with " ++ showOption (erdName erd) opt ++ ".\n"
  where
   -- Copy auxiliary files ERDGeneric.curry and KeyDatabase.curry to target dir
   copyAuxiliaryFiles = do

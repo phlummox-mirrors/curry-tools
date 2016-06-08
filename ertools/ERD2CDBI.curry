@@ -11,14 +11,17 @@ import AbstractCurry.Types
 import AbstractCurry.Pretty
 import AbstractCurry.Build
 
-import Char ( toLower, toUpper )
+import Char           ( toLower, toUpper )
 import Database.ERD
+import Database.ERDGoodies
+import Distribution   ( installDir )
+import qualified FilePath as FP ( (</>), combine, splitFileName)
 import IO
-import IOExts ( connectToCommand )
+import IOExts         ( connectToCommand )
 import List
 import Pretty
-import ReadShowTerm ( readsQTerm )
-import SetFunctions (selectValue, set2)
+import ReadShowTerm   ( readsQTerm )
+import SetFunctions   ( selectValue, set2 )
 import System
 import Time
 
@@ -31,27 +34,36 @@ main ::  IO ()
 main  = 
   do args <- getArgs
      case args of
-      (str  : dbPath : option) -> do
-          handle <- openFile str ReadMode
-          hGetLine handle
-          hGetLine handle
-          contents <- (hGetContents handle)     
+      (erdfname  : dbPath : option) -> do
+          erdtfname <- translateERD2ERDT erdfname
+          erdterm <- readERDTermFile erdtfname
           let newDB = case option of
                              ("-db":_)     -> True
                              _             -> False
-          case (readsQTerm contents) of
-              []         -> putStr "Should not happen"
-              ((a,_):_)  -> writeCDBI a dbPath newDB
+          writeCDBI erdterm dbPath newDB
       _ -> showUsageString
                            
 showUsageString :: IO()
 showUsageString = do
-  putStrLn ("usage:\n<name of term-file>\n"++
+  putStrLn ("Usage:\n<name of ERD term file>\n"++
                     "<absolute path to database "++
                       "(including name of database)>\n"++                   
-                    "optional '-db' which means that a new,"++
+                    "optional '-db' which means that a new, "++
                       "empty database is generated\n")
   exitWith 1
+
+-- Translate the ERD file, if it is not a ERDT file, into ERDT format
+-- by the use of erd2curry tools:
+translateERD2ERDT :: String -> IO String
+translateERD2ERDT erdfname = do
+  erdterm <- readERDTermFile erdfname
+  let (dir,file) = FP.splitFileName erdfname
+      erdtfile = erdName erdterm ++ "_ERDT.term"
+  if file == erdtfile
+   then return erdfname
+   else do system (unwords [installDir FP.</> "bin" FP.</> "erd2curry",
+                            "-t ",erdfname])
+           return (FP.combine dir erdtfile)
 
 -- Write all the data so CDBI can be used, create a database 
 -- when option is set and a .info file

@@ -18,9 +18,9 @@ export PATH
 $CURRYBIN/cleancurry
 
 # execute all tests:
-# The option -m80 is necessary for testing the determinism properties,
+# The option -m70 is necessary for testing the determinism properties,
 # otherwise the search space is too big for some tests.
-CCOPTS=-m80
+CCOPTS=-m70
 
 LOGFILE=xxx$$
 

@@ -1,9 +1,10 @@
-import Char
-import Time
-import ERD
-import ERDGoodies
+
 import AbstractCurry.Types
 import AbstractCurry.Build
+import Char
+import Database.ERD
+import Database.ERDGoodies
+import Time
 
 ------------------------------------------------------------------------
 -- lower the first character in a string
@@ -171,10 +172,10 @@ attrType (Attribute _ t k True) =
             _                -> maybeType (ctvar "Int")
 
 --- Generates Curry expressions representing default values.
---- If the first argument contains an expression, this expression
---- is place for CalendarTime attributes (if one wants to pass the current
+--- The first argument contains an expression that is used for
+--- ClockTime attributes (it is set to the current
 --- time as a default value).
-attrDefaultValues :: Maybe CExpr -> [Attribute] -> [CExpr]
+attrDefaultValues :: CExpr -> [Attribute] -> [CExpr]
 attrDefaultValues defaultctime attrs = map defaultValue attrs
  where
   defaultValue (Attribute _ domain _ null) = case domain of
@@ -190,10 +191,8 @@ attrDefaultValues defaultctime attrs = map defaultValue attrs
     BoolDom   (Just b) -> addJust (constF (pre (if b then "True" else "False")))
     DateDom   Nothing  -> nothingOrDefault
     DateDom   (Just (CalendarTime y mo d h m s tz))
-              -> addJust (maybe (applyF ("Time", "CalendarTime")
-                                        (map (CLit . CIntc) [y,mo,d,h,m,s,tz]))
-                                id
-                                defaultctime)
+                       -> addJust (applyF ("Time", "CalendarTime")
+                                     (map (CLit . CIntc) [y,mo,d,h,m,s,tz]))
     UserDefined _ _    -> nothingOrDefault
     KeyDom _           -> nothingOrDefault
     _ -> error "GenerationHelper.attrDefaultValues: unknown domain for attribute"
@@ -207,20 +206,17 @@ attrDefaultValues defaultctime attrs = map defaultValue attrs
 
 --- Generates Curry expressions representing a default values
 --- for a given domain.
---- If the first argument contains an expression, this expression
---- is used as the default value for the CalendarTime domain
---- (useful if one wants to pass the current time as a default value).
-domainDefaultValue :: Maybe CExpr -> Domain -> CExpr
+--- The first argument contains an expression that is used for
+--- ClockTime attributes (it is set to the current
+--- time as a default value).
+domainDefaultValue :: CExpr -> Domain -> CExpr
 domainDefaultValue defaultctime domain = case domain of
     IntDom    _  -> CLit (CIntc 0)
     FloatDom  _  -> CLit (CFloatc 0)
     CharDom   _  -> CLit (CCharc ' ')
     StringDom _  -> string2ac []
     BoolDom   _  -> constF (pre "False")
-    DateDom   _  -> maybe (applyF ("Time", "CalendarTime")
-                                  (map (CLit . CIntc) [2009,1,1,0,0,0,0]))
-                          id
-                          defaultctime
+    DateDom   _  -> defaultctime
     UserDefined _ _ -> list2ac [] -- no support of user-defined default values
     KeyDom _    -> CLit (CIntc 0)
     _ -> error "GenerationHelper.domainDefaultValue: unknown domain"
@@ -280,7 +276,11 @@ widgetFor domain null =
     _ -> error "widgetFor: unknown domain for attribute"
  where
   -- adds a Maybe WUI if null values are allowed
-  addMaybe e = if null
-               then applyF ("Spicey","wUncheckMaybe")
-                    [domainDefaultValue Nothing domain, e]
-               else e
+  addMaybe e =
+    if null
+     then applyF ("Spicey","wUncheckMaybe")
+            [domainDefaultValue
+               (applyF ("Time", "CalendarTime")
+                       (map (CLit . CIntc) [2016,1,1,0,0,0,0]))
+               domain, e]
+     else e

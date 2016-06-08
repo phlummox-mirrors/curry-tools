@@ -6,8 +6,8 @@
 
 module Transformation(transform) where
 
-import ERD 
-import ERDGoodies
+import Database.ERD 
+import Database.ERDGoodies
 
 ---------------------------------------------------
 -- The main transformation which adds

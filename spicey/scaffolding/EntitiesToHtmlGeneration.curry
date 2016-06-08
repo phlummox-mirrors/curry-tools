@@ -1,7 +1,7 @@
 import AbstractCurry.Types
 import AbstractCurry.Build
-import ERD
-import ERDGoodies
+import Database.ERD
+import Database.ERDGoodies
 import GenerationHelper
 
 -- "main"-function

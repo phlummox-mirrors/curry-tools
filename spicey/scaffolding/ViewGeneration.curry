@@ -1,7 +1,7 @@
 import AbstractCurry.Types
 import AbstractCurry.Build
-import ERD
-import ERDGoodies
+import Database.ERD
+import Database.ERDGoodies
 import GenerationHelper
 
 -- "main"-function
@@ -351,7 +351,7 @@ editView erdname (Entity entityName attrlist) relationships allEntities =
               string2ac ("Edit "++entityName),
               string2ac "change"]
           )]
-      
+
 blankView :: ViewGenerator
 blankView _ (Entity entityName attrlist) relationships allEntities =
   let
@@ -384,7 +384,7 @@ blankView _ (Entity entityName attrlist) relationships allEntities =
         )
         (applyF (viewFunctionName entityName "create") 
               (CVar infovar :
-               (attrDefaultValues (Just (CVar (0,"ctime"))) attrlist) ++
+               (attrDefaultValues (CVar (0,"ctime")) attrlist) ++
                (map (\ (name, varId) ->
                            applyF (pre "head")
                                   [CVar (varId,("possible"++name++"s"))])

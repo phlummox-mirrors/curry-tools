@@ -2,8 +2,8 @@ import AbstractCurry.Types
 import AbstractCurry.Build
 import GenerationHelper
 import ControllerGeneration
-import ERD
-import ERDGoodies
+import Database.ERD
+import Database.ERDGoodies
 
 generateRoutesForERD :: ERD -> CurryProg
 generateRoutesForERD (ERD _ entities _) =

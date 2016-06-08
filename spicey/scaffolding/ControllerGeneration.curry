@@ -1,8 +1,8 @@
 import AbstractCurry.Types
 import AbstractCurry.Build
 import GenerationHelper
-import ERD
-import ERDGoodies
+import Database.ERD
+import Database.ERDGoodies
 import Char(toLower)
 
 -- Name of generic authorization module:

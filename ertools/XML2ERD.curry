@@ -275,7 +275,7 @@ convertDomain (Just t) (Just d) =
         | elem typ bool   = if dom == "true" 
                             then BoolDom (Just True) 
                             else BoolDom (Just False)
-        | elem t date     = DateDom (Just (toClockTime (parseDate dom)))
+        | elem t date     = DateDom (Just (parseDate dom))
         | otherwise       = UserDefined t (Just d)
 
        
