@@ -3,6 +3,8 @@ module ERD2Curry where
 import AbstractCurry.Files  (readCurry)
 import AbstractCurry.Select (imports)
 import AbstractCurry.Pretty
+import Database.ERD
+import Database.ERDGoodies
 import Directory
 import Distribution(curryCompiler)
 import System(exitWith, getArgs,system)
@@ -10,15 +12,13 @@ import Time
 import XML
 
 import XML2ERD
-import ERD
-import ERDGoodies
 import Transformation
 import CodeGeneration
 import ERD2Graph
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "ERD->Curry Compiler (Version of 21/12/15)"
+  let bannerText = "ERD->Curry Compiler (Version of 07/06/16)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 

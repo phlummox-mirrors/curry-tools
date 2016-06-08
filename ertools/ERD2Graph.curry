@@ -8,7 +8,7 @@ import IO
 import IOExts
 import Char(isAlphaNum)
 import List(intersperse)
-import ERD
+import Database.ERD
 import Distribution(getRcVar)
 
 -- Should a relation represented as an explicit node?

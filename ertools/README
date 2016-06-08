@@ -1,7 +1,26 @@
-ERD2Curry compiler
+ER Tools for Curry
 ==================
 
-This directory contains a compiler for database applications
+This directory contains tools for dealing with database applications
+specified by entity-relationship diagrams (ERDs) in Curry programs.
+
+----------------------------------------------------------------------
+
+ERD2CDBI compiler
+-----------------
+
+This tool transforms an ERD term into datatypes used in the
+Database.CDBI. libraries. It also creates an information file
+for the currypp SQL-Parser.
+If the tool is invoked with the option -db, it creates a
+corresponding sqlite database.
+
+----------------------------------------------------------------------
+
+ERD2Curry compiler
+------------------
+
+This is a compiler for database applications
 specified by entity-relationship diagrams (ERDs) into Curry programs.
 The basic ideas and details about this approach are described in
 
@@ -11,7 +30,8 @@ In Proc. of the Tenth International Symposium on
 Practical Aspects of Declarative Languages (PADL 2008),  pp. 316-332,
 Springer LNCS 4902, 2008
 
-----------------------------------------------------------------------
+Usage information:
+------------------
 
 Default use without Umbrello UML Modeller but ERD term descriptions:
 

@@ -4,14 +4,14 @@
 
 module XML2ERD(convert) where
 
-import XML
-import ERD
-import Read
+import Char
+import Database.ERD
 import List
 import Maybe
-import Char
+import Read
 import ReadShowTerm
 import Time
+import XML
 
 
 
@@ -275,7 +275,7 @@ convertDomain (Just t) (Just d) =
         | elem typ bool   = if dom == "true" 
                             then BoolDom (Just True) 
                             else BoolDom (Just False)
-        | elem t date     = DateDom (Just (parseDate dom))
+        | elem t date     = DateDom (Just (toClockTime (parseDate dom)))
         | otherwise       = UserDefined t (Just d)
 
        

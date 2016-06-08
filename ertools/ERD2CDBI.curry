@@ -12,6 +12,7 @@ import AbstractCurry.Pretty
 import AbstractCurry.Build
 
 import Char ( toLower, toUpper )
+import Database.ERD
 import IO
 import IOExts ( connectToCommand )
 import List
@@ -20,30 +21,6 @@ import ReadShowTerm ( readsQTerm )
 import SetFunctions (selectValue, set2)
 import System
 import Time
-
--- The ERDDatatype that everything is based on
-data ERD = ERD String [Entity] [Relationship]
-data Entity = Entity String [Attribute]
-data Attribute = Attribute String Domain Key Null
-data Key = NoKey | PKey | Unique
-type Null = Bool
-data Domain = IntDom (Maybe Int)
-            | FloatDom (Maybe Float)
-            | CharDom (Maybe Char)
-            | StringDom (Maybe String)
-            | BoolDom (Maybe Bool)
-            | DateDom (Maybe ClockTime)
-            | KeyDom String
-            | UserDefined String (Maybe String)
-
-data Relationship = Relationship String [REnd]
-
-data REnd = REnd String String Cardinality
-
-data Cardinality = Exactly Int
-                 | Between Int MaxValue
-
-data MaxValue = Max Int | Infinite
 
 -- Takes a x_ERDT.term (An ER-Model that was translated by erd2curry)
 -- and the absolute path to the database.

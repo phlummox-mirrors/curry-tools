@@ -9,10 +9,10 @@
 module CodeGeneration(Option,Storage(..),ConsistencyTest(..),
                       isSQLite,erd2code) where
 
-import ERD
-import ERDGoodies
 import AbstractCurry.Types
 import AbstractCurry.Build
+import Database.ERD
+import Database.ERDGoodies
 import List
 import Char
 import FiniteMap
