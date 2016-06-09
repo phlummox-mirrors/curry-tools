@@ -154,7 +154,7 @@ analyseReqVal consinfo (Func (m,f) arity _ _ rule) calledfuncs
                  ,("$#",AFType [([AnyC,AnyC],AnyC)])
                  ,("$##",AFType [([AnyC,AnyC],AnyC)])
                  ,("compare",AFType [([AnyC,AnyC],AnyC)])
-		 ]
+                 ]
 
 analyseReqValRule :: ProgInfo [QName] -> [(QName,AFType)] -> [Int] -> Expr
                   -> AFType
@@ -306,7 +306,7 @@ union []       ys     = ys
 union xs@(_:_) []     = xs
 union (x:xs)   (y:ys) | x==y      = x : union xs ys
                       | x<y       = x : union xs (y:ys)
-	              | otherwise = y : union (x:xs) ys
+                      | otherwise = y : union (x:xs) ys
 
 -- Intersection on sorted lists:
 intersect :: [a] -> [a] -> [a]
@@ -314,6 +314,6 @@ intersect []     _      = []
 intersect (_:_)  []     = []
 intersect (x:xs) (y:ys) | x==y      = x : intersect xs ys
                         | x<y       = intersect xs (y:ys)
-	                | otherwise = intersect (x:xs) ys
+                        | otherwise = intersect (x:xs) ys
 
 ------------------------------------------------------------------------------

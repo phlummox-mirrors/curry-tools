@@ -45,14 +45,18 @@ defaultOptions = Options
   }
 
 -- Primitive functions that are not extracted and translated to the verifier.
+-- In the future, it might be necessary to parameterize it w.r.t. the
+-- target verifier.
 isUntranslatedFunc :: QName -> Bool
 isUntranslatedFunc qn =
   qn `elem` [pre "?", pre "==", pre "+", pre "*", pre "length", pre "map"] ||
   fst qn `elem` ["Test.Prop","Test.EasyCheck"]
 
 -- Primitive functions that are not extracted and translated to the verifier.
+-- In the future, it might be necessary to parameterize it w.r.t. the
+-- target verifier.
 defPrimTypes :: [QName]
-defPrimTypes = [ pre "[]", pre "Bool", pre "Maybe", ("Nat","Nat")
+defPrimTypes = [ pre "[]", pre "Bool", pre "Int", pre "Maybe", ("Nat","Nat")
                , ("Test.Prop","Prop"), ("Test.EasyCheck","Prop")]
 
 -- Definition of actual command line options.

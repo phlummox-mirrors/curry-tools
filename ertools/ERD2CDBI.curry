@@ -80,7 +80,12 @@ writeCDBI (ERD name ents rels)  dbPath = do
   writeParserFile infofilehandle name ents rels dbPath
   hClose infofilehandle
   dbexists <- doesFileExist dbPath
-  unless dbexists $ do
+  if dbexists
+   then do
+    putStrLn $ "Database '" ++ dbPath ++ "' exists and, thus, not modified."
+    putStrLn $ "Please make sure that this database is conform to the ER model!"
+    -- TODO: if the database exists, check its consistency with ER model
+   else do
     putStrLn $ "Creating new sqlite3 database: " ++ dbPath
     db <- connectToCommand $ "sqlite3 " ++ dbPath
     createDatabase ents db
