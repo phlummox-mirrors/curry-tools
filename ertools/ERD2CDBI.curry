@@ -14,6 +14,7 @@ import AbstractCurry.Build
 import Char           ( toLower, toUpper )
 import Database.ERD
 import Database.ERDGoodies
+import Directory      ( doesFileExist )
 import Distribution   ( installDir )
 import qualified FilePath as FP ( (</>), combine, splitFileName)
 import IO
@@ -25,50 +26,44 @@ import SetFunctions   ( selectValue, set2 )
 import System
 import Time
 
--- Takes a x_ERDT.term (An ER-Model that was translated by erd2curry)
+-- Takes a x_ERD.term or x_ERDT.term (an ER-Model translated by erd2curry)
 -- and the absolute path to the database.
--- Creates a SQLite database (optional), a .curry program with all datatypes
+-- Creates a SQLite database (if it does not exist,
+-- a .curry program with all datatypes
 -- and an .info-file for the CurryPP-SQLParser
--- parameter: .term-file dbPath option(-db)
 main ::  IO ()
-main  = 
-  do args <- getArgs
-     case args of
-      (erdfname  : dbPath : option) -> do
-          erdtfname <- translateERD2ERDT erdfname
-          erdterm <- readERDTermFile erdtfname
-          let newDB = case option of
-                             ("-db":_)     -> True
-                             _             -> False
-          writeCDBI erdterm dbPath newDB
-      _ -> showUsageString
-                           
-showUsageString :: IO()
+main  = do
+  args <- getArgs
+  case args of
+    [erdfname, dbPath] -> do erdterm <- translateERD2ERDT erdfname
+                             writeCDBI erdterm dbPath
+    _                  -> showUsageString
+
+showUsageString :: IO ()
 showUsageString = do
-  putStrLn ("Usage:\n<name of ERD term file>\n"++
-                    "<absolute path to database "++
-                      "(including name of database)>\n"++                   
-                    "optional '-db' which means that a new, "++
-                      "empty database is generated\n")
+  putStrLn $ unlines
+    ["Usage:",
+     "<name of ERD term file>",
+     "<absolute path to database (including name of database)>"]
   exitWith 1
 
 -- Translate the ERD file, if it is not a ERDT file, into ERDT format
--- by the use of erd2curry tools:
-translateERD2ERDT :: String -> IO String
+-- by the use of erd2curry tools, and read ERDT file:
+translateERD2ERDT :: String -> IO ERD
 translateERD2ERDT erdfname = do
   erdterm <- readERDTermFile erdfname
   let (dir,file) = FP.splitFileName erdfname
       erdtfile = erdName erdterm ++ "_ERDT.term"
   if file == erdtfile
-   then return erdfname
+   then return erdterm
    else do system (unwords [installDir FP.</> "bin" FP.</> "erd2curry",
                             "-t ",erdfname])
-           return (FP.combine dir erdtfile)
+           readERDTermFile (FP.combine dir erdtfile)
 
 -- Write all the data so CDBI can be used, create a database 
 -- when option is set and a .info file
-writeCDBI :: ERD -> String -> Bool -> IO ()
-writeCDBI (ERD name ents rels)  dbPath newDB = do
+writeCDBI :: ERD -> String -> IO ()
+writeCDBI (ERD name ents rels)  dbPath = do
   file <- openFile (name++"_CDBI"++".curry") WriteMode
   let imports = [ "Time (ClockTime)",
                   "Database.CDBI.ER",
@@ -77,28 +72,27 @@ writeCDBI (ERD name ents rels)  dbPath newDB = do
                   "Database.CDBI.Description"]
   let typeDecls = foldr ((++) . (getEntityTypeDecls (name++"_CDBI"))) [] ents 
   let funcDecls = foldr ((++) . (getEntityFuncDecls (name++"_CDBI"))) [] ents
-  hPutStrLn file (pPrint (ppCurryProg defaultOptions
-                                      (CurryProg (name++"_CDBI") 
-                                                 imports
-                                                 typeDecls
-                                                 funcDecls
-                                                 [])))
+  hPutStrLn file
+    (pPrint (ppCurryProg defaultOptions
+                (CurryProg (name++"_CDBI") imports typeDecls funcDecls [])))
   hClose file
-  file2 <- openFile (name++"_SQLCode.info") WriteMode
-  writeParserFile file2 name ents rels dbPath
-  hClose file2
-  if newDB then do 
-                 db <- connectToCommand $ "sqlite3 " ++ dbPath
-                 createDatabase ents db
-                 hClose db
-           else return ()
-
-
+  infofilehandle <- openFile (name++"_SQLCode.info") WriteMode
+  writeParserFile infofilehandle name ents rels dbPath
+  hClose infofilehandle
+  dbexists <- doesFileExist dbPath
+  unless dbexists $ do
+    putStrLn $ "Creating new sqlite3 database: " ++ dbPath
+    db <- connectToCommand $ "sqlite3 " ++ dbPath
+    createDatabase ents db
+    hClose db
 
 -- -----writing .info-file containing auxiliary data for parsing -------------
 
---auxiliary definitions for qualified names in Abstract Curry
+-- Auxiliary definitions for qualified names in AbstractCurry
+mDescription :: String
 mDescription = "Database.CDBI.Description"
+
+mConnection :: String
 mConnection = "Database.CDBI.Connection"
 
 --generates an AbstractCurry expression representing the parser information
@@ -109,8 +103,8 @@ writeParserFile :: Handle ->
                    [Relationship] -> 
                    String -> 
                    IO()
-writeParserFile file2 name ents rels dbPath = do
-  hPutStrLn file2 
+writeParserFile infofilehandle name ents rels dbPath = do
+  hPutStrLn infofilehandle 
             (pPrint (ppCExpr defaultOptions 
                              (applyE (CSymbol ("SQLParserInfoType", "PInfo")) 
                                      [applyF (pre "(,)") 
@@ -622,16 +616,21 @@ writeKeyToValueFunc mName (Entity name attrs) =
 -- Creates a sqlite3-database (sqlite3 needs to be installed)
 createDatabase :: [Entity] -> Handle -> IO ()
 createDatabase ents db = mapIO_ (\ent -> (createDatabase' ent)) ents
-  where createDatabase' (Entity name (a:atr)) =
-          case a of
-            (Attribute "Key" _ _ _) -> do hPutStrLn db ("create table '" ++ name ++ "'(" ++
-                                                       (foldl (\y x -> y ++ " ," ++ (writeDBAttributes x))
-                                                       (writeDBAttributes a) atr) ++ ");")
-            _                       -> do let str = ("create table '" ++ name ++ "'(" ++
-                                                    (foldl (\y x -> y ++ " ," ++ (writeDBRelationship x))
-                                                    (writeDBRelationship a) atr) ++ ", primary key (" ++
-                                                    (writePrimaryKey (a:atr)) ++ "));")
-                                          hPutStrLn db str
+ where
+  createDatabase' (Entity name (a:atr)) =
+    case a of
+      (Attribute "Key" _ _ _) -> do
+        hPutStrLn db ("create table '" ++ name ++ "'(" ++
+                      (foldl (\y x -> y ++ " ," ++ (writeDBAttributes x))
+                             (writeDBAttributes a)
+                             atr) ++ ");")
+      _ -> do let str = ("create table '" ++ name ++ "'(" ++
+                         (foldl (\y x -> y ++ " ," ++ (writeDBRelationship x))
+                                (writeDBRelationship a)
+                                atr) ++
+                         ", primary key (" ++
+                         (writePrimaryKey (a:atr)) ++ "));")
+              hPutStrLn db str
 
 -- Write Attribute for table-creation (Used when first Attribute
 -- of Entity is named "Key" because the primary key will be that "Key" then)
