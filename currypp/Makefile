@@ -59,9 +59,9 @@ Main: $(DEPS)
 # run the test suites for the Curry preprocessor
 .PHONY: runtest
 runtest:
-	cd IntegratedCode/Examples  && ./test.sh
+	cd IntegratedCode/Examples    && ./test.sh
+	cd IntegratedCode/ExamplesSQL && ./test.sh
 	# The following test is removed due to problems with SWI-Prolog:
 	#cd SequentialRules/Examples && ./test.sh 
-	cd DefaultRules/Examples    && ./test.sh
-	cd ContractWrapper/Examples && ./test.sh
-
+	cd DefaultRules/Examples      && ./test.sh
+	cd ContractWrapper/Examples   && ./test.sh

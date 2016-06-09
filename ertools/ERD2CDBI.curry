@@ -65,11 +65,11 @@ translateERD2ERDT erdfname = do
 writeCDBI :: ERD -> String -> IO ()
 writeCDBI (ERD name ents rels)  dbPath = do
   file <- openFile (name++"_CDBI"++".curry") WriteMode
-  let imports = [ "Time (ClockTime)",
-                  "Database.CDBI.ER",
-                  "Database.CDBI.Criteria (idVal, Value)",
-                  "Database.CDBI.Connection",
-                  "Database.CDBI.Description"]
+  let imports = [ "Time"
+                , "Database.CDBI.ER"
+                , "Database.CDBI.Criteria"
+                , "Database.CDBI.Connection"
+                , "Database.CDBI.Description"]
   let typeDecls = foldr ((++) . (getEntityTypeDecls (name++"_CDBI"))) [] ents 
   let funcDecls = foldr ((++) . (getEntityFuncDecls (name++"_CDBI"))) [] ents
   hPutStrLn file
