@@ -21,6 +21,13 @@ $CURRYBIN/cleancurry
 # The option -m70 is necessary for testing the determinism properties,
 # otherwise the search space is too big for some tests.
 CCOPTS=-m70
+# this option must be decreased for PAKCS/SWI due to memory overflows:
+if [ -x "$CURRYBIN/pakcs" ] ; then
+  BACKEND=`$CURRYBIN/curry :set v0 :set -time :load Distribution :eval "putStrLn curryRuntime" :quit 2> /dev/null`
+  if [ "$BACKEND" = swi ] ; then
+    CCOPTS=-m50
+  fi
+fi
 
 LOGFILE=xxx$$
 
