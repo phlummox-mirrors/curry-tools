@@ -32,7 +32,7 @@ cvBanner :: String
 cvBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "curry2verify: Curry programs -> Verifiers (version of 07/06/2016)"
+     "curry2verify: Curry programs -> Verifiers (version of 14/06/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text

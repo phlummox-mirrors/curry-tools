@@ -3,8 +3,8 @@
 
 CURRYBIN="../../../bin"
 
-AGDACHOICETESTS="Double EvenOdd MyList Perm"
-AGDANONDETTESTS="$AGDACHOICETESTS Game"
+AGDACHOICETESTS="Double EvenOdd Game MyList Perm"
+AGDANONDETTESTS="$AGDACHOICETESTS"
 
 VERBOSE=no
 if [ "$1" = "-v" ] ; then
@@ -66,4 +66,4 @@ done
 ################ end of tests ####################
 # Clean:
 $CURRYBIN/cleancurry
-/bin/rm -f $LOGFILE nondet.agda*
+/bin/rm -f $LOGFILE nondet.agda* nondet-thms.agda*

@@ -5,7 +5,7 @@
 --- @version June 2016
 -------------------------------------------------------------------------
 
---module ToAgda(theoremToAgda) where
+module ToAgda(theoremToAgda) where
 
 import AbstractCurry.Types
 import AbstractCurry.Select
@@ -56,7 +56,8 @@ theoremToAgda opts qtheoname allfuncs alltypes = do
   when (optVerb opts > 1 || not (optStore opts)) $ putStr agdaprog
   when (optStore opts) $ do
     writeFile agdafile agdaprog
-    copyImport "nondet.agda"
+    when (optScheme opts == "nondet") $
+      mapIO_ copyImport ["nondet.agda","nondet-thms.agda"]
     when (optVerb opts > 0) $ putStrLn $
      "Agda module '" ++ agdafile ++ "' written.\n" ++
      "If you completed the proof, rename it to 'PROOF-" ++ theoname ++ ".agda'."
@@ -73,7 +74,8 @@ agdaHeader opts mname =
   ["  where\n"
   , unlines (map (\im -> "open import " ++ im)
                  (["eq","nat","list","maybe"] ++
-                  (if optScheme opts == "nondet" then ["nondet"] else [])))
+                 (if optScheme opts == "nondet" then ["nondet","nondet-thms"]
+                                                else [])))
   ]
 
 -------------------------------------------------------------------------
@@ -418,11 +420,11 @@ showTypedTRSAsAgda opts rn prefuns ((fn,cmt,texp,trs) : morefuncs) =
                             showTypeSignatureAsAgda (rn f) t,""])
              forwardfuncs) ++
   map ("-- "++) cmt ++
-  (if lookupProgInfo fn (patInfos opts) /= Just Complete
+  (if lookupProgInfo fn (patInfos opts) == Just Complete
       || optScheme opts == "nondet"
     then []
-    else ["-- WARNING: function '" ++ showQName fn ++ "' is partial so that",
-          "-- it might be necessary to adapt the code!"]) ++
+    else ["-- WARNING: function '" ++ showQName fn ++
+          "' is partial: adapt the code!"] ) ++
   (if fn `elem` prefuns then [] else [showTypeSignatureAsAgda (rn fn) texp]) ++
   map (showRuleAsAgda rn) trs ++ [""] ++
   showTypedTRSAsAgda opts rn (forwardfuncs ++ prefuns) morefuncs
