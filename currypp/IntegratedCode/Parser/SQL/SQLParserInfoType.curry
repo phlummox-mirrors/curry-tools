@@ -36,7 +36,8 @@ type AttributeTypes = [(String, String)]
 type AttrTypeFM = FM String String 
 
 --- Basic data type for parser information.
-data ParserInfo = PInfo (String, String) 
+data ParserInfo = PInfo String
+                        String
                         RelationTypes
                         NullableFlags
                         AttributeLists
@@ -49,28 +50,28 @@ data RelationType = MtoN String
 
 --- Getter for path to used database.
 dbName :: ParserInfo -> String
-dbName (PInfo (db,_) _ _ _ _ ) = db
+dbName (PInfo db _ _ _ _ _ ) = db
 
 --- Getter for CDBI-module-name
 cdbiModule :: ParserInfo -> String
-cdbiModule (PInfo (_, cdbi) _ _ _ _) = cdbi
+cdbiModule (PInfo _ cdbi _ _ _ _) = cdbi
 
 --- Getter for relationships represented as nested FM for faster access.
 getRelations :: ParserInfo -> RelationFM 
-getRelations (PInfo _ rels _ _ _) = splitRelations rels
+getRelations (PInfo _ _ rels _ _ _) = splitRelations rels
 
 --- Getter for nullable-flag returned as a FM
 getNullables :: ParserInfo -> NullableFM 
-getNullables (PInfo _ _ nulls _ _) =  listToFM (>) nulls
+getNullables (PInfo _ _ _ nulls _ _) =  listToFM (>) nulls
 
 --- Getter for for lists of attributes (columns)
 --- returned as FM.
 getAttrList :: ParserInfo -> AttributesFM
-getAttrList (PInfo _ _ _ attrs _ ) = listToFM (>) attrs
+getAttrList (PInfo _ _ _ _ attrs _ ) = listToFM (>) attrs
 
 --- Getter for column types returnd as FM.
 getTypes :: ParserInfo -> AttrTypeFM 
-getTypes (PInfo _ _ _ _ types) = listToFM (>) types
+getTypes (PInfo _ _ _ _ _ types) = listToFM (>) types
 
 --- Lookup function for RelationFM.
 --- In case of success return tuple of relation type
