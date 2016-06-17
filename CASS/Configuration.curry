@@ -29,7 +29,7 @@ import Char(isSpace)
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System ("++
-                   "version of 20/01/2015 for "++curryCompiler++")"
+                   "version of 17/06/2016 for "++curryCompiler++")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 

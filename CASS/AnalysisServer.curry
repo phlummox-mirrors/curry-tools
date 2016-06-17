@@ -5,10 +5,10 @@
 --- to use the analysis system in another Curry program.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version May 2015
+--- @version June 2016
 --------------------------------------------------------------------------
 
-module AnalysisServer(main, initializeAnalysisSystem, analyzeModuleAsText,
+module AnalysisServer(mainServer, initializeAnalysisSystem, analyzeModuleAsText,
                       analyzeModuleForBrowser, analyzeFunctionForBrowser,
                       analyzeGeneric, analyzePublic, analyzeInterface)
   where
@@ -38,59 +38,9 @@ data AnalysisServerMessage =
   | SetCurryPath String
   | ParseError
 
---- Main function to start the server.
---- Without any program arguments, the server is started on a socket.
---- Otherwise, it is started in batch mode to analyze a module.
-main :: IO ()
-main = do
-  debugMessage 1 systemBanner
-  initializeAnalysisSystem
-  args <- getArgs
-  processArgs False args
-
-processArgs :: Bool -> [String] -> IO ()
-processArgs enforce args = case args of
-  [] -> mainServer Nothing
-  ["-p",port]  -> maybe showError
-                        (\ (p,r) -> if all isSpace r
-                                    then mainServer (Just p)
-                                    else showError )
-                        (readNat port)
-  ["-h"]       -> showHelp
-  ["-?"]       -> showHelp
-  ["--help"]   -> showHelp
-  ("-r":rargs) -> processArgs True rargs
-  (('-':'D':kvs):rargs) -> let (key,eqvalue) = break (=='=') kvs
-                            in if null eqvalue
-                               then showError
-                               else do updateCurrentProperty key (tail eqvalue)
-                                       processArgs enforce rargs
-  [ananame,mname] ->
-      if ananame `elem` registeredAnalysisNames
-      then analyzeModuleAsText ananame (stripSuffix mname) enforce >>= putStrLn
-      else showError
-  _ -> showError
- where
-  showError =
-    error ("Illegal arguments (use '--help' for description):\n"++unwords args)
-
 --- Initializations to be done when the system is started.
 initializeAnalysisSystem :: IO ()
 initializeAnalysisSystem = updateRCFile
-
-showHelp :: IO ()
-showHelp = putStrLn $
-  "Usage: cass <options> [-p <port>] :\n" ++
-  "       start analysis system in server mode\n\n"++
-  "       <port>: port number for communication\n" ++
-  "               (if omitted, a free port number is selected)\n\n"++
-  "Usage: cass <options> <analysis name> <module name> :\n"++
-  "       analyze a module with a given analysis\n\n"++
-  "where <options> can contain:\n"++
-  "-Dname=val : set property (of ~/.curryanalysisrc) 'name' as 'val'\n"++
-  "-r         : force re-analysis (i.e., ignore old analysis information)\n"++
-  "\nRegistered analyses names:\n" ++
-  unlines registeredAnalysisNames
 
 --- Start the analysis server on a socket.
 mainServer :: Maybe Int -> IO ()

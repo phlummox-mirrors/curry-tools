@@ -10,11 +10,7 @@ ANADIR = ../analysis
 TOOL   = $(BINDIR)/cass
 
 # Source modules of CASS:
-DEPS = Analysis.curry AnalysisCollection.curry AnalysisDependencies.curry \
-       AnalysisServer.curry AnalysisWorker.curry Configuration.curry \
-       CurryFiles.curry FlatCurryDependency.curry GenericProgInfo.curry \
-       LoadAnalysis.curry ServerFormats.curry \
-       ServerFunctions.curry WorkerFunctions.curry \
+DEPS = *.curry \
        $(LIBDIR)/Distribution.curry $(LIBDIR)/PropertyFile.curry \
        $(LIBDIR)/FlatCurry/*.curry $(LIBDIR)/SCC.curry $(ANADIR)/*.curry
 
@@ -42,8 +38,8 @@ cass_worker: $(DEPS)
 
 # generate executable for analysis server program:
 cass: $(DEPS)
-	$(REPL) $(REPL_OPTS) :set path $(ANADIR) :l AnalysisServer :save :q
-	mv AnalysisServer $@
+	$(REPL) $(REPL_OPTS) :set path $(ANADIR) :l Main :save :q
+	mv Main $@
 
 # load the analysis server program into the Curry system:
 .PHONY: load
