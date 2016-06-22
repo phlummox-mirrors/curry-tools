@@ -492,9 +492,7 @@ propResultType (CFuncType from to) = CFuncType from (propResultType to)
 -- Transforms a function declaration into a post condition test if
 -- there is a post condition for this function (i.e., a relation named
 -- f'post). The post condition test is of the form
--- fSatisfiesPostCondition x1...xn y =
---   let r = f x1...xn
---    in f'pre x1...xn && r==r  ==> always (f'post x1...xn r)
+-- fSatisfiesPostCondition x1...xn y = always (f'post x1...xn (f x1...xn))
 genPostCondTest :: [QName] -> [QName] -> CFuncDecl -> [CFuncDecl]
 genPostCondTest prefuns postops (CmtFunc _ qf ar vis texp rules) =
   genSpecTest prefuns postops (CFunc qf ar vis texp rules)
@@ -503,24 +501,18 @@ genPostCondTest prefuns postops (CFunc qf@(mn,fn) _ _ texp _) =
   [CFunc (mn, fn ++ postCondSuffix) ar Public
     (propResultType texp)
     [simpleRule (map CPVar cvars) $
-      CLetDecl [CLocalPat (CPVar rvar)
-                          (CSimpleRhs (applyF qf (map CVar cvars)) [])]
-               (applyF (easyCheckModule,"==>")
-                       [preCond,
-                        applyF (easyCheckModule,"always")
-                               [applyF (mn,toPostCondName fn)
-                                       (map CVar (cvars ++ [rvar]))]])]]
+      if qf `elem` prefuns
+       then applyF (easyCheckModule,"==>")
+                   [applyF (mn,toPreCondName fn) (map CVar cvars), postprop]
+       else postprop
+    ]]
  where
-  cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
-  rvar  = (0,"r")
-  ar    = arityOfType texp
-
-  preCond =
-   let eqResult = applyF (pre "==") [CVar rvar, CVar rvar]
-    in if qf `elem` prefuns
-       then applyF (pre "&&")
-                   [applyF (mn,toPreCondName fn) (map CVar cvars), eqResult]
-       else eqResult
+  ar       = arityOfType texp
+  cvars    = map (\i -> (i,"x"++show i)) [1 .. ar]
+  rcall    = applyF qf (map CVar cvars)
+  postprop = applyF (easyCheckModule,"always")
+                    [applyF (mn,toPostCondName fn)
+                            (map CVar cvars ++ [rcall])]
 
 -- Transforms a function declaration into a specification test if
 -- there is a specification for this function (i.e., an operation named
@@ -572,8 +564,7 @@ genDetOpTests prooffiles prefuns fdecls =
 
 -- Transforms a declaration of a deterministic operation f_ORGNDFUN
 -- into a determinisim property test of the form
--- fIsDeterministic x1...xn = let r = f x1...xn
---                             in r==r ==> always (f x1...xn == r)
+-- fIsDeterministic x1...xn = f x1...xn #< 2
 genDetProp :: [QName] -> CFuncDecl -> CFuncDecl
 genDetProp prefuns (CmtFunc _ qf ar vis texp rules) =
   genDetProp prefuns (CFunc qf ar vis texp rules)
@@ -581,24 +572,15 @@ genDetProp prefuns (CFunc (mn,fn) ar _ texp _) =
   CFunc (mn, forg ++ isDetSuffix) ar Public
    (propResultType texp)
    [simpleRule (map CPVar cvars) $
-      CLetDecl [CLocalPat (CPVar rvar) (CSimpleRhs forgcall [])]
-               (applyF (easyCheckModule,"==>")
-                       [preCond,
-                        applyF (easyCheckModule,"always")
-                               [applyF (pre "==") [forgcall, CVar rvar]]])]
+      if (mn,forg) `elem` prefuns
+       then applyF (easyCheckModule,"==>")
+                   [applyF (mn,toPreCondName forg) (map CVar cvars), rnumcall]
+       else rnumcall ]
  where
-  forg  = take (length fn - 9) fn
+  forg     = take (length fn - 9) fn
+  cvars    = map (\i -> (i,"x"++show i)) [1 .. ar]
   forgcall = applyF (mn,forg) (map CVar cvars)
-  cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
-  rvar  = (0,"r")
-
-  preCond =
-   let eqResult = applyF (pre "==") [CVar rvar, CVar rvar]
-    in if (mn,forg) `elem` prefuns
-       then applyF (pre "&&")
-                   [applyF (mn,toPreCondName forg) (map CVar cvars), eqResult]
-       else eqResult
-
+  rnumcall = applyF (easyCheckModule,"#<") [forgcall, cInt 2]
 
 -- Generates auxiliary (Boolean-instantiated) test functions for
 -- polymorphically typed test function.
