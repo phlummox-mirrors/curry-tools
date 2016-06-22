@@ -5,8 +5,6 @@
 --- CurryCheck generates and check properties which states
 --- that the original operations are indeed deterministic.
 
-import System
-
 -- Computes the last element of a list.
 last :: [a] ->DET a
 last (_ ++ [x]) = x
