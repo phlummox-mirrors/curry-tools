@@ -9,7 +9,7 @@
 --------------------------------------------------------------------
 
 module Registry
- ( functionAnalysisInfos, registeredAnalysisNames
+ ( functionAnalysisInfos, registeredAnalysisNames, registeredAnalysisInfos
  , lookupRegAnaWorker, runAnalysisWithWorkers, analyzeMain
  ) where
 
@@ -42,6 +42,7 @@ import Demandedness
 import Groundness
 import RequiredValue
 import qualified RequiredValues as RVS
+import RootReplaced
 
 --------------------------------------------------------------------
 --- Each analysis used in our tool must be registered in this list
@@ -50,6 +51,8 @@ registeredAnalysis :: [RegisteredAnalysis]
 registeredAnalysis =
   [cassAnalysis "Overlapping rules"          overlapAnalysis  showOverlap
   ,cassAnalysis "Deterministic operations"   nondetAnalysis   showDet
+  ,cassAnalysis "Depends on non-deterministic operations"
+                                             nondetDepAnalysis showNonDetDeps
   ,cassAnalysis "Right-linear operations"    rlinAnalysis     showRightLinear
   ,cassAnalysis "Solution completeness"      solcompAnalysis  showSolComplete
   ,cassAnalysis "Pattern completeness"       patCompAnalysis  showComplete
@@ -64,6 +67,7 @@ registeredAnalysis =
   ,cassAnalysis "Sibling constructors"       siblingCons      showSibling
   ,cassAnalysis "Required value"             reqValueAnalysis showAFType
   ,cassAnalysis "Required value sets"        RVS.reqValueAnalysis RVS.showAFType
+  ,cassAnalysis "Root replacements"          rootReplAnalysis showRootRepl
   ]
 
 
@@ -89,7 +93,7 @@ cassAnalysis title analysis showres =
 --- The components are as follows:
 --- * the name of the analysis
 --- * is this a function analysis?
---- * a long meaningful name of the analysis
+--- * a long meaningful title of the analysis
 --- * the operation used by the server to distribute analysis work
 ---   to the clients
 --- * the worker operation to analyze a list of modules
@@ -104,6 +108,12 @@ data RegisteredAnalysis =
 regAnaName :: RegisteredAnalysis -> String
 regAnaName (RegAna n _ _ _ _) = n
 
+regAnaInfo :: RegisteredAnalysis -> (String,String)
+regAnaInfo (RegAna n _ t _ _) = (n,t)
+
+regAnaFunc :: RegisteredAnalysis -> Bool
+regAnaFunc (RegAna _ fa _ _ _) = fa
+
 regAnaServer :: RegisteredAnalysis
                 -> (String -> Bool -> [Handle] -> Maybe AOutFormat
                     -> IO (Either (ProgInfo String) String))
@@ -116,11 +126,13 @@ regAnaWorker (RegAna _ _ _ _ a) = a
 registeredAnalysisNames :: [String]
 registeredAnalysisNames = map regAnaName registeredAnalysis
 
+--- Names and titles of all registered analyses.
+registeredAnalysisInfos :: [(String,String)]
+registeredAnalysisInfos = map regAnaInfo registeredAnalysis
+
 --- Names and titles of all registered function analyses.
 functionAnalysisInfos :: [(String,String)]
-functionAnalysisInfos =
-  map (\ (RegAna n _ t _ _) -> (n,t))
-      (filter (\ (RegAna _ fa _ _ _) -> fa) registeredAnalysis)
+functionAnalysisInfos = map regAnaInfo (filter regAnaFunc registeredAnalysis)
 
 lookupRegAna :: String -> [RegisteredAnalysis] -> Maybe RegisteredAnalysis
 lookupRegAna _ [] = Nothing

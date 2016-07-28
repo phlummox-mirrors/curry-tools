@@ -8,12 +8,17 @@
 --- @version September 2013
 ------------------------------------------------------------------------------
 
-module Deterministic(overlapAnalysis,showOverlap,showDet,
-                     Deterministic(..),nondetAnalysis) where
+module Deterministic
+  ( overlapAnalysis, showOverlap, showDet
+  , Deterministic(..),nondetAnalysis
+  , showNonDetDeps, nondetDepAnalysis
+  ) where
 
 import Analysis
 import FlatCurry.Types
 import FlatCurry.Goodies
+import List
+import Sort(sort)
 
 ------------------------------------------------------------------------------
 -- The overlapping analysis can be applied to individual functions.
@@ -97,5 +102,35 @@ extraVarInExpr (Typed e _) = extraVarInExpr e
 
 pre :: String -> QName
 pre n = ("Prelude",n)
+
+------------------------------------------------------------------------------
+--- Data type to represent information about non-deterministic dependencies.
+--- Basically, it is the set (represented as a sorted list) of
+--- all function names that are defined by overlapping rules or rules
+--- containing free variables which might be called.
+type NonDetDeps = [QName]
+
+-- Show determinism dependency information as a string.
+showNonDetDeps :: AOutFormat -> NonDetDeps -> String
+showNonDetDeps AText []     = "deterministic"
+showNonDetDeps ANote []     = ""
+showNonDetDeps fmt (x:xs) =
+  (if fmt==AText then "depends on non-deterministic operations: " else "") ++
+  intercalate "," (map (\ (mn,fn) -> mn++"."++fn) (x:xs))
+
+--- Non-deterministic dependency analysis.
+nondetDepAnalysis :: Analysis NonDetDeps
+nondetDepAnalysis = dependencyFuncAnalysis "NonDetDependency" [] nondetDeps
+
+-- An operation is non-deterministic if its definition is potentially
+-- non-deterministic (i.e., the dependency is the operation itself)
+-- or it depends on some called non-deterministic function.
+-- TODO: check if non-determinism is encapsulated by set function
+--       so that it is actually a deterministic function
+nondetDeps :: FuncDecl -> [(QName,NonDetDeps)] -> NonDetDeps
+nondetDeps func calledFuncs =
+  if isNondetDefined func
+   then [funcName func]
+   else sort (nub (concatMap snd calledFuncs))
 
 ------------------------------------------------------------------------------

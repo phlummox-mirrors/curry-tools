@@ -129,6 +129,9 @@ usageText =
             options ++
   unlines ("" : "Registered analyses names:" :
            "(use option `-h <analysis name>' for more documentation)" :
-           "" : registeredAnalysisNames)
+           "" : map showAnaInfo registeredAnalysisInfos)
+ where
+  maxName = foldr1 max (map (length . fst) registeredAnalysisInfos)
+  showAnaInfo (n,t) = n ++ take (maxName - length n) (repeat ' ') ++ ": " ++ t
 
 --------------------------------------------------------------------------
