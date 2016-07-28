@@ -7,14 +7,16 @@
 
 module Main(main) where
 
-import ReadNumeric    (readNat)
 import Distribution   (stripCurrySuffix)
+import FilePath       ((</>), (<.>))
 import GetOpt
+import ReadNumeric    (readNat)
 import System         (exitWith,getArgs)
 
+import AnalysisDoc    (getAnalysisDoc)
 import AnalysisServer
-import AnalysisCollection
 import Configuration
+import Registry
 
 --- Main function to start the analysis system.
 --- With option -s or --server, the server is started on a socket.
@@ -27,7 +29,7 @@ main = do
   unless (null opterrors)
          (putStr (unlines opterrors) >> putStr usageText >> exitWith 1)
   initializeAnalysisSystem
-  when (optHelp opts) (putStrLn usageText >> exitWith 1)
+  when (optHelp opts) (printHelp args >> exitWith 1)
   when ((optServer opts && not (null args)) ||
         (not (optServer opts) && length args /= 2))
        (error "Illegal arguments (try `-h' for help)" >> exitWith 1)
@@ -107,12 +109,26 @@ options =
          else opts { optProp = optProp opts ++ [(key,tail eqvalue)] }
 
 
+--------------------------------------------------------------------------
+-- Printing help:
+printHelp :: [String] -> IO ()
+printHelp args =
+  if null args
+   then putStrLn usageText
+   else let aname = head args
+         in getAnalysisDoc aname >>=
+            maybe (putStrLn $
+                     "Sorry, no documentation for analysis `" ++ aname ++ "'")
+                  putStrLn
+
 -- Help text
 usageText :: String
 usageText =
   usageInfo ("Usage: cass <options> <analysis name> <module name>\n" ++
              "   or: cass <options> [-s|--server]\n")
             options ++
-  unlines ("Registered analyses names:" : registeredAnalysisNames)
+  unlines ("" : "Registered analyses names:" :
+           "(use option `-h <analysis name>' for more documentation)" :
+           "" : registeredAnalysisNames)
 
 --------------------------------------------------------------------------

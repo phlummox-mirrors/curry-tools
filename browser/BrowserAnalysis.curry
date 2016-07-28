@@ -10,7 +10,7 @@ module BrowserAnalysis(moduleAnalyses,allFunctionAnalyses,functionAnalyses) wher
 import AnalysisTypes
 import Analysis(AOutFormat(..))
 import AnalysisServer(analyzeFunctionForBrowser)
-import AnalysisCollection(functionAnalysisInfos)
+import Registry(functionAnalysisInfos)
 import FlatCurry.Types
 import FlatCurry.Goodies
 import FlatCurry.Show(showFlatFunc)

@@ -31,9 +31,10 @@ import Directory
 import Time(toCalendarTime,calendarTimeToString)
 import Distribution
 
-import Analysis(AOutFormat(..))
-import AnalysisServer(initializeAnalysisSystem,analyzeModuleForBrowser)
-import AnalysisCollection(functionAnalysisInfos)
+import Analysis       (AOutFormat(..))
+import AnalysisDoc    (getAnalysisDoc)
+import AnalysisServer (initializeAnalysisSystem,analyzeModuleForBrowser)
+import Registry       (functionAnalysisInfos)
 
 ---------------------------------------------------------------------
 -- Set this constant to True if the execution times of the main operations
@@ -678,7 +679,8 @@ browserGUI gstate rmod rtxt names =
       modfuns <- getFunctionListKind gstate
       if modfuns then done else showExportedFuns modName gp
       funs <- getFuns gstate
-      setValue resultwidget explanation gp
+      mbdoc <- getAnalysisDoc analysisName
+      setValue resultwidget (maybe explanation id mbdoc) gp
       showDoing gp "Analyzing..."
       results <- analyzeModuleForBrowser analysisName modName ANote
       setConfig rfun

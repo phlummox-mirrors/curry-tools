@@ -6,17 +6,19 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version April 2016
+--- @version July 2016
 --------------------------------------------------------------------------
 
 module Configuration
- (systemBanner,baseDir,getServerAddress,updateRCFile,updateCurrentProperty,
-  getFPMethod,getWithPrelude,
-  storeServerPortNumber,removeServerPortNumber,getServerPortNumber,
-  getDefaultPath,waitTime,numberOfWorkers,debugMessage) where
+ ( systemBanner, baseDir, docDir
+ , getServerAddress, updateRCFile, updateCurrentProperty
+ , getFPMethod, getWithPrelude
+ , storeServerPortNumber, removeServerPortNumber, getServerPortNumber
+ , getDefaultPath, waitTime, numberOfWorkers, debugMessage
+ ) where
 
 import System
-import Distribution(installDir,curryCompiler)
+import Distribution(installDir, curryCompiler)
 import PropertyFile
 import ReadNumeric
 import FilePath(FilePath, (</>), (<.>))
@@ -29,16 +31,22 @@ import Char(isSpace)
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System ("++
-                   "version of 17/06/2016 for "++curryCompiler++")"
+                   "version of 28/07/2016 for "++curryCompiler++")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
 
---- The base directory of the analysis tool containing all programs.
---- Required to copy the configuration file and to the find executables
---- of the server and the workers.
+--- The base directory of the analysis tool containing all programs
+--- and documentations.
+--- It is used to copy the configuration file, to the find executables
+--- of the server and the workers, and to find the documentation
+--- of the various analyses.
 baseDir :: String
-baseDir = installDir ++ "/currytools/CASS"
+baseDir = installDir </> "currytools" </> "CASS"
+
+--- The directory containing the documentations of the various analyses.
+docDir :: String
+docDir = baseDir </> "Docs"
 
 --- The address of the server when it is connected from the worker clients.
 getServerAddress :: IO String

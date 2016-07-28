@@ -14,7 +14,8 @@ TOOL       = $(BINDIR)/currybrowse
 # source modules of the Curry Browser:
 DEPS = BrowserGUI.curry ShowFlatCurry.curry Imports.curry \
        AnalysisTypes.curry BrowserAnalysis.curry ShowGraph.curry \
-       $(CASS)/AnalysisServer.curry $(CASS)/AnalysisCollection.curry \
+       $(CASS)/AnalysisServer.curry $(CASS)/AnalysisDoc.curry \
+       $(CASS)/Registry.curry \
        $(CURRYTOOLS)/addtypes/AddTypes.curry \
        $(CURRYTOOLS)/importcalls/ImportCalls.curry \
        $(LIBDIR)/GUI.curry $(LIBDIR)/IOExts.curry  $(LIBDIR)/System.curry \

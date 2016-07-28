@@ -38,13 +38,9 @@ siblingCons =
   consNamesOfType _ (TypeSyn _ _ _ _) = []
 
 ------------------------------------------------------------------------------
--- The completeness analysis must be applied to complete programs,
--- i.e., modules together with all their imported modules (although
--- functions are locally checked, the definition of all data types
--- used in the patterns are needed).
--- It assigns to a FlatCurry program the list of all qualified function names
--- together with a flag indicating whether this function is completely
--- defined on its input types (i.e., reducible for all ground data terms).
+-- The completeness analysis assigns to an operation a flag indicating
+-- whether this operation is completely defined on its input types,
+-- i.e., reducible for all ground data terms.
 
 -- The possible outcomes of the completeness analysis:
 data Completeness =

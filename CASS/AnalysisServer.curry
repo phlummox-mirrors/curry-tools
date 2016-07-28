@@ -1,8 +1,8 @@
 --------------------------------------------------------------------------
---- This is the main module of the analysis system.
---- One can either use the 'main' operation to start the system
---- in "server mode" or "batch mode" or use one of the operations below
---- to use the analysis system in another Curry program.
+--- This is the main module of the analysis server.
+--- It provides operations to initialize the server system,
+--- start the server on a socket, or use the analysis server
+--- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
 --- @version June 2016
@@ -22,12 +22,13 @@ import IO
 import ReadShowTerm(readQTerm,showQTerm)
 import System(system,sleep,setEnviron,getArgs)
 import FileGoodies(stripSuffix,splitDirectoryBaseName)
-import AnalysisCollection
-import ServerFormats
-import ServerFunctions(WorkerMessage(..))
+
+import Analysis(Analysis,AOutFormat(..))
 import Configuration
 import GenericProgInfo
-import Analysis(Analysis,AOutFormat(..))
+import Registry
+import ServerFormats
+import ServerFunctions(WorkerMessage(..))
 
 -- Messages to communicate with the analysis server from external programs.
 data AnalysisServerMessage = 

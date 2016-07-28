@@ -8,9 +8,10 @@
 --- @version June 2015
 --------------------------------------------------------------------
 
-module AnalysisCollection(
-  functionAnalysisInfos,registeredAnalysisNames,
-  lookupRegAnaWorker,runAnalysisWithWorkers,analyzeMain) where
+module Registry
+ ( functionAnalysisInfos, registeredAnalysisNames
+ , lookupRegAnaWorker, runAnalysisWithWorkers, analyzeMain
+ ) where
 
 import FlatCurry.Types
 import FlatCurry.Goodies(progImports)
