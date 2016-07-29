@@ -33,9 +33,9 @@ type RootReplaced = [QName]
 showRootRepl :: AOutFormat -> RootReplaced -> String
 showRootRepl AText []     = "no root replacements"
 showRootRepl ANote []     = ""
-showRootRepl fmt (x:xs) =
-  (if fmt==AText then "root replacements: " else "") ++
-  intercalate "," (map (\ (mn,fn) -> mn++"."++fn) (x:xs))
+showRootRepl AText xs@(_:_) =
+  "root replacements: " ++ intercalate "," (map (\ (mn,fn) -> mn++"."++fn) xs)
+showRootRepl ANote xs@(_:_) = "[" ++ intercalate "," (map snd xs) ++ "]"
 
 --- Root replacement analysis.
 rootReplAnalysis :: Analysis RootReplaced

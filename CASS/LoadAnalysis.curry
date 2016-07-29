@@ -3,22 +3,24 @@
 --- persistently in files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2015
+--- @version July 2016
 --------------------------------------------------------------------------
 
 module LoadAnalysis where
 
 import Directory
 import Distribution(stripCurrySuffix)
-import FilePath
-import System(system)
-import GenericProgInfo
-import Configuration(debugMessage,getWithPrelude)
-import IO
-import FiniteMap
-import ReadShowTerm(readQTerm,showQTerm)
 import FlatCurry.Types(QName)
+import FilePath
+import FiniteMap
+import IO
+import List(isPrefixOf, isSuffixOf)
+import ReadShowTerm(readQTerm, showQTerm)
+import System(system)
+
+import Configuration(debugMessage, getWithPrelude)
 import CurryFiles(findModuleSourceInLoadPath)
+import GenericProgInfo
 
 
 --- Get the file name in which analysis results are stored
@@ -122,9 +124,24 @@ createDirectoryR maindir =
       createDirectory createdDir
     createDirectories createdDir dirs
 
--- delete all savefiles of analysis
-deleteAnalysisFiles :: String -> IO Int
-deleteAnalysisFiles ananame = do
+--- Deletes all analysis files for a given analysis name.
+deleteAllAnalysisFiles :: String -> IO ()
+deleteAllAnalysisFiles ananame = do
    analysisDir <- getAnalysisDirectory
-   system ("find "++analysisDir++" -name '*."++ananame++"' -type f -delete")
+   deleteAllInDir analysisDir
+ where
+  deleteAllInDir dir = do
+    dircont <- getDirectoryContents dir
+    mapIO_ processDirElem (filter (not . isPrefixOf ".") dircont)
+   where
+     processDirElem f = do
+       let fullname = dir </> f
+       when (isAnaFile f) $ do
+         putStrLn ("DELETE: " ++ fullname)
+         removeFile fullname
+       isdir <- doesDirectoryExist fullname
+       when isdir $ deleteAllInDir fullname
 
+     isAnaFile f =
+       (".pub" `isSuffixOf` f && ('.':ananame) `isSuffixOf` dropExtension f) ||
+       (".priv" `isSuffixOf` f && ('.':ananame) `isSuffixOf` dropExtension f)

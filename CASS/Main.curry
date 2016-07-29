@@ -2,7 +2,7 @@
 --- This is the main module to start the executable of the analysis system.
 ---
 --- @author Michael Hanus
---- @version June 2016
+--- @version July 2016
 --------------------------------------------------------------------------
 
 module Main(main) where
@@ -16,6 +16,7 @@ import System         (exitWith,getArgs)
 import AnalysisDoc    (getAnalysisDoc)
 import AnalysisServer
 import Configuration
+import LoadAnalysis   (deleteAllAnalysisFiles)
 import Registry
 
 --- Main function to start the analysis system.
@@ -30,6 +31,7 @@ main = do
          (putStr (unlines opterrors) >> putStr usageText >> exitWith 1)
   initializeAnalysisSystem
   when (optHelp opts) (printHelp args >> exitWith 1)
+  when (optDelete opts) (deleteFiles args)
   when ((optServer opts && not (null args)) ||
         (not (optServer opts) && length args /= 2))
        (error "Illegal arguments (try `-h' for help)" >> exitWith 1)
@@ -43,8 +45,18 @@ main = do
          in if ananame `elem` registeredAnalysisNames
              then analyzeModuleAsText ananame (stripCurrySuffix mname)
                                       (optReAna opts) >>= putStrLn
-             else error $ "Unknown analysis name `"++ ananame ++
-                          "' (try `-h' for help)"
+             else anaUnknownError ananame
+ where
+  deleteFiles args = case args of
+    [aname] -> if aname `elem` registeredAnalysisNames
+                then deleteAllAnalysisFiles aname >> exitWith 0
+                else anaUnknownError aname
+    [] -> error "Missing analysis name!"
+    _  -> error "Too many arguments (only analysis name should be given)!"
+
+  anaUnknownError aname =
+    error $ "Unknown analysis name `"++ aname ++ "' (try `-h' for help)"
+
 
 --------------------------------------------------------------------------
 -- Representation of command line options.
@@ -53,7 +65,8 @@ data Options = Options
   , optVerb    :: Int      -- verbosity level
   , optServer  :: Bool     -- start CASS in server mode?
   , optPort    :: Int      -- port number (if used in server mode)
-  , optReAna   :: Bool     -- fore re-analysis?
+  , optReAna   :: Bool     -- force re-analysis?
+  , optDelete  :: Bool     -- delete analysis files?
   , optProp    :: [(String,String)] -- property (of ~/.curryanalsisrc) to be set
   }
 
@@ -65,6 +78,7 @@ defaultOptions = Options
   , optServer  = False
   , optPort    = 0
   , optReAna   = False
+  , optDelete  = False
   , optProp    = []
   }
 
@@ -87,6 +101,9 @@ options =
   , Option "r" ["reanalyze"]
            (NoArg (\opts -> opts { optReAna = True }))
            "force re-analysis \n(i.e., ignore old analysis information)"
+  , Option "d" ["delete"]
+           (NoArg (\opts -> opts { optDelete = True }))
+           "delete existing analysis results"
   , Option "D" []
             (ReqArg checkSetProperty "name=v")
            "set property (of ~/.curryanalysisrc)\n`name' as `v'"
@@ -131,7 +148,7 @@ usageText =
            "(use option `-h <analysis name>' for more documentation)" :
            "" : map showAnaInfo registeredAnalysisInfos)
  where
-  maxName = foldr1 max (map (length . fst) registeredAnalysisInfos)
+  maxName = foldr1 max (map (length . fst) registeredAnalysisInfos) + 1
   showAnaInfo (n,t) = n ++ take (maxName - length n) (repeat ' ') ++ ": " ++ t
 
 --------------------------------------------------------------------------

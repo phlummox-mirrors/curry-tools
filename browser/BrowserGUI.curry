@@ -3,38 +3,39 @@
 --- programs.
 ---
 --- @author Michael Hanus
---- @version April 2016
+--- @version July 2016
 ---------------------------------------------------------------------
 
 module BrowserGUI where
 
-import GUI
-import Read
-import IOExts
-import Imports
+import Directory
+import Distribution
+import FileGoodies
 import FlatCurry.Types
 import FlatCurry.Files
 import FlatCurry.Goodies
 import FlatCurry.Show
-import ShowFlatCurry(leqFunc,funcModule)
-import System
-import FileGoodies
-import List
+import GUI
+import Imports
+import IOExts
+import List            (isPrefixOf,delete,union)
 import Maybe
+import Read
+import Sort            (sortBy)
+import System
+import Time            (toCalendarTime,calendarTimeToString)
+
 import AnalysisTypes
 import BrowserAnalysis
-import Sort
-import Dependency(callsDirectly,indirectlyDependent)
-import ShowGraph
+import Dependency      (callsDirectly,indirectlyDependent)
 import ImportCalls
-import Directory
-import Time(toCalendarTime,calendarTimeToString)
-import Distribution
+import ShowFlatCurry   (leqFunc,funcModule)
+import ShowGraph
 
-import Analysis       (AOutFormat(..))
-import AnalysisDoc    (getAnalysisDoc)
-import AnalysisServer (initializeAnalysisSystem,analyzeModuleForBrowser)
-import Registry       (functionAnalysisInfos)
+import Analysis        (AOutFormat(..))
+import AnalysisDoc     (getAnalysisDoc)
+import AnalysisServer  (initializeAnalysisSystem,analyzeModuleForBrowser)
+import Registry        (functionAnalysisInfos)
 
 ---------------------------------------------------------------------
 -- Set this constant to True if the execution times of the main operations
@@ -48,7 +49,7 @@ title :: String
 title = "CurryBrowser"
 
 version :: String
-version = "Version of 16/01/2015"
+version = "Version of 29/07/2016"
 
 patchReadmeVersion :: IO ()
 patchReadmeVersion = do
@@ -204,7 +205,7 @@ getFuns gs = readIORef gs >>= \ (GS _ _ _ funs _ _ _) -> return funs
 storeSelectedFunctions :: IORef GuiState -> [FuncDecl] -> IO ()
 storeSelectedFunctions gs funs = do
   (GS t mm ms _ ct flag fana) <- readIORef gs
-  writeIORef gs (GS t mm ms (mergeSortBy leqFunc funs) ct flag fana)
+  writeIORef gs (GS t mm ms (sortBy leqFunc funs) ct flag fana)
 
 setMainContentsModule :: IORef GuiState -> String -> ContentsKind -> String
                       -> IO ()
@@ -341,7 +342,7 @@ browserGUI gstate rmod rtxt names =
          Menu (map (\ (aname,atitle) ->
                       MButton (showMBusy (analyzeAllFunsWithCASS aname atitle))
                               atitle)
-                   functionAnalysisInfos)],
+                   (sortBy (\i1 i2 -> snd i1 <= snd i2) functionAnalysisInfos))],
        row [MenuButton
              [Text "Select functions...",
               Menu [MButton (showMBusy (executeForModule showExportedFuns))
@@ -581,7 +582,7 @@ browserGUI gstate rmod rtxt names =
     if mod==Nothing || null self then done else
       getFuns gstate >>= \funs ->
       let mainfun = funs!!(readNat self)
-          qfnames = mergeSortBy leqQName
+          qfnames = sortBy leqQName
                       (union [funcName mainfun] (callsDirectly mainfun))
        in getAllFunctions gstate (showDoing gp) (fromJust mod) >>= \allfuns ->
           storeSelectedFunctions gstate (map (findDecl4name allfuns) qfnames) >>
@@ -596,7 +597,7 @@ browserGUI gstate rmod rtxt names =
       getFuns gstate >>= \funs ->
       let mainfun = funcName (funs!!(readNat self)) in
       getAllFunctions gstate (showDoing gp) (fromJust mod) >>= \allfuns ->
-      let qfnames = mergeSortBy leqQName
+      let qfnames = sortBy leqQName
               (union [mainfun]
                      (fromJust (lookup mainfun (indirectlyDependent allfuns))))
        in storeSelectedFunctions gstate (map (findDecl4name allfuns) qfnames) >>
@@ -773,7 +774,7 @@ browserDir = installDir++"/currytools/browser"
 
 -- order qualified names by basename first:
 leqQName :: QName -> QName -> Bool
-leqQName (mod1,n1) (mod2,n2) = leqString n1 n2 || n1==n2 && leqString mod1 mod2
+leqQName (mod1,n1) (mod2,n2) = n1 <= n2 || n1==n2 && mod1 <= mod2
 
 -- show qualified name with module:
 showQNameWithMod :: QName -> String

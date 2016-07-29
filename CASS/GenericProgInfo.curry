@@ -5,7 +5,13 @@
 --- @version January 2015
 -----------------------------------------------------------------------
 
-module GenericProgInfo where
+module GenericProgInfo
+  ( ProgInfo, emptyProgInfo, lookupProgInfo, combineProgInfo
+  , lists2ProgInfo, publicListFromProgInfo, progInfo2Lists, progInfo2XML
+  , mapProgInfo, publicProgInfo
+  , showProgInfo, equalProgInfo
+  , readAnalysisFiles, readAnalysisPublicFile, writeAnalysisFiles
+  ) where
 
 import Configuration(debugMessage)
 import Directory(removeFile)
@@ -66,6 +72,16 @@ mapProgInfo func (ProgInfo map1 map2) =
 publicProgInfo :: ProgInfo a -> ProgInfo a
 publicProgInfo (ProgInfo pub _) = ProgInfo pub (emptyFM (<))
 
+--- Show a ProgInfo as a string (used for debugging only).
+showProgInfo :: ProgInfo _ -> String
+showProgInfo (ProgInfo fm1 fm2) =
+  "Public: "++showFM fm1++"\nPrivate: "++showFM fm2
+
+-- Equality on ProgInfo
+equalProgInfo :: ProgInfo a -> ProgInfo a -> Bool
+equalProgInfo (ProgInfo pi1p pi1v) (ProgInfo pi2p pi2v) =
+  eqFM pi1p pi2p && eqFM pi1v pi2v
+
 --- Writes a ProgInfo into a file.
 writeAnalysisFiles :: String -> ProgInfo _ -> IO ()
 writeAnalysisFiles basefname (ProgInfo pub priv) = do
@@ -103,12 +119,4 @@ readAnalysisPublicFile fname = do
            putStrLn "Please try to re-run the analysis!"
            ioError err)
 
---- Show a ProgInfo as a string (used for debugging only).
-showProgInfo :: ProgInfo _ -> String
-showProgInfo (ProgInfo fm1 fm2) =
-  "Public: "++showFM fm1++"\nPrivate: "++showFM fm2
-
--- Equality on ProgInfo
-equalProgInfo :: ProgInfo a -> ProgInfo a -> Bool
-equalProgInfo (ProgInfo pi1p pi1v) (ProgInfo pi2p pi2v) =
-  eqFM pi1p pi2p && eqFM pi1v pi2v
+-----------------------------------------------------------------------

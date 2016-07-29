@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version June 2015
+--- @version July 2016
 --------------------------------------------------------------------
 
 module Registry
@@ -53,6 +53,8 @@ registeredAnalysis =
   ,cassAnalysis "Deterministic operations"   nondetAnalysis   showDet
   ,cassAnalysis "Depends on non-deterministic operations"
                                              nondetDepAnalysis showNonDetDeps
+  ,cassAnalysis "Depends on all non-deterministic operations"
+                                             nondetDepAllAnalysis showNonDetDeps
   ,cassAnalysis "Right-linear operations"    rlinAnalysis     showRightLinear
   ,cassAnalysis "Solution completeness"      solcompAnalysis  showSolComplete
   ,cassAnalysis "Pattern completeness"       patCompAnalysis  showComplete
