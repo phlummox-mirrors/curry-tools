@@ -7,14 +7,14 @@
 --- * All EasyCheck tests are extracted and checked
 --- * For all functions declared as deterministic,
 ---   determinism properties are generated and checked.
---- * For functions with post-conditions (f'post), checks for post-conditions
----   are generated (together with possible pre-conditions)
+--- * For functions with postconditions (f'post), checks for postconditions
+---   are generated (together with possible preconditions)
 --- * For functions with specification (f'spec), checks for satisfaction
 ---   of these specifications are generated
----   (together with possible pre-conditions).
+---   (together with possible preconditions).
 ---
 --- @author Michael Hanus, Jan-Patrick Baye
---- @version June 2016
+--- @version August 2016
 -------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -24,9 +24,6 @@ import AbstractCurry.Build
 import AbstractCurry.Pretty    (showCProg)
 import AbstractCurry.Transform (renameCurryModule,updCProg,updQNamesInCProg)
 import AnsiCodes
-import CheckDetUsage           (checkDetUse, containsDetOperations)
-import ContractUsage
-import DefaultRuleUsage        (checkDefaultRules, containsDefaultRules)
 import Distribution
 import FilePath                ((</>), takeDirectory)
 import qualified FlatCurry.Types as FC
@@ -38,7 +35,12 @@ import List
 import Maybe                   (fromJust, isJust)
 import ReadNumeric             (readNat)
 import System                  (system, exitWith, getArgs, getPID)
+
+import CheckDetUsage           (checkDetUse, containsDetOperations)
+import ContractUsage
+import DefaultRuleUsage        (checkDefaultRules, containsDefaultRules)
 import TheoremUsage
+import SimplifyPostConds       (simplifyPostConditionsWithTheorems)
 import UsageCheck              (checkBlacklistUse, checkSetUse)
 
 --- Maximal arity of check functions and tuples currently supported:
@@ -50,7 +52,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 22/06/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 12/08/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -95,8 +97,8 @@ options =
   , Option "q" ["quiet"] (NoArg (\opts -> opts { optVerb = 0 }))
            "run quietly (no output, only exit code)"
   , Option "v" ["verbosity"]
-            (OptArg (maybe (checkVerb 2) (safeReadNat checkVerb)) "<n>")
-            "verbosity level:\n0: quiet (same as `-q')\n1: show test names (default)\n2: show test data (same as `-v')\n3: keep intermediate program files"
+            (OptArg (maybe (checkVerb 3) (safeReadNat checkVerb)) "<n>")
+            "verbosity level:\n0: quiet (same as `-q')\n1: show test names (default)\n2: show more information about test generation\n3: show test data (same as `-v')\n4: keep intermediate program files"
   , Option "m" ["maxtests"]
            (ReqArg (safeReadNat (\n opts -> opts { optMaxTest = n })) "<n>")
            "maximal number of tests (default: 100)"
@@ -129,7 +131,7 @@ options =
           (\ (n,rs) -> if null rs then opttrans n opts else numError)
           (readNat s)
 
-  checkVerb n opts = if n>=0 && n<4
+  checkVerb n opts = if n>=0 && n<5
                      then opts { optVerb = n }
                      else error "Illegal verbosity level (try `-h' for help)"
 
@@ -320,7 +322,7 @@ easyCheckConfig :: Options -> QName
 easyCheckConfig opts =
   (easyCheckExecModule,
    if isQuiet opts     then "quietConfig"   else
-   if optVerb opts > 1 then "verboseConfig"
+   if optVerb opts > 2 then "verboseConfig"
                        else "easyConfig")
 
 -- Translates a type expression into calls to generator operations.
@@ -404,48 +406,47 @@ classifyTests = map makeProperty
                       then IOTest (funcName test) 0
                       else PropTest (funcName test) (funcType test) 0
 
--- Extracts all tests and transforms all polymorphic tests into tests on a
--- base type.
--- The result contains a pair consisting of all actual tests and all
--- ignored tests.
-transformTests :: Options -> CurryProg -> ([CFuncDecl],[CFuncDecl],CurryProg)
-transformTests opts (CurryProg mname imports typeDecls functions opDecls) =
-  (map snd realtests, map snd ignoredtests,
-   CurryProg mname
-             (nub (easyCheckModule:imports))
-             typeDecls
-             (funcs ++ map snd (realtests ++ ignoredtests))
-             opDecls)
+-- Extracts all tests from a given Curry module and transforms
+-- all polymorphic tests into tests on a base type.
+-- The result contains a triple consisting of all actual tests,
+-- all ignored tests, and the public version of the original module.
+transformTests :: Options -> CurryProg -> IO ([CFuncDecl],[CFuncDecl],CurryProg)
+transformTests opts prog@(CurryProg mname imps typeDecls functions opDecls) = do
+  theofuncs <- getTheoremFunctions prog                         
+  simpfuncs <- simplifyPostConditionsWithTheorems (optVerb opts) theofuncs funcs
+  let preCondOps  = preCondOperations simpfuncs
+      postCondOps = map ((\ (mn,fn) -> (mn, fromPostCondName fn)) . funcName)
+                        (funDeclsWith isPostCondName simpfuncs)
+      specOps     = map ((\ (mn,fn) -> (mn, fromSpecName fn)) . funcName)
+                        (funDeclsWith isSpecName simpfuncs)
+      -- generate post condition tests:
+      postCondTests = concatMap (genPostCondTest preCondOps postCondOps) funcs
+      -- generate specification tests:
+      specOpTests   = concatMap (genSpecTest preCondOps specOps) funcs
+
+      (realtests,ignoredtests) = partition fst $
+        if not (optProp opts)
+        then []
+        else concatMap (poly2default (optDefType opts)) $
+               filter (\fd -> funcName fd `notElem` map funcName theofuncs) usertests ++
+               (if optSpec opts then postCondTests ++ specOpTests else [])
+  return (map snd realtests,
+          map snd ignoredtests,
+          CurryProg mname
+                    (nub (easyCheckModule:imps))
+                    typeDecls
+                    (simpfuncs ++ map snd (realtests ++ ignoredtests))
+                    opDecls)
  where
   (usertests, funcs) = partition isTest functions
 
-  preCondOps = preCondOperations functions
-  
-  postCondOps = map ((\ (mn,fn) -> (mn, fromPostCondName fn)) . funcName)
-                    (filter (\fd -> isPostCondName (snd (funcName fd)))
-                            functions)
 
-  specOps    = map ((\ (mn,fn) -> (mn, fromSpecName fn)) . funcName)
-                   (filter (\fd -> isSpecName (snd (funcName fd)))
-                           functions)
-
-  -- generate post condition tests:
-  postCondTests = concatMap (genPostCondTest preCondOps postCondOps) functions
-
-  -- generate specification tests:
-  specOpTests = concatMap (genSpecTest preCondOps specOps) functions
-
-  (realtests,ignoredtests) = partition fst $
-    if not (optProp opts)
-    then []
-    else concatMap (poly2default (optDefType opts)) $
-           usertests ++
-           (if optSpec opts then postCondTests ++ specOpTests else [])
-
--- Extracts all determinism tests and transforms deterministic operations
--- back into non-deterministic operations.
--- The result contains a pair consisting of all actual determinism tests
--- and all ignored tests (since they are polymorphic).
+-- Extracts all determinism tests from a given Curry module and
+-- transforms deterministic operations back into non-deterministic operations
+-- in order to test their determinism property.
+-- The result contains a triple consisting of all actual determinism tests,
+-- all ignored tests (since they are polymorphic), and the public version
+-- of the transformed original module.
 transformDetTests :: Options -> [String] -> CurryProg
                   -> ([CFuncDecl],[CFuncDecl],CurryProg)
 transformDetTests opts prooffiles
@@ -478,8 +479,11 @@ transformDetTests opts prooffiles
 preCondOperations :: [CFuncDecl] -> [QName]
 preCondOperations fdecls =
   map ((\ (mn,fn) -> (mn,fromPreCondName fn)) . funcName)
-      (filter (\fd -> isPreCondName (snd (funcName fd)))
-              fdecls)
+      (funDeclsWith isPreCondName fdecls)
+
+-- Filter functions having a name satisfying a given predicate.
+funDeclsWith :: (String -> Bool) -> [CFuncDecl] -> [CFuncDecl]
+funDeclsWith pred = filter (pred . snd . funcName)
 
 -- Transforms a function type into a property type, i.e.,
 -- t1 -> ... -> tn -> t  is transformed into  t1 -> ... -> tn -> Prop
@@ -582,7 +586,7 @@ genDetProp prefuns (CFunc (mn,fn) ar _ texp _) =
   forgcall = applyF (mn,forg) (map CVar cvars)
   rnumcall = applyF (easyCheckModule,"#<") [forgcall, cInt 2]
 
--- Generates auxiliary (Boolean-instantiated) test functions for
+-- Generates auxiliary (base-type instantiated) test functions for
 -- polymorphically typed test function.
 -- The flag indicates whether the test function should be actually passed
 -- to the test tool.
@@ -669,10 +673,10 @@ analyseCurryProg opts modname orgprog = do
   let words      = map firstWord (lines progtxt)
       staticerrs = missingCPP ++ map (showOpError words) staticoperrs
   putStrIfVerbose opts "Generating property tests...\n"
-  let (rawTests,ignoredTests,pubmod) =
+  (rawTests,ignoredTests,pubmod) <-
         transformTests opts . renameCurryModule (modname++"_PUBLIC")
                             . makeAllPublic $ prog
-      (rawDetTests,ignoredDetTests,pubdetmod) =
+  let (rawDetTests,ignoredDetTests,pubdetmod) =
         transformDetTests opts prooffiles
               . renameCurryModule (modname++"_PUBLICDET")
               . makeAllPublic $ prog
@@ -816,10 +820,10 @@ createTestDataGenerator mainmodname qt@(mn,_) = do
     ctvars = map (\i -> CTVar (i,"a"++show i)) tvars
     cvars  = map (\i -> (i,"a"++show i)) tvars
 
--- remove the generated files (except in Verbose-mode)
+-- remove the generated files (except in highest verbose mode)
 cleanup :: Options -> String -> [TestModule] -> IO ()
 cleanup opts mainmodname modules =
-  unless (optVerb opts > 2) $ do
+  unless (optVerb opts > 3) $ do
     removeCurryModule mainmodname
     mapIO_ removeCurryModule (map testModuleName modules)
  where

@@ -11,15 +11,10 @@
 --- > Declarative Languages (PADL 2012), pp. 33-47, Springer LNCS 7149, 2012
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version August 2016
 ------------------------------------------------------------------------
 
 module TransContracts(main,transContracts) where
-
--- to use the determinism analysis:
-import AnalysisServer    (analyzeGeneric)
-import GenericProgInfo   (ProgInfo, lookupProgInfo)
-import Deterministic     (Deterministic(..), nondetAnalysis)
 
 import AbstractCurry.Types
 import AbstractCurry.Files
@@ -31,17 +26,25 @@ import Char
 import ContractUsage
 import Directory
 import Distribution
-import FilePath      (takeDirectory)
+import FilePath          (takeDirectory)
 import List
-import Maybe(fromJust)
-import SimplifyPostConds
+import Maybe             (fromJust)
 import System
+
+-- in order to use the determinism analysis:
+import AnalysisServer    (analyzeGeneric)
+import GenericProgInfo   (ProgInfo, lookupProgInfo)
+import Deterministic     (Deterministic(..), nondetAnalysis)
+
+import SimplifyPostConds
 import TheoremUsage
+
+------------------------------------------------------------------------
 
 banner :: String
 banner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Contract Transformation Tool (Version of 01/06/16)"
+   bannerText = "Contract Transformation Tool (Version of 12/08/16)"
    bannerLine = take (length bannerText) (repeat '=')
 
 ------------------------------------------------------------------------
@@ -49,7 +52,7 @@ banner = unlines [bannerLine,bannerText,bannerLine]
 --- The Curry program must be read with `readCurry` (and not
 --- `readUntypedCurry`) in order to correctly process arities
 --- based on function types!
---- The result is Nothing if no transformation was applied or Just the
+--- The result is `Nothing` if no transformation was applied or `Just` the
 --- transformed program.
 transContracts :: Int -> [String] -> String -> CurryProg -> IO (Maybe CurryProg)
 transContracts verb moreopts srcprog inputProg = do
@@ -161,21 +164,16 @@ transformCProg verb opts srctxt orgprog outmodname = do
                map (\ ((mn,fn),err) -> fn ++ " (module " ++ mn ++ "): " ++ err)
                    usageerrors)
     error "Contract transformation aborted"
-  let funposs   = linesOfFDecls srctxt prog
-      fdecls    = functions prog
-      funspecs  = getFunDeclsWith isSpecName prog
-      specnames = map (fromSpecName . snd . funcName) funspecs
-      preconds  = getFunDeclsWith isPreCondName prog
-      prenames  = map (fromPreCondName  . snd . funcName) preconds
-      opostconds= getFunDeclsWith isPostCondName prog
-      dtheofuncs= getFunDeclsWith isTheoremName prog -- declared theorems
+  let funposs      = linesOfFDecls srctxt prog
+      fdecls       = functions prog
+      funspecs     = getFunDeclsWith isSpecName prog
+      specnames    = map (fromSpecName . snd . funcName) funspecs
+      preconds     = getFunDeclsWith isPreCondName prog
+      prenames     = map (fromPreCondName  . snd . funcName) preconds
+      opostconds   = getFunDeclsWith isPostCondName prog
   -- filter theorems which have a proof file:
-  prooffiles <- getProofFiles (takeDirectory (modNameToPath (progName prog)))
-  let theofuncs = filter (\fd -> existsProofFor
-                                   (fromTheoremName (snd (funcName fd)))
-                                   prooffiles)
-                         dtheofuncs
-  postconds <- simplifyPostConditionWithTheorems verb theofuncs opostconds
+  theofuncs <- getTheoremFunctions prog                         
+  postconds <- simplifyPostConditionsWithTheorems verb theofuncs opostconds
   let postnames = map (fromPostCondName  . snd . funcName) postconds
       checkfuns = union specnames (union prenames postnames)
   if null checkfuns

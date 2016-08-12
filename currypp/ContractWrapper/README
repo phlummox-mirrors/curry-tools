@@ -4,7 +4,7 @@ assertion checking from pre/postconditions and specifications.
 
 Sergio Antoy, Michael Hanus
 
-May 3, 2016
+August 12, 2016
 
 ------------------------------------------------------------------------
 How to use the tool:
@@ -13,7 +13,7 @@ The tool is integrated into the Curry Preprocessor (currypp). Hence,
 to activate the transformation, put the following line into the
 beginning of your Curry module:
 
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts --optF=-e #-}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=contracts #-}
 
 If postconditions or specifications are nondeterministic,
 it is better that they will be evaluated via encapsulated search

@@ -27,13 +27,15 @@
 module TheoremUsage
   ( isTheoremFunc, isTheoremName, fromTheoremName, determinismTheoremFor
   , getProofFiles, existsProofFor, isProofFileName, isProofFileNameFor
+  , getTheoremFunctions
   )  where
 
 import AbstractCurry.Types
 import AbstractCurry.Select
 import Char
 import Directory
-import FilePath (dropExtension)
+import Distribution         (modNameToPath)
+import FilePath             (dropExtension, takeDirectory)
 import List
 
 ------------------------------------------------------------------------
@@ -87,5 +89,18 @@ isProofFileNameFor tn thm =
 --- Delete non alphanumeric characters
 deleteNonAlphanNum :: String -> String
 deleteNonAlphanNum s = filter isAlphaNum (dropExtension s)
+
+------------------------------------------------------------------------
+-- Get all theorems which are contained in a given program
+-- and for which proof files exist.
+getTheoremFunctions :: CurryProg -> IO [CFuncDecl]
+getTheoremFunctions (CurryProg mname _ _ functions _) = do
+  let dcltheofuncs = funDeclsWith isTheoremName functions -- declared theorems
+  prooffiles <- getProofFiles (takeDirectory (modNameToPath mname))
+  return $ filter (\fd -> existsProofFor (fromTheoremName (snd (funcName fd)))
+                                         prooffiles)
+                  dcltheofuncs
+ where
+  funDeclsWith pred = filter (pred . snd . funcName)
 
 ------------------------------------------------------------------------

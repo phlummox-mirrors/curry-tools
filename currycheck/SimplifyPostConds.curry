@@ -1,48 +1,86 @@
 ------------------------------------------------------------------------
---- The implementation of the "postcondition" reducer that simplifies
---- postconditions w.r.t. a given list of theorems.
+--- This module contains the implementation of the "postcondition" reducer
+--- which simplifies the postconditions in a list of function declarations
+--- w.r.t. a given list of theorems.
+---
+--- Note that theorems are standard (EasyCheck) properties having the
+--- prefix `theorem'`, as
+---
+---      theorem'sortlength xs = length xs <~> length (sort xs)
+---      
+---      theorem'sorted xs = always (sorted (sort xs))
 ---
 --- @author Michael Hanus
---- @version June 2016
+--- @version August 2016
 ------------------------------------------------------------------------
 
-module SimplifyPostConds(simplifyPostConditionWithTheorems) where
+module SimplifyPostConds
+  ( simplifyPostConditionsWithTheorems)
+ where
 
 import AbstractCurry.Types
 import AbstractCurry.Select
 import AbstractCurry.Build
-import ContractUsage
-import List (last, maximum)
-import Maybe (maybeToList)
-import ReadShowTerm(readQTerm)
+import List                 (last, maximum)
+import Maybe                (maybeToList)
+import ReadShowTerm         (readQTerm)
 import Rewriting.Files
 import Rewriting.Term
 import Rewriting.Position
 import Rewriting.Substitution
 import Rewriting.Rules
 
-simplifyPostConditionWithTheorems :: Int -> [CFuncDecl] -> [CFuncDecl]
-                                  -> IO [CFuncDecl]
-simplifyPostConditionWithTheorems verb theofuncs postconds
- | null theofuncs
- = return postconds
- | otherwise
- = mapIO (simplifyPostCondition verb theofuncs) postconds >>= return . concat
+import ContractUsage
+import TheoremUsage
 
-simplifyPostCondition :: Int -> [CFuncDecl] ->  CFuncDecl ->  IO [CFuncDecl]
-simplifyPostCondition verb theofuncs (CFunc qn ar vis texp rs) =
-  simplifyPostCondition verb theofuncs (CmtFunc "" qn ar vis texp rs)
-simplifyPostCondition verb theofuncs (CmtFunc cmt qn ar vis texp rules) = do
-  when (verb>0) $ putStr $ unlines
-    ["THEOREMS:", showTRS snd theoTRS,
-     "SIMPLIFICATION RULES:", showTRS snd simprules]
-  redrules <- mapIO (simplifyRule verb simprules qn) rules
-  return $ if all isTrivial redrules
-            then []
-            else [CmtFunc cmt qn ar vis texp redrules]
+-- Simplify the postconditions contained in the third argument w.r.t. a given
+-- list of theorems (second argument).
+-- If the verbosity (first argument) is greater than 1, the details
+-- about the theorems, simplifcation rules, and reduced postconditions
+-- are shown.
+simplifyPostConditionsWithTheorems :: Int -> [CFuncDecl] -> [CFuncDecl]
+                                   -> IO [CFuncDecl]
+simplifyPostConditionsWithTheorems verb theofuncs postconds = do
+  theoTRS <- mapIO safeFromFuncDecl theofuncs >>= return . concat
+  if null theoTRS
+    then return postconds
+    else do
+     let simprules = concatMap theoremToSimpRules theoTRS ++ standardSimpRules
+     when (verb>1) $ putStr $ unlines
+       [ "THEOREMS (with existing proof files):", showTRS snd theoTRS,
+         "SIMPLIFICATION RULES (for postcondition reduction):"
+       , showTRS snd simprules]
+     simppostconds <- mapIO (safeSimplifyPostCondition verb simprules) postconds
+     return (concat simppostconds)
  where
-  theoTRS   = concatMap (snd . fromFuncDecl) theofuncs
-  simprules = concatMap theoremToSimpRules theoTRS ++ standardSimpRules
+  safeFromFuncDecl fd =
+    catch (return $!! (snd (fromFuncDecl fd)))
+          (\e -> do
+            putStrLn $ showError e ++ "\nTheorem \"" ++
+                       snd (funcName fd) ++
+                       "\" not used for simplification (too complex)."
+            return [])
+
+-- Simplify a single postcondition (third argument) w.r.t. a given
+-- list of theorems (second argument):
+safeSimplifyPostCondition :: Int -> TRS QName ->  CFuncDecl ->  IO [CFuncDecl]
+safeSimplifyPostCondition verb simprules fundecl =
+  catch (simplifyPostCondition verb simprules fundecl)
+        (\e -> do putStrLn $ showError e ++ "\nPostcondition \"" ++
+                             snd (funcName fundecl) ++
+                             "\" not simplified (too complex)."
+                  return [fundecl])
+
+simplifyPostCondition :: Int -> TRS QName ->  CFuncDecl ->  IO [CFuncDecl]
+simplifyPostCondition verb simprules (CFunc qn ar vis texp rs) =
+  simplifyPostCondition verb simprules (CmtFunc "" qn ar vis texp rs)
+simplifyPostCondition verb simprules fdecl@(CmtFunc cmt qn ar vis texp rules) =
+  if isPostCondName (snd qn)
+    then do redrules <- mapIO (simplifyRule verb simprules qn) rules
+            return $ if all isTrivial redrules
+                       then []
+                       else [CmtFunc cmt qn ar vis texp redrules]
+    else return [fdecl]
 
 theoremToSimpRules :: Rule QName -> [Rule QName]
 theoremToSimpRules (_, TermVar _) =
@@ -69,7 +107,8 @@ maxSimpSteps = 100
 -- Simplify a rule of a postcondition.
 simplifyRule :: Int -> TRS QName ->  QName -> CRule ->  IO CRule
 simplifyRule verb simprules qn crule@(CRule rpats _) = do
-  when (verb > 0 ) $ putStrLn $ unlines
+  (id $!! (lhs,rhs)) `seq` done -- in order to raise a fromRule error here!
+  when (verb > 1 ) $ putStrLn $ unlines
     ["POSTCONDITION: " ++ showRule snd (lhs,rhs),
      "POSTCONDEXP:   " ++ showTerm snd postcondexp,
      "SIMPLIFIEDEXP: " ++ showTerm snd simpterm,

@@ -2,6 +2,10 @@
 
 TOOL=$(BINDIR)/currycheck
 
+REWRITINGDIR  = $(CURDIR)/../verification
+
+# currycheck input path and dependencies:
+CCPATH = $(REWRITINGDIR)
 DEPS = *.curry $(LIBDIR)/Test/EasyCheck.curry $(LIBDIR)/AbstractCurry/*.curry
 
 .PHONY: all compile install clean uninstall
@@ -22,4 +26,4 @@ uninstall: clean
 	rm -f $(TOOL)
 
 CurryCheck: $(DEPS)
-	$(REPL) $(REPL_OPTS) :l CurryCheck :save :q
+	$(REPL) $(REPL_OPTS) :set path $(CCPATH) :l CurryCheck :save :q

@@ -1,19 +1,24 @@
 ########################################################################
 # Makefile for contract wrapping tool
-# (only used for manual installation since it will be automatically
-# installed via the ../Makefile of currypp)
+#
+# This makefile is only used if the tool should be installed manually
+# (for testing). Usually, it will be automatically with currypp
+# via the ../Makefile (of currypp).
 ########################################################################
 
 TOOLDIR = ../..
-# for determinism analysis and for module ContractUsage:
-PPPATH = $(TOOLDIR)/analysis:$(TOOLDIR)/CASS:$(TOOLDIR)/currycheck
+
+# additional imports for determinism analysis, for module ContractUsage,
+# and rewriting libraries for contract optimization:
+REWRITINGDIR  = $(CURDIR)/../../verification
+PPPATH = $(TOOLDIR)/analysis:$(TOOLDIR)/CASS:$(TOOLDIR)/currycheck:$(REWRITINGDIR)
 
 .PHONY: all
 all: cwrapper
 
 # generate saved state for contract wrapper:
 cwrapper: TransContracts.curry SimplifyPostConds.curry
-	pakcs :set path $(PPPATH) :l TransContracts :save :q && mv TransContracts cwrapper
+	curry :set path $(PPPATH) :l TransContracts :save :q && mv TransContracts cwrapper
 
 .PHONY: clean
 clean: 
