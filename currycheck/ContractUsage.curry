@@ -17,10 +17,12 @@ module ContractUsage
 
 import AbstractCurry.Types
 import AbstractCurry.Select
+import AbstractCurry.Build  (boolType)
 import List
 
-checkContractUse :: CurryProg -> IO [(QName,String)]
-checkContractUse prog = do
+--- Checks the intended usage of contracts.
+checkContractUse :: CurryProg -> [(QName,String)]
+checkContractUse prog =
   let mn           = progName prog
       allops       = map nameArityOfFunDecl (functions prog)
       specops      = map (\ (n,a) -> (fromSpecName n, a))
@@ -39,7 +41,22 @@ checkContractUse prog = do
                      onlypostcond
       specerrs = map (\ (n,_) -> ((mn, n++"'spec"), errmsg ++ "specification"))
                      onlyspec
-  return (preerrs ++ posterrs ++ specerrs)
+   in preerrs ++ posterrs ++ specerrs ++ checkPrePostResultTypes prog
+
+checkPrePostResultTypes :: CurryProg -> [(QName,String)]
+checkPrePostResultTypes prog =
+  let allops   = functions prog
+      preops   = filter (isPreCondName  . snd . funcName) allops
+      postops  = filter (isPostCondName . snd . funcName) allops
+      errmsg c = c ++ " has illegal type"
+      preerrs  = map (\fd -> (funcName fd, errmsg "Precondition"))
+                     (filter (not . hasBoolResultType) preops)
+      posterrs = map (\fd -> (funcName fd, errmsg "Postcondition"))
+                     (filter (not . hasBoolResultType) postops)
+   in preerrs ++ posterrs
+
+hasBoolResultType :: CFuncDecl -> Bool
+hasBoolResultType fd = resultType (funcType fd) == boolType
 
 -- Get function names from a Curry module with a name satisfying the predicate:
 funDeclsWithNameArity :: (String -> Bool) -> CurryProg -> [(String,Int)]

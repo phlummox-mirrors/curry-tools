@@ -9,5 +9,5 @@ even Z = True
 even (S Z) = False
 even (S (S n)) = even n
 
-theorem'evendoublecoin x = always (even (double (coin x)))
+evendoublecoin x = always (even (double (coin x)))
 

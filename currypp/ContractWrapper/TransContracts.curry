@@ -158,7 +158,7 @@ transformCProg :: Int -> Options -> String -> CurryProg -> String
 transformCProg verb opts srctxt orgprog outmodname = do
   let -- to avoid constructor CFunc and references to Test.Prop
       prog = addCmtFuncInProg (renameProp2EasyCheck orgprog)
-  usageerrors <- checkContractUse prog
+      usageerrors = checkContractUse prog
   unless (null usageerrors) $ do
     putStr (unlines $ "ERROR: ILLEGAL USE OF CONTRACTS:" :
                map (\ ((mn,fn),err) -> fn ++ " (module " ++ mn ++ "): " ++ err)

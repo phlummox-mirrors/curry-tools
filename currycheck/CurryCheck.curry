@@ -39,8 +39,9 @@ import System                  (system, exitWith, getArgs, getPID)
 import CheckDetUsage           (checkDetUse, containsDetOperations)
 import ContractUsage
 import DefaultRuleUsage        (checkDefaultRules, containsDefaultRules)
-import TheoremUsage
+import PropertyUsage
 import SimplifyPostConds       (simplifyPostConditionsWithTheorems)
+import TheoremUsage
 import UsageCheck              (checkBlacklistUse, checkSetUse)
 
 --- Maximal arity of check functions and tuples currently supported:
@@ -381,23 +382,6 @@ makeAllPublic (CurryProg modname imports typedecls functions opdecls) =
   makePublic (CmtFunc cmt name arity _      typeExpr rules) =
               CmtFunc cmt name arity Public typeExpr rules
 
--- Check if a function definition is a property that should be tested,
--- i.e., if the result type is Prop (= [Test]) or PropIO.
-isTest :: CFuncDecl -> Bool
-isTest = isTestType . funcType
- where
-  isTestType :: CTypeExpr -> Bool
-  isTestType ct = isPropIOType ct || resultType ct == propType
-
--- The type of EasyCheck properties.
-propType :: CTypeExpr
-propType = baseType (easyCheckModule,"Prop")
-   
-isPropIOType :: CTypeExpr -> Bool
-isPropIOType texp = case texp of
-    CTCons tcons [] -> tcons == (easyCheckModule,"PropIO")
-    _               -> False
-
 -- classify the tests as either PropTest or IOTest
 classifyTests :: [CFuncDecl] -> [Test]
 classifyTests = map makeProperty
@@ -412,7 +396,7 @@ classifyTests = map makeProperty
 -- all ignored tests, and the public version of the original module.
 transformTests :: Options -> CurryProg -> IO ([CFuncDecl],[CFuncDecl],CurryProg)
 transformTests opts prog@(CurryProg mname imps typeDecls functions opDecls) = do
-  theofuncs <- getTheoremFunctions prog                         
+  theofuncs <- getTheoremFunctions prog
   simpfuncs <- simplifyPostConditionsWithTheorems (optVerb opts) theofuncs funcs
   let preCondOps  = preCondOperations simpfuncs
       postCondOps = map ((\ (mn,fn) -> (mn, fromPostCondName fn)) . funcName)
@@ -428,7 +412,9 @@ transformTests opts prog@(CurryProg mname imps typeDecls functions opDecls) = do
         if not (optProp opts)
         then []
         else concatMap (poly2default (optDefType opts)) $
-               filter (\fd -> funcName fd `notElem` map funcName theofuncs) usertests ++
+               -- ignore already proved properties:
+               filter (\fd -> funcName fd `notElem` map funcName theofuncs)
+                      usertests ++
                (if optSpec opts then postCondTests ++ specOpTests else [])
   return (map snd realtests,
           map snd ignoredtests,
@@ -438,7 +424,7 @@ transformTests opts prog@(CurryProg mname imps typeDecls functions opDecls) = do
                     (simpfuncs ++ map snd (realtests ++ ignoredtests))
                     opDecls)
  where
-  (usertests, funcs) = partition isTest functions
+  (usertests, funcs) = partition isProperty functions
 
 
 -- Extracts all determinism tests from a given Curry module and
@@ -488,10 +474,9 @@ funDeclsWith pred = filter (pred . snd . funcName)
 -- Transforms a function type into a property type, i.e.,
 -- t1 -> ... -> tn -> t  is transformed into  t1 -> ... -> tn -> Prop
 propResultType :: CTypeExpr -> CTypeExpr
-propResultType (CTVar _) = propType
-propResultType (CTCons _ _) = propType
-propResultType (CFuncType from to) = CFuncType from (propResultType to)
-
+propResultType te = case te of
+  CFuncType from to -> CFuncType from (propResultType to)
+  _                 -> baseType (easyCheckModule,"Prop")
 
 -- Transforms a function declaration into a post condition test if
 -- there is a post condition for this function (i.e., a relation named
@@ -648,10 +633,10 @@ staticProgAnalysis opts modname progtxt prog = do
                                else return []
   let defruleerrs = if optSource opts then checkDefaultRules prog else []
   untypedprog <- readUntypedCurry modname
-  let detuseerrs = if optSource opts then checkDetUse untypedprog else []
-  contracterrs <- checkContractUse prog
-  let staticerrs = concat [seterrs,useerrs,defruleerrs,detuseerrs,contracterrs]
-  let missingCPP =
+  let detuseerrs   = if optSource opts then checkDetUse untypedprog else []
+      contracterrs = checkContractUse prog
+      staticerrs = concat [seterrs,useerrs,defruleerrs,detuseerrs,contracterrs]
+      missingCPP =
        if (containsDefaultRules prog || containsDetOperations untypedprog)
           && not (containsPPOptionLine progtxt)
        then ["'" ++ modname ++
@@ -910,18 +895,6 @@ modNameToId = intercalate "_" . split (=='.')
 -- Computes the arity from a type expression.
 arityOfType :: CTypeExpr -> Int
 arityOfType = length . argTypes
-
---- Name of the Test.Prop module (the clone of the EasyCheck module).
-propModule :: String
-propModule = "Test.Prop" 
-
---- Name of the EasyCheck module.
-easyCheckModule :: String
-easyCheckModule = "Test.EasyCheck" 
-
---- Name of the EasyCheckExec module.
-easyCheckExecModule :: String
-easyCheckExecModule = "Test.EasyCheckExec" 
 
 --- Name of the SearchTree module.
 searchTreeModule :: String

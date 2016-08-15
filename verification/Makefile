@@ -4,9 +4,10 @@ TOOL=$(BINDIR)/curry2verify
 
 # for determinism analysis and for module TheoremUsage:
 TOOLDIR=..
-CVPATH = $(TOOLDIR)/analysis:$(TOOLDIR)/CASS:$(TOOLDIR)/currycheck
+CCPATH = $(TOOLDIR)/currycheck
+CVPATH = $(TOOLDIR)/analysis:$(TOOLDIR)/CASS:$(CCPATH)
 
-DEPS = *.curry
+DEPS = *.curry $(CCPATH)/PropertyUsage.curry
 
 .PHONY: all compile install clean uninstall
 

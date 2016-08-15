@@ -82,6 +82,7 @@ simplifyPostCondition verb simprules fdecl@(CmtFunc cmt qn ar vis texp rules) =
                        else [CmtFunc cmt qn ar vis texp redrules]
     else return [fdecl]
 
+-- Translate property theorem into simplification rules.
 theoremToSimpRules :: Rule QName -> [Rule QName]
 theoremToSimpRules (_, TermVar _) =
   error $ "theoremToSimpRules: variable in rhs"

@@ -1,6 +1,11 @@
--- Examples for problems to be detected by CurryCheck:
+---------------------------------------------------------------------------
+-- Here are some examples for problems to be detected by CurryCheck
+---------------------------------------------------------------------------
 
 import SetFunctions
+
+---------------------------------------------------------------------------
+-- Detection of unintended uses of set functions and functional pattern unif.
 
 test1 x | 3 =:<= x = True  -- not allowed!
 
@@ -47,5 +52,13 @@ some'spec x = x
 
 k'spec x = x
 k x _ = x
+
+inc :: Int -> Int
+inc n = n + 1
+
+-- Illegal contract types:
+inc'pre x = x
+
+inc'post x y = x+y
 
 ---------------------------------------------------------------------------

@@ -37,4 +37,4 @@ solve2 (S x) (S y) = L : solve2 x (S y) ? R : solve2 (S x) y
 
 -- and prove:
 
-theorem'gamelength x y = len (solve2 x y) -=- add x y
+gamelength x y = len (solve2 x y) -=- add x y

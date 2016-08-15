@@ -19,8 +19,9 @@ import Rewriting.Files
 import Rewriting.Term
 import Rewriting.Rules
 import Rewriting.CriticalPairs
-import TheoremUsage
 import Time
+
+import PropertyUsage
 import VerifyOptions
 
 -- to access the determinism analysis:
@@ -33,14 +34,13 @@ import TotallyDefined    (Completeness(..))
 --- Generate an Agda program file for a given theorem name and the
 --- list of all functions involved in this theorem.
 theoremToAgda :: Options -> QName -> [CFuncDecl] -> [CTypeDecl] -> IO ()
-theoremToAgda opts qtheoname allfuncs alltypes = do
+theoremToAgda opts qtheo@(_,theoname) allfuncs alltypes = do
   let (rename, orgtypedrules)  = funcDeclsToTypedRules allfuncs
       transform = if optScheme opts == "nondet" then transformRuleWithNondet
                                                 else transformRuleWithChoices
       typedrules = concatMap (transform opts) orgtypedrules
-      (theorules,funcrules) = partition (\ (fn,_,_,_) -> isTheoremName (snd fn))
+      (theorules,funcrules) = partition (\ (fn,_,_,_) -> fn == qtheo)
                                         typedrules
-      theoname = fromTheoremName (snd qtheoname)
       mname = "TO-PROVE-" ++ theoname
       hrule = take 75 (repeat '-')
       agdaprog = unlines $
@@ -339,8 +339,6 @@ transformRuleWithNondet opts (fn,cmt,texp,trs)
                               [TermCons (mn,"failing") args, agdaTrue]
      _            -> t
 
-  isOp f = lookupProgInfo (stripRuleName f) detinfo /= Nothing
-
   isNondetOp f = lookupProgInfo (stripRuleName f) detinfo == Just NDet
 
   addNondetInTerm v@(TermVar _) = agdaVal v
@@ -540,9 +538,12 @@ ruleFunc rl@(TermVar _,_) = error $ "Rule with variable lhs: " ++
                                     showRule showQName rl
 ruleFunc (TermCons f _,_) = f
 
--- Is this rule a theorem of the source program?
+-- Is this rule of a property of the source program?
 isTheoremRule :: Rule QName -> Bool
-isTheoremRule rule = isTheoremName (snd (ruleFunc rule))
+isTheoremRule (_,rhs) =
+  case rhs of
+    TermVar _    -> False
+    TermCons f _ -> snd f `elem` ["-=-","<~>","always","eventually","failing"]
 
 fst4 :: (a,b,c,d) -> a
 fst4 (x,_,_,_) = x

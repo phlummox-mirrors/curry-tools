@@ -17,7 +17,8 @@ import List
 import Maybe             (fromJust)
 import SCC               (scc)
 import System            (exitWith, getArgs)
-import TheoremUsage
+
+import PropertyUsage
 import ToAgda
 import VerifyOptions
 
@@ -32,7 +33,7 @@ cvBanner :: String
 cvBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "curry2verify: Curry programs -> Verifiers (version of 14/06/2016)"
+     "curry2verify: Curry programs -> Verifiers (version of 15/08/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -56,20 +57,20 @@ main = do
 generateTheorems :: Options -> String -> IO ()
 generateTheorems opts mname = do
   prog <- readCurry mname
-  let theorems = filter (isTheoremName . snd . funcName) (functions prog)
-  if null theorems
-   then putStrLn "No theorems found!"
-   else mapIO_ (generateTheorem opts) (map funcName theorems)
+  let properties = filter isProperty (functions prog)
+  if null properties
+   then putStrLn "No properties found!"
+   else mapIO_ (generateTheorem opts) (map funcName properties)
 
--- Generate a file for a given theorem name.
+-- Generate a file for a given property name.
 generateTheorem :: Options -> QName -> IO ()
-generateTheorem opts qtheoname = do
-  (newopts, allprogs, allfuncs) <- getAllFunctions opts [] [] [qtheoname]
+generateTheorem opts qpropname = do
+  (newopts, allprogs, allfuncs) <- getAllFunctions opts [] [] [qpropname]
   let alltypenames = foldr union []
                            (map (\fd -> tconsOfType (funcType fd)) allfuncs)
   alltypes <- getAllTypeDecls opts allprogs alltypenames []
   case optTarget opts of
-    "agda" -> theoremToAgda newopts qtheoname allfuncs alltypes
+    "agda" -> theoremToAgda newopts qpropname allfuncs alltypes
     t      -> error $ "Unknown translation target: " ++ t
 
 -------------------------------------------------------------------------
