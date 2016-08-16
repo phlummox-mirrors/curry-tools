@@ -14,7 +14,7 @@ solve (S x) y = L : solve x y
 solve x (S y) = R : solve x y
 
 -- Originally, we want to prove:
--- theorem'gamelength x y = len (solve x y) -=- add x y
+-- gamelength x y = len (solve x y) -=- add x y
 
 -- If we are interested in the spine, i.e., the list structure of
 -- calls to solve, we see that solve is strict in both arguments, i.e.,

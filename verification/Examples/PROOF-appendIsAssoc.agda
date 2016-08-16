@@ -2,7 +2,7 @@
 
 open import bool
 
-module PROOF-assoc
+module PROOF-appendIsAssoc
   (Choice : Set)
   (choose : Choice → 𝔹)
   (lchoice : Choice → Choice)
@@ -28,8 +28,8 @@ append (Cons y z) u = Cons y (append z u)
 
 ---------------------------------------------------------------------------
 
-theorem'assoc : {a : Set} → (x : List a) → (y : List a) → (z : List a) → (append (append x y) z) ≡ (append x (append y z))
-theorem'assoc Empty y z = refl
-theorem'assoc (Cons x xs) y z rewrite theorem'assoc xs y z = refl
+appendIsAssoc : {a : Set} → (x : List a) → (y : List a) → (z : List a) → (append (append x y) z) ≡ (append x (append y z))
+appendIsAssoc Empty y z = refl
+appendIsAssoc (Cons x xs) y z rewrite appendIsAssoc xs y z = refl
 
 ---------------------------------------------------------------------------

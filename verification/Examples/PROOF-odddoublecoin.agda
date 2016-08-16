@@ -48,8 +48,7 @@ odd-add-x-x : ∀ (x : ℕ) → odd (add x x) ≡ ff
 odd-add-x-x zero = refl
 odd-add-x-x (suc x) rewrite add-suc x x | odd-add-x-x x = refl
 
-theorem'odddoublecoin : (c1 : Choice) → (x : ℕ)
-                    → (odd (double (coin c1 x))) ≡ ff
-theorem'odddoublecoin c1 x rewrite odd-add-x-x (coin c1 x) = refl
+odddoublecoin : (c1 : Choice) → (x : ℕ) → (odd (double (coin c1 x))) ≡ ff
+odddoublecoin c1 x rewrite odd-add-x-x (coin c1 x) = refl
 
 ---------------------------------------------------------------------------

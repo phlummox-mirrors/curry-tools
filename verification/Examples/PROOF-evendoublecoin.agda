@@ -43,8 +43,7 @@ even-add-x-x : ∀ (x : ℕ) → even (add x x) ≡ tt
 even-add-x-x zero = refl
 even-add-x-x (suc x) rewrite add-suc x x | even-add-x-x x = refl
 
-theorem'evendouble : (c1 : Choice) → (x : ℕ)
-                  → (even (double (coin c1 x))) ≡ tt
-theorem'evendouble c1 x rewrite even-add-x-x (coin c1 x) = refl
+evendoublecoin : (c1 : Choice) → (x : ℕ) → (even (double (coin c1 x))) ≡ tt
+evendoublecoin c1 x rewrite even-add-x-x (coin c1 x) = refl
 
 ---------------------------------------------------------------------------

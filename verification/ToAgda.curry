@@ -2,7 +2,7 @@
 --- A transformation of Curry programs into Agda programs.
 ---
 --- @author Michael Hanus
---- @version June 2016
+--- @version August 2016
 -------------------------------------------------------------------------
 
 module ToAgda(theoremToAgda) where
@@ -196,10 +196,10 @@ transformRuleWithChoices opts (fn,cmt,texp,trs)
   choicevar = TermVar 46
 
   transTheorem rl@(lhs,rhs) =
-    if isTheoremRule rl then (lhs, prop2agda rhs) else rl
+    if isTheoremRule opts rl then (lhs, prop2agda rhs) else rl
 
   theoremComment rl@(_,rhs) =
-    if isTheoremRule rl
+    if isTheoremRule opts rl
      then case rhs of
             TermVar _    -> []
             TermCons f _ ->
@@ -299,7 +299,7 @@ transformRuleWithNondet opts (fn,cmt,texp,trs)
     _ -> CTCons (pre "ND") [te]
 
   addNondet rl@(lhs,rhs)
-   | isTheoremRule rl
+   | isTheoremRule opts rl
    = (lhs, prop2agda $ case rhs of TermVar _ -> rhs -- impossible case
                                    TermCons f args ->
                                      TermCons f (map addNondetInTerm args))
@@ -307,10 +307,10 @@ transformRuleWithNondet opts (fn,cmt,texp,trs)
    = (lhs, addNondetInTerm rhs)
 
   transTheorem rl@(lhs,rhs) =
-    if isTheoremRule rl then (lhs, prop2agda rhs) else rl
+    if isTheoremRule opts rl then (lhs, prop2agda rhs) else rl
 
   theoremComment rl@(_,rhs) =
-    if isTheoremRule rl
+    if isTheoremRule opts rl
      then case rhs of
             TermVar _    -> []
             TermCons f _ -> case snd f of
@@ -539,11 +539,11 @@ ruleFunc rl@(TermVar _,_) = error $ "Rule with variable lhs: " ++
 ruleFunc (TermCons f _,_) = f
 
 -- Is this rule of a property of the source program?
-isTheoremRule :: Rule QName -> Bool
-isTheoremRule (_,rhs) =
-  case rhs of
+isTheoremRule :: Options -> Rule QName -> Bool
+isTheoremRule opts (lhs,_) =
+  case lhs of
     TermVar _    -> False
-    TermCons f _ -> snd f `elem` ["-=-","<~>","always","eventually","failing"]
+    TermCons f _ -> f `elem` optTheorems opts
 
 fst4 :: (a,b,c,d) -> a
 fst4 (x,_,_,_) = x

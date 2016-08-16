@@ -33,24 +33,24 @@ len (x :: y) = suc (len y)
 ---------------------------------------------------------------------------
 
 -- Theorem: the length of every solution is the sum of the input arguments
-theorem'gamelength : (x : ℕ) → (y : ℕ)
+gamelength : (x : ℕ) → (y : ℕ)
               → (solve2 x y) satisfy (λ xs → length xs =ℕ x + y) ≡ tt
-theorem'gamelength zero zero = refl
-theorem'gamelength zero (suc y)
+gamelength zero zero = refl
+gamelength zero (suc y)
  rewrite
     satisfy-mapND (_::_ R) (solve2 zero y) (λ xs → length xs =ℕ zero + suc y)
-  | theorem'gamelength zero y = refl
-theorem'gamelength (suc x) zero
+  | gamelength zero y = refl
+gamelength (suc x) zero
  rewrite 
    satisfy-mapND (_::_ L) (solve2 x zero) (λ xs → length xs =ℕ suc x + zero)
- | theorem'gamelength x zero = refl
-theorem'gamelength (suc x) (suc y)
+ | gamelength x zero = refl
+gamelength (suc x) (suc y)
  rewrite
   satisfy-mapND (_::_ L) (solve2 x (suc y)) (λ xs → length xs =ℕ suc x + suc y)
  | satisfy-mapND (_::_ R) (solve2 (suc x) y) (λ xs → length xs =ℕ suc x + suc y)
- | theorem'gamelength x (suc y)
+ | gamelength x (suc y)
  | +suc x y
- | theorem'gamelength (suc x) y
+ | gamelength (suc x) y
  = refl
 
 ---------------------------------------------------------------------------

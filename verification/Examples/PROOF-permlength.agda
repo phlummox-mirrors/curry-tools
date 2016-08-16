@@ -36,11 +36,11 @@ insert-inc-length ch x (y :: ys) with choose ch
 ... | ff rewrite insert-inc-length (lchoice ch) x ys = refl
 
 
-theorem'permlength : {a : Set} → (c1 : Choice) → (x : 𝕃 a) → (length x) ≡ (length (perm c1 x))
-theorem'permlength c1 [] = refl
-theorem'permlength c1 (x :: xs)
+permlength : {a : Set} → (c1 : Choice) → (x : 𝕃 a) → (length x) ≡ (length (perm c1 x))
+permlength c1 [] = refl
+permlength c1 (x :: xs)
  rewrite insert-inc-length c1 x (perm (lchoice c1) xs)
-         | theorem'permlength (lchoice c1) xs
+         | permlength (lchoice c1) xs
   = refl
 
 ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 --- The options of the Curry->Verifier translation tool.
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version August 2016
 -------------------------------------------------------------------------
 
 module VerifyOptions where
@@ -10,6 +10,7 @@ module VerifyOptions where
 import AbstractCurry.Types
 import Char              (toLower)
 import GetOpt
+import List              (intercalate, last, splitOn)
 import ReadNumeric       (readNat)
 import GenericProgInfo
 import Deterministic     (Deterministic(..))
@@ -19,29 +20,31 @@ import TotallyDefined    (Completeness(..))
 -- Representation of command line options and information relevant
 -- for the translation process.
 data Options = Options
-  { optHelp    :: Bool
-  , optVerb    :: Int
-  , optStore   :: Bool    -- store result in file?
-  , optTarget  :: String  -- translation target
-  , optScheme  :: String  -- translation scheme
-  , isPrimFunc :: (QName -> Bool) -- primitive function? (not translated)
-  , primTypes  :: [QName] -- primitive types (not translated)
-  , detInfos   :: ProgInfo Deterministic -- info about deteterministic funcs
-  , patInfos   :: ProgInfo Completeness  -- info about pattern completeness
+  { optHelp     :: Bool
+  , optVerb     :: Int
+  , optStore    :: Bool     -- store result in file?
+  , optTarget   :: String   -- translation target
+  , optScheme   :: String   -- translation scheme
+  , optTheorems :: [QName]  -- names of theorems to be translated
+  , isPrimFunc  :: (QName -> Bool) -- primitive function? (not translated)
+  , primTypes   :: [QName] -- primitive types (not translated)
+  , detInfos    :: ProgInfo Deterministic -- info about deteterministic funcs
+  , patInfos    :: ProgInfo Completeness  -- info about pattern completeness
   }
 
 -- Default command line options.
 defaultOptions :: Options
-defaultOptions = Options
-  { optHelp    = False
-  , optVerb    = 1
-  , optStore   = True
-  , optTarget  = "agda"
-  , optScheme  = "choice"
-  , isPrimFunc = isUntranslatedFunc
-  , primTypes  = defPrimTypes
-  , detInfos   = emptyProgInfo
-  , patInfos   = emptyProgInfo
+defaultOptions  = Options
+  { optHelp     = False
+  , optVerb     = 1
+  , optStore    = True
+  , optTarget   = "agda"
+  , optScheme   = "choice"
+  , optTheorems = []
+  , isPrimFunc  = isUntranslatedFunc
+  , primTypes   = defPrimTypes
+  , detInfos    = emptyProgInfo
+  , patInfos    = emptyProgInfo
   }
 
 -- Primitive functions that are not extracted and translated to the verifier.
@@ -69,6 +72,9 @@ options =
   , Option "v" ["verbosity"]
             (OptArg (maybe (checkVerb 2) (safeReadNat checkVerb)) "<n>")
             "verbosity level:\n0: quiet (same as `-q')\n1: show progress (default)\n2: show generated output (same as `-v')\n3: show generated output"
+  , Option "p" ["property"]
+           (ReqArg addPropName "<n>")
+           "name of property to be translated as theorem\n(default: translate all properties in module)"
   , Option "n" ["nostore"]
            (NoArg (\opts -> opts { optStore = False }))
            "do not store translation (show only)"
@@ -99,5 +105,15 @@ options =
     if map toLower s `elem` ["choice","nondet"]
      then opts { optScheme = map toLower s }
      else error $ "Illegal scheme `" ++ s ++ "' (try `-h' for help)"
+
+  -- support also qualified names:
+  addPropName name opts =
+    let nameparts = splitOn "." name
+        partnums  = length nameparts
+        qname = if partnums < 2
+                then ("",name)
+                else (intercalate "." (take (partnums - 1) nameparts),
+                      last nameparts)
+     in opts { optTheorems = qname : optTheorems opts }
 
 -------------------------------------------------------------------------

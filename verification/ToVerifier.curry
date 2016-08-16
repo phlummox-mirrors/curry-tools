@@ -2,7 +2,7 @@
 --- A transformation of Curry programs into verification tools.
 ---
 --- @author Michael Hanus
---- @version June 2016
+--- @version Augsut 2016
 -------------------------------------------------------------------------
 
 module ToVerifier where
@@ -33,7 +33,7 @@ cvBanner :: String
 cvBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "curry2verify: Curry programs -> Verifiers (version of 15/08/2016)"
+     "curry2verify: Curry programs -> Verifiers (version of 16/08/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -49,20 +49,35 @@ main = do
          (putStr (unlines opterrors) >> putStrLn usageText >> exitWith 1)
   when (optVerb opts > 0) $ putStr cvBanner 
   when (null args || optHelp opts) (putStrLn usageText >> exitWith 1)
-  mapIO_ (generateTheorems opts) (map stripCurrySuffix args)
+  mapIO_ (generateTheoremsForModule opts) (map stripCurrySuffix args)
 
 -------------------------------------------------------------------------
 
 -- Generate a file for each theorem found in a module.
-generateTheorems :: Options -> String -> IO ()
-generateTheorems opts mname = do
+generateTheoremsForModule :: Options -> String -> IO ()
+generateTheoremsForModule opts mname = do
   prog <- readCurry mname
-  let properties = filter isProperty (functions prog)
-  if null properties
-   then putStrLn "No properties found!"
-   else mapIO_ (generateTheorem opts) (map funcName properties)
+  let propNames = map funcName (filter isProperty (functions prog))
+      optNames  = nub (filter (\ (mn,_) -> null mn || mn == progName prog)
+                              (optTheorems opts))
+  if null optNames
+   then if null propNames
+        then putStrLn $ "No properties found in module `"++mname++"'!"
+        else generateTheorems opts { optTheorems = propNames}
+   else let qnames = map (\ (mn,pn) ->
+                            (if null mn then progName prog else mn, pn))
+                         optNames
+         in if all (`elem` propNames) qnames
+             then generateTheorems (opts { optTheorems = qnames })
+             else error $ unwords ("Properties not found:" :
+                                   map (\ (mn,pn) -> '`':mn++"."++pn++"'")
+                                       (filter (`notElem` propNames) qnames))
 
--- Generate a file for a given property name.
+-- Generate a proof file for each theorem in option `optTheorems`.
+generateTheorems :: Options -> IO ()
+generateTheorems opts = mapIO_ (generateTheorem opts) (optTheorems opts)
+
+-- Generate a proof file for a given property name.
 generateTheorem :: Options -> QName -> IO ()
 generateTheorem opts qpropname = do
   (newopts, allprogs, allfuncs) <- getAllFunctions opts [] [] [qpropname]
