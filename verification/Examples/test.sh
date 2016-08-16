@@ -29,8 +29,7 @@ AGDAIMPORTS="-i . -i /net/medoc/home/mh/home/languages_systems/agda/ial_org -i /
 AGDAOPTS="--allow-unsolved-metas"
 
 if [ -z "$AGDA" ] ; then
-  echo "WARNING: cannot check curry2verify ('agda' not found)"
-  exit
+  echo "WARNING: cannot completely test curry2verify ('agda' not found)"
 fi
 
 compile_to_agda()
@@ -40,17 +39,21 @@ compile_to_agda()
   CVOPTS=$2
   if [ $VERBOSE = yes ] ; then
     $CURRYBIN/curry2verify -t agda $CVOPTS $PROG
-    $AGDA $AGDAIMPORTS $AGDAOPTS TO-PROVE-*
-    if [ $? -gt 0 ] ; then
-      exit 1
+    if [ -x "$AGDA" ] ; then
+        $AGDA $AGDAIMPORTS $AGDAOPTS TO-PROVE-*
+      if [ $? -gt 0 ] ; then
+        exit 1
+      fi
     fi
   else
     $CURRYBIN/curry2verify -t agda $CVOPTS $PROG >> $LOGFILE 2>&1
-    $AGDA $AGDAIMPORTS $AGDAOPTS TO-PROVE-* >> $LOGFILE 2>&1
-    if [ $? -gt 0 ] ; then
-      echo "ERROR in curry2verify:"
-      cat $LOGFILE
-      exit 1
+    if [ -x "$AGDA" ] ; then
+      $AGDA $AGDAIMPORTS $AGDAOPTS TO-PROVE-* >> $LOGFILE 2>&1
+      if [ $? -gt 0 ] ; then
+        echo "ERROR in curry2verify:"
+        cat $LOGFILE
+        exit 1
+      fi
     fi
   fi
   /bin/rm -f TO-PROVE-*

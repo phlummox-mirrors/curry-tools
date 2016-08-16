@@ -60,5 +60,6 @@ runtest:
 	cd currypp  && $(MAKE) runtest
 	cd runcurry/Examples && ./test.sh
 	cd currycheck/Examples && ./test.sh
+	cd currycheck/Examples/WithVerification && ./test.sh
 	cd spicey/Examples && ./test.sh
 	cd xmldata/Examples && ./test.sh
