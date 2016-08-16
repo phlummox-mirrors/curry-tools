@@ -7,7 +7,7 @@ Compile the model:
 
 Fill the database:
 
-> curry :l createData :eval createTestData :q
+> curry :l CreateData :eval createTestData :q
 
 Show the database with sqlite3:
 

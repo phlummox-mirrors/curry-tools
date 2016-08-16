@@ -80,8 +80,8 @@ transDefaultRules verb moreopts _ prog = do
 -- Filter proof obligations for determinism annotation w.r.t. to existence
 -- of proof files:
 filterProofObligation :: Int -> [String] -> [QName] -> IO [QName]
-filterProofObligation verb prooffiles [] = return []
-filterProofObligation verb prooffiles (qf@(qn,fn) : qfs) = do
+filterProofObligation _ _ [] = return []
+filterProofObligation verb prooffiles (qf@(_,fn) : qfs) = do
   let hasdetproof = existsProofFor (determinismTheoremFor fn) prooffiles
   when (hasdetproof && verb>0) $ putStrLn $
     "Proofs for determinism property of " ++ showQName qf ++ " found:\n" ++

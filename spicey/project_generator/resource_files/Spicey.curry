@@ -11,7 +11,7 @@ module Spicey (
   nextController, nextControllerForData, confirmNextController,
   confirmController, transactionController,
   getControllerURL,getControllerParams, showControllerURL,
-  getForm, wDateType, wBoolean, wUncheckMaybe,
+  getForm, wDateType, wBoolean, wUncheckMaybe, wFloat,
   displayError, cancelOperation,
   renderWuiForm, renderLabels,
   nextInProcessOr,
@@ -24,13 +24,16 @@ module Spicey (
   saveLastUrl, getLastUrl, getLastUrls
   ) where
 
-import System
 import Bootstrap3Style
+import Char (isSpace,isDigit)
 import HTML
-import ReadNumeric
 import KeyDatabase
-import WUI
+import ReadNumeric
+import ReadShowTerm(readsQTerm)
+import System
 import Time
+import WUI
+
 import Routes
 import Processes
 import UserProcesses
@@ -200,6 +203,26 @@ wUncheckMaybe defval wspec =
   wMaybe (transformWSpec (not,not) (wCheckBool [htxt "No value"]))
          wspec
          defval
+
+--- A widget for editing floating point values.
+wFloat :: WuiSpec Float
+wFloat = transformWSpec (readFloat, show)
+            (wString `withCondition` (\s -> readMaybeFloat s /= Nothing))
+ where
+   readFloat s = maybe 0.0 id (readMaybeFloat s)
+
+-- Read a float in a string.
+-- Return Nothing is this is not a float string.
+readMaybeFloat :: String -> Maybe Float
+readMaybeFloat s =
+  if all isFloatChar s
+   then case readsQTerm s of
+          [(x,tail)] -> if all isSpace tail then Just x else Nothing
+          _  ->  Nothing
+   else Nothing
+ where
+   isFloatChar c = isDigit c || c == '.'
+   stripSpaces = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
 --------------------------------------------------------------------------
 -- Define page layout of the application.
