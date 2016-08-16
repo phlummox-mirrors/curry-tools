@@ -28,7 +28,8 @@ append (Cons y z) u = Cons y (append z u)
 
 ---------------------------------------------------------------------------
 
-appendIsAssoc : {a : Set} → (x : List a) → (y : List a) → (z : List a) → (append (append x y) z) ≡ (append x (append y z))
+appendIsAssoc : {a : Set} → (x : List a) → (y : List a) → (z : List a)
+              → (append (append x y) z) ≡ (append x (append y z))
 appendIsAssoc Empty y z = refl
 appendIsAssoc (Cons x xs) y z rewrite appendIsAssoc xs y z = refl
 

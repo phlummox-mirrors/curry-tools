@@ -112,6 +112,10 @@ rename4agda allnames qn@(mn,fn)
   | (mn,fn) == pre "False" = "ff"
   | (mn,fn) == nat "Z"     = "zero"
   | (mn,fn) == nat "S"     = "suc"
+  | (mn,fn) == pre "<"     = "_<_"
+  | (mn,fn) == pre ">"     = "_>_"
+  | (mn,fn) == pre "<="    = "_\x2264_"
+  | (mn,fn) == pre ">="    = "_\x2265_"
   | otherwise
   = maybe fn
           (const (showQName qn))

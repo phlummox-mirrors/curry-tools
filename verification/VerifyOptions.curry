@@ -52,7 +52,8 @@ defaultOptions  = Options
 -- target verifier.
 isUntranslatedFunc :: QName -> Bool
 isUntranslatedFunc qn =
-  qn `elem` [pre "?", pre "==", pre "+", pre "*", pre "length", pre "map"] ||
+  qn `elem` map pre ["?","==","+","*","<",">","<=",">=","length","map",
+                     "if_then_else"] ||
   fst qn `elem` ["Test.Prop","Test.EasyCheck"]
 
 -- Primitive functions that are not extracted and translated to the verifier.
@@ -71,7 +72,7 @@ options =
            "run quietly (no output, only exit code)"
   , Option "v" ["verbosity"]
             (OptArg (maybe (checkVerb 2) (safeReadNat checkVerb)) "<n>")
-            "verbosity level:\n0: quiet (same as `-q')\n1: show progress (default)\n2: show generated output (same as `-v')\n3: show generated output"
+            "verbosity level:\n0: quiet (same as `-q')\n1: show progress (default)\n2: show generated output (same as `-v')\n3: show more details about translation"
   , Option "p" ["property"]
            (ReqArg addPropName "<n>")
            "name of property to be translated as theorem\n(default: translate all properties in module)"

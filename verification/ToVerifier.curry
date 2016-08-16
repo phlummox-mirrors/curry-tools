@@ -18,6 +18,7 @@ import Maybe             (fromJust)
 import SCC               (scc)
 import System            (exitWith, getArgs)
 
+import Rewriting.Files   (showQName)
 import PropertyUsage
 import ToAgda
 import VerifyOptions
@@ -84,6 +85,11 @@ generateTheorem opts qpropname = do
   let alltypenames = foldr union []
                            (map (\fd -> tconsOfType (funcType fd)) allfuncs)
   alltypes <- getAllTypeDecls opts allprogs alltypenames []
+  when (optVerb opts > 2) $ do
+    putStrLn $ "Theorem `" ++ snd qpropname ++ "':\nInvolved operations:"
+    putStrLn $ unwords (map (showQName . funcName) allfuncs)
+    putStrLn $ "Involved types:"
+    putStrLn $ unwords (map (showQName . typeName) alltypes)
   case optTarget opts of
     "agda" -> theoremToAgda newopts qpropname allfuncs alltypes
     t      -> error $ "Unknown translation target: " ++ t
