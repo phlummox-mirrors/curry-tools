@@ -6,16 +6,16 @@ import Time
 createTestData :: IO ()
 createTestData = do 
   conn   <- connectSQLite "Uni.db"
-  result <- ((saveMultipleEntries studentList studentDescription) >+
-            (saveMultipleEntries lectureList lectureDescription) >+
-            (saveMultipleEntries lecturerList lecturerDescription) >+
-            (saveMultipleEntries placeList placeDescription) >+
-            (saveMultipleEntries timeList timeDescription) >+
-            (saveMultipleEntries examList examDescription) >+
-            (saveMultipleEntries resultList resultDescription) >+
-            (saveMultipleEntries participList participationDescription) >+
-            (saveEntryCombined sse1 sseDescription)) 
-            conn
+  result <- ((insertEntries studentList studentDescription) >+
+             (insertEntries lectureList lectureDescription) >+
+             (insertEntries lecturerList lecturerDescription) >+
+             (insertEntries placeList placeDescription) >+
+             (insertEntries timeList timeDescription) >+
+             (insertEntries examList examDescription) >+
+             (insertEntries resultList resultDescription) >+
+             (insertEntries participList participationDescription) >+
+             (insertEntryCombined sse1 sseDescription)
+            ) conn
   case result of
     Left (DBError kind str) -> putStrLn ((show kind) ++ " " ++ str)
     Right _ -> putStrLn "Ok"

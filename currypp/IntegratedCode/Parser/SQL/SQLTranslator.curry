@@ -645,8 +645,8 @@ transMaybeCond p mModel cond =
 getInsertfunction :: [[Value]] -> PM (String, String)
 getInsertfunction valss =
   if length valss > 1
-    then cleanPM (mCDBI, "saveMultipleEntries") 
-    else cleanPM (mCDBI, "saveEntry")
+    then cleanPM (mCDBI, "insertEntries") 
+    else cleanPM (mCDBI, "insertEntry")
 
 -- Translation of list of lists of values.
 transInsertData :: String -> Table ->  [ColumnRef] -> [[Value]] -> PM CExpr
