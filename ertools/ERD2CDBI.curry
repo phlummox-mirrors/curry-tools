@@ -1,7 +1,11 @@
 --- ----------------------------------------------------------------------------
---- This module creates all the needed datatypes, a SQLite database from an
---- x_ERDT.term (An ER-Model that was translated by erd2curry) and a .info-file
---- needed by currypp when preprocessing SQL
+--- This module creates all datatypes to represent the entities and
+--- relations of a relational (SQLite) database corresponding to a
+--- logical ER model specified in a file `x_ERDT.term` (which is
+--- a transformed ER-Model that was translated by erd2curry).
+--- It produces a Curry program `x_CDBI.curry` and a file
+--- `x_SQLCODE.info` that is used when embedded SQL statements are
+--- translated by the Curry preprocessor `currypp`.
 ---
 --- @author Mike Tallarek, extensions by Julia Krone
 --- @version 0.2
@@ -36,7 +40,7 @@ main  = do
   args <- getArgs
   case args of
     [erdfname, dbPath] -> do erdterm <- translateERD2ERDT erdfname
-                             writeCDBI erdterm dbPath
+                             writeCDBI erdfname erdterm dbPath
     _                  -> showUsageString
 
 showUsageString :: IO ()
@@ -62,20 +66,22 @@ translateERD2ERDT erdfname = do
 
 -- Write all the data so CDBI can be used, create a database 
 -- when option is set and a .info file
-writeCDBI :: ERD -> String -> IO ()
-writeCDBI (ERD name ents rels)  dbPath = do
-  file <- openFile (name++"_CDBI"++".curry") WriteMode
-  let imports = [ "Time"
+writeCDBI :: String -> ERD -> String -> IO ()
+writeCDBI erdfname (ERD name ents rels)  dbPath = do
+  let cdbiFile = name++"_CDBI"++".curry"
+      imports = [ "Time"
                 , "Database.CDBI.ER"
                 , "Database.CDBI.Criteria"
                 , "Database.CDBI.Connection"
                 , "Database.CDBI.Description"]
-  let typeDecls = foldr ((++) . (getEntityTypeDecls (name++"_CDBI"))) [] ents 
-  let funcDecls = foldr ((++) . (getEntityFuncDecls (name++"_CDBI"))) [] ents
-  hPutStrLn file
-    (pPrint (ppCurryProg defaultOptions
-                (CurryProg (name++"_CDBI") imports typeDecls funcDecls [])))
-  hClose file
+      typeDecls = foldr ((++) . (getEntityTypeDecls (name++"_CDBI"))) [] ents 
+      funcDecls = foldr ((++) . (getEntityFuncDecls (name++"_CDBI"))) [] ents
+  writeFile cdbiFile $
+    "--- This file has been generated from `"++erdfname++"`\n"++
+    "--- and contains definition for all entities and relations\n"++
+    "--- specified in this model.\n\n"++
+    pPrint (ppCurryProg defaultOptions
+                (CurryProg (name++"_CDBI") imports typeDecls funcDecls []))
   infofilehandle <- openFile (name++"_SQLCode.info") WriteMode
   writeParserFile infofilehandle name ents rels dbPath
   hClose infofilehandle
@@ -299,7 +305,7 @@ getEntityFuncDecls mName ent =
 -- Generates an entity-description based on an entity.
 writeDescription :: String -> Entity -> CFuncDecl
 writeDescription mName (Entity name@(n:ns) attrs) = 
-  cfunc (mName, (((toLower n) : ns) ++ "Description" ))
+  cfunc (mName, (((toLower n) : ns) ++ "_CDBI_Description" ))
         0
         Public
         (CTCons (mDescription, "EntityDescription") [baseType (mName, name)])
@@ -490,7 +496,7 @@ writeAttrRightOneTwo _ (Attribute (a:b) (CharDom _) _ True) =
 writeAttrRightOneTwo _ (Attribute (a:b) (StringDom _) _ False) =
   applyE (CSymbol (mConnection, "SQLString")) [cvar ((toLower a):b)]
 writeAttrRightOneTwo _ (Attribute (a:b) (StringDom _) _ True) =
-  applyF (mDescription, "sqlStringOrNull") [cvar ((toLower a):b)]
+  applyF (mDescription, "sqlString") [cvar ((toLower a):b)]
 writeAttrRightOneTwo _ (Attribute (a:b) (BoolDom _) _ False) =
   applyE (CSymbol (mConnection, "SQLBool")) [cvar ((toLower a):b)]
 writeAttrRightOneTwo _ (Attribute (a:b) (BoolDom _) _ True) =
@@ -530,7 +536,7 @@ writeAttrRightThree _ _ (Attribute (a:b) (FloatDom _) NoKey True) =
 writeAttrRightThree _ _ (Attribute (a:b) (CharDom _) NoKey True) =
   applyF (mDescription, "charOrNothing") [cvar ((toLower a):b)]
 writeAttrRightThree _ _ (Attribute (a:b) (StringDom _) NoKey True) =
-  applyF (mDescription, "stringOrNothing") [cvar ((toLower a):b)]
+  applyF (mDescription, "fromStringOrNull") [cvar ((toLower a):b)]
 writeAttrRightThree _ _ (Attribute (a:b) (BoolDom _) NoKey True) =
   applyF (mDescription, "boolOrNothing") [cvar ((toLower a):b)]
 writeAttrRightThree _ _ (Attribute (a:b) (DateDom _) NoKey True) =
@@ -545,7 +551,7 @@ writeAttrRightThree _ _ (Attribute (a:b) (FloatDom _) Unique True) =
 writeAttrRightThree _ _ (Attribute (a:b) (CharDom _) Unique True) =
   applyF (mDescription, "charOrNothing") [cvar ((toLower a):b)]
 writeAttrRightThree _ _ (Attribute (a:b) (StringDom _) Unique True) =
-  applyF (mDescription, "stringOrNothing") [cvar ((toLower a):b)]
+  applyF (mDescription, "fromStringOrNull") [cvar ((toLower a):b)]
 writeAttrRightThree _ _ (Attribute (a:b) (BoolDom _) Unique True) =
   applyF (mDescription, "boolOrNothing") [cvar ((toLower a):b)]
 writeAttrRightThree _ _ (Attribute (a:b) (DateDom _) Unique True) =
@@ -573,23 +579,19 @@ writeAttributes mName name (Attribute a (IntDom _) _ False) =
    case a of
      "Key" -> baseType (mName , (name++"ID"))
      _     -> intType
-writeAttributes _ _ (Attribute _ (FloatDom _) _ True) = maybeType floatType
-writeAttributes _ _ (Attribute _ (FloatDom _) _ False) = floatType
-writeAttributes _ _ (Attribute _ (CharDom _) _ True) = 
-                                              maybeType (baseType (pre "Char"))
-writeAttributes _ _ (Attribute _ (CharDom _) _ False) = (baseType (pre "Char"))
-writeAttributes _ _ (Attribute _ (StringDom _) _ True) = maybeType stringType
-writeAttributes _ _ (Attribute _ (StringDom _) _ False) = stringType
-writeAttributes _ _ (Attribute _ (BoolDom _) _ True) = maybeType boolType
-writeAttributes _ _ (Attribute _ (BoolDom _) _ False) = boolType
-writeAttributes _ _ (Attribute _ (DateDom _) _ True) = 
-                                     maybeType (baseType ("Time", "ClockTime"))
-writeAttributes _ _ (Attribute _ (DateDom _) _ False) = 
-                                               (baseType ("Time", "ClockTime"))
-writeAttributes mName _ (Attribute _ (KeyDom k) _ True) = 
-                                        maybeType (baseType (mName ,(k++"ID")))
-writeAttributes mName _ (Attribute _ (KeyDom k) _ False) = 
-                                                  (baseType (mName ,(k++"ID")))
+writeAttributes _ _ (Attribute _ (FloatDom _) _ null) =
+  addMaybeIfNull null floatType
+writeAttributes _ _ (Attribute _ (CharDom _) _ null) = 
+  addMaybeIfNull null (baseType (pre "Char"))
+writeAttributes _ _ (Attribute _ (StringDom _) _ _) = stringType
+writeAttributes _ _ (Attribute _ (BoolDom _) _ n) = addMaybeIfNull n boolType
+writeAttributes _ _ (Attribute _ (DateDom _) _ null) = 
+  addMaybeIfNull null (baseType ("Time", "ClockTime"))
+writeAttributes mName _ (Attribute _ (KeyDom k) _ null) = 
+  addMaybeIfNull null (baseType (mName ,(k++"ID")))
+
+addMaybeIfNull :: Bool -> CTypeExpr -> CTypeExpr
+addMaybeIfNull isnull texp = if isnull then maybeType texp else texp
 
 -- Generates attribute types to create an entity-description.
 writeTypes :: Attribute -> CExpr

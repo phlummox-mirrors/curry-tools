@@ -19,5 +19,5 @@ Show the database with sqlite3:
 Testing some queries:
 
 > curry :l SelectExamples
-...> testS1
+...> queryS1
 

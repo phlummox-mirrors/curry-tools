@@ -6,14 +6,14 @@ import Time
 createTestData :: IO ()
 createTestData = do 
   conn   <- connectSQLite "Uni.db"
-  result <- ((insertEntries studentList studentDescription) >+
-             (insertEntries lectureList lectureDescription) >+
-             (insertEntries lecturerList lecturerDescription) >+
-             (insertEntries placeList placeDescription) >+
-             (insertEntries timeList timeDescription) >+
-             (insertEntries examList examDescription) >+
-             (insertEntries resultList resultDescription) >+
-             (insertEntries participList participationDescription) >+
+  result <- ((insertEntries studentList student_CDBI_Description) >+
+             (insertEntries lectureList lecture_CDBI_Description) >+
+             (insertEntries lecturerList lecturer_CDBI_Description) >+
+             (insertEntries placeList place_CDBI_Description) >+
+             (insertEntries timeList time_CDBI_Description) >+
+             (insertEntries examList exam_CDBI_Description) >+
+             (insertEntries resultList result_CDBI_Description) >+
+             (insertEntries participList participation_CDBI_Description) >+
              (insertEntryCombined sse1 sseDescription)
             ) conn
   case result of
@@ -36,10 +36,10 @@ lecturer3 = Lecturer (LecturerID 3) "Hansen" "Frank"
 -- Lectures
 lectureList = [lecture1, lecture2, lecture3]
 lecture1 = Lecture (LectureID 1) "Fortgeschrittene Programmierung" 
-           (Just "Funktionale und Deklarative Programmierung wird vertieft.") (LecturerID 1)
-lecture2 = Lecture (LectureID 2) "Technische Informatik" Nothing (LecturerID 2)
+           "Funktionale und Deklarative Programmierung wird vertieft." (LecturerID 1)
+lecture2 = Lecture (LectureID 2) "Technische Informatik" "" (LecturerID 2)
 lecture3 = Lecture (LectureID 3) "Datenbanken" 
-           (Just "Theoretische Grundlagen rund um Datenbanken und SQL wird den Studenten näher gebracht.") (LecturerID 3)
+               "Theoretische Grundlagen rund um Datenbanken und SQL wird den Studenten näher gebracht." (LecturerID 3)
 
 -- Places 
 placeList = [place1, place2]
@@ -71,13 +71,13 @@ result6 = Result (ResultID 6) 1 (Just 5.0) (Just 20) (StudentID 4) (ExamID 1)
 result7 = Result (ResultID 7) 2 (Just 5.0) (Just 39) (StudentID 4) (ExamID 2)
 result8 = Result (ResultID 8) 1 (Just 5.0) (Just 49) (StudentID 4) (ExamID 3)
 
-cd = combineDescriptions studentDescription 0 examDescription 0
+cd = combineDescriptions student_CDBI_Description 0 exam_CDBI_Description 0
                           (\st ex -> (StudentStudentExam _ st ex))
                           (\(StudentStudentExam _ st ex) -> (st, ex))
                           
 data StudentStudentExam = StudentStudentExam Student Student Exam
 sseDescription = 
-  addDescription studentDescription 1 
+  addDescription student_CDBI_Description 1 
   (\st1 (StudentStudentExam _ st2 ex) -> (StudentStudentExam st1 st2 ex))
   (\(StudentStudentExam st _ _) -> st) cd
   
