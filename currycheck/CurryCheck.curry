@@ -53,7 +53,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 12/08/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 17/08/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -72,6 +72,7 @@ data Options = Options
   , optProp    :: Bool
   , optSpec    :: Bool
   , optDet     :: Bool
+  , optProof   :: Bool
   , optColor   :: Bool
   }
 
@@ -87,6 +88,7 @@ defaultOptions = Options
   , optProp    = True
   , optSpec    = True
   , optDet     = True
+  , optProof   = True
   , optColor   = True
   }
 
@@ -121,6 +123,9 @@ options =
   , Option "" ["nodet"]
            (NoArg (\opts -> opts { optDet = False }))
            "do not perform determinism tests"
+  , Option "" ["noproof"]
+           (NoArg (\opts -> opts { optProof = False }))
+           "do not consider proofs to simplify properties"
   , Option "" ["nocolor"]
            (NoArg (\opts -> opts { optColor = False }))
            "do not use colors when showing tests"
@@ -396,7 +401,7 @@ classifyTests = map makeProperty
 -- all ignored tests, and the public version of the original module.
 transformTests :: Options -> CurryProg -> IO ([CFuncDecl],[CFuncDecl],CurryProg)
 transformTests opts prog@(CurryProg mname imps typeDecls functions opDecls) = do
-  theofuncs <- getTheoremFunctions prog
+  theofuncs <- if optProof opts then getTheoremFunctions prog else return []
   simpfuncs <- simplifyPostConditionsWithTheorems (optVerb opts) theofuncs funcs
   let preCondOps  = preCondOperations simpfuncs
       postCondOps = map ((\ (mn,fn) -> (mn, fromPostCondName fn)) . funcName)
@@ -650,8 +655,10 @@ analyseCurryProg :: Options -> String -> CurryProg -> IO [TestModule]
 analyseCurryProg opts modname orgprog = do
   -- First we rename all references to Test.Prop into Test.EasyCheck
   let prog = renameProp2EasyCheck orgprog
-  prooffiles <- getProofFiles (takeDirectory (modNameToPath modname))
-  putStrIfVerbose opts $
+  prooffiles <- if optProof opts
+                 then getProofFiles (takeDirectory (modNameToPath modname))
+                 else return []
+  unless (null prooffiles) $ putStrIfVerbose opts $
     unlines ("Proof files found:" : map ("- " ++) prooffiles)
   progtxt <- readFile (modNameToPath modname ++ ".curry")
   (missingCPP,staticoperrs) <- staticProgAnalysis opts modname progtxt prog

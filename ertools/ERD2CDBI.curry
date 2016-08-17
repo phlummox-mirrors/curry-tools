@@ -78,7 +78,7 @@ writeCDBI erdfname (ERD name ents rels)  dbPath = do
       funcDecls = foldr ((++) . (getEntityFuncDecls (name++"_CDBI"))) [] ents
   writeFile cdbiFile $
     "--- This file has been generated from `"++erdfname++"`\n"++
-    "--- and contains definition for all entities and relations\n"++
+    "--- and contains definitions for all entities and relations\n"++
     "--- specified in this model.\n\n"++
     pPrint (ppCurryProg defaultOptions
                 (CurryProg (name++"_CDBI") imports typeDecls funcDecls []))
