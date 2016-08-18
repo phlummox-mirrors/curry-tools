@@ -11,8 +11,6 @@
 -- @version July 2013
 ---------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 import Socket
 import ReadShowTerm
 import GUI
@@ -20,7 +18,8 @@ import Read
 import Assertion
 import System
 import List
-import FlatCurry
+import FlatCurry.Types
+import FlatCurry.Files
 import IO
 import IOExts -- use IORefs
 import FileGoodies  (stripSuffix)
@@ -311,7 +310,7 @@ execTestFunctions prtmsg portnum modname fs@(_:_) = do
       execCall = case curryCompiler of
         "pakcs" -> "echo ':l "++modname++"\n:add Assertion\n:add System\n"++
                    testgoal++" ' | \"" ++
-                   installDir++"/bin/pakcs\" -quiet -Dshowfcyload=no 2>&1"
+                   installDir++"/bin/pakcs\" -Dshowfcyload=no -quiet 2>&1"
         "kics2" -> "echo ':l "++modname++"\n:add Assertion\n:add System\n"++
                    ":save "++testgoal++"\n:q\n' | \""++
                    installDir++"/bin/kics2\" && "++ ("." </> modname) ++

@@ -29,15 +29,19 @@ A tool to create a simple makefile for a Curry application.
 A compiler for Curry into JavaScript programs used in the
 generation of web user interfaces (WUIs).
 
-`currydoc`:
-A documentation generator for Curry programs.
+`currycheck`:
+A property test tool for Curry programs.
 
 `currytest`:
 A test tool for Curry programs.
 
-`erd2curry`:
-A compiler to translate database (ER) models
-into Curry programs containing corresponding database operations.
+`currypp`:
+A preprocessor for Curry programs implementing integrated code,
+default rules, deterministic functions, and dynamic contract checking.
+
+`ertool`:
+Compilers to translate database (ER) models
+into Curry programs providing high-level access to relational databases.
 
 `genint`:
 A program for generating module interfaces and source code
@@ -47,11 +51,20 @@ of some Curry systems).
 `importcalls`:
 A tool to show all calls to imported functions in a module.
 
-`typeinference`:
-This directory contains the implementation of a type
-inferencer for FlatCurry programs which annotates
-each expression occurring in a FlatCurry program with its
-actual type.
+`optimize`:
+The implementation of optimization tools cor Curry,
+in particular, a transformation tool to replace Boolean equalities
+by unification constraints.
+
+`runcurry`:
+The implementation of the command `runcurry`.
+
+`spicey`:
+The implementation of Curry's web framework Spicey.
+
+`verification`:
+This directory contains tools to support the verification of
+Curry programs, e.g., a translator of Curry programs into Agda.
 
 `xmldata`:
 This directory contains a tool to generate conversion functions

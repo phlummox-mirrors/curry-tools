@@ -5,17 +5,21 @@
 --- different computation paths.
 ---
 --- @author Michael Hanus
---- @version September 2013
+--- @version July 2016
 ------------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
-module Deterministic(overlapAnalysis,showOverlap,showDet,
-                     Deterministic(..),nondetAnalysis) where
+module Deterministic
+  ( overlapAnalysis, showOverlap, showDet
+  , Deterministic(..),nondetAnalysis
+  , showNonDetDeps, nondetDepAnalysis, nondetDepAllAnalysis
+  ) where
 
 import Analysis
-import FlatCurry
-import FlatCurryGoodies
+import Char(isDigit)
+import FlatCurry.Types
+import FlatCurry.Goodies
+import List
+import Sort(sort)
 
 ------------------------------------------------------------------------------
 -- The overlapping analysis can be applied to individual functions.
@@ -55,7 +59,6 @@ showOverlap ANote False = ""
 
 --- Data type to represent determinism information.
 data Deterministic = NDet | Det
-  deriving Eq
 
 -- Show determinism information as a string.
 showDet :: AOutFormat -> Deterministic -> String
@@ -100,5 +103,69 @@ extraVarInExpr (Typed e _) = extraVarInExpr e
 
 pre :: String -> QName
 pre n = ("Prelude",n)
+
+------------------------------------------------------------------------------
+--- Data type to represent information about non-deterministic dependencies.
+--- Basically, it is the set (represented as a sorted list) of
+--- all function names that are defined by overlapping rules or rules
+--- containing free variables which might be called.
+type NonDetDeps = [QName]
+
+-- Show determinism dependency information as a string.
+showNonDetDeps :: AOutFormat -> NonDetDeps -> String
+showNonDetDeps AText []     = "deterministic"
+showNonDetDeps ANote []     = ""
+showNonDetDeps AText xs@(_:_) =
+  "depends on non-deterministic operations: " ++
+  intercalate ", " (map (\ (mn,fn) -> mn++"."++fn) xs)
+showNonDetDeps ANote xs@(_:_) = intercalate " " (map snd xs)
+
+--- Non-deterministic dependency analysis.
+--- The analysis computes for each operation the set of operations
+--- with a non-deterministic definition which might be called by this
+--- operation. Non-deterministic operations that are called by other
+--- non-deterministic operations are ignored so that only the first
+--- (w.r.t. the call sequence) non-deterministic operations are returned.
+nondetDepAnalysis :: Analysis NonDetDeps
+nondetDepAnalysis =
+  dependencyFuncAnalysis "NonDetDeps" [] (nondetDeps False)
+
+--- Non-deterministic dependency analysis.
+--- The analysis computes for each operation the set of *all* operations
+--- with a non-deterministic definition which might be called by this
+--- operation.
+nondetDepAllAnalysis :: Analysis NonDetDeps
+nondetDepAllAnalysis =
+  dependencyFuncAnalysis "NonDetAllDeps" [] (nondetDeps True)
+
+-- An operation is non-deterministic if its definition is potentially
+-- non-deterministic (i.e., the dependency is the operation itself)
+-- or it depends on some called non-deterministic function.
+nondetDeps :: Bool -> FuncDecl -> [(QName,NonDetDeps)] -> NonDetDeps
+nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
+  if isNondetDefined func
+   then f : (if alldeps then sort (nub (calledNDFuncsInRule rule)) else [])
+   else sort (nub (calledNDFuncsInRule rule))
+ where
+  calledNDFuncsInRule (Rule _ e) = calledNDFuncs e
+  calledNDFuncsInRule (External _) = []
+  
+  calledNDFuncs (Var _) = []
+  calledNDFuncs (Lit _) = []
+  calledNDFuncs (Free vars e) = calledNDFuncs e
+  calledNDFuncs (Let bs e) =
+    concatMap calledNDFuncs (map snd bs) ++ calledNDFuncs e
+  calledNDFuncs (Or e1 e2) = calledNDFuncs e1 ++ calledNDFuncs e2
+  calledNDFuncs (Case _ e bs) =
+    calledNDFuncs e ++ concatMap (\ (Branch _ be) -> calledNDFuncs be) bs
+  calledNDFuncs (Typed e _) = calledNDFuncs e
+  calledNDFuncs (Comb _ qf@(mn,fn) es)
+    | mn == "SetFunctions" && take 3 fn == "set" && all isDigit (drop 3 fn)
+    = -- non-determinism of function (first argument) is encapsulated so that
+      -- its called ND functions are not relevant:
+      if null es then [] -- this case should not occur
+                 else concatMap calledNDFuncs (tail es)
+    | otherwise
+    = maybe [] id (lookup qf calledFuncs) ++ (concatMap calledNDFuncs es)
 
 ------------------------------------------------------------------------------

@@ -19,7 +19,7 @@ clean:
 uninstall: clean
 	rm -f $(TOOL)
 
-CurryTest:  CurryTest.curry         $(METADIR)/FlatCurry.curry   \
+CurryTest:  CurryTest.curry         $(LIBDIR)/FlatCurry/Files.curry   \
 	  $(LIBDIR)/System.curry    $(LIBDIR)/Assertion.curry    \
 	  $(LIBDIR)/Directory.curry $(LIBDIR)/Distribution.curry \
 	  $(LIBDIR)/GUI.curry

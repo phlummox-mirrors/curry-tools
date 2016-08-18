@@ -1,21 +1,20 @@
 -- Main module to generate the initial Spicey application
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 import Directory
 import List(last)
 import System(system, getArgs, exitWith)
 import SpiceyScaffolding
 import Distribution
 
+systemBanner :: String
 systemBanner =
-  let bannerText = "Spicey Web Framework (Version of 30/07/14)"
+  let bannerText = "Spicey Web Framework (Version of 08/06/16)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
 data FileMode = Exec | NoExec
-  deriving Eq
-  
+
+setFileMode :: FileMode -> String -> IO ()
 setFileMode fmode filename =
   if fmode==Exec then system ("chmod +x \"" ++ filename ++ "\"") >> done
                  else done
@@ -28,6 +27,7 @@ data DirTree =
  | GeneratedFromERD (String -> String -> String -> String -> IO ())
    -- takes an operation to generate code from ERD specification
 
+spiceyStructure :: DirTree
 spiceyStructure = 
   Directory "." [
     ResourceFile NoExec "README.txt",
@@ -58,9 +58,19 @@ spiceyStructure =
       ResourceFile NoExec "index.html",
       ResourceFile NoExec "favicon.ico",
       Directory "css" [
-        ResourceFile NoExec "bootstrap.css",
-        ResourceFile NoExec "bootstrap-responsive.css",
-        ResourceFile NoExec "style.css"
+        ResourceFile NoExec "bootstrap.min.css",
+        ResourceFile NoExec "spicey.css"
+      ],
+      Directory "js" [
+        ResourceFile NoExec "bootstrap.min.js",
+        ResourceFile NoExec "jquery.min.js"
+      ],
+      Directory "fonts" [
+        ResourceFile NoExec "glyphicons-halflings-regular.eot",
+        ResourceFile NoExec "glyphicons-halflings-regular.svg",
+        ResourceFile NoExec "glyphicons-halflings-regular.ttf",
+        ResourceFile NoExec "glyphicons-halflings-regular.woff",
+        ResourceFile NoExec "glyphicons-halflings-regular.woff2"
       ],
       Directory "images" [
         ResourceFile NoExec "spicey-logo.png",
@@ -72,6 +82,7 @@ spiceyStructure =
     ]
   ]
 
+resourceDirectoryLocal :: String
 resourceDirectoryLocal = "resource_files" -- script directory gets prepended
 
 -- Replace every occurrence of "XXXCURRYBINXXX" by installDir++"/bin"
@@ -139,6 +150,7 @@ createStructure target_path generator_path term_path db_path
 
 --- The main operation to start the scaffolding.
 --- The argument is the directory containing the project generator.
+main :: String -> IO ()
 main generatordir = do
   putStrLn systemBanner
   curdir <- getCurrentDirectory
@@ -154,6 +166,7 @@ main generatordir = do
   putStrLn "IMPORTANT NOTE: Before you deploy your web application (by 'make deploy'),"
   putStrLn "you should define the variable WEBSERVERDIR in the Makefile!"
 
+helpText :: String
 helpText =
   "Usage: spiceup [--dbpath <dirpath>] <ERD term file>\n" ++
    "Parameters:\n" ++

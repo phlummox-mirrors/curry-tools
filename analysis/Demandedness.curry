@@ -7,14 +7,12 @@
 --- @version May 2013
 ------------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module Demandedness
  where
 
 import Analysis
-import FlatCurry
-import FlatCurryGoodies
+import FlatCurry.Types
+import FlatCurry.Goodies
 import List((\\),intercalate)
 
 ------------------------------------------------------------------------------
@@ -31,7 +29,6 @@ showDemand fmt (x:xs) =
 
 -- Abstract demand domain.
 data DemandDomain = Bot | Top
-  deriving Eq
 
 -- Least upper bound on abstract demand domain.
 lub :: DemandDomain -> DemandDomain -> DemandDomain
@@ -42,8 +39,8 @@ lub Top _ = Top
 demandAnalysis :: Analysis DemandedArgs
 demandAnalysis = dependencyFuncAnalysis "Demand" [1..] daFunc
 
--- An operation is non-deterministic if it has an overlapping definition.
--- or if it calls a non-deterministic operation.
+-- We define the demanded arguments of some primitive prelude operations.
+-- Otherwise, we analyse the right-hand sides of the rule.
 daFunc :: FuncDecl -> [(QName,DemandedArgs)] -> DemandedArgs
 daFunc (Func (m,f) _ _ _ rule) calledFuncs
  | f `elem` prelude2s && m==prelude = [1,2]

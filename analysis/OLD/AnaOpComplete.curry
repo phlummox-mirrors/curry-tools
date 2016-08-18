@@ -8,7 +8,7 @@
 
 module AnaOpComplete(analyseOpCompleteness)   where
 
-import FlatCurry
+import FlatCurry.Types
 import List
 import AnaDependency
 

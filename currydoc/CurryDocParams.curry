@@ -1,7 +1,5 @@
 -- Auxuiliaries to handle the parameters of the CurryDoc tool.
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module CurryDocParams where
 
 import System (system)
@@ -9,7 +7,6 @@ import System (system)
 --------------------------------------------------------------------------
 -- The kind of documentations which can be generated.
 data DocType = HtmlDoc | TexDoc | CDoc
-  deriving Eq
 
 -- The parameters for the documentation generator. Parameters:
 -- doctype - the target format of the documentation

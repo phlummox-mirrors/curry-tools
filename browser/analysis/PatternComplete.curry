@@ -9,13 +9,11 @@
 -- Michael Hanus, June 2006
 -----------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module PatternComplete(CompletenessType(..),
                        analyseCompleteness,
                        analyseTotallyDefined) where
 
-import FlatCurry
+import FlatCurry.Types
 import Dependency(analyseWithDependencies)
 
 ------------------------------------------------------------------------------
@@ -43,7 +41,7 @@ analyseCompleteness types fdecl = anaFun fdecl
   anaFun (Func _ _ _ _ (Rule _ e)) = isComplete types e
   anaFun (Func _ _ _ _ (External _)) = Complete
 
---isComplete :: [TypeDecl] -> [(Expr,TypeExpr)] -> Expr -> CompletenessType
+isComplete :: [TypeDecl] -> Expr -> CompletenessType
 isComplete _ (Var _)      = Complete
 isComplete _ (Lit _)      = Complete
 isComplete types (Comb _ f es) =
@@ -68,8 +66,10 @@ isComplete types (Case _ _ (Branch (Pattern cons pvs) bexp : ces)) =
     checkAllCons (c:cs) (Branch (Pattern i _) e : ps) =
         combineAndResults (checkAllCons (removeConstructor i (c:cs)) ps)
                           (isComplete types e)
+isComplete types (Typed e _) = isComplete types e
 
 -- Combines the completeness results in different Or branches.
+combineOrResults :: CompletenessType -> CompletenessType -> CompletenessType
 combineOrResults Complete     _            = Complete
 combineOrResults InComplete   Complete     = Complete
 combineOrResults InComplete   InComplete   = InCompleteOr
@@ -79,6 +79,7 @@ combineOrResults InCompleteOr InComplete   = InCompleteOr
 combineOrResults InCompleteOr InCompleteOr = InCompleteOr
 
 -- Combines the completeness results in different case branches.
+combineAndResults :: CompletenessType -> CompletenessType -> CompletenessType
 combineAndResults InComplete   _            = InComplete
 combineAndResults Complete     Complete     = Complete
 combineAndResults Complete     InComplete   = InComplete

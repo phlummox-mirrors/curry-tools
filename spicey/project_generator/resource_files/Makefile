@@ -1,5 +1,7 @@
 # Generic Makefile for Spicey applications
 
+CURRYOPTIONS=:set -time
+
 # Target directory where the compiled cgi programs, style sheets, etc
 # should be stored, e.g.: $(HOME)/public_html
 WEBSERVERDIR = $(error "Define variable WEBSERVERDIR!")
@@ -19,19 +21,19 @@ all:
 # Compile the generated Spicey application:
 .PHONY: compile
 compile:
-	$(CURRYBIN)/curry :load Main :quit
+	$(CURRYBIN)/curry $(CURRYOPTIONS) :load Main :quit
 
 # Load the generated Spicey application into the Curry system so that
 # one can evaluate some expressions:
 .PHONY: load
 load:
-	$(CURRYBIN)/curry :load Main
+	$(CURRYBIN)/curry $(CURRYOPTIONS) :load Main
 
 # Runs the generated Spicey application by evaluating the main expression.
 # This might be useful to test only the initial web page without a web server
 .PHONY: run
 run:
-	$(CURRYBIN)/curry :load Main :eval main :quit
+	$(CURRYBIN)/curry $(CURRYOPTIONS) :load Main :eval main :quit
 
 # Deploy the generated Spicey application, i.e., install it in the
 # web directory WEBSERVERDIR:

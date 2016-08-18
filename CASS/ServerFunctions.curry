@@ -7,18 +7,15 @@
 
 -- analysis computations on the server side
 
--- {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module ServerFunctions where
 
-import FlatCurry(QName,readFlatCurryInt)
-import FlatCurryGoodies(progImports)
+import FlatCurry.Types   (QName)
+import FlatCurry.Goodies (progImports)
 import Socket(Socket(..),listenOnFresh,sClose,waitForSocketAccept)
 import IO(Handle(..),hClose,hFlush,hGetLine,hPutStrLn,hWaitForInput,hWaitForInputs)
 import ReadShowTerm(readQTerm,showQTerm)
 import System(system,sleep)
 import Directory(doesFileExist,getModificationTime)
-import Distribution(findFileInLoadPath)
 import Maybe(fromMaybe)
 import List(delete)
 import Time(ClockTime)

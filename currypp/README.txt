@@ -13,7 +13,7 @@ If the pre-processor is installed (see Makefile) as the binary `currypp`,
 Curry source files containing integrated code can be translated
 by running `currypp` as follows:
 
-    currypp org-filename input-file output-file [-o]
+    currypp <org-filename> <input-file> <output-file> foreigncode [-o]
 
 The parameters are:
 
@@ -22,6 +22,7 @@ The parameters are:
 * The name of the output file where the translated code should be stored.
 * If the optional parameter `-o` is given, a copy of the translated code
   is stored in the file `org-filename.CURRYPP`.
+* To preprocess SQL: --model:<modelname>_SQLCode.info   
 
 
 Writing files with integrated code:
@@ -49,5 +50,6 @@ printf - same as above (but with an implicit `putStr` call)
 regex  - Polymorphic regex expressions
 html   - Standard HTML
 xml    - Standard XML
+sql    - SQL syntax
 
 See the examples and source file comments for further details.

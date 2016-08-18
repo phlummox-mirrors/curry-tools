@@ -2,24 +2,31 @@
 --- This is the main file for scaffolding.
 ------------------------------------------------------------------------
 
-import ERD
-import IO
-import AbstractCurry
-import AbstractCurryPrinter
-import PrettyAbstract
-import AbstractCurryGoodies
-import Transformation
-import ERDGoodies
-import System(system)
+import AbstractCurry.Types
+import AbstractCurry.Build
+import AbstractCurry.Pretty hiding(showCProg)
+import Database.ERD
+import Database.ERDGoodies
 import Distribution(installDir)
+import IO
+import System(system)
 
 import GenerationHelper
 import ControllerGeneration
 import ViewGeneration
 import RouteGeneration
 import EntitiesToHtmlGeneration
+import Transformation
 
-  
+--- Pretty print an AbstractCurry program with name qualification on demand.
+--- TODO: Currently, our naming scheme should ensure that there are no
+--- name conflicts. Therefore, we omit the list of Curry modules
+--- for the on-demand qualification. However, to be on the safe side,
+--- one should explicitly set this list to the current module and the
+--- list of its imports.
+showCProg :: CurryProg -> String
+showCProg = prettyCurryProg (setOnDemandQualification [] defaultOptions)
+
 getRelationships :: ERD -> [Relationship]
 getRelationships (ERD _ _ relationships) = relationships
 
@@ -91,7 +98,7 @@ createHtmlHelper path (ERD name entities relationship) =
 createModelsForTerm :: String -> String -> String -> String -> IO ()
 createModelsForTerm _ term_path path db_path = do
   erd <- readERDTermFile term_path
-  system $ installDir ++ "/bin/erd2curry -l -t --dbpath " ++ db_path
+  system $ installDir ++ "/bin/erd2curry -l --dbpath " ++ db_path
                       ++ " " ++ term_path
   let orgerdfile   = erdName erd ++ "_ERD.term"
       transerdfile = erdName erd ++ "_ERDT.term"

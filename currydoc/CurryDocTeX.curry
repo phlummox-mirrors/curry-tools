@@ -5,19 +5,20 @@
 --- @version January 2015
 ----------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module CurryDocTeX where
 
-import CurryDocParams
-import CurryDocRead
+import Char
 import Distribution
-import FlatCurry
+import FlatCurry.Types
+import FlatCurry.Files
 import HTML
 import HtmlParser
 import List
-import Char
 import Markdown
+import Maybe
+
+import CurryDocParams
+import CurryDocRead
 
 --------------------------------------------------------------------------
 -- Generates the documentation of a module in HTML format where the comments
@@ -25,7 +26,7 @@ import Markdown
 generateTexDocs :: DocParams -> AnaInfo -> String -> String
                 -> [(SourceLine,String)] -> IO String
 generateTexDocs docparams anainfo modname modcmts progcmts = do
-  fcyname <- findFileInLoadPath (flatCurryFileName modname)
+  fcyname <- getFlatCurryFileInLoadPath modname
   putStrLn $ "Reading FlatCurry program \""++fcyname++"\"..."
   (Prog _ _ types functions _) <- readFlatCurryFile fcyname
   let textypes = concatMap (genTexType docparams progcmts) types

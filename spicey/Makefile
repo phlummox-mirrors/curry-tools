@@ -3,7 +3,6 @@
 ##############################################################################
 
 # Required:
-# - installed Curry System (PAKCS or KiCS2) specified by variable REPL
 # - root location of the Curry System specified by variable ROOT
 
 # binaries
@@ -13,7 +12,8 @@ TOOL = $(ROOT)/bin/spiceup
 PROJECT_GEN_DIR=project_generator
 
 # Some modules required by the Spicey implementation:
-DEPS = $(PROJECT_GEN_DIR)/SpiceUp.curry scaffolding/*.curry
+DEPS = $(PROJECT_GEN_DIR)/SpiceUp.curry scaffolding/*.curry \
+       $(LIBDIR)/AbstractCurry/*.curry $(LIBDIR)/Database/ERD*.curry
 
 .PHONY: all compile install clean uninstall
 

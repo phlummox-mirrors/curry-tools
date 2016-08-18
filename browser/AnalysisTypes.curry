@@ -3,13 +3,11 @@
 --- in the browser.
 -------------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module AnalysisTypes(FunctionAnalysis(..),AnalysisResult(..),
                      ModuleAnalysis(..),ModuleAnalysisResult(..),
                      ContentsKind(..)) where
 
-import FlatCurry
+import FlatCurry.Types
 
 -------------------------------------------------------------------------------
 -- Types for analyzing functions:
@@ -48,4 +46,4 @@ data ContentsKind =
   | LCurryProg     -- Literate Curry source code
   | FlatCurryExp   -- FlatCurry expression
   | OtherText      -- some other text
-  deriving Eq
+

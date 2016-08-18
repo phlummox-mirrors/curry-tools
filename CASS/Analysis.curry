@@ -13,8 +13,6 @@
 --- @version May 2013
 -------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module Analysis(Analysis(..),
                 simpleFuncAnalysis,simpleTypeAnalysis,
                 simpleConstructorAnalysis,
@@ -26,8 +24,8 @@ module Analysis(Analysis(..),
                 AOutFormat(..))
   where
 
-import FlatCurry(ConsDecl,FuncDecl,TypeDecl,QName)
-import FlatCurryGoodies(progImports)
+import FlatCurry.Types(ConsDecl,FuncDecl,TypeDecl,QName)
+import FlatCurry.Goodies(progImports)
 import GenericProgInfo(ProgInfo,combineProgInfo,lookupProgInfo)
 import LoadAnalysis(loadCompleteAnalysis,getInterfaceInfos)
 import CurryFiles(getImports)
@@ -230,6 +228,5 @@ startValue (CombinedDependencyTypeAnalysis _ _ _ startval _) = startval
 --- to get a quick overview of the analysis results of all operations
 --- in a module.
 data AOutFormat = AText | ANote
-  deriving Eq
 
 -------------------------------------------------------------------------

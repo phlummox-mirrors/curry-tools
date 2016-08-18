@@ -32,15 +32,3 @@ BindingOpt: BindingOpt.curry
 .PHONY: load
 load: BindingOpt.curry
 	$(REPL) $(REPL_OPTS) :set path $(ANADIRS) :l $<
-
-TESTPROGS = HTML SetFunctions Parser AddTypes CurryStringClassifier Curry2JS
-
-.PHONY: test
-test:
-	$(CLEANCURRY) -r
-	cd examples && $(TOOL) -f $(TESTPROGS) | tee test.log
-	cd examples && meld TEST.log test.log
-
-.PHONY: selftest
-selftest:
-	export CURRYPATH=$(ANADIRS) && ./eqopt -f BindingOpt.curry

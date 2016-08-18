@@ -5,11 +5,9 @@
 -- Michael Hanus, June 2005
 ------------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module Linearity(analyseRightLinearity,hasRightLinearRules,linearExpr) where
 
-import FlatCurry
+import FlatCurry.Types
 import Maybe
 import List
 import Dependency(analyseWithDependencies)
@@ -78,3 +76,4 @@ linearVariables (Case _ e bs) =
  where
   patternVars (Branch (Pattern _ vs) _) = vs
   patternVars (Branch (LPattern _)   _) = []
+linearVariables (Typed e _) = linearVariables e

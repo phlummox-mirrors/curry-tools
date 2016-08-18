@@ -1,9 +1,7 @@
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
-import AbstractCurry
-import AbstractCurryGoodies
-import ERD
-import ERDGoodies
+import AbstractCurry.Types
+import AbstractCurry.Build
+import Database.ERD
+import Database.ERDGoodies
 import GenerationHelper
 
 -- "main"-function
@@ -15,7 +13,7 @@ generateViewsForEntity erdname allEntities
      noPKeyAttrs = filter notPKey attrlist
   in CurryProg
   (viewModuleName ename)
-  ["WUI", "HTML", "Time", "Sort", "Spicey","SessionInfo",
+  ["WUI", "HTML", "Time", "Sort", "Bootstrap3Style", "Spicey", "SessionInfo",
    erdname, erdname++"EntitiesToHtml"] -- imports
   [] -- typedecls
   -- functions
@@ -56,13 +54,9 @@ wuiSpec erdname (Entity entityName attrlist) relationships allEntities =
            (map (\e -> listType (ctvar e))
                 (manyToOneEntities ++ manyToManyEntities))-- possible values
     )
-    [
-      CRule
-      (map (\e -> CPVar (1, lowerFirst $ e ++ "List"))
-           (manyToOneEntities ++ manyToManyEntities))
-      [
-        noGuard (
-          applyF ("WUI", "withRendering") [         
+    [simpleRule (map (\e -> CPVar (1, lowerFirst $ e ++ "List"))
+                     (manyToOneEntities ++ manyToManyEntities))
+       (applyF ("WUI", "withRendering") [         
             (if (argumentCount == 1) then
               head (attrWidgets attrlist)
             else
@@ -89,10 +83,7 @@ wuiSpec erdname (Entity entityName attrlist) relationships allEntities =
                    [constF (erdname++"EntitiesToHtml",
                             lowerFirst entityName++"LabelList")]
           ]
-        )
-      ]
-      []
-    ]
+        )]
   where
     getFirstAttributeName myEntityName =
       gf (head (filter (\(Entity name _) -> name == myEntityName) allEntities))
@@ -120,8 +111,7 @@ tuple2Entity erdname (Entity entityName attrlist) relationships allEntities =
        [entityInterface (filter notKey attrlist)
                         manyToOneEntities manyToManyEntities])
     )
-    [
-      CRule
+    [simpleRule
       ( 
         [ CPVar (1, lowerFirst entityName ++ "ToUpdate"),
           tuplePattern
@@ -136,33 +126,21 @@ tuple2Entity erdname (Entity entityName attrlist) relationships allEntities =
            )
         ]
       )
-      [
-        noGuard (
-          tupleExpr
-            ((foldr 
-              (\(Attribute aname domain _ _) expr ->
-                case domain of
-                  (KeyDom rel) ->
-                    applyF (erdname, "set"++entityName++aname) [
-                      expr,
-                      applyF (erdname, (lowerFirst rel)++"Key")
-                             [CVar (1, lowerFirst rel)]
-                    ]    
-                  _ ->           
-                    applyF (erdname, "set"++entityName++aname) [
-                      expr, 
-                      CVar (1, lowerFirst aname)
-                    ]
-              )
-              (
-                (CVar (0, lowerFirst $ entityName++"ToUpdate"))
-              )
-              attrlist
-            ) : (map (\e -> cvar (lowerFirst $ e ++ "s")) manyToManyEntities))
-        )
-      ]
-      []
-    ]
+      (tupleExpr $
+         (foldr (\ (Attribute aname domain _ _) expr ->
+                   case domain of
+                     (KeyDom rel) ->
+                       applyF (erdname, "set"++entityName++aname)
+                              [expr,
+                               applyF (erdname, (lowerFirst rel)++"Key")
+                                      [CVar (1, lowerFirst rel)]]
+                     _ -> applyF (erdname, "set"++entityName++aname)
+                                 [expr,  CVar (1, lowerFirst aname)]  )
+                
+                 (CVar (0, lowerFirst $ entityName++"ToUpdate"))
+                 attrlist )
+            : (map (\e -> cvar (lowerFirst $ e ++ "s")) manyToManyEntities))]
+
 
 entity2Tuple :: ViewGenerator
 entity2Tuple erdname (Entity entityName attrlist) relationships allEntities =
@@ -190,8 +168,7 @@ entity2Tuple erdname (Entity entityName attrlist) relationships allEntities =
         )]
       )
     )
-    [
-      CRule
+    [simpleRule
       ( 
         (map (\ (name, varId) -> CPVar(varId,(lowerFirst name)))
              (zip manyToOneEntities [1..])) ++
@@ -204,19 +181,14 @@ entity2Tuple erdname (Entity entityName attrlist) relationships allEntities =
           )
         ]
       )
-      [
-        noGuard (
-          tupleExpr
+      (tupleExpr
             (map (\ (Attribute a _ _ _) ->
                      applyF (erdname, (lowerFirst entityName)++a)
                             [cvar (lowerFirst entityName)])
                   (filter notKey attrlist) ++
              map (\e -> cvar (lowerFirst e)) manyToOneEntities ++
              map (\e -> cvar (lowerFirst $ e ++ "s")) manyToManyEntities)
-        )
-      ]
-      []
-    ]
+        )]
 
 wuiType :: ViewGenerator
 wuiType _ (Entity entityName attrlist) relationships allEntities =
@@ -245,8 +217,7 @@ wuiType _ (Entity entityName attrlist) relationships allEntities =
              (manyToOneEntities ++ manyToManyEntities))-- possible values
       )
     )
-    [
-      CRule
+    [simpleRule
       (
         [CPVar (1, lowerFirst entityName)] ++
         (map (\e -> CPVar (1, lowerFirst e)) manyToOneEntities) ++ -- related values
@@ -254,9 +225,7 @@ wuiType _ (Entity entityName attrlist) relationships allEntities =
         (map (\e -> CPVar (1, lowerFirst $ e++"List"))
              (manyToOneEntities ++ manyToManyEntities))
       )
-      [
-        noGuard (
-          applyF (wui "transformWSpec") [
+      (applyF (wui "transformWSpec") [
             tupleExpr
             [
              applyF (viewModuleName entityName, "tuple2"++entityName)
@@ -268,10 +237,7 @@ wuiType _ (Entity entityName attrlist) relationships allEntities =
                    (map (\e -> CVar (1, lowerFirst $ e ++ "List"))
                         (manyToOneEntities ++ manyToManyEntities))
           ]
-        )
-      ]
-      []
-    ]
+        )]
 
 
 createView :: ViewGenerator
@@ -296,8 +262,7 @@ createView _ (Entity entityName attrlist) relationships allEntities =
            ~> controllerType,
            controllerType]))
       )
-      [
-        CRule
+      [simpleRule
         ( -- params
           CPVar infovar :
           (map (\ ((Attribute name _ _ _), varId) ->
@@ -311,8 +276,7 @@ createView _ (Entity entityName attrlist) relationships allEntities =
                (zip (manyToOneEntities++manyToManyEntities) [1..])) ++
           [CPVar (100, "controller"), CPVar (101, "cancelcontroller")]
         )
-        [noGuard (
-          applyF ("Spicey","renderWuiForm")
+        (applyF ("Spicey","renderWuiForm")
            [applyF (viewModuleName entityName, "w"++entityName)
               (map (\ (name, varId) -> CVar (varId,("possible"++name++"s")))
                    (zip (manyToOneEntities++manyToManyEntities) [1..])),
@@ -328,10 +292,7 @@ createView _ (Entity entityName attrlist) relationships allEntities =
             CVar (101, "cancelcontroller"),
             string2ac ("Create new "++entityName),
             string2ac "create"]
-          )
-        ]
-        []
-      ]
+          )]
       
 editView :: ViewGenerator
 editView erdname (Entity entityName attrlist) relationships allEntities =
@@ -359,7 +320,7 @@ editView erdname (Entity entityName attrlist) relationships allEntities =
            ~> controllerType,
            controllerType]))
       )
-      [CRule
+      [simpleRule
         ( -- params
          CPVar infovar :
          [tuplePattern
@@ -373,8 +334,7 @@ editView erdname (Entity entityName attrlist) relationships allEntities =
                (zip (manyToOneEntities++manyToManyEntities) [2..])) ++
           [CPVar (1, "controller"), CPVar (102, "cancelcontroller")]
         )
-        [noGuard (
-            applyF ("Spicey","renderWuiForm")
+        (applyF ("Spicey","renderWuiForm")
              [applyF (viewModuleName entityName, "w"++entityName++"Type") (
                [cvar (lowerFirst entityName)] ++
                 --(map (\ (name, varId) -> CVar(varId,((lowerFirst name)++"s"))) (zip manyToManyEntities [2..])) ++
@@ -390,11 +350,8 @@ editView erdname (Entity entityName attrlist) relationships allEntities =
               CVar (102, "cancelcontroller"),
               string2ac ("Edit "++entityName),
               string2ac "change"]
-          )
-        ]
-        []
-      ]
-      
+          )]
+
 blankView :: ViewGenerator
 blankView _ (Entity entityName attrlist) relationships allEntities =
   let
@@ -417,7 +374,7 @@ blankView _ (Entity entityName attrlist) relationships allEntities =
            ~> controllerType,
            controllerType])
       )
-      [CRule
+      [simpleRule
         ( -- params
          CPVar infovar :
          (if withCTime then [CPVar (0,"ctime")] else []) ++
@@ -425,10 +382,9 @@ blankView _ (Entity entityName attrlist) relationships allEntities =
               (zip (manyToOneEntities++manyToManyEntities) [2..])) ++
          [CPVar (1, "controller"), CPVar (2, "cancelcontroller")]
         )
-        [noGuard (
-              applyF (viewFunctionName entityName "create") 
+        (applyF (viewFunctionName entityName "create") 
               (CVar infovar :
-               (attrDefaultValues (Just (CVar (0,"ctime"))) attrlist) ++
+               (attrDefaultValues (CVar (0,"ctime")) attrlist) ++
                (map (\ (name, varId) ->
                            applyF (pre "head")
                                   [CVar (varId,("possible"++name++"s"))])
@@ -438,10 +394,7 @@ blankView _ (Entity entityName attrlist) relationships allEntities =
                     (zip (manyToOneEntities++manyToManyEntities) [2..])) ++
                [CVar (1, "controller"), CVar (1, "cancelcontroller")]
               )
-          )
-        ]
-        []
-      ]
+          )]
 
 -- Generate function to compare to entities in lexicographic order.
 leqEntity :: ViewGenerator
@@ -454,19 +407,15 @@ leqEntity erdname (Entity entityName attrlist) _ _ =
     [let ename = lowerFirst entityName
          e1 = (1,"x1")
          e2 = (2,"x2")
-      in CRule [CPVar e1,CPVar e2]
-               [noGuard (
-                  applyF (pre "<=")
+      in simpleRule [CPVar e1,CPVar e2]
+           (applyF (pre "<=")
                    [tupleExpr (map (\ (Attribute a _ _ _) ->
                                        applyF (erdname,ename++a) [CVar e1])
                                    (filter notKey attrlist)),
                     tupleExpr (map (\ (Attribute a _ _ _) ->
                                        applyF (erdname,ename++a) [CVar e2])
                                    (filter notKey attrlist))
-                   ])
-               ]
-               []
-    ]
+                   ])]
 
 
 -- generate view for showing entities
@@ -486,7 +435,7 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
           (map ctvar manyToOneEntities) ++ -- defaults for n:1
           (map (\name -> listType (ctvar name)) manyToManyEntities))
       )
-      [CRule
+      [simpleRule
         ( -- parameters
           [CPVar infovar, CPVar evar] ++
           (map (\ (name, varId) -> CPVar (varId,"related"++name))
@@ -494,9 +443,7 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
           (map (\ (name, varId) -> CPVar (varId, lowerFirst name ++ "s"))
                (zip manyToManyEntities [(length manyToOneEntities + 3)..]))
         )
-        [
-          noGuard (
-            applyF (pre "++")
+        (applyF (pre "++")
               [applyF (erdname++"EntitiesToHtml",
                        lowerFirst entityName++"ToDetailsView")
                   ([CVar evar] ++
@@ -506,15 +453,12 @@ showView erdname (Entity entityName attrlist) relationships allEntities =
                        (zip manyToManyEntities
                             [(length manyToOneEntities + 3)..])
                   ),
-               list2ac [applyF ("Spicey","spHref")
+               list2ac [applyF hrefButtonName
                          [string2ac ("?"++entityName++"/list"),
                           list2ac [applyF ("HTML","htxt")
                             [string2ac ("back to "++entityName++" list")]]]]
               ]
-            )
-         ]
-         []
-       ]
+            )]
       
 --- Create operation for the "list entities" view.
 listView :: ViewGenerator
@@ -533,12 +477,10 @@ listView erdname (Entity entityName attrlist) _ _ =
       -- function type
       (userSessionInfoType ~> listType (baseType (erdname,entityName))
                            ~> viewBlockType)
-      [
-       CRule
+      [CRule
         [CPVar infovar, CPVar entsvar]
-        [
-          noGuard (            
-            applyF (pre ":") [
+        (CSimpleRhs
+          (applyF (pre ":") [
               applyF ("HTML", "h1")
                      [list2ac [applyF ("HTML", "htxt")
                                       [string2ac $ entityName ++ " list"]]],
@@ -554,7 +496,7 @@ listView erdname (Entity entityName attrlist) _ _ =
                     ],
                     applyF (pre "map") [
                       constF (viewModuleName entityName,"list"++entityName),
-                      applyF ("Sort","mergeSort") [
+                      applyF ("Sort","mergeSortBy") [
                           constF (viewModuleName entityName,"leq"++entityName),
                           CVar entsvar
                       ]
@@ -563,16 +505,12 @@ listView erdname (Entity entityName attrlist) _ _ =
                 ]
               ]
             ]
-
           )
-        ]
         [CLocalFunc (cfunc
           (viewModuleName entityName, "list"++entityName) 2 Private
           (ctvar entityName ~> listType viewBlockType)
-          [CRule
-            [CPVar envar]
-            [noGuard (
-              applyF (pre "++") [
+          [simpleRule [CPVar envar]
+             (applyF (pre "++") [
                 applyF (erdname++"EntitiesToHtml",
                         lowerFirst entityName++"ToListView")
                        [cvar $ lowerFirst entityName],
@@ -583,27 +521,24 @@ listView erdname (Entity entityName attrlist) _ _ =
                   list2ac [],
                   list2ac
                    [list2ac
-                     [applyF ("Spicey", "spHref")
+                     [applyF hrefButtonName
                        [applyF (pre "++")
                          [string2ac ("?"++entityName++"/show/"),showkey],
                         list2ac [applyF ("HTML","htxt") [string2ac "show"]]]],
                     list2ac
-                     [applyF ("Spicey", "spHref")
+                     [applyF hrefButtonName
                        [applyF (pre "++")
                          [string2ac ("?"++entityName++"/edit/"),showkey],
                         list2ac [applyF ("HTML","htxt") [string2ac "edit"]]]],
                     list2ac
-                     [applyF ("Spicey", "spHref")
+                     [applyF hrefButtonName
                        [applyF (pre "++")
                          [string2ac ("?"++entityName++"/delete/"),showkey],
                         list2ac [applyF ("HTML","htxt") [string2ac "delete"]]]]
                 ]]
               ]
-              )
-            ]
-            []
-          ])
-        ]
+              )])
+        ])
       ]
       
 -- aux
@@ -613,6 +548,8 @@ listView erdname (Entity entityName attrlist) _ _ =
 -- arity
 -- functionType: the type of the view function
 -- rules: the rules defining the view
+viewFunction :: String -> String -> String -> Int -> CTypeExpr -> [CRule]
+             -> CFuncDecl
 viewFunction description entityName viewType arity functionType rules =
   cmtfunc description (viewFunctionName entityName viewType) arity
           Public functionType rules
@@ -624,4 +561,5 @@ entityInterface attrlist manyToOne manyToMany =
              map (\e -> listType (ctvar e)) manyToMany)
 
 -- Type "UserSessionInfo"
+userSessionInfoType :: CTypeExpr
 userSessionInfoType = baseType ("SessionInfo","UserSessionInfo")

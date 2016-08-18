@@ -11,16 +11,16 @@ ANADIR     = ../analysis
 TOOL       = $(BINDIR)/currydoc
 
 # Source modules of currydoc
-DEPS = CurryDoc.curry CurryDocRead.curry CurryDocHtml.curry \
-       CurryDocTeX.curry CurryDocCDoc.curry \
+DEPS = CurryDoc.curry CurryDocRead.curry CurryDocAnaInfo.curry \
+       CurryDocHtml.curry CurryDocTeX.curry CurryDocCDoc.curry \
        CurryDocParams.curry CurryDocConfig.curry \
-       BootstrapStyle.curry \
        $(LIBDIR)/Markdown.curry \
-       $(METADIR)/FlexRigid.curry \
+       $(LIBDIR)/FlatCurry/FlexRigid.curry \
        $(LIBDIR)/CategorizedHtmlList.curry \
        $(LIBDIR)/Distribution.curry $(LIBDIR)/PropertyFile.curry \
-       $(METADIR)/FlatCurry.curry \
+       $(LIBDIR)/FlatCurry/Types.curry $(LIBDIR)/FlatCurry/Files.curry \
        $(LIBDIR)/HTML.curry $(LIBDIR)/HtmlParser.curry \
+       $(LIBDIR)/Bootstrap3Style.curry \
        $(CASS)/AnalysisServer.curry \
        $(ANADIR)/Deterministic.curry $(ANADIR)/TotallyDefined.curry \
        $(ANADIR)/Indeterministic.curry $(ANADIR)/SolutionCompleteness.curry

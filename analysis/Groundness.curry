@@ -6,12 +6,10 @@
 --- @version May 2013
 ------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module Groundness(Ground(..),showGround,groundAnalysis,
                   NDEffect(..),showNDEffect,ndEffectAnalysis) where
 
-import FlatCurry
+import FlatCurry.Types
 import List
 import Analysis
 import GenericProgInfo
@@ -24,7 +22,6 @@ import GenericProgInfo
 --- Definitely ground (G), maybe non-ground (A), or maybe non-ground
 --- if i-th argument is non-ground (P [...,i,...]).
 data Ground = G | A | P [Int]
-  deriving Eq
 
 -- Show groundness information as a string.
 showGround :: AOutFormat -> Ground -> String
@@ -36,7 +33,7 @@ showGround ANote (P ps) = show ps
 showGround AText (P ps) =
   "ground if argument" ++
   (if length ps == 1 then ' ' : show (head ps) ++ " is ground"
-                              else "s " ++ show ps ++ " are ground")
+                     else "s " ++ show ps ++ " are ground")
 
 -- Lowest upper bound on groundness information.
 lubG :: Ground -> Ground -> Ground
@@ -117,7 +114,6 @@ groundApply (P ps) gargs =
 --- due to a narrowing step (second argument), or if i-th argument
 --- is non-ground (if i is a member of the third argument).
 data NDEffect = NDEffect Bool Bool [Int]
-  deriving Eq
 
 noEffect :: NDEffect
 noEffect = NDEffect False False []

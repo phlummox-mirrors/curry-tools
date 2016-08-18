@@ -3,8 +3,6 @@
 --- be selected by the user.
 --------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module UserProcesses(Processes(..),
                      ControllerResult,
                      availableProcesses)

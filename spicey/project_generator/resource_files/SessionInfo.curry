@@ -25,6 +25,7 @@ import Global
 data UserSessionInfo = SD (Maybe String)
 
 --- The initial (empty) session data
+emptySessionInfo :: UserSessionInfo
 emptySessionInfo = SD Nothing
 
 --- Extracts the login status from the user session data.

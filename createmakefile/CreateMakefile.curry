@@ -2,20 +2,20 @@
 --- A tool to create a simple makefile for a Curry application.
 ---
 --- @author Michael Hanus
---- @version October 2012
+--- @version May 2016
 -----------------------------------------------------------------
-
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 
 module CreateMakefile where
 
-import FlatCurry
-import FlatCurryRead
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Read
 import List
 import System
 import Distribution
 import FileGoodies
 
+main :: IO ()
 main = do
   args <- getArgs
   case args of
@@ -37,6 +37,7 @@ createMake mainmod target = do
   (maybe putStr writeFile target)
      (showMake mainmod (map replacePakcsLib allsources))
 
+showMake :: String -> [String] -> String
 showMake mainmod sourcefiles =
   "# Makefile for main module \""++mainmod++"\":\n\n"++
   "CURRYHOME="++installDir++"\n"++
@@ -51,8 +52,9 @@ showMake mainmod sourcefiles =
 
 -- add a directory name for a Curry source file by looking up the
 -- current load path (CURRYPATH):
+findSourceFileInLoadPath :: String -> IO String
 findSourceFileInLoadPath modname = do
-  loadpath <- getLoadPathForFile modname
+  loadpath <- getLoadPathForModule modname
   mbfname <- lookupFileInPath (baseName modname) [".lcurry",".curry"] loadpath
   maybe (error ("Curry file for module \""++modname++"\" not found!"))
         (return . dropLocal)
@@ -61,6 +63,7 @@ findSourceFileInLoadPath modname = do
   dropLocal f = if take 2 f == "./" then drop 2 f else f
 
 -- replace CURRY lib directory prefix in a filename by $(CURRYLIB):
+replacePakcsLib :: String -> String
 replacePakcsLib filename =
   let pakcslib = installDir++"/lib"
       pllength = length pakcslib

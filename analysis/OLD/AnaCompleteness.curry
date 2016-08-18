@@ -11,7 +11,7 @@
 
 module AnaCompleteness(CompletenessType(..),analyseCompleteness) where
 
-import FlatCurry
+import FlatCurry.Types
 
 
 ------------------------------------------------------------------------------

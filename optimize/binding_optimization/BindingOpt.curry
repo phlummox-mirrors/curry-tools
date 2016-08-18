@@ -1,12 +1,10 @@
 -------------------------------------------------------------------------
 --- Implementation of a transformation to replace Boolean equalities
---- by constrained equalities (which binds variables).
+--- by equational constraints (which binds variables).
 ---
 --- @author Michael Hanus
---- @version September 2014
+--- @version February 2016
 -------------------------------------------------------------------------
-
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 
 module BindingOpt (main, transformFlatProg) where
 
@@ -15,6 +13,7 @@ import Analysis
 import GenericProgInfo
 import RequiredValues
 
+import CSV
 import Directory         (renameFile)
 import Distribution      ( installDir, curryCompiler, currySubdir
                          , addCurrySubdir, splitModuleFileName
@@ -23,8 +22,9 @@ import FileGoodies
 import FilePath          ((</>), (<.>), normalise, pathSeparator)
 import List
 import System            (getArgs,system,exitWith,getCPUTime)
-import FlatCurry hiding  (Cons)
-import FlatCurryGoodies
+import FlatCurry.Types hiding  (Cons)
+import FlatCurry.Files
+import FlatCurry.Goodies
 
 type Options = (Int, Bool, Bool) -- (verbosity, use analysis?, auto-load?)
 
@@ -33,7 +33,7 @@ defaultOptions = (1, True, False)
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Curry Binding Optimizer (version of 05/09/2014)"
+  let bannerText = "Curry Binding Optimizer (version of 17/02/2016)"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -91,21 +91,27 @@ printVerbose verbosity printlevel message =
 transformBoolEq :: Options -> String -> IO ()
 transformBoolEq opts@(verb, _, _) name = do
   let isfcyname = fileSuffix name == "fcy"
-      modname   = stripCurrySubdir (stripSuffix name)
+      modname   = if isfcyname
+                  then modNameOfFcyName (normalise (stripSuffix name))
+                  else name
   printVerbose verb 1 $ "Reading and analyzing module '" ++ modname ++ "'..."
   flatprog <- if isfcyname then readFlatCurryFile name
                            else readFlatCurry     modname
   transformAndStoreFlatProg opts modname flatprog
 
 -- Drop a suffix from a list if present or leave the list as is otherwise.
-dropSuffix :: Eq a => [a] -> [a] -> [a]
+dropSuffix :: [a] -> [a] -> [a]
 dropSuffix sfx s | sfx `isSuffixOf` s = take (length s - length sfx) s
                  | otherwise          = s
 
-stripCurrySubdir :: String -> String
-stripCurrySubdir s = let (dir, base) = splitDirectoryBaseName s
-                     in normalise $ dropSuffix currySubdir dir </> base
-
+-- Extracts the module name from a given FlatCurry file name:
+modNameOfFcyName :: String -> String
+modNameOfFcyName name =
+  let wosuffix = normalise (stripSuffix name)
+      [dir,wosubdir] = splitOn (currySubdir ++ [pathSeparator]) wosuffix
+   in -- construct hierarchical module name:
+      dir </> intercalate "." (split (==pathSeparator) wosubdir)
+   
 transformAndStoreFlatProg :: Options -> String -> Prog -> IO ()
 transformAndStoreFlatProg opts@(verb, _, load) modname prog = do
   let (dir, name) = splitModuleFileName (progName prog) modname
@@ -139,11 +145,17 @@ transformFlatProg (verb, withanalysis, _) modname
                                      (if verb==3 then reqinfo else mreqinfo)
             return (flip lookupProgInfo reqinfo)
     else return (flip lookup preludeBoolReqValues)
-  let (ons,cmts,newfdecls) = unzip3 (map (transformFuncDecl verb lookupreqinfo)
-                                         fdecls)
-      numtrans = sum ons
-  printVerbose verb 1 $ unlines (filter (not . null) cmts)
-  printVerbose verb 1 $ "Total number of transformations: " ++ show numtrans
+  let (stats,newfdecls) = unzip (map (transformFuncDecl lookupreqinfo) fdecls)
+      numtrans = totalTrans stats
+      numbeqs  = totalBEqs  stats
+      csvfname = mname ++ "_BOPTSTATS.csv"
+  printVerbose verb 2 $ statSummary stats
+  printVerbose verb 1 $
+     "Total number of transformed (dis)equalities: " ++ show numtrans ++
+     " (out of " ++ show numbeqs ++ ")"
+  unless (verb<2) $ do
+    writeCSVFile csvfname (stats2csv stats)
+    putStrLn ("Detailed statistics written to '" ++ csvfname ++"'")
   return (Prog mname imports tdecls newfdecls opdecls, numtrans > 0)
 
 loadAnalysisWithImports :: Analysis a -> String -> [String]
@@ -161,26 +173,21 @@ showInfos showi =
           . (\p -> fst p ++ snd p) . progInfo2Lists
 
 -- Transform a function declaration.
--- The number of transformed occurrences of (==), a comment, and
--- the new function declaration are returned.
-transformFuncDecl :: Int -> (QName -> Maybe AFType) -> FuncDecl
-                  -> (Int,String,FuncDecl)
-transformFuncDecl verb lookupreqinfo fdecl@(Func qf ar vis texp rule) =
+-- Some statistical information and the new function declaration are returned.
+transformFuncDecl :: (QName -> Maybe AFType) -> FuncDecl
+                  -> (TransStat,FuncDecl)
+transformFuncDecl lookupreqinfo fdecl@(Func qf@(_,fn) ar vis texp rule) =
   if containsBeqRule rule
   then
     let (tst,trule) = transformRule lookupreqinfo (initTState qf) rule
         on = occNumber tst
-     in (on,
-         if verb <= 1 then "" else
-           if on==0 then "" else
-             "Function "++snd qf++": "++
-             (if on==1 then "one occurrence" else show on++" occurrences") ++
-             " of (==) transformed into (=:=)",
-         Func qf ar vis texp trule)
-  else (0,"",fdecl)
+     in (TransStat fn beqs on, Func qf ar vis texp trule)
+  else (TransStat fn 0 0, fdecl)
+ where
+  beqs = numberBeqRule rule
 
 -------------------------------------------------------------------------
--- State threaded thorugh the program transformer:
+-- State threaded through the program transformer:
 -- * name of current function
 -- * number of occurrences of (==) that are replaced by (=:=)
 data TState = TState QName Int
@@ -199,11 +206,11 @@ incOccNumber (TState qf on) = TState qf (on+1)
 --- values. If there is an occurrence of (e1==e2) where the value `True`
 --- is required, then this occurrence is replaced by
 ---
----     ((e1=:=e2) &> True)
+---     (e1=:=e2)
 ---
 --- Similarly, (e1/=e2) with required value `False` is replaced by
 ---
----     ((e1=:=e2) &> False)
+---     (not (e1=:=e2))
 
 transformRule :: (QName -> Maybe AFType) -> TState -> Rule -> (TState,Rule)
 transformRule _ tst (External s) = (tst, External s)
@@ -214,20 +221,20 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   -- transform an expression w.r.t. a required value
   transformExp tst (Var i) _ = (Var i, tst)
   transformExp tst (Lit v) _ = (Lit v, tst)
-  transformExp tst0 (Comb ct qf es) reqval =
-    let reqargtypes = argumentTypesFor (lookupreqinfo qf) reqval
-        (tes,tst1)  = transformExps tst0 (zip es reqargtypes)
-     in if (qf == pre "==" && reqval == RequiredValues.Cons (pre "True")) ||
-           (qf == pre "/=" && reqval == RequiredValues.Cons (pre "False"))
-        then (Comb FuncCall (pre "&>")
-               [Comb FuncCall (pre "=:=") tes,
-                let RequiredValues.Cons qcons = reqval
-                 in Comb ConsCall qcons []],
+  transformExp tst0 (Comb ct qf es) reqval
+    | qf == pre "==" && reqval == aTrue
+    = (Comb FuncCall (pre "=:=") tes,
+       incOccNumber tst1)
+    | qf == pre "/=" && reqval == aFalse
+    = (Comb FuncCall (pre "not") [Comb FuncCall (pre "=:=") tes],
               incOccNumber tst1)
-        else if qf == pre "$" && length es == 2 &&
-                (isFuncPartCall (head es) || isConsPartCall (head es))
-             then transformExp tst0 (reduceDollar es) reqval
-             else (Comb ct qf tes, tst1)
+    | qf == pre "$" && length es == 2 &&
+      (isFuncPartCall (head es) || isConsPartCall (head es))
+    = transformExp tst0 (reduceDollar es) reqval
+    | otherwise
+    = (Comb ct qf tes, tst1)
+   where reqargtypes = argumentTypesFor (lookupreqinfo qf) reqval
+         (tes,tst1)  = transformExps tst0 (zip es reqargtypes)
   transformExp tst0 (Free vars e) reqval =
     let (te,tst1) = transformExp tst0 e reqval
      in (Free vars te, tst1)
@@ -273,17 +280,26 @@ reduceDollar args = case args of
   _ -> error "reduceDollar"
 
 --- Try to compute the required value of a case argument expression.
---- If the case expression has one non-failing branch, the branch
---- constructor is chosen, otherwise it is `Any`.
+--- If one branch of the case expression is "False -> failed",
+--- then the required value is `True` (this is due to the specific
+--- translation of Boolean conditional rules of the front end).
+--- If the case expression has one non-failing branch, the constructor
+--- of this branch is chosen, otherwise it is `Any`.
 caseArgType :: [BranchExpr] -> AType
-caseArgType branches =
-  let nfbranches = filter (\ (Branch _ be) ->
-                                   be /= Comb FuncCall (pre "failed") [])
-                          branches
-   in if length nfbranches /= 1 then Any else getPatCons (head nfbranches)
+caseArgType branches
+  | not (null (tail branches)) &&
+    branches!!1 == Branch (Pattern (pre "False") []) failedFC
+  = aCons (pre "True")
+  | length nfbranches /= 1
+  = Any
+  | otherwise = getPatCons (head nfbranches)
  where
-   getPatCons (Branch (Pattern qc _) _) = Cons qc --RequiredValues.Cons
-   getPatCons (Branch (LPattern _)   _) = Any
+  failedFC = Comb FuncCall (pre "failed") []
+
+  nfbranches = filter (\ (Branch _ be) -> be /= failedFC) branches
+
+  getPatCons (Branch (Pattern qc _) _) = aCons qc
+  getPatCons (Branch (LPattern _)   _) = Any
 
 --- Compute the argument types for a given abstract function type
 --- and required value.
@@ -293,11 +309,11 @@ argumentTypesFor (Just EmptyFunc)       _      = repeat Any
 argumentTypesFor (Just (AFType rtypes)) reqval =
   maybe (-- no exactly matching type, look for Any type:
          maybe (-- no Any type: if reqtype==Any, try lub of all other types:
-                if reqval==Any && not (null rtypes)
+                if (reqval==Any || reqval==AnyC) && not (null rtypes)
                 then foldr1 lubArgs (map fst rtypes)
                 else repeat Any)
                fst
-               (find ((==Any) . snd) rtypes))
+               (find ((`elem` [AnyC,Any]) . snd) rtypes))
         fst
         (find ((==reqval) . snd) rtypes)
  where
@@ -311,16 +327,35 @@ containsBeqRule (Rule _ rhs) = containsBeqExp rhs
  where
   -- containsBeq an expression w.r.t. a required value
   containsBeqExp exp = case exp of
-    Var _ -> False
-    Lit _ -> False
+    Var _        -> False
+    Lit _        -> False
     Comb _ qf es -> qf == pre "==" || qf == pre "/=" || any containsBeqExp es
-    Free _ e -> containsBeqExp e
-    Or e1 e2 -> containsBeqExp e1 || containsBeqExp e2
-    Typed e _ -> containsBeqExp e
-    Case _ e bs -> containsBeqExp e || any containsBeqBranch bs
-    Let bs e -> containsBeqExp e || any containsBeqExp (map snd bs)
+    Free _ e     -> containsBeqExp e
+    Or e1 e2     -> containsBeqExp e1 || containsBeqExp e2
+    Typed e _    -> containsBeqExp e
+    Case _ e bs  -> containsBeqExp e || any containsBeqBranch bs
+    Let bs e     -> containsBeqExp e || any containsBeqExp (map snd bs)
 
   containsBeqBranch (Branch _ be) = containsBeqExp be
+
+-- Number of occurrences of Prelude.== or Prelude./= occurring in a rule:
+numberBeqRule :: Rule -> Int
+numberBeqRule (External _) = 0
+numberBeqRule (Rule _ rhs) = numberBeqExp rhs
+ where
+  -- numberBeq an expression w.r.t. a required value
+  numberBeqExp exp = case exp of
+    Var _        -> 0
+    Lit _        -> 0
+    Comb _ qf es -> (if qf == pre "==" || qf == pre "/=" then 1 else 0) +
+                    sum (map numberBeqExp es)
+    Free _ e     -> numberBeqExp e
+    Or e1 e2     -> numberBeqExp e1 + numberBeqExp e2
+    Typed e _    -> numberBeqExp e
+    Case _ e bs  -> numberBeqExp e + sum (map numberBeqBranch bs)
+    Let bs e     -> numberBeqExp e + sum (map numberBeqExp (map snd bs))
+
+  numberBeqBranch (Branch _ be) = numberBeqExp be
 
 pre :: String -> QName
 pre n = ("Prelude", n)
@@ -337,20 +372,61 @@ loadPreludeBoolReqValues = do
   hasBoolReqValue (AFType rtypes) =
     maybe False (const True) (find (isBoolReqValue . snd) rtypes)
 
-  isBoolReqValue rt = case rt of
-    Cons qc -> qc `elem` [pre "True", pre "False"]
-    _       -> False
+  isBoolReqValue rt = rt == aFalse || rt == aTrue
 
 -- Current relevant Boolean functions of the prelude:
 preludeBoolReqValues :: [(QName, AFType)]
 preludeBoolReqValues =
- [((pre "&&"),(AFType [([Any,Any],(Cons (pre "False"))),
-           ([(Cons (pre "True")),(Cons (pre "True"))],(Cons (pre "True")))]))
- ,((pre "not"),(AFType [([(Cons (pre "True"))],(Cons (pre "False"))),
-                        ([(Cons (pre "False"))],(Cons (pre "True")))]))
- ,((pre "||"),
-    (AFType [([(Cons (pre "False")),(Cons (pre "False"))],(Cons (pre "False"))),
-             ([Any,Any],(Cons (pre "True")))]))
- ,((pre "solve"),(AFType [([(Cons (pre "True"))],(Cons (pre "True")))]))
- ,((pre "&&>"),(AFType [([(Cons (pre "True")),Any],Any)]))
+ [(pre "&&",    AFType [([Any,Any],aFalse), ([aTrue,aTrue],aTrue)])
+ ,(pre "not",   AFType [([aTrue],aFalse), ([aFalse],aTrue)])
+ ,(pre "||",    AFType [([aFalse,aFalse],aFalse), ([Any,Any],aTrue)])
+ ,(pre "&",     AFType [([aTrue,aTrue],aTrue)])
+ ,(pre "solve", AFType [([aTrue],aTrue)])
+ ,(pre "&&>",   AFType [([aTrue,Any],AnyC)])
  ]
+
+--- Map a constructor into an abstract value representing this constructor:
+aCons :: QName -> AType
+aCons qn = Cons [qn]
+
+--- Abstract `False` value
+aFalse :: AType
+aFalse = aCons (pre "False")
+
+--- Abstract `True` value
+aTrue :: AType
+aTrue  = aCons (pre "True")
+
+-------------------------------------------------------------------------
+--- Statistical information (e.g., for benchmarking the tool):
+--- * function name
+--- * number of Boolean (dis)equalities in the rule
+--- * number of transformed (dis)equalities in the rule
+data TransStat = TransStat String Int Int
+
+--- Number of all transformations:
+totalTrans :: [TransStat] -> Int
+totalTrans = sum . map (\ (TransStat _ _ teqs) -> teqs)
+
+--- Number of all Boolean (dis)equalities:
+totalBEqs :: [TransStat] -> Int
+totalBEqs = sum . map (\ (TransStat _ beqs _) -> beqs)
+
+--- Show a summary of the actual transformations:
+statSummary :: [TransStat] -> String
+statSummary = concatMap showSum
+ where
+  showSum (TransStat fn _ teqs) =
+    if teqs==0
+      then ""
+      else "Function "++fn++": "++
+           (if teqs==1 then "one occurrence" else show teqs++" occurrences") ++
+           " of (==) transformed into (=:=)\n"
+
+--- Translate statistics into CSV format:
+stats2csv :: [TransStat] -> [[String]]
+stats2csv stats =
+  ["Function","Boolean equalities", "Transformed equalities"] :
+  map (\ (TransStat fn beqs teqs) -> [fn, show beqs, show teqs]) stats
+
+-------------------------------------------------------------------------

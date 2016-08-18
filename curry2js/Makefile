@@ -22,5 +22,5 @@ uninstall: clean
 
 # generate executable for the Curry2JavaScript translator
 Curry2JS:  Curry2JS.curry $(LIBDIR)/JavaScript.curry \
-	        $(METADIR)/CompactFlatCurry.curry $(METADIR)/FlatCurry.curry
+	        $(LIBDIR)/FlatCurry/*.curry
 	$(REPL) $(REPL_OPTS) :load Curry2JS :save :quit

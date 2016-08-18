@@ -6,18 +6,34 @@
 # Jasper Sikorra - jsi@informatik.uni-kiel.de
 #
 #****************************************************************************
-
-#----------------------------------
-# Input and output dirs
-#----------------------------------
+# Makefile for Curry preprocessor
+#****************************************************************************
 
 # Tool binary
 TOOL = $(BINDIR)/currypp
 
 # Source filepaths
-SRCDIR  = $(CURDIR)
-PARSEDIR = $(SRCDIR)/Parser
-MLDIR = $(PARSEDIR)/ML
+ICODEDIR      = $(CURDIR)/IntegratedCode
+PARSEDIR      = $(ICODEDIR)/Parser
+MLDIR         = $(PARSEDIR)/ML
+SQLDIR        = $(PARSEDIR)/SQL
+SEQRULESDIR   = $(CURDIR)/SequentialRules
+DEFRULESDIR   = $(CURDIR)/DefaultRules
+CONTRACTDIR   = $(CURDIR)/ContractWrapper
+REWRITINGDIR  = $(CURDIR)/../verification
+# for modules ContractUsage and DefaultRuleUsage:
+CURRYCHECKDIR = $(CURDIR)/../currycheck
+# for determinism analysis used in contract wrapper:
+DETANAPATH    = ../analysis:../CASS
+
+# preprocessor input path and dependencies:
+PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR):$(CONTRACTDIR):$(REWRITINGDIR):$(CURRYCHECKDIR):$(DETANAPATH)
+DEPS   = Main.curry $(ICODEDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
+          $(SQLDIR)/*.curry $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry \
+	  $(CONTRACTDIR)/*.curry $(CURRYCHECKDIR)/ContractUsage.curry \
+	  $(CURRYCHECKDIR)/DefaultRuleUsage.curry \
+	  $(CURRYCHECKDIR)/TheoremUsage.curry \
+	  $(LIBDIR)/AbstractCurry/*.curry
 
 .PHONY: all compile install clean uninstall
 
@@ -31,13 +47,21 @@ install: compile
 
 clean:
 	$(CLEANCURRY) -r
-	rm -f Translator
 
 uninstall: clean
 	rm -f $(TOOL)
 
 # generate executable of currypp translator:
-Main: $(SRCDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry
-	@echo Compiling Curry Integrated Code Translator ...
-	$(REPL) $(REPL_OPTS) :set path $(SRCDIR):$(PARSEDIR):$(MLDIR) \
-	  :load Main :save :quit
+Main: $(DEPS)
+	@echo Compiling Curry Preprocessor...
+	$(REPL) $(REPL_OPTS) :set path $(PPPATH) :load Main :save :quit
+
+# run the test suites for the Curry preprocessor
+.PHONY: runtest
+runtest:
+	cd IntegratedCode/Examples    && ./test.sh
+	cd IntegratedCode/ExamplesSQL && ./test.sh
+	# The following test is removed due to problems with SWI-Prolog:
+	#cd SequentialRules/Examples && ./test.sh 
+	cd DefaultRules/Examples      && ./test.sh
+	cd ContractWrapper/Examples   && ./test.sh

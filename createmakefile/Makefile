@@ -21,7 +21,9 @@ uninstall: clean
 
 # generate executable for CreateMakefile program
 CreateMakefile:  CreateMakefile.curry \
-	  $(METADIR)/FlatCurry.curry $(METADIR)/FlatCurryRead.curry \
+	  $(LIBDIR)/FlatCurry/Types.curry \
+	  $(LIBDIR)/FlatCurry/Files.curry \
+	  $(LIBDIR)/FlatCurry/Read.curry \
 	  $(LIBDIR)/FilePath.curry \
 	  $(LIBDIR)/PropertyFile.curry \
 	  $(LIBDIR)/ReadShowTerm.curry \

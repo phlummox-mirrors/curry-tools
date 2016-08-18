@@ -6,11 +6,9 @@
 -- Michael Hanus, February 2012
 ------------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module Overlapping(isOverlappingFunction,orInExpr) where
 
-import FlatCurry
+import FlatCurry.Types
 
 ------------------------------------------------------------------------------
 -- The overlapping analysis can be applied to individual functions.
@@ -32,4 +30,5 @@ orInExpr (Let bs e) = any orInExpr (map snd bs) || orInExpr e
 orInExpr (Or _ _) = True
 orInExpr (Case _ e bs) = orInExpr e || any orInBranch bs
                    where orInBranch (Branch _ be) = orInExpr be
+orInExpr (Typed e _) = orInExpr e
 

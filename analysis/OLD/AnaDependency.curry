@@ -6,7 +6,7 @@
 
 module AnaDependency(funsInExpr, indirectlyDependent) where
 
-import FlatCurry
+import FlatCurry.Types
 import List
 import SetRBT
 import Sort(leqString)

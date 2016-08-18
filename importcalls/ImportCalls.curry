@@ -2,33 +2,33 @@
 --- Show all calls to imported functions in a module
 ---
 --- @author Michael Hanus
---- @version April 2013
+--- @version April 2016
 -----------------------------------------------------------------------------
-
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 
 module ImportCalls(main,showImportCalls) where
 
-import FlatCurry
 import Char
+import Directory
+import Distribution
+import FilePath ((</>), takeFileName)
+import FlatCurry.Types
+import FlatCurry.Files
 import List
 import Sort
 import System
-import Directory
-import FileGoodies
-import Distribution
 
-m1 = showAllImportedCalls "ImportCalls"
 
 -- Check arguments and call main function:
+main :: IO ()
 main = do
   args <- getArgs
   if length args /= 1
    then putStrLn $ "ERROR: Illegal arguments: " ++
                    concat (intersperse " " args) ++ "\n" ++
                    "Usage: importcalls <module_name>"
-   else showAllImportedCalls (stripSuffix (head args))
+   else showAllImportedCalls (stripCurrySuffix (head args))
 
+showAllImportedCalls :: String -> IO ()
 showAllImportedCalls modname = do
   prog <- readCurrentFlatCurry modname
   putStrLn ("Calls to imported functions/constructors in module \""++modname++"\":\n")
@@ -49,12 +49,12 @@ formatImpCalls impcalls =
 getAllImpCalls :: Prog -> [(String,[String])]
 getAllImpCalls (Prog mod imps _ funs _) =
   calls2impCalls imps
-                (mergeSort (\ (_,n1) (_,n2) -> n1 <= n2)
-                           (allFunCalls mod funs))
+                (mergeSortBy (\ (_,n1) (_,n2) -> n1 <= n2)
+                             (allFunCalls mod funs))
 
 calls2impCalls :: [String] -> [QName] -> [(String,[String])]
 calls2impCalls [] _ = []
-calls2impCalls (mod:mods) funs = 
+calls2impCalls (mod:mods) funs =
  (mod, map snd (filter (\(m,_)->m==mod) funs)) : calls2impCalls mods funs
 
 -- Computes the list of called functions in a list of function declarations
@@ -89,27 +89,18 @@ globalFunsInExpr mod exp = funsInExpr exp
 -- Read a FlatCurry program (parse only if necessary):
 readCurrentFlatCurry :: String -> IO Prog
 readCurrentFlatCurry modname = do
-  progname <- findSourceFileInLoadPath modname
-  let fcyprogname = flatCurryFileName progname
+  mbdirfn <- lookupModuleSourceInLoadPath modname
+  let progname = maybe modname snd mbdirfn
+  let fcyprogname = flatCurryFileName
+                        (maybe modname (\ (d,_) -> d </> takeFileName modname)
+                                       mbdirfn)
   fcyexists <- doesFileExist fcyprogname
   if not fcyexists
     then readFlatCurry progname
-    else do ctime <- getSourceModificationTime progname
+    else do ctime <- getModificationTime progname
             ftime <- getModificationTime fcyprogname
             if ctime>ftime
-             then readFlatCurry progname
+             then readFlatCurry modname
              else readFlatCurryFile fcyprogname
 
-getSourceModificationTime progname = do
-  lexists <- doesFileExist (progname++".lcurry")
-  if lexists then getModificationTime (progname++".lcurry")
-             else getModificationTime (progname++".curry")
-
--- add a directory name for a Curry source file by looking up the
--- current load path (CURRYPATH):
-findSourceFileInLoadPath modname = do
-  loadpath <- getLoadPathForFile modname
-  mbfname <- lookupFileInPath (baseName modname) [".lcurry",".curry"] loadpath
-  maybe (error ("Curry file for module \""++modname++"\" not found!"))
-        (return . stripSuffix)
-        mbfname
+-----------------------------------------------------------------------------

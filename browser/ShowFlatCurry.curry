@@ -8,24 +8,31 @@
 --- The human-readable presentation is (almost) Curry source code
 --- generated from a FlatCurry program.
 ---
---- @author Michael Hanus
---- @version April 2013
+--- @author Michael Hanus, Bjoern Peemoeller
+--- @version April 2016
 ------------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
+module ShowFlatCurry
+  ( showFlatCurry, showInterface
+  , showCurryMod, showFlatProg
+  , showFuncDeclAsCurry, showFuncDeclAsFlatCurry
+  , leqFunc, funcModule
+  ) where
 
-module ShowFlatCurry(showInterface,showCurryMod,showFlatProg,
-                     showFuncDeclAsCurry,showFuncDeclAsFlatCurry,leqFunc,
-                     funcModule)
- where
+import Char   (isAlpha)
+import List   (intercalate)
+import Pretty (pPrint)
+import Sort   (mergeSortBy,leqString)
 
-import FlatCurry
-import FlatCurryShow
-import FlatCurryGoodies
-import List
-import Char(isAlpha)
-import Sort(mergeSort,leqString)
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Goodies
+import FlatCurry.Pretty   (Options (..), defaultOptions, ppProg, ppFuncDecl)
+import FlatCurry.Show
 
+--- Show FlatCurry module in pretty-printed form
+showFlatCurry :: Prog -> String
+showFlatCurry = pPrint . ppProg defaultOptions
 
 -----------------------------------------------------------------------
 -- Generate interface description for a program:
@@ -34,12 +41,12 @@ import Sort(mergeSort,leqString)
 showInterface :: Bool -> Prog -> String
 showInterface genstub (Prog mod imports types funcs ops) =
   concatMap showInterfaceImport imports ++ "\n" ++
-  concatMap showInterfaceOpDecl (mergeSort leqOp ops) ++
+  concatMap showInterfaceOpDecl (mergeSortBy leqOp ops) ++
   (if null ops then "" else "\n") ++
   concatMap (showInterfaceType (showQNameInModule mod))
-            (mergeSort leqType types) ++ "\n" ++
+            (mergeSortBy leqType types) ++ "\n" ++
   concatMap (showInterfaceFunc (showQNameInModule mod) genstub)
-            (mergeSort leqFunc funcs) ++ "\n"
+            (mergeSortBy leqFunc funcs) ++ "\n"
 
 -- show import declaration
 showInterfaceImport :: String -> String
@@ -91,8 +98,8 @@ showInterfaceFunc ttrans genstub (Func (_,fname) _ vis ftype _) =
 ---------------------------------------------------------------------------
 -- generate a human-readable representation of a Curry module:
 
-showCurryMod :: Bool -> Prog -> String
-showCurryMod ascase (Prog mod imports types funcs ops) =
+showCurryMod :: Prog -> String
+showCurryMod (Prog mod imports types funcs ops) =
   "module "++mod++"("++showTypeExports types++
   showFuncExports funcs++") where\n\n"++
   concatMap showInterfaceImport imports ++ "\n" ++
@@ -101,7 +108,7 @@ showCurryMod ascase (Prog mod imports types funcs ops) =
   concatMap (showCurryDataDecl (showQNameInModule mod)) types
   ++ "\n" ++
   concatMap (showCurryFuncDecl (showQNameInModule mod)
-                               (showQNameInModule mod) ascase) funcs
+                               (showQNameInModule mod)) funcs
   ++ "\n-- end of module " ++ mod ++ "\n"
 
 showTypeExports :: [TypeDecl] -> String
@@ -137,31 +144,15 @@ showCurryConsDecl tt (Cons cname _ _ argtypes) =
 
 
 -- generate function definitions:
-showCurryFuncDecl :: (QName -> String) -> (QName -> String) -> Bool -> FuncDecl -> String
-showCurryFuncDecl tt tf ascase (Func fname _ _ ftype frule) =
+showCurryFuncDecl :: (QName -> String) -> (QName -> String) -> FuncDecl -> String
+showCurryFuncDecl tt tf (Func fname _ _ ftype frule) =
   showCurryId (snd fname) ++" :: "++ showCurryType tt False ftype ++ "\n" ++
-  showCurryRule tf ascase fname frule
-
-showCurryRule :: (QName -> String) -> Bool -> QName -> Rule -> String
-showCurryRule _ _ fname (External _) = showCurryId (snd fname) ++ " external\n\n"
-showCurryRule tf ascase fname (Rule lhs rhs) =
-  if ascase then showCurryRuleAsCase tf fname (Rule lhs rhs)
-            else showCurryRuleAsPatterns tf fname (Rule lhs rhs)
-
--- format rule as case expression:
-showCurryRuleAsCase :: (QName -> String) -> QName -> Rule -> String
-showCurryRuleAsCase tf fname (Rule lhs rhs)
- | length lhs == 2 && not (isAlpha (head (snd fname))) -- infix op
-  = showCurryVar (head lhs) ++ " " ++ tf fname ++ " " ++ showCurryVar (lhs!!1) ++
-    " = " ++ showCurryExpr tf False 0 rhs ++ "\n\n"
- | otherwise
-  = tf fname ++ " " ++ intercalate " " (map showCurryVar lhs) ++
-    " = " ++ showCurryExpr tf False 0 rhs ++ "\n\n"
-showCurryRuleAsCase _ fname (External _) = showCurryId (snd fname) ++ " external\n"
+  showCurryRule tf fname frule
 
 -- format rule as set of pattern matching rules:
-showCurryRuleAsPatterns :: (QName -> String) -> QName -> Rule -> String
-showCurryRuleAsPatterns tf fname (Rule lhs rhs) =
+showCurryRule :: (QName -> String) -> QName -> Rule -> String
+showCurryRule _  fname (External   _) = showCurryId (snd fname) ++ " external\n\n"
+showCurryRule tf fname (Rule lhs rhs) =
   concatMap (\ (l,r) -> showCurryPatternRule tf l r)
             (rule2equations (shallowPattern2Expr fname lhs) rhs)
    ++ "\n"
@@ -180,14 +171,12 @@ showCurryPatternRule tf l r = let (vars,e) = splitFreeVars r in
    ++ "\n"
 
 showCurryCRHS :: (QName -> String) -> Expr -> String
-showCurryCRHS tf r =
-   if isGuardedExpr r
-   then " | " ++ showCurryCondRule r
-   else " = " ++ showCurryExpr tf False 2 r
+showCurryCRHS tf r = case r of
+  Comb _ ("Prelude","cond") [e1, e2] -> " | " ++ showCurryCondRule e1 e2
+  _                                  -> " = " ++ showCurryExpr tf False 2 r
  where
-   showCurryCondRule (Comb _ _ [e1,e2]) =
-     showCurryExpr tf False 2 e1 ++ " = " ++ showCurryExpr tf False 4 e2
-
+   showCurryCondRule e1 e2 = showCurryExpr tf False 2 e1 ++
+                             " = " ++ showCurryExpr tf False 4 e2
 
 -- transform a rule consisting of a left- and a right-hand side
 -- (represented as expressions) into a set of pattern matching rules:
@@ -228,9 +217,10 @@ substitute vars exps expr = substituteAll vars exps 0 expr
 
 substituteAll :: [Int] -> [Expr] -> Int -> Expr -> Expr
 substituteAll vars exps b (Var i) = replaceVar vars exps i
-  where replaceVar [] [] var = Var (b+var)
-        replaceVar (v:vs) (e:es) var = if v==var then e
-                                                 else replaceVar vs es var
+  where replaceVar []     _      var = Var (b + var)
+        replaceVar (_:_)  []     var = Var (b + var)
+        replaceVar (v:vs) (e:es) var = if v == var then e
+                                                   else replaceVar vs es var
 substituteAll _  _  _ (Lit l) = Lit l
 substituteAll vs es b (Comb combtype c exps) =
                  Comb combtype c (map (substituteAll vs es b) exps)
@@ -243,21 +233,13 @@ substituteAll vs es b (Or e1 e2) =
                  Or (substituteAll vs es b e1) (substituteAll vs es b e2)
 substituteAll vs es b (Case ctype e cases) =
    Case ctype (substituteAll vs es b e) (map (substituteAllCase vs es b) cases)
+substituteAll vs es b (Typed e t) = Typed (substituteAll vs es b e) t
 
 substituteAllCase :: [Int] -> [Expr] -> Int -> BranchExpr -> BranchExpr
 substituteAllCase vs es b (Branch (Pattern l pvs) e) =
                  Branch (Pattern l (map (+b) pvs)) (substituteAll vs es b e)
 substituteAllCase vs es b (Branch (LPattern l) e) =
                  Branch (LPattern l) (substituteAll vs es b e)
-substituteAll vs es b (Typed e t) =
-                 Typed (substituteAll vs es b e) t
-
-
--- Is the expression a guarded expressions?
-isGuardedExpr :: Expr -> Bool
-isGuardedExpr e = case e of
-  Comb _ f _ -> f == ("Prelude","cond")
-  _ -> False
 
 
 -------- Definition of some orderings:
@@ -278,12 +260,11 @@ leqFunc (Func (_,f1) _ _ _ _) (Func (_,f2) _ _ _ _) = f1 <= f2
 showFuncDeclAsCurry :: FuncDecl -> String
 showFuncDeclAsCurry fd =
   showCurryFuncDecl (showQNameInModule (funcModule fd))
-                    (showQNameInModule (funcModule fd)) False fd
+                    (showQNameInModule (funcModule fd)) fd
 
 showFuncDeclAsFlatCurry :: FuncDecl -> String
-showFuncDeclAsFlatCurry fd =
-  showCurryFuncDecl (showQNameInModule (funcModule fd))
-                    (showQNameInModule (funcModule fd)) True fd
+showFuncDeclAsFlatCurry fd = pPrint (ppFuncDecl opts fd)
+  where opts = defaultOptions { currentModule = funcModule fd }
 
 funcModule :: FuncDecl -> String
 funcModule fd = fst (funcName fd)

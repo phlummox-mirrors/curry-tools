@@ -8,7 +8,7 @@
 
 module AnaOverlapping(analyseOverlappings,orInExpr) where
 
-import FlatCurry
+import FlatCurry.Types
 
 ------------------------------------------------------------------------------
 -- The overlapping analysis can be applied to individual modules.

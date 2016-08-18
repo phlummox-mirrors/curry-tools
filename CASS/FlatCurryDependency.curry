@@ -7,7 +7,7 @@
 
 module FlatCurryDependency(dependsDirectlyOnTypes,callsDirectly) where
 
-import FlatCurry
+import FlatCurry.Types
 import List
 import SetRBT
 

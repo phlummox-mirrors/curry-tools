@@ -9,69 +9,78 @@
 --- the argument `True` to compute the result `False`.
 ---
 --- @author Michael Hanus
---- @version October 2014
+--- @version April 2016
 -----------------------------------------------------------------------------
-
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 
 module RequiredValues(AType(..),showAType,AFType(..),showAFType,lubAType,
                       reqValueAnalysis)
  where
 
 import Analysis
-import FlatCurry
-import FlatCurryGoodies
+import FlatCurry.Types
+import FlatCurry.Goodies
 import GenericProgInfo
-import List
-import Sort(mergeSort)
+import List hiding (union,intersect)
+import Sort(mergeSortBy)
 
 import TotallyDefined(siblingCons)
 import Unsafe(trace)
 
 ------------------------------------------------------------------------------
 -- Our abstract (non-standard) type domain.
--- `Any` represents any value, `Cons c` a value rooted by the constructor `c`,
--- or `Empty` represents no possible value.
-data AType = Any | Cons QName | Empty
-  deriving (Eq, Ord)
+-- `Any` represents any expression,
+-- `AnyC` represents any value (i.e., constructor-rooted term),
+-- `Cons cs` a value rooted by some of the constructor `cs`, and
+data AType = Cons [QName] | AnyC | Any
+
+--- Abstract representation of no possible value.
+empty :: AType
+empty = Cons []
 
 --- Is some abstract type a constructor?
 isConsValue :: AType -> Bool
-isConsValue av = case av of Cons _ -> True
-                            _      -> False
+isConsValue av = case av of Cons cs -> not (null cs)
+                            _       -> False
 
 --- Least upper bound of abstract values.
 lubAType :: AType -> AType -> AType
 lubAType Any      _        = Any
+lubAType AnyC     Any      = Any
+lubAType AnyC     AnyC     = AnyC
+lubAType AnyC     (Cons _) = AnyC
 lubAType (Cons _) Any      = Any
-lubAType (Cons c) (Cons d) = if c==d then Cons c else Any
-lubAType (Cons c) Empty    = Cons c
-lubAType Empty    av       = av
+lubAType (Cons _) AnyC     = AnyC
+lubAType (Cons c) (Cons d) = Cons (union c d)
+-- replace previous rule by following rule in order to use singleton sets:
+--lubAType (Cons c) (Cons d) = if c==d then Cons c else AnyC
 
 --- Join two abstract values. The result is `Empty` if they are not compatible.
 joinAType :: AType -> AType -> AType
 joinAType Any      av       = av
+joinAType AnyC     Any      = AnyC
+joinAType AnyC     AnyC     = AnyC
+joinAType AnyC     (Cons c) = Cons c
 joinAType (Cons c) Any      = Cons c
-joinAType (Cons c) (Cons d) = if c==d then Cons c else Empty
-joinAType (Cons _) Empty    = Empty
-joinAType Empty    _        = Empty
+joinAType (Cons c) AnyC     = Cons c
+joinAType (Cons c) (Cons d) = Cons (intersect c d)
+-- replace previous rule by following rule in order to use singleton sets:
+--joinAType (Cons c) (Cons d) = if c==d then Cons c else Cons []
 
 --- Are two abstract types compatible, i.e., describe common values?
 compatibleType :: AType -> AType -> Bool
-compatibleType t1 t2 = joinAType t1 t2 /= Empty
+compatibleType t1 t2 = joinAType t1 t2 /= empty
 
 -- Shows an abstract value.
 showAType :: AOutFormat -> AType -> String
-showAType _ Any = "any"
-showAType _ (Cons (_,n)) = n --q++"."++n
-showAType _ Empty = "_|_"
+showAType _ Any  = "any"
+showAType _ AnyC = "cons"
+showAType _ (Cons cs) = "{" ++ intercalate "," (map snd cs) ++ "}"
 
 --- The abstract type of a function.
 --- It is either `EmptyFunc`, i.e., contains no information about
 --- the possible result of the function,
 --- or a list of possible argument/result type pairs.
 data AFType = EmptyFunc | AFType [([AType],AType)]
-  deriving Eq
 
 -- Shows an abstract value.
 showAFType :: AOutFormat -> AFType -> String
@@ -109,7 +118,7 @@ dropEnv n (env,rtype) = (drop n env, rtype)
 
 -- Sorts a list of environment/type pairs by the type.
 sortEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)]
-sortEnvTypes = mergeSort (\ (e1,t1) (e2,t2) -> (t1,e1) <= (t2,e2))
+sortEnvTypes = mergeSortBy (\ (e1,t1) (e2,t2) -> (t1,e1) <= (t2,e2))
 
 ------------------------------------------------------------------------------
 --- The maximum number of different constructors considered for the
@@ -122,59 +131,68 @@ maxReqValues = 3
 --- Required value analysis.
 reqValueAnalysis :: Analysis AFType
 reqValueAnalysis =
-  combinedDependencyFuncAnalysis "RequiredValue"
+  combinedDependencyFuncAnalysis "RequiredValues"
                                  siblingCons EmptyFunc analyseReqVal
 
 analyseReqVal :: ProgInfo [QName] -> FuncDecl -> [(QName,AFType)] -> AFType
 analyseReqVal consinfo (Func (m,f) arity _ _ rule) calledfuncs
  | m==prelude = maybe (anaresult rule) id (lookup f preludeFuncs)
  | otherwise  = --trace ("Analyze "++f++"\n"++showCalledFuncs calledfuncs++
-                --       "\nRESULT: "++showAFType _ anaresult) $
+                --       "\nRESULT: "++showAFType _ (anaresult rule)) $
                 anaresult rule
  where
-  anaresult (External _) = AFType [(take arity (repeat Any),Any)]
+  anaresult (External _) = AFType [(take arity (repeat Any),AnyC)]
   anaresult (Rule args rhs) = analyseReqValRule consinfo calledfuncs args rhs
 
   -- add special results for prelude functions here:
-  preludeFuncs = [("failed",AFType [([],Empty)])]
+  preludeFuncs = [("failed",AFType [([],empty)])
+                 ,("==",AFType [([AnyC,AnyC],AnyC)])
+                 ,("=:=",AFType [([AnyC,AnyC],AnyC)])
+                 ,("$",AFType [([AnyC,Any],AnyC)])
+                 ,("$!",AFType [([AnyC,AnyC],AnyC)])
+                 ,("$!!",AFType [([AnyC,AnyC],AnyC)])
+                 ,("$#",AFType [([AnyC,AnyC],AnyC)])
+                 ,("$##",AFType [([AnyC,AnyC],AnyC)])
+                 ,("compare",AFType [([AnyC,AnyC],AnyC)])
+                 ]
 
 analyseReqValRule :: ProgInfo [QName] -> [(QName,AFType)] -> [Int] -> Expr
                   -> AFType
 analyseReqValRule consinfo calledfuncs args rhs =
   let initenv = extendEnv [] args
-      envtypes = reqValExp initenv rhs Any
+      envtypes = reqValExp initenv rhs AnyC
       rtypes = map snd envtypes
-   in -- If some result is any and another result is a constructor, then
+   in -- If some result is `AnyC` and another result is a constructor, then
       -- analyze again for all constructors as required results
       -- in order to get more precise information.
-      if any (==Any) rtypes && any isConsValue rtypes
+      if any (==AnyC) rtypes && any isConsValue rtypes
       then
        let somecons = maybe (error "Internal error")
-                                (\ (Cons c) -> c)
-                                (find isConsValue rtypes)
+                            (\ (Cons (c:_)) -> c)
+                            (find isConsValue rtypes)
            othercons = maybe [] id (lookupProgInfo somecons consinfo)
            consenvtypes = foldr lubEnvTypes []
                                 (map (\rt -> reqValExp initenv rhs rt)
-                                     (map Cons (somecons:othercons)))
-        in AFType (map (\ (env,rtype) -> (map snd env,rtype))
+                                   (map (\c -> Cons [c]) (somecons:othercons)))
+        in AFType (map (\ (env,rtype) -> (map snd env, rtype))
                        (lubAnyEnvTypes (if length othercons >= maxReqValues
                                         then envtypes
                                         else consenvtypes)))
-      else AFType (map (\ (env,rtype) -> (map snd env,rtype))
+      else AFType (map (\ (env,rtype) -> (map snd env, rtype))
                        (lubAnyEnvTypes envtypes))
  where
   reqValExp env exp reqtype = case exp of
     Var v -> [(updateVarInEnv env v reqtype, reqtype)]
-    Lit _ -> [(env, Any)] -- too many literal constants...
-    Comb ConsCall c _ -> [(env, Cons c)] -- analysis of arguments superfluous
+    Lit _ -> [(env, AnyC)] -- too many literal constants...
+    Comb ConsCall c _ -> [(env, Cons [c])] -- analysis of arguments superfluous
     Comb FuncCall qf funargs ->
       if qf==(prelude,"?") && length funargs == 2
       then -- use intended definition of Prelude.? for more precise analysis:
            reqValExp env (Or (head funargs) (funargs!!1)) reqtype
       else
-        maybe [(env, Any)]
+        maybe [(env, AnyC)]
               (\ftype -> case ftype of
-                 EmptyFunc -> [(env, Empty)] -- no information available
+                 EmptyFunc -> [(env, empty)] -- no information available
                  AFType ftypes ->
                    let matchingtypes = filter (compatibleType reqtype . snd)
                                               ftypes
@@ -187,10 +205,10 @@ analyseReqValRule consinfo calledfuncs args rhs =
                                in (foldr joinEnv env argenvs, rt))
                              matchingtypes
                     in if null matchingtypes
-                       then [(env, Empty)]
+                       then [(env, empty)]
                        else matchingenvs )
               (lookup qf calledfuncs)
-    Comb _ _ _ -> [(env, Any)] -- no reasonable info for partial applications
+    Comb _ _ _ -> [(env, AnyC)] -- no reasonable info for partial applications
     Or e1 e2 -> lubEnvTypes (reqValExp env e1 reqtype)
                             (reqValExp env e2 reqtype)
     Case _ e branches ->
@@ -201,7 +219,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
           reqenvs = filter (not . null)
                            (map (envForBranch env reqtype e) nfbranches)
        in if null reqenvs
-          then [(env, Empty)]
+          then [(env, empty)]
           else foldr1 lubEnvTypes reqenvs
     Free vars e ->
       map (dropEnv (length vars))
@@ -216,6 +234,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
   -- argument is required to be a constructor:
   envForConsArg env (reqtype,exp) =
     case reqtype of
+      AnyC    -> [foldr1 lubEnv (map fst (reqValExp env exp AnyC))]
       Cons qc -> [foldr1 lubEnv (map fst (reqValExp env exp (Cons qc)))]
       _       -> []
 
@@ -226,7 +245,7 @@ analyseReqValRule consinfo calledfuncs args rhs =
     branchtypes = case pat of
       LPattern _   -> reqValExp env bexp reqtype
       Pattern qc pvars ->
-        let caseenvs = map fst (reqValExp env exp (Cons qc))
+        let caseenvs = map fst (reqValExp env exp (Cons [qc]))
             branchenvs =
               foldr lubEnvTypes []
                     (map (\caseenv ->
@@ -240,17 +259,17 @@ lubEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)] -> [(AEnv,AType)]
 lubEnvTypes []         ets2 = ets2
 lubEnvTypes ets1@(_:_) []   = ets1
 lubEnvTypes ((env1,t1):ets1) ((env2,t2):ets2)
-  | t1==Empty = lubEnvTypes ets1 ((env2,t2):ets2) -- ignore "empty" infos
-  | t2==Empty = lubEnvTypes ((env1,t1):ets1) ets2
+  | t1==empty = lubEnvTypes ets1 ((env2,t2):ets2) -- ignore "empty" infos
+  | t2==empty = lubEnvTypes ((env1,t1):ets1) ets2
   | t1==t2    = (lubEnv env1 env2, t1) : lubEnvTypes ets1 ets2
-  | t1<t2     = (env1,t1) : lubEnvTypes ets1 ((env2,t2):ets2)
+  | t1 < t2   = (env1,t1) : lubEnvTypes ets1 ((env2,t2):ets2)
   | otherwise = (env2,t2) : lubEnvTypes ((env1,t1):ets1) ets2
 
---- "lub" the environments of the more specific types to the Any type
+--- "lub" the environments of the more specific types to the AnyC type
 --- (if present).
 lubAnyEnvTypes :: [(AEnv,AType)] -> [(AEnv,AType)]
 lubAnyEnvTypes envtypes =
-  if null envtypes || snd (head envtypes) /= Any
+  if null envtypes || snd (head envtypes) /= AnyC
       then envtypes
       else foldr1 lubEnvType envtypes : tail envtypes
 
@@ -276,3 +295,25 @@ joinEnv ((i1,v1):env1) env2@(_:_) =
 -- Name of the standard prelude:
 prelude :: String
 prelude = "Prelude"
+
+
+------------------------------------------------------------------------------
+-- Auxiliaries:
+
+-- Union on sorted lists:
+union :: [a] -> [a] -> [a]
+union []       ys     = ys
+union xs@(_:_) []     = xs
+union (x:xs)   (y:ys) | x==y      = x : union xs ys
+                      | x<y       = x : union xs (y:ys)
+                      | otherwise = y : union (x:xs) ys
+
+-- Intersection on sorted lists:
+intersect :: [a] -> [a] -> [a]
+intersect []     _      = []
+intersect (_:_)  []     = []
+intersect (x:xs) (y:ys) | x==y      = x : intersect xs ys
+                        | x<y       = intersect xs (y:ys)
+                        | otherwise = intersect (x:xs) ys
+
+------------------------------------------------------------------------------

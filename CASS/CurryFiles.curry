@@ -10,12 +10,14 @@ module CurryFiles(getImports,findModuleSourceInLoadPath,
                   getSourceFileTime,getFlatCurryFileTime,
                   readNewestFlatCurry) where
 
-import FlatCurry
-import FlatCurryGoodies(progImports)
-import Directory(doesFileExist,getModificationTime)
-import Distribution(lookupFileInLoadPath,lookupModuleSourceInLoadPath)
-import Time(ClockTime)
-import Configuration(debugMessage)
+import Distribution      (lookupModuleSourceInLoadPath)
+import Directory         (doesFileExist, getModificationTime)
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Goodies (progImports)
+import Time              (ClockTime)
+
+import Configuration     (debugMessage)
 
 
 -- Get the imports of a module.
@@ -45,7 +47,7 @@ getSourceFileTime moduleName = do
 -- Get timestamp of FlatCurry file (together with the module name)
 getFlatCurryFileTime :: String -> IO (String,Maybe ClockTime)
 getFlatCurryFileTime modname =
-  lookupFileInLoadPath (flatCurryFileName modname) >>=
+  lookupFlatCurryFileInLoadPath modname >>=
   maybe (return (modname, Nothing))
         (\fcyFileName -> do
             ftime <- getModificationTime fcyFileName
@@ -57,7 +59,7 @@ flatCurryFileNewer :: String -> IO (Maybe String)
 flatCurryFileNewer modname = do
   (_,sourceFileName) <- findModuleSourceInLoadPath modname
   stime <- getModificationTime sourceFileName
-  lookupFileInLoadPath (flatCurryFileName modname) >>=
+  lookupFlatCurryFileInLoadPath modname >>=
    maybe (return Nothing)
          (\fcyFileName -> do
             itime <- getModificationTime fcyFileName

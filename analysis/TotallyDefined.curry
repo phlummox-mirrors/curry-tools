@@ -9,15 +9,13 @@
 --- @version May 2013
 -----------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module TotallyDefined(siblingCons,showSibling,
                       Completeness(..),showComplete,showTotally,
                       patCompAnalysis,totalAnalysis) where
 
 import Analysis
-import FlatCurry
-import FlatCurryGoodies
+import FlatCurry.Types
+import FlatCurry.Goodies
 import GenericProgInfo
 import List(delete)
 
@@ -40,20 +38,15 @@ siblingCons =
   consNamesOfType _ (TypeSyn _ _ _ _) = []
 
 ------------------------------------------------------------------------------
--- The completeness analysis must be applied to complete programs,
--- i.e., modules together with all their imported modules (although
--- functions are locally checked, the definition of all data types
--- used in the patterns are needed).
--- It assigns to a FlatCurry program the list of all qualified function names
--- together with a flag indicating whether this function is completely
--- defined on its input types (i.e., reducible for all ground data terms).
+-- The completeness analysis assigns to an operation a flag indicating
+-- whether this operation is completely defined on its input types,
+-- i.e., reducible for all ground data terms.
 
 -- The possible outcomes of the completeness analysis:
 data Completeness =
      Complete       -- completely defined
    | InComplete     -- incompletely defined
    | InCompleteOr   -- incompletely defined in each branch of an "Or"
-  deriving Eq
 
 --- A function is totally defined if it is pattern complete and depends
 --- only on totally defined functions.

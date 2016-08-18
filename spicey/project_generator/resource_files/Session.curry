@@ -7,8 +7,6 @@
 --- to hold some session-specific data.
 --------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module Session (
   sessionCookie,
   SessionStore, emptySessionStore,
@@ -24,9 +22,11 @@ import Crypto
 --- The life span in minutes to store data in sessions.
 --- Thus, older data is deleted by a clean up that is initiated
 --- whenever new data is stored in a session.
+sessionLifespan :: Int
 sessionLifespan = 60
 
 --- The name of the persistent global where the last session id is stored.
+sessionCookieName :: String
 sessionCookieName = "spiceySessionId"
 
 --- This global value saves time and last session id.

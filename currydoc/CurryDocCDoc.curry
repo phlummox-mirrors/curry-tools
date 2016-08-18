@@ -2,24 +2,24 @@
 --- Functions to generate documentation in "CDoc" format.
 ---
 --- @author Sandra Dylus
+--- @version November 2015
 ----------------------------------------------------------------------
-
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 
 module CurryDocCDoc where
 
+import CurryDocAnaInfo
 import CurryDocParams
 import CurryDocRead
-import Distribution(findFileInLoadPath)
-import FlatCurry
-import FlexRigid
-import ReadShowTerm
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.FlexRigid
 import List
+import ReadShowTerm
 
 generateCDoc :: String  -> String -> [(SourceLine,String)] -> AnaInfo
              -> IO String
 generateCDoc modName modCmts progCmts anaInfo = do
-  fcyName <- findFileInLoadPath (flatCurryFileName modName)
+  fcyName <- getFlatCurryFileInLoadPath modName
   Prog _ _ types functions _ <- readFlatCurryFile fcyName
   let modInfo = ModuleInfo modName (author avCmts) mCmts
       funcInfo (Func qName@(mName, fName) _ _ tExpr rule) =

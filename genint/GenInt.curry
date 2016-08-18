@@ -9,23 +9,22 @@
 --- generated from a FlatCurry program.
 ---
 --- @author Michael Hanus
---- @version November 2014
+--- @version August 2016
 ------------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 {-# OPTIONS_CYMAKE -Wno-incomplete-patterns -Wno-missing-signatures #-}
 
 import FilePath (takeFileName, (</>))
-
-import FlatCurry
-import FlatCurryShow
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Show
 import List
 import Char(isAlpha)
 import System(getArgs,getEnviron,system)
 import Directory
 import FileGoodies
-import Sort(mergeSort,leqString)
-import Distribution(getLoadPathForFile,stripCurrySuffix,modNameToPath
+import Sort(mergeSortBy,leqString)
+import Distribution(stripCurrySuffix,modNameToPath
                    ,lookupModuleSourceInLoadPath)
 
 main = do
@@ -83,12 +82,12 @@ genInt genstub progname = do
  (Prog mod imports types funcs ops) <- getFlatInt progname
  return $ "module " ++ mod ++ " where\n" ++
           concatMap showInterfaceImport imports ++ "\n" ++
-          concatMap showInterfaceOpDecl (mergeSort leqOp ops) ++
+          concatMap showInterfaceOpDecl (mergeSortBy leqOp ops) ++
           (if null ops then "" else "\n") ++
           concatMap (showInterfaceType (showQNameInModule mod))
-                    (mergeSort leqType types) ++ "\n" ++
+                    (mergeSortBy leqType types) ++ "\n" ++
           concatMap (showInterfaceFunc (showQNameInModule mod) genstub)
-                    (mergeSort leqFunc funcs) ++ "\n"
+                    (mergeSortBy leqFunc funcs) ++ "\n"
 
 -- Get a FlatCurry program (parse only if necessary):
 getFlatInt :: String -> IO Prog
@@ -120,14 +119,16 @@ showInterfaceOpDecl (Op op InfixrOp prec) = "infixr "++show prec++" "++showOp op
 showOp (_,on) = if isAlpha (head on) then '`':on++"`"
                                      else on
 
--- show type declaration
+-- show type declaration if it is not a dictionary
 showInterfaceType tt (Type (_,tcons) vis tvars constrs) =
-  if vis==Public
+  if vis==Public && not (isDict tcons)
   then "data " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
        (if null constxt then "" else " = " ++ constxt)
        ++ "\n"
   else ""
  where
+  isDict fn = take 6 fn == "_Dict#"
+  
   constxt = intercalate " | "
               (map (showExportConsDecl tt)
                    (filter (\ (Cons _ _ cvis _)->cvis==Public) constrs))
@@ -140,14 +141,18 @@ showInterfaceType tt (TypeSyn (_,tcons) vis tvars texp) =
 showExportConsDecl tt (Cons (_,cname) _ _ argtypes) =
   cname ++ concatMap (\t->" "++showCurryType tt True t) argtypes
 
--- show function type declaration
+-- show function type declaration if it is not an internal
+-- operation to implement type classes
 showInterfaceFunc ttrans genstub (Func (_,fname) _ vis ftype _) =
-  if vis==Public
+  if vis==Public && not (classOperations fname)
   then showCurryId fname ++ " :: " ++
        showCurryType ttrans False ftype ++ "\n" ++
        (if genstub then showCurryId fname ++ " external\n\n" else "")
   else ""
-
+ where
+  classOperations fn = take 6 fn `elem` ["_impl#","_inst#"]
+                    || take 5 fn == "_def#" || take 7 fn == "_super#"
+  
 ---------------------------------------------------------------------------
 -- generate a human-readable representation of a Curry module:
 

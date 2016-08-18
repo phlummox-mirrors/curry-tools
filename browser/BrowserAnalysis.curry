@@ -5,17 +5,15 @@
 -- add access to a new analysis here and recompile the browser.
 -----------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module BrowserAnalysis(moduleAnalyses,allFunctionAnalyses,functionAnalyses) where
 
 import AnalysisTypes
 import Analysis(AOutFormat(..))
 import AnalysisServer(analyzeFunctionForBrowser)
-import AnalysisCollection(functionAnalysisInfos)
-import FlatCurry
-import FlatCurryGoodies
-import FlatCurryShow(showFlatFunc)
+import Registry(functionAnalysisInfos)
+import FlatCurry.Types
+import FlatCurry.Goodies
+import FlatCurry.Show(showFlatFunc)
 import Overlapping
 import PatternComplete
 import SolutionComplete
@@ -47,10 +45,10 @@ moduleAnalyses =
   -- SourceCodeAnalysis (\fname -> readFile fname >>= \prog ->
   --                               return (ContentsResult CurryProg prog))),
   ("Curry code (generated from FlatCurry)",
-   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showCurryMod False prog))),
+   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showCurryMod prog))),
   ("Source program with type signatures added", SourceCodeAnalysis addTypes),
   ("FlatCurry code",
-   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showCurryMod True prog))),
+   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showFlatCurry prog))),
   ("FlatCurry expression",
    FlatCurryAnalysis (\prog -> ContentsResult FlatCurryExp (showFlatProg prog)))]
 

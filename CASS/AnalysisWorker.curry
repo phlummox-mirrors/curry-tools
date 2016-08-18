@@ -12,9 +12,9 @@ import ReadShowTerm(readQTerm)
 import Socket(connectToSocket)
 import System(getArgs,setEnviron)
 
-import AnalysisCollection(lookupRegAnaWorker)
-import ServerFunctions(WorkerMessage(..))
 import Configuration(debugMessage,waitTime,getDefaultPath)
+import Registry(lookupRegAnaWorker)
+import ServerFunctions(WorkerMessage(..))
 
 main :: IO ()
 main = do

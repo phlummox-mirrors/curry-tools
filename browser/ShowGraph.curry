@@ -1,7 +1,4 @@
 -- Simple graph visualization
-
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module ShowGraph(viewDependencyGraph,getDotViewCmd,setDotViewCmd) where
 
 import IO
@@ -33,6 +30,7 @@ deps2dot deps =
     then if null attrs then showDotID x ++ ";\n" else attrtxt
     else concatMap (\i->showDotID x ++ " -> " ++ showDotID i ++ ";\n") xdeps ++ attrtxt
 
+showDotID :: String -> String
 showDotID s | all isAlphaNum s = s
             | otherwise = '"' : concatMap escapeDQ s ++ "\""
  where escapeDQ c = if c=='"' then "\\\"" else [c]

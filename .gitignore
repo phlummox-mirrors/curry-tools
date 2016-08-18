@@ -2,6 +2,7 @@
 *~
 .curry
 Curry_Main_Goal.curry
+*.agdai
 
 # executables
 addtypes/AddTypes
@@ -9,15 +10,21 @@ browser/BrowserGUI
 browser/SourceProgGUI
 CASS/cass
 CASS/cass_worker
+createmakefile/CreateMakefile
 curry2js/Curry2JS
 currypp/Main
+currypp/ContractWrapper/cwrapper
+currycheck/CurryCheck
 currydoc/CurryDoc
 currytest/CurryTest
-createmakefile/CreateMakefile
-erd2curry/erd2curry
+cusage/CheckUsage
+ertools/ERD2CDBI
+ertools/erd2curry
 genint/GenInt
 importcalls/ImportCalls
 optimize/bindingopt
 optimize/binding_optimization/BindingOpt
+runcurry/RunCurry
 spicey/spiceup
+verification/ToVerifier
 xmldata/Data2Xml

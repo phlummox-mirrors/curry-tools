@@ -7,109 +7,59 @@ ROOT ?= $(error Please specify the variable ROOT)
 
 export BINDIR     = $(ROOT)/bin
 export LIBDIR     = $(ROOT)/lib
-export METADIR    = $(LIBDIR)/meta
 export CLEANCURRY = $(BINDIR)/cleancurry
 export REPL       = $(BINDIR)/curry
 
+# Directory names of all tools:
+ALLTOOLDIRS = $(filter-out $(EXCLUDES), $(sort $(notdir $(shell find . -mindepth 1 -maxdepth 1 -type d))))
+EXCLUDES = .git
+# Directory names of all tools having a Makefile:
+TOOLDIRS = $(foreach d, $(ALLTOOLDIRS), $(shell test -f $(d)/Makefile && echo $(d)))
+
+compile_TOOLDIRS=$(addprefix compile_,$(TOOLDIRS))
+install_TOOLDIRS=$(addprefix install_,$(TOOLDIRS))
+clean_TOOLDIRS=$(addprefix clean_,$(TOOLDIRS))
+uninstall_TOOLDIRS=$(addprefix uninstall_,$(TOOLDIRS))
+
 .PHONY: all
-all:
-	@cd addtypes       && $(MAKE)
-	@cd analysis       && $(MAKE)
-	@cd browser        && $(MAKE)
-	@cd CASS           && $(MAKE)
-	@cd createmakefile && $(MAKE)
-	@cd curry2js       && $(MAKE)
-	@cd currydoc       && $(MAKE)
-	@cd currypp        && $(MAKE)
-	@cd currytest      && $(MAKE)
-	@cd erd2curry      && $(MAKE)
-	@cd genint         && $(MAKE)
-	@cd importcalls    && $(MAKE)
-	@cd optimize       && $(MAKE)
-	@cd spicey         && $(MAKE)
-	@cd typeinference  && $(MAKE)
-	@cd xmldata        && $(MAKE)
+all: genint # $(TOOLDIRS)
 
-.PHONY: currydoc
-currydoc:
-	cd currydoc && $(MAKE)
+.PHONY: force
 
-.PHONY: typeinference
-typeinference:
-	cd typeinference && $(MAKE)
+$(TOOLDIRS): force
+	@cd $@ && $(MAKE)
 
 .PHONY: compile
-compile:
-	@cd addtypes       && $(MAKE) compile
-	@cd analysis       && $(MAKE) compile
-	@cd browser        && $(MAKE) compile
-	@cd CASS           && $(MAKE) compile
-	@cd createmakefile && $(MAKE) compile
-	@cd curry2js       && $(MAKE) compile
-	@cd currydoc       && $(MAKE) compile
-	@cd currypp        && $(MAKE) compile
-	@cd currytest      && $(MAKE) compile
-	@cd erd2curry      && $(MAKE) compile
-	@cd genint         && $(MAKE) compile
-	@cd importcalls    && $(MAKE) compile
-	@cd optimize       && $(MAKE) compile
-	@cd spicey         && $(MAKE) compile
-	@cd typeinference  && $(MAKE) compile
-	@cd xmldata        && $(MAKE) compile
+compile: $(compile_TOOLDIRS)
+
+$(compile_TOOLDIRS):
+	@cd $(patsubst compile_%,%,$@) && $(MAKE) compile
 
 .PHONY: install
-install:
-	@cd addtypes       && $(MAKE) install
-	@cd analysis       && $(MAKE) install
-	@cd browser        && $(MAKE) install
-	@cd CASS           && $(MAKE) install
-	@cd createmakefile && $(MAKE) install
-	@cd curry2js       && $(MAKE) install
-	@cd currydoc       && $(MAKE) install
-	@cd currypp        && $(MAKE) install
-	@cd currytest      && $(MAKE) install
-	@cd erd2curry      && $(MAKE) install
-	@cd genint         && $(MAKE) install
-	@cd importcalls    && $(MAKE) install
-	@cd optimize       && $(MAKE) install
-	@cd spicey         && $(MAKE) install
-	@cd typeinference  && $(MAKE) install
-	@cd xmldata        && $(MAKE) install
+install: $(install_TOOLDIRS)
+
+$(install_TOOLDIRS):
+	@cd $(patsubst install_%,%,$@) && $(MAKE) install
 
 .PHONY: clean
-clean:
-	@cd addtypes       && $(MAKE) clean
-	@cd analysis       && $(MAKE) clean
-	@cd browser        && $(MAKE) clean
-	@cd CASS           && $(MAKE) clean
-	@cd createmakefile && $(MAKE) clean
-	@cd curry2js       && $(MAKE) clean
-	@cd currydoc       && $(MAKE) clean
-	@cd currypp        && $(MAKE) clean
-	@cd currytest      && $(MAKE) clean
-	@cd erd2curry      && $(MAKE) clean
-	@cd genint         && $(MAKE) clean
-	@cd importcalls    && $(MAKE) clean
-	@cd optimize       && $(MAKE) clean
-	@cd spicey         && $(MAKE) clean
-	@cd typeinference  && $(MAKE) clean
-	@cd xmldata        && $(MAKE) clean
+clean: $(clean_TOOLDIRS)
+
+$(clean_TOOLDIRS):
+	@cd $(patsubst clean_%,%,$@) && $(MAKE) clean
 
 .PHONY: uninstall
-uninstall:
-	@cd addtypes       && $(MAKE) uninstall
-	@cd analysis       && $(MAKE) uninstall
-	@cd browser        && $(MAKE) uninstall
-	@cd CASS           && $(MAKE) uninstall
-	@cd createmakefile && $(MAKE) uninstall
-	@cd curry2js       && $(MAKE) uninstall
-	@cd currydoc       && $(MAKE) uninstall
-	@cd currypp        && $(MAKE) uninstall
-	@cd currytest      && $(MAKE) uninstall
-	@cd erd2curry      && $(MAKE) uninstall
-	@cd genint         && $(MAKE) uninstall
-	@cd importcalls    && $(MAKE) uninstall
-	@cd optimize       && $(MAKE) uninstall
-	@cd spicey         && $(MAKE) uninstall
-	@cd typeinference  && $(MAKE) uninstall
-	@cd xmldata        && $(MAKE) uninstall
+uninstall: $(uninstall_TOOLDIRS)
+
+$(uninstall_TOOLDIRS):
+	@cd $(patsubst uninstall_%,%,$@) && $(MAKE) uninstall
+
+# run the test suites to check the tools
+.PHONY: runtest
+runtest:
+	cd optimize/binding_optimization/Examples && ./test.sh
+	cd currypp  && $(MAKE) runtest
+	cd runcurry/Examples && ./test.sh
+	cd currycheck/Examples && ./test.sh
+	cd currycheck/Examples/WithVerification && ./test.sh
+	cd spicey/Examples && ./test.sh
+	cd xmldata/Examples && ./test.sh

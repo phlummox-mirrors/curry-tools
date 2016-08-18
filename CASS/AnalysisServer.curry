@@ -1,16 +1,14 @@
 --------------------------------------------------------------------------
---- This is the main module of the analysis system.
---- One can either use the 'main' operation to start the system
---- in "server mode" or "batch mode" or use one of the operations below
---- to use the analysis system in another Curry program.
+--- This is the main module of the analysis server.
+--- It provides operations to initialize the server system,
+--- start the server on a socket, or use the analysis server
+--- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version August 2014
+--- @version June 2016
 --------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
-module AnalysisServer(main, initializeAnalysisSystem,
+module AnalysisServer(mainServer, initializeAnalysisSystem, analyzeModuleAsText,
                       analyzeModuleForBrowser, analyzeFunctionForBrowser,
                       analyzeGeneric, analyzePublic, analyzeInterface)
   where
@@ -18,18 +16,19 @@ module AnalysisServer(main, initializeAnalysisSystem,
 import ReadNumeric(readNat)
 import Char(isSpace)
 import Directory
-import FlatCurry(QName)
+import FlatCurry.Types(QName)
 import Socket(Socket(..),listenOn,listenOnFresh,sClose,waitForSocketAccept)
 import IO
 import ReadShowTerm(readQTerm,showQTerm)
 import System(system,sleep,setEnviron,getArgs)
 import FileGoodies(stripSuffix,splitDirectoryBaseName)
-import AnalysisCollection
-import ServerFormats
-import ServerFunctions(WorkerMessage(..))
+
+import Analysis(Analysis,AOutFormat(..))
 import Configuration
 import GenericProgInfo
-import Analysis(Analysis,AOutFormat(..))
+import Registry
+import ServerFormats
+import ServerFunctions(WorkerMessage(..))
 
 -- Messages to communicate with the analysis server from external programs.
 data AnalysisServerMessage = 
@@ -40,60 +39,9 @@ data AnalysisServerMessage =
   | SetCurryPath String
   | ParseError
 
---- Main function to start the server.
---- Without any program arguments, the server is started on a socket.
---- Otherwise, it is started in batch mode to analyze a module.
-main :: IO ()
-main = do
-  debugMessage 1 systemBanner
-  initializeAnalysisSystem
-  args <- getArgs
-  processArgs False args
-
-processArgs :: Bool -> [String] -> IO ()
-processArgs enforce args = case args of
-  [] -> mainServer Nothing
-  ["-p",port]  -> maybe showError
-                        (\ (p,r) -> if all isSpace r
-                                    then mainServer (Just p)
-                                    else showError )
-                        (readNat port)
-  ["-h"]       -> showHelp
-  ["-?"]       -> showHelp
-  ["--help"]   -> showHelp
-  ("-r":rargs) -> processArgs True rargs
-  (('-':'D':kvs):rargs) -> let (key,eqvalue) = break (=='=') kvs
-                            in if null eqvalue
-                               then showError
-                               else do updateCurrentProperty key (tail eqvalue)
-                                       processArgs enforce rargs
-  [ananame,mname] ->
-      if ananame `elem` registeredAnalysisNames
-      then analyzeModule ananame (stripSuffix mname) enforce AText >>=
-             putStrLn . formatResult mname "Text" Nothing True
-      else showError
-  _ -> showError
- where
-  showError =
-    error ("Illegal arguments (use '--help' for description):\n"++unwords args)
-
 --- Initializations to be done when the system is started.
 initializeAnalysisSystem :: IO ()
 initializeAnalysisSystem = updateRCFile
-
-showHelp :: IO ()
-showHelp = putStrLn $
-  "Usage: cass <options> [-p <port>] :\n" ++
-  "       start analysis system in server mode\n\n"++
-  "       <port>: port number for communication\n" ++
-  "               (if omitted, a free port number is selected)\n\n"++
-  "Usage: cass <options> <analysis name> <module name> :\n"++
-  "       analyze a module with a given analysis\n\n"++
-  "where <options> can contain:\n"++
-  "-Dname=val : set property (of ~/.curryanalysisrc) 'name' as 'val'\n"++
-  "-r         : force re-analysis (i.e., ignore old analysis information)\n"++
-  "\nRegistered analyses names:\n" ++
-  unlines registeredAnalysisNames
 
 --- Start the analysis server on a socket.
 mainServer :: Maybe Int -> IO ()
@@ -117,6 +65,17 @@ mainServer mbport = do
    else
     serverLoop socket1 []
 
+
+--- Run the analysis system and show the analysis results in standard textual
+--- representation.
+--- The third argument is a flag indicating whether the
+--- (re-)analysis should be enforced.
+--- Note that, before its first use, the analysis system must be initialized
+--- by 'initializeAnalysisSystem'.
+analyzeModuleAsText :: String -> String -> Bool -> IO String
+analyzeModuleAsText ananame mname enforce =
+  analyzeModule ananame (stripSuffix mname) enforce AText >>=
+             return . formatResult mname "Text" Nothing True
 
 --- Run the analysis system to show the analysis results in the BrowserGUI.
 --- Note that, before its first use, the analysis system must be initialized

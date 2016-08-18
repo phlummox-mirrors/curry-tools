@@ -27,4 +27,5 @@ dispatcher = do
   return form
 
 --- Main function: call the dispatcher
+main :: IO HtmlForm
 main = dispatcher

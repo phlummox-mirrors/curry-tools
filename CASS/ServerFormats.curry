@@ -3,15 +3,13 @@
 --- anlysis server.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2013
+--- @version May 2015
 --------------------------------------------------------------------
-
--- {-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 
 module ServerFormats(serverFormats,formatResult) where
 
 import GenericProgInfo
-import FlatCurry(QName)
+import FlatCurry.Types(QName,showQNameInModule)
 import XML
 
 --------------------------------------------------------------------
@@ -42,10 +40,10 @@ formatResult moduleName outForm (Just name) _ (Left pinfo) =
            "Text"      -> value
            "XML"       -> showXmlDoc (xml "result" [xtxt value])
 -- Format a complete module:
-formatResult _ outForm Nothing public (Left pinfo) =
+formatResult moduleName outForm Nothing public (Left pinfo) =
   case outForm of
     "CurryTerm" -> show entities
-    "Text"      -> formatAsText entities
+    "Text"      -> formatAsText moduleName entities
     "XML"       -> let (pubxml,privxml) = progInfo2XML pinfo
                     in showXmlDoc
                         (xml "results"
@@ -55,7 +53,8 @@ formatResult _ outForm Nothing public (Left pinfo) =
                in if public then pubents else pubents++privents
 
 -- Format a list of analysis results as a string (lines of analysis results).
-formatAsText :: [(QName,String)] -> String
-formatAsText = unlines . map (\ ((mname,name),r) -> mname++"."++name++" "++r)
+formatAsText :: String -> [(QName,String)] -> String
+formatAsText moduleName =
+  unlines . map (\ (qf,r) -> showQNameInModule moduleName qf ++ " : " ++ r)
 
 --------------------------------------------------------------------

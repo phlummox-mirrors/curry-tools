@@ -4,12 +4,10 @@
 --- relationships and inserting foreign keys for simple relationships.
 ------------------------------------------------------------------------------
 
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
-
 module Transformation(transform) where
 
-import ERD 
-import ERDGoodies
+import Database.ERD 
+import Database.ERDGoodies
 
 ---------------------------------------------------
 -- The main transformation which adds

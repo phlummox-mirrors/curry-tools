@@ -3,38 +3,39 @@
 --- programs.
 ---
 --- @author Michael Hanus
---- @version January 2015
+--- @version July 2016
 ---------------------------------------------------------------------
-
-{-# OPTIONS_CYMAKE -X TypeClassExtensions #-}
 
 module BrowserGUI where
 
-import GUI
-import Read
-import IOExts
-import Imports
-import FlatCurry
-import FlatCurryGoodies
-import FlatCurryShow
-import ShowFlatCurry(leqFunc,funcModule)
-import System
+import Directory
+import Distribution
 import FileGoodies
-import List
+import FlatCurry.Types
+import FlatCurry.Files
+import FlatCurry.Goodies
+import FlatCurry.Show
+import GUI
+import Imports
+import IOExts
+import List            (isPrefixOf,delete,union)
 import Maybe
+import Read
+import Sort            (sortBy)
+import System
+import Time            (toCalendarTime,calendarTimeToString)
+
 import AnalysisTypes
 import BrowserAnalysis
-import Sort
-import Dependency(callsDirectly,indirectlyDependent)
-import ShowGraph
+import Dependency      (callsDirectly,indirectlyDependent)
 import ImportCalls
-import Directory
-import Time(toCalendarTime,calendarTimeToString)
-import Distribution
+import ShowFlatCurry   (leqFunc,funcModule)
+import ShowGraph
 
-import Analysis(AOutFormat(..))
-import AnalysisServer(initializeAnalysisSystem,analyzeModuleForBrowser)
-import AnalysisCollection(functionAnalysisInfos)
+import Analysis        (AOutFormat(..))
+import AnalysisDoc     (getAnalysisDoc)
+import AnalysisServer  (initializeAnalysisSystem,analyzeModuleForBrowser)
+import Registry        (functionAnalysisInfos)
 
 ---------------------------------------------------------------------
 -- Set this constant to True if the execution times of the main operations
@@ -48,7 +49,7 @@ title :: String
 title = "CurryBrowser"
 
 version :: String
-version = "Version of 16/01/2015"
+version = "Version of 29/07/2016"
 
 patchReadmeVersion :: IO ()
 patchReadmeVersion = do
@@ -119,7 +120,7 @@ getTreesNodeName n (Node t v subtrees : trees) =
 getTreesValue :: Int -> [Tree a] -> a
 getTreesValue _ [] = error "getTreesValue: nothing selected" -- should not occur
 getTreesValue n (Leaf _ v : trees) =
-  if n==0 then v 
+  if n==0 then v
           else getTreesValue (n-1) trees
 getTreesValue n (Node t v subtrees : trees) =
   if n==0 then v
@@ -142,7 +143,7 @@ changeTrees n (Node t v subtrees : trees) =
                     return (Node t v nsts : trees)
                else changeTrees (n-l) trees >>= \nts -> return (Node t v subtrees : nts)
 
-openNode :: Eq a => (a, [(a, [String])]) -> IO [Tree (String, [(a, [String])])]
+openNode :: (a, [(a, [String])]) -> IO [Tree (String, [(a, [String])])]
 openNode (mod,modimps) = let mbimps = lookup mod modimps in
   return $  maybe [] (map (\m->Leaf m (m,modimps))) mbimps
 
@@ -188,6 +189,7 @@ getAllImportsOfModule gs mod = do
   (GS trees _ _ _ _ _ _) <- readIORef gs
   return (collectImports (importsOfRoot trees) [mod] [])
  where
+   importsOfRoot []                       = []
    importsOfRoot ((Leaf _ (_,imps)) :_)   = imps
    importsOfRoot ((Node _ (_,imps) _) :_) = imps
 
@@ -203,14 +205,14 @@ getFuns gs = readIORef gs >>= \ (GS _ _ _ funs _ _ _) -> return funs
 storeSelectedFunctions :: IORef GuiState -> [FuncDecl] -> IO ()
 storeSelectedFunctions gs funs = do
   (GS t mm ms _ ct flag fana) <- readIORef gs
-  writeIORef gs (GS t mm ms (mergeSort leqFunc funs) ct flag fana)
+  writeIORef gs (GS t mm ms (sortBy leqFunc funs) ct flag fana)
 
 setMainContentsModule :: IORef GuiState -> String -> ContentsKind -> String
                       -> IO ()
 setMainContentsModule gs cntmod cntkind contents = do
   (GS t mm ms fs _ flag fana) <- readIORef gs
-  writeIORef gs (GS t mm ms fs 
-                   (if cntkind==OtherText then "" else cntmod,cntkind,contents) 
+  writeIORef gs (GS t mm ms fs
+                   (if cntkind==OtherText then "" else cntmod,cntkind,contents)
                     flag fana)
 
 getContentsModule :: IORef GuiState -> IO String
@@ -340,7 +342,7 @@ browserGUI gstate rmod rtxt names =
          Menu (map (\ (aname,atitle) ->
                       MButton (showMBusy (analyzeAllFunsWithCASS aname atitle))
                               atitle)
-                   functionAnalysisInfos)],
+                   (sortBy (\i1 i2 -> snd i1 <= snd i2) functionAnalysisInfos))],
        row [MenuButton
              [Text "Select functions...",
               Menu [MButton (showMBusy (executeForModule showExportedFuns))
@@ -492,7 +494,7 @@ browserGUI gstate rmod rtxt names =
   analyzeModuleWith modanalysis mod gp = safeIO gp $
     performModuleAnalysis modanalysis (showDoing gp) mod >>= \res ->
     showModAnalysisResult mod res gp
-    
+
   showModAnalysisResult mod (ContentsResult cntkind contents) gp = do
     setValue rtxt contents gp
     setMainContentsModule gstate mod cntkind contents
@@ -580,7 +582,8 @@ browserGUI gstate rmod rtxt names =
     if mod==Nothing || null self then done else
       getFuns gstate >>= \funs ->
       let mainfun = funs!!(readNat self)
-          qfnames = mergeSort leqQName (union [funcName mainfun] (callsDirectly mainfun))
+          qfnames = sortBy leqQName
+                      (union [funcName mainfun] (callsDirectly mainfun))
        in getAllFunctions gstate (showDoing gp) (fromJust mod) >>= \allfuns ->
           storeSelectedFunctions gstate (map (findDecl4name allfuns) qfnames) >>
           setFunctionListKind gstate False >>
@@ -594,7 +597,7 @@ browserGUI gstate rmod rtxt names =
       getFuns gstate >>= \funs ->
       let mainfun = funcName (funs!!(readNat self)) in
       getAllFunctions gstate (showDoing gp) (fromJust mod) >>= \allfuns ->
-      let qfnames = mergeSort leqQName
+      let qfnames = sortBy leqQName
               (union [mainfun]
                      (fromJust (lookup mainfun (indirectlyDependent allfuns))))
        in storeSelectedFunctions gstate (map (findDecl4name allfuns) qfnames) >>
@@ -624,7 +627,7 @@ browserGUI gstate rmod rtxt names =
     self <- getValue rfun gp
     fana <- getCurrentFunctionAnalysis gstate
     funs <- getFuns gstate
-    if isNothing mod || null self || isNothing fana then done else do
+    if mod==Nothing || null self || fana==Nothing then done else do
       result <- performAnalysis (fromJust fana) (showDoing gp)
                                 (funs!!readNat self)
       showAnalysisResult result gp
@@ -677,7 +680,8 @@ browserGUI gstate rmod rtxt names =
       modfuns <- getFunctionListKind gstate
       if modfuns then done else showExportedFuns modName gp
       funs <- getFuns gstate
-      setValue resultwidget explanation gp
+      mbdoc <- getAnalysisDoc analysisName
+      setValue resultwidget (maybe explanation id mbdoc) gp
       showDoing gp "Analyzing..."
       results <- analyzeModuleForBrowser analysisName modName ANote
       setConfig rfun
@@ -758,7 +762,7 @@ findFunDeclInProgText FlatCurryExp progtext fname =
 findFunDeclInProgText OtherText _ _ = 0
 
 -- finds first declaration line:
-findFirstDeclLine :: String -> [String] -> Int -> Int
+findFirstDeclLine :: [a] -> [[a]] -> Int -> Int
 findFirstDeclLine _ [] _ = 0 -- not found
 findFirstDeclLine f (l:ls) n =
      if isPrefixOf f l then n else findFirstDeclLine f ls (n+1)
@@ -770,7 +774,7 @@ browserDir = installDir++"/currytools/browser"
 
 -- order qualified names by basename first:
 leqQName :: QName -> QName -> Bool
-leqQName (mod1,n1) (mod2,n2) = leqString n1 n2 || n1==n2 && leqString mod1 mod2
+leqQName (mod1,n1) (mod2,n2) = n1 <= n2 || n1==n2 && mod1 <= mod2
 
 -- show qualified name with module:
 showQNameWithMod :: QName -> String
