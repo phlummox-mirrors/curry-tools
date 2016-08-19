@@ -11,6 +11,8 @@
 --- @version 0.2
 --- ----------------------------------------------------------------------------
 
+{-# OPTIONS_CYMAKE -Wno-incomplete-patterns #-}
+
 import AbstractCurry.Types
 import AbstractCurry.Pretty
 import AbstractCurry.Build
@@ -68,14 +70,16 @@ translateERD2ERDT erdfname = do
 -- when option is set and a .info file
 writeCDBI :: String -> ERD -> String -> IO ()
 writeCDBI erdfname (ERD name ents rels)  dbPath = do
-  let cdbiFile = name++"_CDBI"++".curry"
+  let cdbiMod  = name++"_CDBI"
+      cdbiFile = cdbiMod++".curry"
       imports = [ "Time"
                 , "Database.CDBI.ER"
                 , "Database.CDBI.Criteria"
                 , "Database.CDBI.Connection"
                 , "Database.CDBI.Description"]
-      typeDecls = foldr ((++) . (getEntityTypeDecls (name++"_CDBI"))) [] ents 
-      funcDecls = foldr ((++) . (getEntityFuncDecls (name++"_CDBI"))) [] ents
+      typeDecls = foldr ((++) . (getEntityTypeDecls cdbiMod)) [] ents 
+      funcDecls = genDBPathFunc cdbiMod dbPath :
+                  foldr ((++) . (getEntityFuncDecls cdbiMod)) [] ents
   writeFile cdbiFile $
     "--- This file has been generated from `"++erdfname++"`\n"++
     "--- and contains definitions for all entities and relations\n"++
@@ -96,6 +100,12 @@ writeCDBI erdfname (ERD name ents rels)  dbPath = do
     db <- connectToCommand $ "sqlite3 " ++ dbPath
     createDatabase ents db
     hClose db
+
+genDBPathFunc :: String -> String -> CFuncDecl
+genDBPathFunc mname dbPath =
+  cmtfunc "The name of the SQLite database file."
+          (mname,"sqliteDBFile")
+          0 Public stringType [simpleRule [] (string2ac dbPath)]
 
 -- -----writing .info-file containing auxiliary data for parsing -------------
 
@@ -221,7 +231,7 @@ getNullableAttr :: Entity -> [CExpr]
 getNullableAttr (Entity name attrs) = (map (getNullValue name) attrs) 
 
 getNullValue :: String -> Attribute -> CExpr
-getNullValue (e:name) a@(Attribute aName _ _ nullable) =  
+getNullValue (e:name) (Attribute aName _ _ nullable) =  
         tupleExpr [string2ac ((toLower e):name ++ aName) 
                    , (CSymbol (pre (show nullable)))]
 
@@ -269,7 +279,7 @@ getAttrList :: Entity -> CExpr
 getAttrList (Entity name attrs) =
   tupleExpr [(string2ac (lowerCase name)), 
               tupleExpr [(string2ac name), (list2ac (map selectAttr attrs))]]    
-     where selectAttr (Attribute name _ _ _) = string2ac name
+     where selectAttr (Attribute aname _ _ _) = string2ac aname
 
 -- ------- writing file containing all type needed for use of CDBI ------------
 
@@ -304,8 +314,9 @@ getEntityFuncDecls mName ent =
 
 -- Generates an entity-description based on an entity.
 writeDescription :: String -> Entity -> CFuncDecl
-writeDescription mName (Entity name@(n:ns) attrs) = 
-  cfunc (mName, (((toLower n) : ns) ++ "_CDBI_Description" ))
+writeDescription mName (Entity name attrs) = 
+  cmtfunc ("The ER description of the `" ++ name ++ "` entity.")
+        (mName, (firstLow name ++ "_CDBI_Description" ))
         0
         Public
         (CTCons (mDescription, "EntityDescription") [baseType (mName, name)])
@@ -319,8 +330,9 @@ writeDescription mName (Entity name@(n:ns) attrs) =
 
 -- Generates a table-type based on an entity.
 writeTables :: String -> Entity -> CFuncDecl
-writeTables mName (Entity name@(n:ns) _) = 
-  cfunc (mName, ((toLower n):ns) ++ "Table")
+writeTables mName (Entity name _) = 
+  cmtfunc ("The database table of the `" ++ name ++ "` entity.")
+        (mName, firstLow name ++ "Table")
         0
         Public
         (CTCons (mDescription, "Table") [])
@@ -332,8 +344,10 @@ writeColumnDescriptions mName (Entity name attrs) =
   map (writeColumnDescription mName name) attrs
 
 writeColumnDescription :: String -> String -> Attribute -> CFuncDecl
-writeColumnDescription mName name@(n:ns) a@(Attribute atr dom _ _) =
-  cfunc (mName, ((toLower n):ns) ++ atr ++ "ColDesc")
+writeColumnDescription mName name a@(Attribute atr _ _ _) =
+  cmtfunc ("The description of the database column `" ++ atr ++
+           "` of the `" ++ name ++ "` entity.")
+        (mName, firstLow name ++ atr ++ "ColDesc")
         0
         Public
         (CTCons (mDescription, "ColumnDescription") 
@@ -354,8 +368,10 @@ writeColumns mName (Entity name attrs) =
 
 -- Generates a column-function from an attribute.
 writeColumn :: String -> String -> Attribute -> CFuncDecl
-writeColumn mName name@(n:ns) a@(Attribute atr dom _ _) =
-    cfunc (mName, ((toLower n):ns) ++ "Column" ++ atr)
+writeColumn mName name a@(Attribute atr _ _ _) =
+    cmtfunc ("The database column `" ++ atr ++
+             "` of the `" ++ name ++ "` entity.")
+          (mName, firstLow name ++ "Column" ++ atr)
           0
           Public
           (CTCons (mDescription, "Column") [(getAttributeType mName name a)])
@@ -365,7 +381,7 @@ writeColumn mName name@(n:ns) a@(Attribute atr dom _ _) =
                                        ++ "\"" ++ atr ++ "\"")) ]))]
 
 getAttributeType :: String -> String -> Attribute -> CTypeExpr
-getAttributeType mName eName a@(Attribute atr dom _ _) =
+getAttributeType mName eName (Attribute atr dom _ _) =
   if atr == "Key" then baseType (mName, eName ++ "ID")
                   else getType mName dom
 
@@ -388,8 +404,10 @@ writeGetterSetters mName (Entity name attrs) =
 
 -- Generates a setter method based on an attribute.
 writeSetter :: String -> String -> Int -> (Attribute, Int) -> CFuncDecl
-writeSetter mName eName@(a:b) len (att@(Attribute name dom _ _), i) = 
-  cfunc (mName, ("set" ++ eName ++ name))
+writeSetter mName eName len (att@(Attribute name _ _ _), i) = 
+  cmtfunc ("Sets the attribute `" ++ name ++
+           "` of the `" ++ eName ++ "` entity.")
+        (mName, ("set" ++ eName ++ name))
         2
         Public
         ((baseType (mName, eName)) ~> (writeAttributes mName eName att) 
@@ -401,8 +419,10 @@ writeSetter mName eName@(a:b) len (att@(Attribute name dom _ _), i) =
 
 -- Generates a getter method based on an attribute.
 writeGetter :: String -> String -> Int -> (Attribute, Int) -> CFuncDecl
-writeGetter mName eName@(a:b) len (att@(Attribute name dom _ _), i) = 
-  cfunc (mName, ((firstLow eName) ++ name))
+writeGetter mName eName len (att@(Attribute name _ _ _), i) = 
+  cmtfunc ("Gets the attribute `" ++ name ++
+           "` of the `" ++ eName ++ "` entity.")
+        (mName, ((firstLow eName) ++ name))
         1
         Public
         ((baseType (mName, eName)) ~> (writeAttributes mName eName att))

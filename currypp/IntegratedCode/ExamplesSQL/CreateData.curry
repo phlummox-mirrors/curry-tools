@@ -5,7 +5,7 @@ import Time
 
 createTestData :: IO ()
 createTestData = do 
-  conn   <- connectSQLite "Uni.db"
+  conn   <- connectSQLite sqliteDBFile
   result <- ((insertEntries studentList student_CDBI_Description) >+
              (insertEntries lectureList lecture_CDBI_Description) >+
              (insertEntries lecturerList lecturer_CDBI_Description) >+
@@ -16,6 +16,7 @@ createTestData = do
              (insertEntries participList participation_CDBI_Description) >+
              (insertEntryCombined sse1 sseDescription)
             ) conn
+  disconnect conn
   case result of
     Left (DBError kind str) -> putStrLn ((show kind) ++ " " ++ str)
     Right _ -> putStrLn "Ok"
