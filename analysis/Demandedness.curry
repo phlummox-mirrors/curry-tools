@@ -30,6 +30,12 @@ showDemand fmt (x:xs) =
 -- Abstract demand domain.
 data DemandDomain = Bot | Top
 
+instance Eq DemandDomain where
+  Bot == Bot = True
+  Top == Top = True
+  Bot == Top = False
+  Top == Bot = False
+  
 -- Least upper bound on abstract demand domain.
 lub :: DemandDomain -> DemandDomain -> DemandDomain
 lub Bot x = x

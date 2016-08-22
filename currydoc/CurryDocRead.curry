@@ -30,6 +30,9 @@ data SourceLine = Comment String  -- a comment for CurryDoc
                 | ModDef          -- a line containing a module definition
                 | OtherLine       -- a line not relevant for CurryDoc
 
+instance Eq SourceLine where
+  _ == _ = error "TODO: Eq CurryDocRead.SourceLine"
+
 --- This datatype is used to categorize Curry libraries
 --- @cons General   - a general library
 --- @cons Algorithm - a library which provides data structures and algorithms
@@ -41,6 +44,12 @@ data Category = General
               | Database
               | Web
               | Meta
+
+instance Eq Category where
+  _ == _ = error "TODO: Eq CurryDocRead.Category"
+
+instance Ord Category where
+  _ < _ = error "TODO: Ord CurryDocRead.Category"
 
 type ModInfo = (Category, String, String)
 
@@ -189,7 +198,7 @@ getDataComment n ((def, cmt):fdcmts) = case def of
 
 
 -- get all comments of a particular type (e.g., "param", "cons"):
-getCommentType :: a -> [(a,b)] -> [b]
+getCommentType :: Eq a => a -> [(a,b)] -> [b]
 getCommentType ctype cmts = map snd (filter (\c -> fst c == ctype) cmts)
 
 

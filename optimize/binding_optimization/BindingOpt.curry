@@ -100,7 +100,7 @@ transformBoolEq opts@(verb, _, _) name = do
   transformAndStoreFlatProg opts modname flatprog
 
 -- Drop a suffix from a list if present or leave the list as is otherwise.
-dropSuffix :: [a] -> [a] -> [a]
+dropSuffix :: Eq a => [a] -> [a] -> [a]
 dropSuffix sfx s | sfx `isSuffixOf` s = take (length s - length sfx) s
                  | otherwise          = s
 

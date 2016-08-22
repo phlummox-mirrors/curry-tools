@@ -60,6 +60,13 @@ showOverlap ANote False = ""
 --- Data type to represent determinism information.
 data Deterministic = NDet | Det
 
+instance Eq Deterministic where
+  NDet == NDet = True
+  Det  == Det  = True
+  NDet == Det  = False
+  Det  == NDet = False
+  
+
 -- Show determinism information as a string.
 showDet :: AOutFormat -> Deterministic -> String
 showDet _     NDet = "nondeterministic"

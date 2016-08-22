@@ -26,6 +26,9 @@ data RTerm f
   | RTermVar  VarIdx
   | Ref       VarIdx
 
+instance Eq a => Eq (RTerm a) where
+  _ == _ = error "TODO: Eq Unification.RTerm"
+
 --- Type of the reference table used to store the values referenced
 --- by Ref RTerms.
 type RefTable f = FM VarIdx (RTerm f)
@@ -40,7 +43,7 @@ type REqs f = [REq f]
 ---
 --- @param eqs - the equations to unify
 --- @return either an UnificationError or a substitution
-unify :: TermEqs f -> Either (UnificationError f) (Subst f)
+unify :: Eq f => TermEqs f -> Either (UnificationError f) (Subst f)
 unify ts =
   let (r, rts) = termEqsToREqs ts
    in either Left (\ (r', ts') -> Right (eqsToSubst r' ts'))
@@ -134,7 +137,7 @@ deref _ a@(RTermCons _ _) = a
 -- ---------------------------------------------------------------------------
 
 --- Internal unification function, the core of the algorithm.
-unify' :: RefTable f -> REqs f -> REqs f
+unify' :: Eq f => RefTable f -> REqs f -> REqs f
        -> Either (UnificationError f) (RefTable f, REqs f)
 -- No equations left, we are done.
 unify' r s []             = Right (r, s)
@@ -158,7 +161,7 @@ unify' r s ((a, b) : eqs) = case (a, b) of
 --- that have yet to be unified and the right-hand sides of all
 --- equations of the result list. Also adds a mapping from that
 --- variable to that term to the result list.
-elim :: RefTable f -> REqs f -> VarIdx -> RTerm f -> REqs f
+elim :: Eq f => RefTable f -> REqs f -> VarIdx -> RTerm f -> REqs f
      -> Either (UnificationError f) (RefTable f, REqs f)
 elim r s i t eqs
   | dependsOn r (RTermVar i) t = Left (OccurCheck i (rTermToTerm r t))
@@ -173,7 +176,7 @@ elim r s i t eqs
 --- @param a - the term to search for
 --- @param b - the term to search
 --- @return whether the first term is found in the second term
-dependsOn :: RefTable f -> RTerm f -> RTerm f -> Bool
+dependsOn :: Eq f => RefTable f -> RTerm f -> RTerm f -> Bool
 dependsOn r a b = a /= b && dependsOn' b
  where
   dependsOn' v@(RTermVar   _) = a == v

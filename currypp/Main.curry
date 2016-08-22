@@ -35,6 +35,9 @@ cppBanner = unlines [bannerLine,bannerText,bannerLine]
 --- Preprocessor targets, i.e., kind of entities to be preprocessed:
 data PPTarget = ForeignCode | SequentialRules | DefaultRules | Contracts
 
+instance Eq PPTarget where
+  _ == _ = error "TODO: Eq Main.PPTarget"
+
 parseTarget :: String -> Maybe PPTarget
 parseTarget t | t=="foreigncode"  = Just ForeignCode
               | t=="defaultrules" = Just DefaultRules

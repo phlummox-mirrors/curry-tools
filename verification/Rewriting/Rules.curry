@@ -52,7 +52,7 @@ rRoot :: Rule f -> Either VarIdx f
 rRoot (l, _) = tRoot l
 
 --- Returns all constructors in a rule.
-rCons :: Rule f -> [f]
+rCons :: Eq f => Rule f -> [f]
 rCons (l, r) = nub (tCons l ++ tCons r)
 
 --- Returns all variables in a rule.
@@ -67,7 +67,7 @@ normalise rule@(l, r) = (applySubst sub l, applySubst sub r)
     sub = foldr (\(v, t) subst -> extendSubst subst v t) emptySubst vMap
 
 --- Checks whether the first rule is a variant of the second rule.
-isVariantOf :: Rule f -> Rule f -> Bool
+isVariantOf :: Eq f => Rule f -> Rule f -> Bool
 isVariantOf = on (==) normalise
 
 --- Increases the variables in a rule by the given number.

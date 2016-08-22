@@ -13,6 +13,12 @@ import GenericProgInfo
 -- datatype order: higher-order or first-order
 data Order = HO | FO
 
+instance Eq Order where
+  HO == HO = True
+  FO == FO = True
+  HO == FO = False
+  FO == HO = False
+
 -- Show higher-order information as a string.
 showOrder :: AOutFormat -> Order -> String
 showOrder _ HO = "higher-order"

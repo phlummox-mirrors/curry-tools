@@ -24,6 +24,9 @@ data WarnID = TagNameFirstDigit
 --- text, or a Curry expression that evaluates to some content.
 data Text = Raw String | ExpT String | ExpC String
 
+instance Eq Text where
+  _ == _ = error "TODO: Eq MLTypes.Text"
+
 type TPos = (SimplePos,Int)
 type Symbol = (Token,TPos)
 type Attribute = (String,[Text])

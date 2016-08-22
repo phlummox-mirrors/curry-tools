@@ -100,6 +100,9 @@ generateHtmlDocs docparams anainfo modname modcmts progcmts = do
 -- Datatype to classify the kind of information attached to a function:
 data FuncAttachment = Property | PreCond | PostCond | SpecFun
 
+instance Eq FuncAttachment where
+  _ == _ = error "TODO: Eq CurryDocHtml.FuncAttachment"
+
 -- Associate the properties or contracts (first argument)
 -- to functions according to their positions and name in the source code
 -- (we assume that they follow the actual function definitions).
@@ -463,7 +466,7 @@ genHtmlFunc docparams modname progcmts funcattachments anainfo ops
          showAttachments "Specification" SpecFun  ++
          showAttachments "Properties"    Property ++
          -- show further infos for this function, if present:
-         (if furtherInfos == []
+         (if null furtherInfos
           then []
           else [dlist [([explainCat "Further infos:"],
                         [ulist furtherInfos])]] )]]]
@@ -535,11 +538,12 @@ genFuncPropIcons anainfo fname =
 --- formatted (if not empty) as some HTML list.
 genFuncPropComments :: AnaInfo -> QName -> [CRule] -> [COpDecl] -> [[HtmlExp]]
 genFuncPropComments anainfo fname rules ops =
-   filter (/=[]) [genFixityInfo fname ops,
-                  completenessInfo,
-                  indeterminismInfo,
-                  opcompleteInfo,
-                  externalInfo rules]
+   filter (not . null)
+          [genFixityInfo fname ops,
+           completenessInfo,
+           indeterminismInfo,
+           opcompleteInfo,
+           externalInfo rules]
  where
    -- comment about the definitional completeness of a function:
    completenessInfo = let ci = getCompleteInfo anainfo fname in

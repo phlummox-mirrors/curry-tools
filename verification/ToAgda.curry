@@ -91,12 +91,12 @@ funcDeclsToTypedRules fdecls = (rename, typedrules)
   rename      = rename4agda (allNamesOfTRS allrules)
 
 -- All function names occurring in a TRS.
-allNamesOfTRS :: TRS a -> [a]
+allNamesOfTRS :: Eq a => TRS a -> [a]
 allNamesOfTRS =
   foldr union [] . map allNamesOfTerm . concatMap (\ (lhs,rhs) -> [lhs,rhs])
 
 -- All function names occurring in a term.
-allNamesOfTerm :: Term a -> [a]
+allNamesOfTerm :: Eq a => Term a -> [a]
 allNamesOfTerm (TermVar _) = []
 allNamesOfTerm (TermCons f ts) = foldr union [f] (map allNamesOfTerm ts)
 

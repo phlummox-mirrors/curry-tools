@@ -5,15 +5,23 @@
 -- add access to a new analysis here and recompile the browser.
 -----------------------------------------------------------------------------
 
-module BrowserAnalysis(moduleAnalyses,allFunctionAnalyses,functionAnalyses) where
+module BrowserAnalysis(moduleAnalyses,allFunctionAnalyses,functionAnalyses
+                      , funcModule)
+ where
+
+import FileGoodies(stripSuffix)
+import List(intersperse)
+import Pretty             (pPrint)
+
+import FlatCurry.Types
+import FlatCurry.Goodies (funcName)
+import FlatCurry.Pretty  (Options (..), defaultOptions, ppProg, ppFuncDecl)
+import FlatCurry.Show    (showFlatFunc, showFlatProg)
 
 import AnalysisTypes
 import Analysis(AOutFormat(..))
 import AnalysisServer(analyzeFunctionForBrowser)
 import Registry(functionAnalysisInfos)
-import FlatCurry.Types
-import FlatCurry.Goodies
-import FlatCurry.Show(showFlatFunc)
 import Overlapping
 import PatternComplete
 import SolutionComplete
@@ -23,34 +31,34 @@ import Indeterminism
 import CalledByAnalysis
 import Linearity
 import AddTypes
-import ShowFlatCurry
-import List(intersperse)
 import Imports
-import FileGoodies(stripSuffix)
+
+import GenInt(showInterface, showCurryModule, showCurryFuncDecl)
 import ShowGraph
 
 infix 1 `showWith`,`showWithMsg`
 
------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- The list of all available analyses for individual modules.
 -- Each analysis must return a string representation of its analysis result
 -- or an IO action to show the result.
 moduleAnalyses :: [(String, ModuleAnalysis ModuleAnalysisResult)]
 moduleAnalyses =
  [("Interface",
-   InterfaceAnalysis (\int -> ContentsResult CurryProg (showInterface False int))),
+   InterfaceAnalysis (\int -> ContentsResult CurryProg (showInterface False int)))
   --("Write Interface",
   -- InterfaceAnalysis (\int -> ModuleAction (putStrLn (showInterface False int)))),
   --("Read source file",
   -- SourceCodeAnalysis (\fname -> readFile fname >>= \prog ->
   --                               return (ContentsResult CurryProg prog))),
-  ("Curry code (generated from FlatCurry)",
-   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showCurryMod prog))),
-  ("Source program with type signatures added", SourceCodeAnalysis addTypes),
-  ("FlatCurry code",
-   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showFlatCurry prog))),
-  ("FlatCurry expression",
-   FlatCurryAnalysis (\prog -> ContentsResult FlatCurryExp (showFlatProg prog)))]
+  ,("Curry code (generated from FlatCurry)",
+   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showCurryModule prog)))
+  ,("Source program with type signatures added", SourceCodeAnalysis addTypes)
+  ,("FlatCurry code",
+   FlatCurryAnalysis (\prog -> ContentsResult CurryProg (showFlatCurry prog)))
+  ,("FlatCurry expression",
+   FlatCurryAnalysis (\prog -> ContentsResult FlatCurryExp (showFlatProg prog)))
+  ]
 
 addTypes :: String -> IO ModuleAnalysisResult
 addTypes fname
@@ -59,6 +67,10 @@ addTypes fname
  | otherwise
   = do prog <- addTypeSignatures (stripSuffix fname)
        return (ContentsResult CurryProg prog)
+
+--- Show FlatCurry module in pretty-printed form
+showFlatCurry :: Prog -> String
+showFlatCurry = pPrint . ppProg defaultOptions
 
 -----------------------------------------------------------------------------------
 -- The list of all available analyses for individual functions.
@@ -101,6 +113,20 @@ functionAnalyses =
   ("Purity",            GlobalAnalysis    analyseIndeterminism `showWithMsg` showIndet)]
 
 
+-- Show individual functions:
+showFuncDeclAsCurry :: FuncDecl -> String
+showFuncDeclAsCurry fd =
+  showCurryFuncDecl (showQNameInModule (funcModule fd))
+                    (showQNameInModule (funcModule fd)) fd
+
+showFuncDeclAsFlatCurry :: FuncDecl -> String
+showFuncDeclAsFlatCurry fd = pPrint (ppFuncDecl opts fd)
+  where opts = defaultOptions { currentModule = funcModule fd }
+
+funcModule :: FuncDecl -> String
+funcModule fd = fst (funcName fd)
+
+-----------------------------------------------------------------------------
 -- The list of all available analyses for sets of functions.
 -- Each analysis must return a short(!) string representation (no more than a few chars)
 -- of its analysis result that is prefixed to the function name in the list

@@ -162,7 +162,7 @@ tvars (CFuncType t1 t2) (CFuncType t1' t2')
 --- give a list of variables names depending on whether they are singletons
 --- or not
 
-varNames :: Int -> [(_,CTypeExpr)] -> Success
+varNames :: Eq a => Int -> [(a,CTypeExpr)] -> Success
 varNames _ [] = success
 varNames n ((i,v):ivs) 
   | null is =   (v=:=(CTVar (0,"_"))) &> (varNames n others)

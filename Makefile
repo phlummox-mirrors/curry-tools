@@ -22,7 +22,7 @@ clean_TOOLDIRS=$(addprefix clean_,$(TOOLDIRS))
 uninstall_TOOLDIRS=$(addprefix uninstall_,$(TOOLDIRS))
 
 .PHONY: all
-all: genint # $(TOOLDIRS)
+all: $(TOOLDIRS)
 
 .PHONY: force
 

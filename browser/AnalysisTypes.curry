@@ -47,3 +47,6 @@ data ContentsKind =
   | FlatCurryExp   -- FlatCurry expression
   | OtherText      -- some other text
 
+instance Eq ContentsKind where
+  _ == _ = error "TODO: Eq AnalysisTypes.ContentsKind"
+

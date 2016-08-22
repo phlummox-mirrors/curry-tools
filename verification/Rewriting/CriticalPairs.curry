@@ -44,7 +44,7 @@ showCPair s (l, r)
 -- ---------------------------------------------------------------------------
 
 --- Computes the critical pairs of a term rewriting system.
-cPairs :: TRS f -> [CPair f]
+cPairs :: Eq f => TRS f -> [CPair f]
 cPairs trs = nub [(applySubst sub r1,
                    replaceTerm (applySubst sub l1) p (applySubst sub r2)) |
                   rule1@(l1, r1) <- trs,

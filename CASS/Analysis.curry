@@ -229,4 +229,10 @@ startValue (CombinedDependencyTypeAnalysis _ _ _ startval _) = startval
 --- in a module.
 data AOutFormat = AText | ANote
 
+instance Eq AOutFormat where
+  AText == AText = True
+  ANote == ANote = True
+  AText == ANote = False
+  ANote == AText = False
+
 -------------------------------------------------------------------------

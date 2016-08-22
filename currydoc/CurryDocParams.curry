@@ -8,6 +8,9 @@ import System (system)
 -- The kind of documentations which can be generated.
 data DocType = HtmlDoc | TexDoc | CDoc
 
+instance Eq DocType where
+  _ == _ = error "TODO: Eq CurryDocParams.DocType"
+
 -- The parameters for the documentation generator. Parameters:
 -- doctype - the target format of the documentation
 -- withindex - True if the index pages should also be generated

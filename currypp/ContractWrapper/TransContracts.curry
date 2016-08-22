@@ -28,7 +28,7 @@ import Directory
 import Distribution
 import FilePath          (takeDirectory)
 import List
-import Maybe             (fromJust)
+import Maybe             (fromJust, isNothing)
 import System
 
 -- in order to use the determinism analysis:
@@ -329,11 +329,11 @@ addContract opts funposs allfdecls predecls postdecls
                        funcName
                        (find (\fd -> snd (funcName fd) == f++"'post'observe")
                              allfdecls)
-     asrtCall  = if predecl==Nothing
+     asrtCall  = if isNothing predecl
                  then applyF (cMod $ "withPostContract" ++ show ar ++ encapsSuf)
                         ([fref, encaps postname (ar+1), obsfunexp, orgfunexp] ++
                          map CVar argvars)
-                 else if postdecl==Nothing
+                 else if isNothing postdecl
                  then applyF (cMod $ "withPreContract" ++ show ar ++ encapsSuf)
                         ([fref, encaps prename ar, orgfunexp] ++
                          map CVar argvars)
@@ -344,7 +344,7 @@ addContract opts funposs allfdecls predecls postdecls
      oldfdecl = if topLevelContracts opts
                 then updQNamesInCLocalDecl rename (CLocalFunc (deleteCmt fdecl))
                 else CLocalFunc (renameFDecl rename (deleteCmt fdecl))
-  in if predecl==Nothing && postdecl==Nothing then fdecl else
+  in if isNothing predecl && isNothing postdecl then fdecl else
        cmtfunc cmt (m,f) ar vis texp
                [simpleRuleWithLocals (map CPVar argvars) asrtCall [oldfdecl]]
 

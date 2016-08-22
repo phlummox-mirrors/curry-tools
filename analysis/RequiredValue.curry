@@ -34,6 +34,12 @@ import Unsafe(trace)
 -- `Empty` represents no possible value.
 data AType = Any | AnyC | Cons QName | Empty
 
+instance Eq AType where
+  _ == _ = error "TODO: Eq RequiredValue.AType"
+
+instance Ord AType where
+  _ < _ = error "TODO: Ord RequiredValue.AType"
+
 --- Is some abstract type a constructor?
 isConsValue :: AType -> Bool
 isConsValue av = case av of Cons _ -> True
@@ -81,6 +87,9 @@ showAType _ Empty = "_|_"
 --- the possible result of the function,
 --- or a list of possible argument/result type pairs.
 data AFType = EmptyFunc | AFType [([AType],AType)]
+
+instance Eq AFType where
+  _ == _ = error "TODO: Eq RequiredValue.AFType"
 
 -- Shows an abstract value.
 showAFType :: AOutFormat -> AFType -> String

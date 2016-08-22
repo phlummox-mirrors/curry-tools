@@ -22,7 +22,7 @@ import Rewriting.Term
 type Subst f = FM VarIdx (Term f)
 
 --- Pretty string representation of a substitution.
-showSubst :: Subst _ -> String
+showSubst :: Show a => Subst a -> String
 showSubst = unlines . map showOne . fmToList
   where showOne (k, v) = show k ++ " -> " ++ show v
 

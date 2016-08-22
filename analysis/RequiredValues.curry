@@ -33,6 +33,12 @@ import Unsafe(trace)
 -- `Cons cs` a value rooted by some of the constructor `cs`, and
 data AType = Cons [QName] | AnyC | Any
 
+instance Eq AType where
+  _ == _ = error "TODO: Eq RequiredValues.AType"
+
+instance Ord AType where
+  _ < _ = error "TODO: Ord RequiredValues.AType"
+
 --- Abstract representation of no possible value.
 empty :: AType
 empty = Cons []
@@ -81,6 +87,9 @@ showAType _ (Cons cs) = "{" ++ intercalate "," (map snd cs) ++ "}"
 --- the possible result of the function,
 --- or a list of possible argument/result type pairs.
 data AFType = EmptyFunc | AFType [([AType],AType)]
+
+instance Eq AFType where
+  _ == _ = error "TODO: Eq RequiredValues.AFType"
 
 -- Shows an abstract value.
 showAFType :: AOutFormat -> AFType -> String
@@ -301,7 +310,7 @@ prelude = "Prelude"
 -- Auxiliaries:
 
 -- Union on sorted lists:
-union :: [a] -> [a] -> [a]
+union :: Ord a => [a] -> [a] -> [a]
 union []       ys     = ys
 union xs@(_:_) []     = xs
 union (x:xs)   (y:ys) | x==y      = x : union xs ys
@@ -309,7 +318,7 @@ union (x:xs)   (y:ys) | x==y      = x : union xs ys
                       | otherwise = y : union (x:xs) ys
 
 -- Intersection on sorted lists:
-intersect :: [a] -> [a] -> [a]
+intersect :: Ord a => [a] -> [a] -> [a]
 intersect []     _      = []
 intersect (_:_)  []     = []
 intersect (x:xs) (y:ys) | x==y      = x : intersect xs ys

@@ -73,6 +73,9 @@ data ORegex = Nil
            | End Regex
            | Times (Int,Int) Regex
 
+instance Show ORegex where
+  show _ = error "TODO: Show RegexParser.ORegex"
+
 --- Possible regex operators
 operators       = ['|','*','.','[',']','^','$','{','}','(',')','?','+']
 --- Characters which can be used to escape other characters
@@ -132,6 +135,9 @@ data Token = TokenStar
            | TokenOABracket
            | TokenCABracket
            | TokenLiteral Char
+
+instance Eq Token where
+  _ == _ = error "TODO: Eq RegexParser.Token"
 
 --- Assigning Tokens to Chars
 tokenToChar :: Token -> Char
@@ -321,7 +327,7 @@ extractChars (t:ts) = case t of
   _                -> ""
 
 -- | Helper
-cntUntilClosed :: a -> a -> [a] -> Int
+cntUntilClosed :: Eq a => a -> a -> [a] -> Int
 cntUntilClosed c1 c2 li = cUCB 0 0 li
   where
     cUCB n c l =

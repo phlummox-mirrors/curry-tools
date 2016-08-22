@@ -71,7 +71,11 @@ data Token
     | Asterix
    -- unsupported Char
     | Unexpected Char
-  
+
+instance Eq Token where
+  _ == _ = error "TODO: Eq SQLToken.Token"
+
+
 data ConstVal = NumInt Int 
               | NumFloat Float 
               | Boolean Bool 

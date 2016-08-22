@@ -35,6 +35,12 @@ banner = unlines [bannerLine,bannerText,bannerLine]
 data TransScheme = SpecScheme -- as specified in the PADL'16 paper
                  | NoDupScheme -- scheme without checking conditions twice
 
+instance Eq TransScheme where
+  _ == _ = error "TODO: Eq TransDefRules.TransScheme"
+
+instance Show TransScheme where
+  show _ = error "TODO: Show TransDefRules.TransScheme"
+
 -- The default translation scheme:
 defaultTransScheme :: TransScheme
 defaultTransScheme = if curryCompiler == "kics2"
@@ -333,7 +339,7 @@ setFunMod :: String
 setFunMod = "SetFunctions"
 
 --- Extracts all elements with a single occurrence in a given list.
-extractSingles :: [a] -> [a]
+extractSingles :: Eq a => [a] -> [a]
 extractSingles [] = []
 extractSingles (x:xs) =
   if null (filter (==x) xs)

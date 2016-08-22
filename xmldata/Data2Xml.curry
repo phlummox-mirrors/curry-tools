@@ -43,6 +43,9 @@ import System
 
 data Options = LowCase | FileName String
 
+instance Eq Options where
+  _ == _ = error "TODO: Eq Data2Xml.Options"
+
 main :: IO ()
 main = do
   args <- getArgs

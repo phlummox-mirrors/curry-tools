@@ -34,10 +34,10 @@ data UnificationError f = Clash (Term f) (Term f)
 ---
 --- @param eqs - the equations to unify
 --- @return either a UnificationError or a substitution
-unify :: TermEqs f -> Either (UnificationError f) (Subst f)
+unify :: (Eq f, Show f) => TermEqs f -> Either (UnificationError f) (Subst f)
 unify ts = either Left (Right . eqsToSubst) (unify' [] ts)
 
-eqsToSubst :: TermEqs f -> Subst f
+eqsToSubst :: Show f => TermEqs f -> Subst f
 eqsToSubst []            = emptySubst
 eqsToSubst ((a, b) : ts) = case a of
   TermVar n      -> extendSubst (eqsToSubst ts) n b
@@ -48,7 +48,8 @@ eqsToSubst ((a, b) : ts) = case a of
 --- Auxiliary unification operation.
 --- @param sub - the current substitution represented by term equations
 --- @param eqs - the equations to unify
-unify' :: TermEqs f -> TermEqs f -> Either (UnificationError f) (TermEqs f)
+unify' :: Eq f => TermEqs f -> TermEqs f
+       -> Either (UnificationError f) (TermEqs f)
 unify' s [] = Right s
 unify' s (((TermVar      i), b@(TermCons _ _)):e) = elim s i b e
 unify' s ((a@(TermCons _ _), (TermVar      i)):e) = elim s i a e
@@ -58,7 +59,7 @@ unify' s ((a@(TermCons ac as), b@(TermCons bc bs)):e)
   | ac == bc  = unify' s ((zip as bs) ++ e)
   | otherwise = Left (Clash a b)
 
-elim :: TermEqs f -> VarIdx -> Term f -> TermEqs f
+elim :: Eq f => TermEqs f -> VarIdx -> Term f -> TermEqs f
      -> Either (UnificationError f) (TermEqs f)
 elim s i t e
   | dependsOn (TermVar i) t = Left (OccurCheck i t)
@@ -108,7 +109,7 @@ substituteSingle' i t (a, b) = (termSubstitute' i t a, termSubstitute' i t b)
 --- @param a - the term to search for
 --- @param b - the term to search in
 --- @return whether the first term is found in the second term
-dependsOn :: Term f -> Term f -> Bool
+dependsOn :: Eq f => Term f -> Term f -> Bool
 dependsOn a b = and [(not (a == b)), dependsOn' a b]
  where dependsOn' c v@(TermVar _) = c == v
        dependsOn' c (TermCons _ vars) = any id (map (dependsOn' c) vars)

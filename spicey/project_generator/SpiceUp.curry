@@ -14,6 +14,9 @@ systemBanner =
 
 data FileMode = Exec | NoExec
 
+instance Eq FileMode where
+  _ == _ = error "TODO: Eq SpiceUp.FileMode"
+
 setFileMode :: FileMode -> String -> IO ()
 setFileMode fmode filename =
   if fmode==Exec then system ("chmod +x \"" ++ filename ++ "\"") >> done

@@ -33,6 +33,12 @@ type VarIdx = Int
 ---                       terms `ts`.
 data Term f = TermVar VarIdx | TermCons f [Term f]
 
+instance Eq a => Eq (Term a) where
+  _ == _ = error "TODO: Eq Rewriting.Term.Term"
+
+instance Show a => Show (Term a) where
+  show _ = error "TODO: Show Rewriting.Term.Term"
+
 --- A term equation represented as a pair of terms and parameterized over the
 --- kind of function symbols, e.g., strings.
 type TermEq f = (Term f, Term f)
@@ -85,7 +91,7 @@ tRoot (TermVar v)    = Left v
 tRoot (TermCons c _) = Right c
 
 --- Returns all constructors in a term.
-tCons :: Term f -> [f]
+tCons :: Eq f => Term f -> [f]
 tCons (TermVar _)     = []
 tCons (TermCons c ts) = nub (c:(concatMap tCons ts))
 
@@ -131,7 +137,7 @@ renameTVars i (TermCons c ts) = TermCons c (map (renameTVars i) ts)
 -- ---------------------------------------------------------------------------
 
 --- Checks whether a list contains no element more than once.
-unique :: [_] -> Bool
+unique :: Eq a => [a] -> Bool
 unique []                    = True
 unique (x:xs) | notElem x xs = unique xs
               | otherwise    = False
