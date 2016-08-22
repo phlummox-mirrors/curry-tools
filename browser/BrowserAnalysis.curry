@@ -5,17 +5,14 @@
 -- add access to a new analysis here and recompile the browser.
 -----------------------------------------------------------------------------
 
-module BrowserAnalysis(moduleAnalyses,allFunctionAnalyses,functionAnalyses
-                      , funcModule)
+module BrowserAnalysis( moduleAnalyses, allFunctionAnalyses, functionAnalyses)
  where
 
 import FileGoodies(stripSuffix)
 import List(intersperse)
-import Pretty             (pPrint)
 
 import FlatCurry.Types
 import FlatCurry.Goodies (funcName)
-import FlatCurry.Pretty  (Options (..), defaultOptions, ppProg, ppFuncDecl)
 import FlatCurry.Show    (showFlatFunc, showFlatProg)
 
 import AnalysisTypes
@@ -33,7 +30,7 @@ import Linearity
 import AddTypes
 import Imports
 
-import GenInt(showInterface, showCurryModule, showCurryFuncDecl)
+import ShowFlatCurry
 import ShowGraph
 
 infix 1 `showWith`,`showWithMsg`
@@ -68,11 +65,7 @@ addTypes fname
   = do prog <- addTypeSignatures (stripSuffix fname)
        return (ContentsResult CurryProg prog)
 
---- Show FlatCurry module in pretty-printed form
-showFlatCurry :: Prog -> String
-showFlatCurry = pPrint . ppProg defaultOptions
-
------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------
 -- The list of all available analyses for individual functions.
 -- Each analysis must return a string or an IO action representation of its
 -- analysis result.
@@ -111,20 +104,6 @@ functionAnalyses =
    GlobalAnalysis    analyseNondeterminism   `showWithMsg` showNondet),
   ("Set-valued",        GlobalAnalysis    analyseSetValued `showWithMsg` showSetValued),
   ("Purity",            GlobalAnalysis    analyseIndeterminism `showWithMsg` showIndet)]
-
-
--- Show individual functions:
-showFuncDeclAsCurry :: FuncDecl -> String
-showFuncDeclAsCurry fd =
-  showCurryFuncDecl (showQNameInModule (funcModule fd))
-                    (showQNameInModule (funcModule fd)) fd
-
-showFuncDeclAsFlatCurry :: FuncDecl -> String
-showFuncDeclAsFlatCurry fd = pPrint (ppFuncDecl opts fd)
-  where opts = defaultOptions { currentModule = funcModule fd }
-
-funcModule :: FuncDecl -> String
-funcModule fd = fst (funcName fd)
 
 -----------------------------------------------------------------------------
 -- The list of all available analyses for sets of functions.
