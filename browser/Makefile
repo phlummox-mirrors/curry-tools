@@ -12,18 +12,19 @@ ANADIR     = $(CURRYTOOLS)/analysis
 TOOL       = $(BINDIR)/currybrowse
 
 # source modules of the Curry Browser:
-DEPS = BrowserGUI.curry ShowFlatCurry.curry Imports.curry \
+DEPS = BrowserGUI.curry Imports.curry \
        AnalysisTypes.curry BrowserAnalysis.curry ShowGraph.curry \
        $(CASS)/AnalysisServer.curry $(CASS)/AnalysisDoc.curry \
        $(CASS)/Registry.curry \
        $(CURRYTOOLS)/addtypes/AddTypes.curry \
+       $(CURRYTOOLS)/genint/GenInt.curry \
        $(CURRYTOOLS)/importcalls/ImportCalls.curry \
        $(LIBDIR)/GUI.curry $(LIBDIR)/IOExts.curry  $(LIBDIR)/System.curry \
        $(LIBDIR)/FlatCurry/Types.curry $(LIBDIR)/FlatCurry/Files.curry \
        $(LIBDIR)/FlatCurry/Show.curry \
        analysis/*.curry $(ANADIR)/*.curry
 
-LOADPATH = analysis:$(CASS):$(ANADIR):$(CURRYTOOLS)/importcalls:$(CURRYTOOLS)/addtypes
+LOADPATH = analysis:$(CASS):$(ANADIR):$(CURRYTOOLS)/genint:$(CURRYTOOLS)/importcalls:$(CURRYTOOLS)/addtypes
 
 .PHONY: all compile install clean uninstall
 
