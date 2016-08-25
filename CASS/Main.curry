@@ -2,7 +2,7 @@
 --- This is the main module to start the executable of the analysis system.
 ---
 --- @author Michael Hanus
---- @version July 2016
+--- @version August 2016
 --------------------------------------------------------------------------
 
 module Main(main) where
@@ -11,6 +11,7 @@ import Distribution   (stripCurrySuffix)
 import FilePath       ((</>), (<.>))
 import GetOpt
 import ReadNumeric    (readNat)
+import Sort           (sort)
 import System         (exitWith,getArgs)
 
 import AnalysisDoc    (getAnalysisDoc)
@@ -146,7 +147,7 @@ usageText =
             options ++
   unlines ("" : "Registered analyses names:" :
            "(use option `-h <analysis name>' for more documentation)" :
-           "" : map showAnaInfo registeredAnalysisInfos)
+           "" : map showAnaInfo (sort registeredAnalysisInfos))
  where
   maxName = foldr1 max (map (length . fst) registeredAnalysisInfos) + 1
   showAnaInfo (n,t) = n ++ take (maxName - length n) (repeat ' ') ++ ": " ++ t
