@@ -11,10 +11,6 @@
 
 module SQLParser(parseTkLs) where
 
-import Char(toLower, toUpper)
-import List(init, last, split, intercalate)
-import Maybe(fromJust)
-
 import ParseTypes
 
 import SQLAst
@@ -495,7 +491,7 @@ parseCompHaveCond have espm
                                    (continue espm)
             _           -> initializeSPM have espm
   | otherwise = emptyTkErr espm
-  where follow = [RParen, (LogOp _), (SetOp _), KW_Order, KW_Limit]
+  where follow = logOps ++ setOps ++ [RParen, KW_Order, KW_Limit]
  
 --Combines all parts of aggregation inside having-clause
 parseAggrHave :: SPMParser (ASpecifier, ColumnRef, AstOp, Operand)
@@ -1005,8 +1001,10 @@ parseBinOperator espm
 --auxiliary definitions to build up follow sets --------------------------
 setOps :: [Token]
 setOps = [(SetOp Union), (SetOp Intersect), (SetOp Except)]
+
 logOps :: [Token]
 logOps = [(LogOp And), (LogOp Or)]
+
 binOps :: [Token]
 binOps = [(BinOp Lth), (BinOp Gth), (BinOp Lte), (BinOp Gte), (BinOp Equal),
-           (BinOp Uneq), (BinOp Like)]
+          (BinOp Uneq), (BinOp Like)]

@@ -137,8 +137,8 @@ bindDefSPM parserA defEle f toks espm =
  let resA = parserA espm
    in case resA of
      SPM pos (WM (Errors err) ws) tks -> 
-              let rTks = (dropWhile (\t -> not (t `elem` toks || t== Semi)) tks)
-                  (SPM  _ pm tks2) = (f defEle (ESPM pos rTks))
+              let rTks = dropWhile (\t -> not (t `elem` toks || t== Semi)) tks
+                  (SPM  _ pm tks2) = f defEle (ESPM pos rTks)
                in (SPM pos (combinePMs proj2 --(\ _ y -> y)
                                        (WM (Errors err) ws)
                                        pm)
