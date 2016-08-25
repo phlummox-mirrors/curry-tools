@@ -9,7 +9,8 @@ operations with a non-deterministic definition that might be called
 by this operation. An operation has a non-deterministic definition
 if its definition contains overlapping left-hand sides or free variables.
 If the non-determinism of an operation is encapsulated
-by a set function, it is considered as deterministic.
+by a set function or an encapsulated search operation of the module
+`AllSolutions`, it is considered as deterministic.
 
 For instance, consider the operations
 
@@ -28,3 +29,8 @@ operations `last` and `coin`. Now consider the operations
 
 Then the operation `g` depends on the non-deterministic operation `f`,
 and also on the non-deterministic operations `last` and `coin`.
+
+In the long analysis output (produced by CASS in batch mode),
+the non-deterministic operations are shown together with
+the sequence of operations (limited to a length of 10)
+which calls the non-deterministic operation.

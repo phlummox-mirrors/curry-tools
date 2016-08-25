@@ -126,7 +126,7 @@ maxDepsLength = 10
 showNonDetDeps :: AOutFormat -> NonDetDeps -> String
 showNonDetDeps AText []     = "deterministic"
 showNonDetDeps ANote []     = ""
-showNonDetDeps ANote xs@(_:_) = intercalate " " (map (snd . fst) xs)
+showNonDetDeps ANote xs@(_:_) = intercalate " " (nub (map (snd . fst) xs))
 showNonDetDeps AText xs@(_:_) =
   "depends on non-det. operations: " ++
   intercalate ", " (map showNDOpInfo xs)
