@@ -6,7 +6,7 @@
 --- the analysis server (which is implicitly started if necessary).
 ---
 --- @author Michael Hanus
---- @version July 2016
+--- @version August 2016
 --------------------------------------------------------------------------
 
 module Configuration
@@ -14,7 +14,7 @@ module Configuration
  , getServerAddress, updateRCFile, updateCurrentProperty
  , getFPMethod, getWithPrelude
  , storeServerPortNumber, removeServerPortNumber, getServerPortNumber
- , getDefaultPath, waitTime, numberOfWorkers, debugMessage
+ , getDefaultPath, waitTime, numberOfWorkers, debugMessage, debugString
  ) where
 
 import System
@@ -31,7 +31,7 @@ import Char(isSpace)
 systemBanner :: String
 systemBanner =
   let bannerText = "CASS: Curry Analysis Server System ("++
-                   "version of 28/07/2016 for "++curryCompiler++")"
+                   "version of 25/08/2016 for "++curryCompiler++")"
       bannerLine = take (length bannerText) (repeat '=')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -225,16 +225,21 @@ numberOfWorkers = do
         Nothing -> return defaultWorkers
     Nothing -> return defaultWorkers 
 
---- Prints a message if debugging level (as specified in the Config file)
+--- Prints a message line if debugging level (as specified in the Config file)
 --- is at least n:
 debugMessage :: Int -> String -> IO ()
-debugMessage n message = do
+debugMessage n message = debugString n (message++"\n")
+
+--- Prints a string if debugging level (as specified in the Config file)
+--- is at least n:
+debugString :: Int -> String -> IO ()
+debugString n message = do
   properties <- getProperties
   let number = lookup "debugLevel" properties
   case number of
     Just value -> do 
       case (readInt value) of
-        Just (dl,_) -> if dl>=n then putStrLn message else done
+        Just (dl,_) -> if dl>=n then putStr message else done
         Nothing -> done
     Nothing -> done
 
