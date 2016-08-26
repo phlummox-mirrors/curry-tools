@@ -69,33 +69,42 @@ installPropertyFile = do
     copyFile defaultPropertyFileName fname
     putStrLn ("New analysis configuration file '"++fname++"' installed.")
 
---- Reads the rc file (which must be present) and compares the definitions
---- with the distribution rc file. If the set of variables is different,
---- update the rc file with the distribution but keep the user's definitions.
+--- Reads the rc file (and try to install a user copy of it if it does not
+--- exist) and compares the definitions with the default property file
+--- of the CASS distribution. If the set of variables is different,
+--- update the rc file of the user with the distribution
+--- but keep the user's definitions.
 updateRCFile :: IO ()
 updateRCFile = do
-  installPropertyFile
-  userprops <- readPropertiesAndStoreLocally
-  distprops <- readPropertyFile defaultPropertyFileName
-  if (rcKeys userprops == rcKeys distprops) then done else do
-    rcName    <- propertyFileName
-    putStrLn $ "Updating \"" ++ rcName ++ "\"..."
-    renameFile rcName $ rcName <.> "bak"
-    copyFile defaultPropertyFileName rcName
-    mapIO_ (\ (n, v) -> maybe done
-              (\uv -> if uv==v then done else updatePropertyFile rcName n uv)
-              (lookup n userprops))
-           distprops
+  hashomedir <- getHomeDirectory >>= doesDirectoryExist
+  if not hashomedir
+   then readPropertiesAndStoreLocally >> done
+   else do
+     installPropertyFile
+     userprops <- readPropertiesAndStoreLocally
+     distprops <- readPropertyFile defaultPropertyFileName
+     if (rcKeys userprops == rcKeys distprops) then done else do
+       rcName    <- propertyFileName
+       putStrLn $ "Updating \"" ++ rcName ++ "\"..."
+       renameFile rcName $ rcName <.> "bak"
+       copyFile defaultPropertyFileName rcName
+       mapIO_ (\ (n, v) -> maybe done
+                 (\uv -> if uv==v then done else updatePropertyFile rcName n uv)
+                 (lookup n userprops))
+              distprops
 
 rcKeys :: [(String, String)] -> [String]
 rcKeys = mergeSort . map fst
 
---- Reads the user property file (which must be installed!)
+--- Reads the user property file or, if it does not exist,
+--- the default property file of CASS,
 --- and store the properties in a global variable for next access.
 readPropertiesAndStoreLocally :: IO [(String,String)]
 readPropertiesAndStoreLocally = do
-  pfn <- propertyFileName
-  props <- readPropertyFile pfn
+  userpfn    <- propertyFileName
+  hasuserpfn <- doesFileExist userpfn
+  props      <- readPropertyFile
+                   (if hasuserpfn then userpfn else defaultPropertyFileName)
   writeGlobal currProps (Just props)
   return props
 
