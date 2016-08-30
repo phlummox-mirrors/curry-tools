@@ -13,7 +13,7 @@ import AbstractCurry.Types
 import AbstractCurry.Pretty
 import AbstractCurry.Build
 import Char(toLower, toUpper)
-import List(intercalate, init, last, splitOn)
+import List(intercalate, splitOn)
 import Pretty
 
 import ParseTypes

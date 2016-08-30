@@ -5,7 +5,7 @@
 --- different computation paths.
 ---
 --- @author Michael Hanus
---- @version July 2016
+--- @version August 2016
 ------------------------------------------------------------------------------
 
 module Deterministic
@@ -116,16 +116,34 @@ pre n = ("Prelude",n)
 --- Basically, it is the set (represented as a sorted list) of
 --- all function names that are defined by overlapping rules or rules
 --- containing free variables which might be called.
-type NonDetDeps = [QName]
+--- In addition, the second component is (possibly) the list of
+--- functions from which this non-deterministic function is called.
+--- The length of this list is limited by 'maxDepsLength' in the
+--- `NonDetAllDeps` analysis or to 1 (i.e., only the direct caller is
+--- stored) in the `NonDetDeps` analysis.
+type NonDetDeps = [(QName,[QName])]
+
+--- The maximal length of a call chain associated with a non-deterministic
+--- operation dependency. We limit the length in order to avoid large
+--- analysis times for the `NonDetAllDeps` analysis.
+maxDepsLength :: Int
+maxDepsLength = 10
 
 -- Show determinism dependency information as a string.
 showNonDetDeps :: AOutFormat -> NonDetDeps -> String
 showNonDetDeps AText []     = "deterministic"
 showNonDetDeps ANote []     = ""
+showNonDetDeps ANote xs@(_:_) = intercalate " " (nub (map (snd . fst) xs))
 showNonDetDeps AText xs@(_:_) =
-  "depends on non-deterministic operations: " ++
-  intercalate ", " (map (\ (mn,fn) -> mn++"."++fn) xs)
-showNonDetDeps ANote xs@(_:_) = intercalate " " (map snd xs)
+  "depends on non-det. operations: " ++
+  intercalate ", " (map showNDOpInfo xs)
+ where
+  showNDOpInfo (ndop,cfs) = showQName ndop ++
+    (if null cfs
+      then ""
+      else " (called from " ++ intercalate " -> " (map showQName cfs) ++ ")")
+
+  showQName (mn,fn) = mn++"."++fn
 
 --- Non-deterministic dependency analysis.
 --- The analysis computes for each operation the set of operations
@@ -150,16 +168,22 @@ nondetDepAllAnalysis =
 -- or it depends on some called non-deterministic function.
 nondetDeps :: Bool -> FuncDecl -> [(QName,NonDetDeps)] -> NonDetDeps
 nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
-  if isNondetDefined func
-   then f : (if alldeps then sort (nub (calledNDFuncsInRule rule)) else [])
-   else sort (nub (calledNDFuncsInRule rule))
+  let calledndfuncs = sort (nub (map addCaller (calledNDFuncsInRule rule)))
+      addCaller (ndf,cfs)
+        | null cfs                      = (ndf,[f])
+        | alldeps && f `notElem` cfs
+          && length cfs < maxDepsLength = (ndf,f:cfs)
+        | otherwise                     = (ndf,cfs)
+   in if isNondetDefined func
+       then (f,[]) : (if alldeps then calledndfuncs else [])
+       else calledndfuncs
  where
   calledNDFuncsInRule (Rule _ e) = calledNDFuncs e
   calledNDFuncsInRule (External _) = []
   
   calledNDFuncs (Var _) = []
   calledNDFuncs (Lit _) = []
-  calledNDFuncs (Free vars e) = calledNDFuncs e
+  calledNDFuncs (Free _ e) = calledNDFuncs e
   calledNDFuncs (Let bs e) =
     concatMap calledNDFuncs (map snd bs) ++ calledNDFuncs e
   calledNDFuncs (Or e1 e2) = calledNDFuncs e1 ++ calledNDFuncs e2
@@ -172,6 +196,10 @@ nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
       -- its called ND functions are not relevant:
       if null es then [] -- this case should not occur
                  else concatMap calledNDFuncs (tail es)
+    | mn == "AllSolutions" -- && fn `elem`== "getAllValues"
+    = -- non-determinism of argument is encapsulated so that
+      -- its called ND functions are not relevant:
+      []
     | otherwise
     = maybe [] id (lookup qf calledFuncs) ++ (concatMap calledNDFuncs es)
 

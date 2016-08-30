@@ -29,7 +29,7 @@ import AnalysisTypes
 import BrowserAnalysis
 import Dependency      (callsDirectly,indirectlyDependent)
 import ImportCalls
-import GenInt          (leqFunc)
+import ShowFlatCurry   (funcModule, leqFunc)
 import ShowGraph
 
 import Analysis        (AOutFormat(..))

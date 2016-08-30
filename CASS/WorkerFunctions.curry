@@ -3,7 +3,7 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version March 2013
+--- @version August 2016
 --------------------------------------------------------------------------
 
 module WorkerFunctions where
@@ -55,6 +55,7 @@ analysisClientWithStore store analysis fpmethod moduleName = do
     if isSimpleAnalysis analysis
     then return emptyProgInfo
     else getInterfaceInfosWS store (analysisName analysis) importList
+  debugString 1 $ "Analysis time for " ++ ananame ++ "/" ++ moduleName ++ ": "
   starttime <- getCPUTime
   startvals <- getStartValues analysis prog
   result <-
@@ -64,9 +65,7 @@ analysisClientWithStore store analysis fpmethod moduleName = do
      else runAnalysis analysis prog importInfos startvals fpmethod
   storeAnalysisResult ananame moduleName result
   stoptime <- getCPUTime
-  debugMessage 1
-    ("Analysis time for " ++ ananame ++ "/" ++ moduleName ++ " " ++
-     show (stoptime-starttime) ++ " msecs")
+  debugMessage 1 $ show (stoptime-starttime) ++ " msecs"
   loadinfos <- readIORef store
   writeIORef store ((moduleName,publicProgInfo result):loadinfos)
 

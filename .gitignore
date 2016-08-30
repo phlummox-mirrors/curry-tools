@@ -7,6 +7,8 @@ Curry_Main_Goal.curry
 # executables
 addtypes/AddTypes
 browser/BrowserGUI
+browser/GenInt
+browser/ShowFlatCurry
 browser/SourceProgGUI
 CASS/cass
 CASS/cass_worker
@@ -20,7 +22,6 @@ currytest/CurryTest
 cusage/CheckUsage
 ertools/ERD2CDBI
 ertools/erd2curry
-genint/GenInt
 importcalls/ImportCalls
 optimize/bindingopt
 optimize/binding_optimization/BindingOpt

@@ -12,7 +12,8 @@ Non-deterministic operations that are called by other
 non-deterministic operations are ignored so that only the first
 (w.r.t. the call sequence) non-deterministic operations are returned.
 Moreover, if the non-determinism of an operation is encapsulated by a
-set function, it is considered as deterministic.
+set function or an encapsulated search operation of the module
+`AllSolutions`, it is considered as deterministic.
 
 For instance, consider the operations
 
@@ -32,3 +33,7 @@ operations `last` and `coin`. Now consider the operations
 Then the operation `g` depends on the non-deterministic operation `f`,
 but the dependency on the non-deterministic
 operations `last` and `coin` is not reported.
+
+In the long analysis output (produced by CASS in batch mode),
+the non-deterministic operations are shown together with
+the operation which directly calls the non-deterministic operation.

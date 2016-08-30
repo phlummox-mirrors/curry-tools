@@ -198,7 +198,6 @@ makeSystemLibsIndex docdir modnames = do
  where
   fst3 (x,_,_)    = x
   snd3 (_,y,_)    = y
-  trd3 (_,_,z)    = z
   sortByCategory  = sortBy ((<=) `on` fst3)
   groupByCategory = groupBy ((==) `on` fst3)
   sortByName      = sortBy ((<=) `on` snd3)

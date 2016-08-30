@@ -1,6 +1,10 @@
 ------------------------------------------------------------------------------
---- Generate an interface description or a human-readable
---- presentation of a Curry module.
+--- This module contains various operations to show a FlatCurry program
+--- in human-readable forms, e.g., only the interface or also the
+--- complete program translated back into pattern-based rules.
+--- These operations are used in the Curry Browser and they are
+--- also the basis to implement the `:interface` command
+--- of PAKCS or KiCS2.
 ---
 --- The interface description contains the type declarations
 --- for all entities defined and exported by this module.
@@ -12,18 +16,26 @@
 --- @version August 2016
 ------------------------------------------------------------------------------
 
+module ShowFlatCurry
+ ( main, showInterface, showCurryModule, showCurryFuncDecl
+ , showFlatCurry, showFuncDeclAsCurry, showFuncDeclAsFlatCurry
+ , funcModule, leqFunc
+ ) where
 
 import Char         (isAlpha)
 import Directory    (doesFileExist, getModificationTime)
-import Distribution (stripCurrySuffix,modNameToPath
+import Distribution (stripCurrySuffix, modNameToPath
                     ,lookupModuleSourceInLoadPath)
 import FilePath     (takeFileName, (</>))
 import List         (intercalate)
-import Sort         (mergeSortBy,leqString)
-import System       (getArgs,getEnviron,system)
+import Pretty             (pPrint)
+import Sort         (sortBy, leqString)
+import System       (getArgs, getEnviron, system)
 
 import FlatCurry.Types
 import FlatCurry.Files
+import FlatCurry.Goodies (funcName)
+import FlatCurry.Pretty  (Options (..), defaultOptions, ppProg, ppFuncDecl)
 import FlatCurry.Show
 
 main :: IO ()
@@ -84,15 +96,15 @@ genInt genstub progname = getFlatInt progname >>= return . showInterface genstub
 -- If first argument is True, generate stubs (...external) for
 -- all functions so that the resulting interface is a valid Curry program.
 showInterface :: Bool -> Prog -> String
-showInterface genstub (Prog mod imports types funcs ops) =
-  "module " ++ mod ++ " where\n" ++
-  concatMap showInterfaceImport imports ++ "\n" ++
-  concatMap showInterfaceOpDecl (mergeSortBy leqOp ops) ++
-  (if null ops then "" else "\n") ++
+showInterface genstub (Prog mod imports types funcs ops) = unlines $
+  ["module " ++ mod ++ " where\n"] ++
+  concatMap showInterfaceImport imports ++ [""] ++
+  map showInterfaceOpDecl (sortBy leqOp ops) ++
+  (if null ops then [] else [""]) ++
   concatMap (showInterfaceType (showQNameInModule mod))
-            (mergeSortBy leqType types) ++ "\n" ++
-  concatMap (showInterfaceFunc (showQNameInModule mod) genstub)
-            (mergeSortBy leqFunc funcs) ++ "\n"
+            (sortBy leqType types) ++ [""] ++
+  map (showInterfaceFunc (showQNameInModule mod) genstub)
+      (sortBy leqFunc funcs)
 
 -- Get a FlatCurry program (parse only if necessary):
 getFlatInt :: String -> IO Prog
@@ -112,40 +124,40 @@ getFlatInt modname = do
              else readFlatCurryFile fintprogname
 
 -- write import declaration
-showInterfaceImport :: String -> String
+showInterfaceImport :: String -> [String]
 showInterfaceImport impmod = if impmod=="Prelude"
-                             then ""
-                             else "import "++impmod++"\n"
+                             then []
+                             else ["import "++impmod]
 
 -- show operator declaration
 showInterfaceOpDecl :: OpDecl -> String
-showInterfaceOpDecl (Op op InfixOp  prec) = "infix "++show prec++" "++showOp op++"\n"
-showInterfaceOpDecl (Op op InfixlOp prec) = "infixl "++show prec++" "++showOp op++"\n"
-showInterfaceOpDecl (Op op InfixrOp prec) = "infixr "++show prec++" "++showOp op++"\n"
+showInterfaceOpDecl (Op op InfixOp  prec) = "infix "++show prec++" "++showOp op
+showInterfaceOpDecl (Op op InfixlOp prec) = "infixl "++show prec++" "++showOp op
+showInterfaceOpDecl (Op op InfixrOp prec) = "infixr "++show prec++" "++showOp op
 
 showOp :: (_,String) -> String
 showOp (_,on) = if isAlpha (head on) then '`':on++"`"
                                      else on
 
 -- show type declaration if it is not a dictionary
-showInterfaceType :: (QName -> String) -> TypeDecl -> String
+showInterfaceType :: (QName -> String) -> TypeDecl -> [String]
 showInterfaceType tt (Type (_,tcons) vis tvars constrs) =
   if vis==Public && not (isDict tcons)
-  then "data " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
-       (if null constxt then "" else " = " ++ constxt)
-       ++ "\n"
-  else ""
+  then ["data " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
+        (if null constxt then "" else " = " ++ constxt)]
+  else []
  where
   isDict fn = take 6 fn == "_Dict#"
   
   constxt = intercalate " | "
               (map (showExportConsDecl tt)
                    (filter (\ (Cons _ _ cvis _)->cvis==Public) constrs))
+
 showInterfaceType tt (TypeSyn (_,tcons) vis tvars texp) =
   if vis==Public
-  then "type " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
-       " = " ++ showCurryType tt True texp ++ "\n"
-  else ""
+  then ["type " ++ tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
+        " = " ++ showCurryType tt True texp]
+  else []
 
 showExportConsDecl :: (QName -> String) -> ConsDecl -> String
 showExportConsDecl tt (Cons (_,cname) _ _ argtypes) =
@@ -157,8 +169,8 @@ showInterfaceFunc :: (QName -> String) -> Bool -> FuncDecl -> String
 showInterfaceFunc ttrans genstub (Func (_,fname) _ vis ftype _) =
   if vis==Public && not (classOperations fname)
   then showCurryId fname ++ " :: " ++
-       showCurryType ttrans False ftype ++ "\n" ++
-       (if genstub then showCurryId fname ++ " external\n\n" else "")
+       showCurryType ttrans False ftype ++
+       (if genstub then "\n" ++ showCurryId fname ++ " external\n" else "")
   else ""
  where
   classOperations fn = take 6 fn `elem` ["_impl#","_inst#"]
@@ -190,17 +202,16 @@ genCurryMod progname = do
   return $ showCurryModule prog
 
 showCurryModule :: Prog -> String
-showCurryModule (Prog mod imports types funcs ops) =
-  "module "++mod++"("++showTypeExports types++
-  showFuncExports funcs++") where\n\n"++
-  concatMap showInterfaceImport imports ++ "\n" ++
-  concatMap showInterfaceOpDecl ops ++
-  (if null ops then "" else "\n") ++
-  concatMap (showCurryDataDecl (showQNameInModule mod)) types
-  ++ "\n" ++
-  concatMap (showCurryFuncDecl (showQNameInModule mod)
-                               (showQNameInModule mod)) funcs
-  ++ "\n-- end of module " ++ mod ++ "\n"
+showCurryModule (Prog mod imports types funcs ops) = unlines $
+  ["module "++mod++"("++showTypeExports types ++
+   showFuncExports funcs++") where\n"] ++
+  concatMap showInterfaceImport imports ++ [""] ++
+  map showInterfaceOpDecl ops ++
+  (if null ops then [] else [""]) ++
+  map (showCurryDataDecl (showQNameInModule mod)) types
+  ++ [""] ++
+  map (showCurryFuncDecl (showQNameInModule mod)
+                         (showQNameInModule mod)) funcs
 
 showTypeExports :: [TypeDecl] -> String
 showTypeExports types = concatMap (++",") (concatMap exptype types)
@@ -223,11 +234,10 @@ showCurryDataDecl :: (QName -> String) -> TypeDecl -> String
 showCurryDataDecl tt (Type tcons _ tvars constrs) =
   "data " ++ snd tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
   (if null constxt then "" else " = " ++ constxt)
-  ++ "\n"
  where constxt = intercalate " | " (map (showCurryConsDecl tt) constrs)
 showCurryDataDecl tt (TypeSyn tcons _ tvars texp) =
   "type " ++ snd tcons ++ concatMap (\i->[' ',chr (97+i)]) tvars ++
-  " = " ++ showCurryType tt True texp ++ "\n"
+  " = " ++ showCurryType tt True texp
 
 showCurryConsDecl :: (QName -> String) -> ConsDecl -> String
 showCurryConsDecl tt (Cons cname _ _ argtypes) =
@@ -242,11 +252,10 @@ showCurryFuncDecl tt tf (Func fname _ _ ftype frule) =
 
 -- format rule as set of pattern matching rules:
 showCurryRule :: (QName -> String) -> QName -> Rule -> String
-showCurryRule _  fname (External   _) = showCurryId (snd fname) ++ " external\n\n"
+showCurryRule _  fname (External   _) = showCurryId (snd fname) ++ " external\n"
 showCurryRule tf fname (Rule lhs rhs) =
   concatMap (\ (l,r) -> showCurryPatternRule tf l r)
             (rule2equations (shallowPattern2Expr fname lhs) rhs)
-   ++ "\n"
 
 splitFreeVars :: Expr -> ([Int],Expr)
 splitFreeVars exp = case exp of
@@ -346,3 +355,21 @@ leqFunc :: FuncDecl -> FuncDecl -> Bool
 leqFunc (Func (_,f1) _ _ _ _) (Func (_,f2) _ _ _ _) = f1 <= f2
 
 ---------------------------------------------------------------------------
+--- Show FlatCurry module in pretty-printed form
+showFlatCurry :: Prog -> String
+showFlatCurry = pPrint . ppProg defaultOptions
+
+-- Show individual functions:
+showFuncDeclAsCurry :: FuncDecl -> String
+showFuncDeclAsCurry fd =
+  showCurryFuncDecl (showQNameInModule (funcModule fd))
+                    (showQNameInModule (funcModule fd)) fd
+
+showFuncDeclAsFlatCurry :: FuncDecl -> String
+showFuncDeclAsFlatCurry fd = pPrint (ppFuncDecl opts fd)
+  where opts = defaultOptions { currentModule = funcModule fd }
+
+funcModule :: FuncDecl -> String
+funcModule fd = fst (funcName fd)
+
+-----------------------------------------------------------------------------
