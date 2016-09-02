@@ -31,7 +31,11 @@ data SourceLine = Comment String  -- a comment for CurryDoc
                 | OtherLine       -- a line not relevant for CurryDoc
 
 instance Eq SourceLine where
-  _ == _ = error "TODO: Eq CurryDocRead.SourceLine"
+  Comment s1 == x = case x of { Comment s2 -> s1==s2 ; _ -> False }
+  FuncDef s1 == x = case x of { FuncDef s2 -> s1==s2 ; _ -> False }
+  DataDef s1 == x = case x of { DataDef s2 -> s1==s2 ; _ -> False }
+  ModDef     == x = case x of { ModDef -> True ; _ -> False }
+  OtherLine  == x = case x of { OtherLine -> True ; _ -> False }
 
 --- This datatype is used to categorize Curry libraries
 --- @cons General   - a general library

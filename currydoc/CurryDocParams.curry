@@ -9,7 +9,9 @@ import System (system)
 data DocType = HtmlDoc | TexDoc | CDoc
 
 instance Eq DocType where
-  _ == _ = error "TODO: Eq CurryDocParams.DocType"
+  HtmlDoc == x = case x of { HtmlDoc -> True ; _ -> False }
+  TexDoc  == x = case x of { TexDoc -> True ; _ -> False }
+  CDoc    == x = case x of { CDoc -> True ; _ -> False }
 
 -- The parameters for the documentation generator. Parameters:
 -- doctype - the target format of the documentation
