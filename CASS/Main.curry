@@ -7,9 +7,11 @@
 
 module Main(main) where
 
+import Char           (toLower)
 import Distribution   (stripCurrySuffix)
 import FilePath       ((</>), (<.>))
 import GetOpt
+import List           (isPrefixOf)
 import ReadNumeric    (readNat)
 import Sort           (sort)
 import System         (exitWith,getArgs)
@@ -42,22 +44,33 @@ main = do
   debugMessage 1 systemBanner
   if optServer opts
    then mainServer (let p = optPort opts in if p == 0 then Nothing else Just p)
-   else let [ananame,mname] = args
-         in if ananame `elem` registeredAnalysisNames
-             then analyzeModuleAsText ananame (stripCurrySuffix mname)
-                                      (optReAna opts) >>= putStrLn
-             else anaUnknownError ananame
+   else do let [ananame,mname] = args
+           fullananame <- checkAnalysisName ananame
+           putStrLn $ "Computing results for analysis `" ++ fullananame ++ "'"
+           analyzeModuleAsText fullananame (stripCurrySuffix mname)
+                                           (optReAna opts) >>= putStrLn
  where
   deleteFiles args = case args of
-    [aname] -> if aname `elem` registeredAnalysisNames
-                then deleteAllAnalysisFiles aname >> exitWith 0
-                else anaUnknownError aname
+    [aname] -> do fullaname <- checkAnalysisName aname
+                  putStrLn $ "Deleting files for analysis `" ++ fullaname ++ "'"
+                  deleteAllAnalysisFiles fullaname
+                  exitWith 0
     [] -> error "Missing analysis name!"
     _  -> error "Too many arguments (only analysis name should be given)!"
 
-  anaUnknownError aname =
-    error $ "Unknown analysis name `"++ aname ++ "' (try `-h' for help)"
-
+-- Checks whether a given analysis name is a unique abbreviation
+-- of a registered analysis name and return the registered name.
+-- Otherwise, raise an error.
+checkAnalysisName :: String -> IO String
+checkAnalysisName aname = case matchedNames of
+  []       -> error $ "Unknown analysis name `"++ aname ++ "' " ++ tryCmt
+  [raname] -> return raname
+  (_:_:_)  -> error $ "Analysis name `"++ aname ++ "' not unique " ++ tryCmt ++
+                      ":\nPossible names are: " ++ unwords matchedNames
+ where
+  matchedNames = filter (isPrefixOf (map toLower aname) . map toLower)
+                        registeredAnalysisNames
+  tryCmt       = "(try `-h' for help)"
 
 --------------------------------------------------------------------------
 -- Representation of command line options.
@@ -133,11 +146,11 @@ printHelp :: [String] -> IO ()
 printHelp args =
   if null args
    then putStrLn usageText
-   else let aname = head args
-         in getAnalysisDoc aname >>=
-            maybe (putStrLn $
-                     "Sorry, no documentation for analysis `" ++ aname ++ "'")
-                  putStrLn
+   else do aname <- checkAnalysisName (head args)
+           getAnalysisDoc aname >>=
+             maybe (putStrLn $
+                      "Sorry, no documentation for analysis `" ++ aname ++ "'")
+                   putStrLn
 
 -- Help text
 usageText :: String
