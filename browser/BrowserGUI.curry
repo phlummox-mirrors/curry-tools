@@ -3,7 +3,7 @@
 --- programs.
 ---
 --- @author Michael Hanus
---- @version July 2016
+--- @version September 2016
 ---------------------------------------------------------------------
 
 module BrowserGUI where
@@ -49,7 +49,7 @@ title :: String
 title = "CurryBrowser"
 
 version :: String
-version = "Version of 29/07/2016"
+version = "Version of 07/09/2016"
 
 patchReadmeVersion :: IO ()
 patchReadmeVersion = do
@@ -72,9 +72,10 @@ main = do
 start :: String -> IO ()
 start modpath = do
   initializeAnalysisSystem
-  putStrLn "Please be patient, reading all interfaces..."
+  putStr "Please be patient, reading all interfaces..."
   helptxt <- readFile (browserDir++"/README")
   mods <- getImportedInterfaces modpath
+  putStrLn "done"
   let mainmod = progName (progOfIFFP (snd (head mods)))
       trees = [Leaf mainmod
                     (mainmod,map (moduleImports . progOfIFFP . snd) mods)]
