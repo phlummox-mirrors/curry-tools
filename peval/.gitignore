@@ -1,0 +1,5 @@
+.curry/
+peval
+TestDriver
+*.log
+*.pdf
