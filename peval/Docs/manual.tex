@@ -43,7 +43,7 @@ will be improved w.r.t. the arguments \code{4} and\code{x}.
 Since the first argument is known in this case,
 the partial evalautor is able to remove the case distinctions
 in the implementation of \code{power}, and we invoke it via
-\begin{curry}
+\begin{lstlisting}[mathescape=false]
 $ peval Examples/power4.curry
 Curry Partial Evaluator
 Version 0.1 of 12/09/2016
@@ -59,14 +59,14 @@ power4._pe0 :: Prelude.Int -> Prelude.Int
 power4._pe0 v1 = let { v2 = v1 * v1 } in v2 * v2
 
 Writing specialized program into file 'Examples/.curry/power4_pe.fcy'.
-\end{curry}
+\end{lstlisting}
 
 Note that the partial evaluator successfully removed the case distinction,
 such that the operation \code{power4} can be expected to run reasonably faster.
 The new auxiliary function \code{power4._pe0} is integrated into the
 existing module such that only the implementation of \code{power4} is changed,
 which becomes visible if we increase the level of verbosity:
-\begin{curry}
+\begin{lstlisting}[mathescape=false]
 $ peval -v2 Examples/power4.curry
 Curry Partial Evaluator
 Version 0.1 of 12/09/2016
@@ -102,54 +102,16 @@ power4.power4 v1 = power4._pe0 v1
 
 power4._pe0 :: Prelude.Int -> Prelude.Int
 power4._pe0 v1 = let { v2 = v1 * v1 } in v2 * v2
-\end{curry}
+\end{lstlisting}
 
 \subsection{Options}
 
 The partial evaluator can be parametrized using a number of options,
-which can be shown using \code{--help}:
-
-\begin{curry}
-$ ./peval --help
-usage: peval [OPTION] ... MODULE ...
-  -h, -?        --help                       show usage information
-  -V            --version                    print the version information and exit
-  -d            --debug                      print resulting program to standard output
-                --assert                     check additional assertions during abstraction (slower)
-                --closed                     preserve closedness by not removing copy functions
-                --no-funpats                 do not automatically optimize functions defined using functional patterns
-  -v n          --verbosity=n                set verbosity level `n', where `n' is one of
-                                               0: quiet
-                                               1: show status
-                                               2: show evaluation and abstraction
-                                               3: show details of evaluation
-                                               4: show information useful for debugging
-                --color=mode, --colour=mode  set coloring mode `mode', where `mode' is one of
-                                               always: Always color the output
-                                               auto  : Only color when stdout is connected to a terminal
-                                               never : Never color the output
-  -S semantics  --semantics=semantics        set semantics for evaluation `semantics', where `semantics' is one of
-                                               rlnt   : RLNT semantics
-                                               natural: Natural semantics
-                                               letrw  : Let rewriting
-  -A mode       --abstract=mode              set abstraction mode `mode', where `mode' is one of
-                                               none: no generalization (termination is not ensured)
-                                               wfo : generalization based on a well-founded order
-                                               wqo : generalization based on a well-quasi order
-  -P mode       --proceed=mode               set proceed mode `mode', where `mode' is one of
-                                               none: Perform no unfolding at all
-                                               one : Perform only one unfolding
-                                               each: Perform one unfolding for each function
-                                               all : Perform all unfoldings, may not terminate
-                --suffix=SUFFIX              specify the suffix for the specialised program
-\end{curry}
-
-We provide a more detailed explanation of the different options
-in the following.
+which can also be shown using \code{--help}.
 
 \begin{description}
 \item{\code{-h}, \code{-?}, \code{--help}}
-These options trigger the usage information as shown above.
+These options trigger the output of usage information.
 
 \item{\code{-V}, \code{--version}}
 These options trigger the output of the version information
