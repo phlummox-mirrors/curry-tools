@@ -60,7 +60,7 @@ timeoutCmd = "/usr/bin/timeout"
 
 --- Options supplied to PAKCS for evaluation of program
 pakcsEvalOpts :: String -> [String]
-pakcsEvalOpts mod = [":set", "v0", ":set", "parser", "-Wnone"
+pakcsEvalOpts mod = [":set", "v0", ":set", "-time", ":set", "parser", "-Wnone"
                     , ":load", mod, ":eval", "main", ":quit"]
 
 --- Timeout used for evaluation of program using PAKCS
