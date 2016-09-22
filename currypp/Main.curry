@@ -7,7 +7,7 @@
 --- is supported (option `foreigncode`, see module `Translator`).
 ---
 --- @author Michael Hanus
---- @version June 2016
+--- @version September 2016
 ------------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -229,14 +229,15 @@ callPreprocessors opts optlines modname srcprog orgfile
        -- untyped Curry but Contracts requires typed Curry:
        mbdefprog <- readUntypedCurry modname >>=
                     transDefaultRules verb defopts srcprog
+       let newsrcprog = maybe srcprog showCProg mbdefprog
        if Contracts `elem` pptargets
         then do
           maybe done
                 (\defprog -> writeFile orgfile (optlines ++ showCProg defprog))
                 mbdefprog
           readCurry modname >>= transContracts verb contopts srcprog 
-                            >>= return . maybe srcprog showCProg
-        else return (maybe srcprog showCProg mbdefprog)
+                            >>= return . maybe newsrcprog showCProg
+        else return newsrcprog
   | Contracts `elem` pptargets
   = readCurry modname >>= transContracts verb contopts srcprog
                       >>= return . maybe srcprog showCProg
