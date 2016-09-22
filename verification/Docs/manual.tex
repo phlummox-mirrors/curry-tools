@@ -1,0 +1,101 @@
+\section{Curry2Verify: A Tool to Support the Verification of Curry Programs}
+\label{sec-curry2verify}
+
+Curry2Verify\index{Curry2Verify}\index{verifying programs}\index{program!verification}
+is a tool that supports the verification of Curry programs
+with the help of other theorem provers or proof assistants.
+Basically, Curry2Verify extends CurryCheck (see Section~\ref{sec-currycheck}),
+which tests given properties of a program,
+by the possibility to verify these properties.
+For this purpose, Curry2Verify translates properties
+into the input language of other theorem provers or proof assistants.
+This is done by collecting all operations directly or indirectly
+involved in a given property and translating them together with
+the given property.
+
+Currently, only Agda \cite{Norell09} is supported as
+a target language for verification (but more target languages
+may be supported in future releases).
+The basic schemes to translate Curry programs into Agda programs
+are presented in \cite{AntoyHanusLibby16}.
+That paper also describes the limitations of this approach.
+Since Curry is a quite rich programming language,
+not all constructs of Curry are currently supported
+in the translation process (e.g., no case expressions,
+local definitions, list comprehensions, do notations, etc).
+Only a kernel language, where the involved rules
+correspond to a term rewriting system, are translated into Agda.
+However, these limitations might be relaxed in future releases.
+Hence, the current tool should be considered as a first prototypical
+approach to support the verification of Curry programs.
+
+\subsection{Options}
+
+To translate the properties of a Curry program stored
+in the file \code{prog.curry} into Agda,
+one can invoke the command\pindex{curry2verify}
+%
+\begin{curry}
+curry2verify prog
+\end{curry}
+%
+This generates for each property $p$ in module \code{prog}
+an Agda program \ccode{TO-PROVE-$p$.agda}.
+If one completes the proof obligation in this file,
+the completed file should be renamed into
+\ccode{PROOF-$p$.agda}.
+This has the effect that CurryCheck does not test this property again
+but trusts the proof and use this knowledge to simplify other tests.
+
+The command \code{curry2verify} can be parameterized
+with various options which can also be shown using the option
+\ccode{--help} and are described in the following.
+
+\begin{description}
+\item{\code{-h}, \code{-?}, \code{--help}}
+These options trigger the output of usage information.
+
+\item{\code{-q}, \code{--quiet}}
+Run quietly and produce no informative output.
+However, the exit code will be non-zero if some translation error occurs.
+
+\item{\code{-v[$n$]}, \code{--verbosity[=$n$]}}
+Set the verbosity level to an optional value.
+The verbosity level \code{0} is the same as option \code{-q}.
+The default verbosity level \code{1} shows the translation progress.
+The verbosity level \code{2} (which is the same as omitting the level)
+shows also the generated (Agda) program.
+The verbosity level \code{3} shows also more details about
+the translation process.
+
+\item{\code{-n}, \code{--nostore}}
+Do not store the translated program in a file but show it only.
+
+\item{\code{-p $p$}, \code{--property=$p$}}
+As a default, all properties occurring in the source program are
+translated. If this option is provided, only property $p$ is translated.
+
+\item{\code{-t $t$}, \code{--target=$t$}}
+Define the target language of the translation.
+Currently, only $t = \code{Agda}$ is supported, which is also the
+default.
+
+\item{\code{-s $s$}, \code{--scheme=$s$}}
+Define the translation scheme used to represent Curry programs
+in the target language.
+
+For the target \code{Agda}, the following schemes are supported:
+\begin{description}
+\item[\code{choice}]
+Use the ``planned choice'' scheme, see \cite{AntoyHanusLibby16}
+(this is the default).
+In this scheme, the choices made in a non-deterministic computation
+are abstracted by passing a parameter for these choices.
+\item[\code{nondet}]
+Use the ``set of values'' scheme, see \cite{AntoyHanusLibby16},
+where non-deterministic values are represented in a tree structure.
+\end{description}
+
+\end{description}
+
+% LocalWords: CurryCheck
