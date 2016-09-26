@@ -28,6 +28,7 @@
 
 module CurryDoc where
 
+import AbstractCurry.Files
 import Directory
 import Distribution
 import FileGoodies
@@ -268,6 +269,10 @@ makeDocWithComments :: DocType -> DocParams -> Bool -> String -> AnaInfo
                     -> String -> String -> [(SourceLine,String)] -> IO ()
 makeDocWithComments HtmlDoc docparams recursive docdir anainfo modname
                     modcmts progcmts = do
+  -- ensure that the AbstractCurry file for the module exists
+  loadpath <- getLoadPathForModule modname
+  modpath <- lookupFileInPath (abstractCurryFileName modname) [""] loadpath
+  unless (modpath /= Nothing) $ callFrontend ACY modname
   writeOutfile docparams recursive docdir modname
                (generateHtmlDocs docparams anainfo modname modcmts progcmts)
   translateSource2ColoredHtml docdir modname
