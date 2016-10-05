@@ -3,13 +3,13 @@
 --- persistently in files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version July 2016
+--- @version October 2016
 --------------------------------------------------------------------------
 
 module LoadAnalysis where
 
 import Directory
-import Distribution(stripCurrySuffix)
+import Distribution(installDir, stripCurrySuffix)
 import FlatCurry.Types(QName)
 import FilePath
 import FiniteMap
@@ -40,11 +40,13 @@ getAnalysisPublicFile :: String -> String -> IO String
 getAnalysisPublicFile modname ananame = do
   getAnalysisBaseFile modname ananame >>= return . (<.> "pub")
 
--- directory where analysis info files are stored ($HOME has to be set) 
+-- Directory where analysis info files are stored in subdirectory `.curry`.
+-- Usually, it is $HOME.
 getAnalysisDirectory :: IO String
 getAnalysisDirectory = do
   homeDir <- getHomeDirectory
-  return (homeDir </> ".curry" </> "Analysis")
+  let cassStoreDir = if null homeDir then installDir else homeDir
+  return $ cassStoreDir </> ".curry" </> "Analysis"
 
 -- loads analysis results for a list of modules
 getInterfaceInfos :: String -> [String] -> IO (ProgInfo a)
