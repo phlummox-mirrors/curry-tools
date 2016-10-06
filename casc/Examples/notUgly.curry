@@ -38,10 +38,11 @@ echo = getChar >>= \c -> if ord c == (-1) then done else putChar c >> echo
 
 -- a simple dialog:
 dialog = putStrLn "Ihr Name?" >> getLine >>= processName
-  where processName str = putStr "Hallo " >>
-                          putStr str >>
-                          putStr ", rueckwaerts lautet Ihr Name: " >>
-                          putStrLn (rev str)
+ where
+  processName str = do putStr "Hallo "
+                       putStr str
+                       putStr ", rueckwaerts lautet Ihr Name: "
+                       putStrLn (rev str)
 
 rev []     = []
 rev (x:xs) = rev xs++[x]
@@ -69,16 +70,16 @@ putInt n = if n<0
 -- parse an integer:
 parseInt l = parseIntPrefix (dropWhile (==' ') l) 0
  where
-   parseIntPrefix []     n = n
-   parseIntPrefix (c:cs) n =
-    let oc = ord c
-    in if c==' '
-         then n 
-         else if c=='-' 
-                then - parseIntPrefix cs n 
-                else if oc>=ord '0' && oc<=ord '9'
-                       then parseIntPrefix cs (n*10+(oc)-(ord '0'))
-                       else 0
+  parseIntPrefix []     n = n
+  parseIntPrefix (c:cs) n =
+   let oc = ord c
+   in if c==' '
+        then n 
+        else if c=='-' 
+               then - parseIntPrefix cs n 
+               else if oc>=ord '0' && oc<=ord '9'
+                      then parseIntPrefix cs (n*10+(oc)-(ord '0'))
+                      else 0
 
 -- read an integer:
 getInt = getLine >>= \s -> return (parseInt s)
@@ -97,20 +98,20 @@ facint =
 -- Curry's solution to the "diamond" problem of the
 -- Prolog programming contest at JICSLP'98 in Manchester
 
-diamond n = lineloop1 1 1 >> lineloop2 1 (n*n-n+2)  where
-
+diamond n = lineloop1 1 1 >> lineloop2 1 (n*n-n+2)
+ where
   lineloop1 i j = if i<=n then line j i >> lineloop1 (i+1) (j+n) else done
 
   lineloop2 i j = if i<n then line j (n-i) >> lineloop2 (i+1) (j+1) else done
 
   line s e = tab((n-e)*(size(n*n)+1)) >> lineloop 1 s
-    where
-      lineloop i t =
-        if i<=e
-          then putValue t >> tab (size(n*n)+1) >> lineloop (i+1) (t-n+1)
-          else putChar '\n'
+   where
+    lineloop i t =
+      if i<=e
+        then putValue t >> tab (size(n*n)+1) >> lineloop (i+1) (t-n+1)
+        else putChar '\n'
 
-      putValue v = tab((size(n*n)+1)-size(v)) >> putStr (show v)
+    putValue v = tab((size(n*n)+1)-size(v)) >> putStr (show v)
 
 
 tab n = if n==0 then done else putChar ' ' >> tab (n-1)
@@ -123,7 +124,7 @@ size n = if n<10 then 1 else size (n `div` 10) + 1
 split _ [] = ([],[])
 split e (x:xs) | e>=x  = (x:l,r)
                | e<x   = (l,x:r)
-             where (l,r) = split e xs
+ where (l,r) = split e xs
 
 
 qsort []     = []
@@ -203,23 +204,22 @@ first1 = getOneValue (coin+coin) >>= print
 
 -- Generate search tree of depth 0 (similar to getAllSolutions):
 tree0 = getSearchTree [] (=:=(x+y)) >>= print
-        where
-          x=coin
-          y=coin
+ where
+  x=coin
+  y=coin
 --> (Solutions [0,1,1,2])
 
 -- Generate search tree of depth 1:
 tree1 = getSearchTree [x+5] (=:=(x+y)) >>= print
-        where
-          x=coin
-          y=coin
+ where
+  x=coin
+  y=coin
 
 -- Generate search tree of depth 2:
 tree2 = getSearchTree [x,y] (=:=(x+y=:=1)) >>= print
-        where
-          x=coin
-          y=coin
-
+ where
+  x=coin
+  y=coin
 
 -- An application of getAllFailures:
 --
