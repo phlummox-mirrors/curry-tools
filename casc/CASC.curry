@@ -223,7 +223,7 @@ printUsage prog = putStrLn $ cascTitle ++ "\n\n" ++ usage prog
 printVersion :: IO ()
 printVersion = putStrLn $ "This is " ++ cascTitle
 
--- |Show a greeting of the current cymake
+-- |Show a greeting of CASC
 cascTitle :: String
 cascTitle = "CASC (Curry Automatic Style Checker), version " ++ cascVersion
 

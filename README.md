@@ -4,7 +4,7 @@ Curry Tools
 This directory contains various tools for Curry
 that are used by different Curry systems, like PAKCS or KiCS2.
 
-Currently it contains:
+Currently, it contains the following tools:
 
 `addtypes`:
 A tool that adds type signatures to a given Curry program.
@@ -16,6 +16,9 @@ These are used in the `CASS` and `currydoc` tools.
 `browser`:
 A tool to browse through the modules and functions of a Curry program,
 show them in various formats, and analyze their properties.
+
+`casc`:
+A style checker for Curry programs.
 
 `CASS`:
 This directory contains the implementation of the
@@ -32,21 +35,19 @@ generation of web user interfaces (WUIs).
 `currycheck`:
 A property test tool for Curry programs.
 
-`currytest`:
-A test tool for Curry programs.
+`currydoc`:
+A documentation generator for Curry programs.
 
 `currypp`:
 A preprocessor for Curry programs implementing integrated code,
 default rules, deterministic functions, and dynamic contract checking.
 
-`ertool`:
+`currytest`:
+A test tool for Curry programs.
+
+`ertools`:
 Compilers to translate database (ER) models
 into Curry programs providing high-level access to relational databases.
-
-`genint`:
-A program for generating module interfaces and source code
-of a Curry module (used by the commands ":interface" and ":show"
-of some Curry systems).
 
 `importcalls`:
 A tool to show all calls to imported functions in a module.
