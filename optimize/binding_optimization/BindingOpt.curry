@@ -222,9 +222,8 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformExp tst (Var i) _ = (Var i, tst)
   transformExp tst (Lit v) _ = (Lit v, tst)
   transformExp tst0 (Comb ct qf es) reqval
-    | qf == pre "==" && reqval == aTrue
-    = (Comb FuncCall (pre "=:=") tes,
-       incOccNumber tst1)
+    | isEqualInstanceFunc qf && reqval == aTrue
+    = (Comb FuncCall (pre "=:=") tes, incOccNumber tst1)
     | qf == pre "/=" && reqval == aFalse
     = (Comb FuncCall (pre "not") [Comb FuncCall (pre "=:=") tes],
               incOccNumber tst1)
@@ -269,6 +268,10 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformBranch tst (Branch pat be) reqval =
     let (tbe,tstb) = transformExp tst be reqval
      in (Branch pat tbe, tstb)
+
+-- Is an operation an instance implementation of ==?
+isEqualInstanceFunc :: QName -> Bool
+isEqualInstanceFunc (_,f) = isPrefixOf "_impl#==#Prelude.Eq#" f
 
 --- Reduce an application of Prelude.$ to a combination:
 reduceDollar :: [Expr] -> Expr

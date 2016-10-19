@@ -32,12 +32,7 @@ import Unsafe(trace)
 -- `AnyC` represents any value (i.e., constructor-rooted term),
 -- `Cons cs` a value rooted by some of the constructor `cs`, and
 data AType = Cons [QName] | AnyC | Any
-
-instance Eq AType where
-  _ == _ = error "TODO: Eq RequiredValues.AType"
-
-instance Ord AType where
-  _ < _ = error "TODO: Ord RequiredValues.AType"
+ deriving (Eq,Ord)
 
 --- Abstract representation of no possible value.
 empty :: AType

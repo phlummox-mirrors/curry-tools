@@ -33,12 +33,7 @@ import Unsafe(trace)
 -- `Cons c` a value rooted by the constructor `c`, and
 -- `Empty` represents no possible value.
 data AType = Any | AnyC | Cons QName | Empty
-
-instance Eq AType where
-  _ == _ = error "TODO: Eq RequiredValue.AType"
-
-instance Ord AType where
-  _ < _ = error "TODO: Ord RequiredValue.AType"
+ deriving (Eq,Ord)
 
 --- Is some abstract type a constructor?
 isConsValue :: AType -> Bool
