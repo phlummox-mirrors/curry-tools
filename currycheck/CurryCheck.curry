@@ -53,7 +53,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 17/08/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 26/09/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -63,45 +63,51 @@ usageText = usageInfo ("Usage: currycheck [options] <module names>\n") options
 -------------------------------------------------------------------------
 -- Representation of command line options.
 data Options = Options
-  { optHelp    :: Bool
-  , optVerb    :: Int
-  , optMaxTest :: Int
-  , optMaxFail :: Int
-  , optDefType :: String
-  , optSource  :: Bool
-  , optProp    :: Bool
-  , optSpec    :: Bool
-  , optDet     :: Bool
-  , optProof   :: Bool
-  , optColor   :: Bool
+  { optHelp     :: Bool
+  , optVerb     :: Int
+  , optKeep     :: Bool
+  , optMaxTest  :: Int
+  , optMaxFail  :: Int
+  , optDefType  :: String
+  , optSource   :: Bool
+  , optProp     :: Bool
+  , optSpec     :: Bool
+  , optDet      :: Bool
+  , optProof    :: Bool
+  , optColor    :: Bool
+  , optMainProg :: String
   }
 
 -- Default command line options.
 defaultOptions :: Options
-defaultOptions = Options
-  { optHelp    = False
-  , optVerb    = 1
-  , optMaxTest = 0
-  , optMaxFail = 0
-  , optDefType = "Ordering"
-  , optSource  = True
-  , optProp    = True
-  , optSpec    = True
-  , optDet     = True
-  , optProof   = True
-  , optColor   = True
+defaultOptions  = Options
+  { optHelp     = False
+  , optVerb     = 1
+  , optKeep     = False
+  , optMaxTest  = 0
+  , optMaxFail  = 0
+  , optDefType  = "Ordering"
+  , optSource   = True
+  , optProp     = True
+  , optSpec     = True
+  , optDet      = True
+  , optProof    = True
+  , optColor    = True
+  , optMainProg = ""
   }
 
 -- Definition of actual command line options.
 options :: [OptDescr (Options -> Options)]
 options =
-  [ Option "h?" ["help"]  (NoArg (\opts -> opts { optHelp = True }))
+  [ Option "h?" ["help"] (NoArg (\opts -> opts { optHelp = True }))
            "print help and exit"
   , Option "q" ["quiet"] (NoArg (\opts -> opts { optVerb = 0 }))
            "run quietly (no output, only exit code)"
   , Option "v" ["verbosity"]
             (OptArg (maybe (checkVerb 3) (safeReadNat checkVerb)) "<n>")
             "verbosity level:\n0: quiet (same as `-q')\n1: show test names (default)\n2: show more information about test generation\n3: show test data (same as `-v')\n4: keep intermediate program files"
+  , Option "k" ["keep"] (NoArg (\opts -> opts { optKeep = True }))
+           "keep temporarily generated program files"
   , Option "m" ["maxtests"]
            (ReqArg (safeReadNat (\n opts -> opts { optMaxTest = n })) "<n>")
            "maximal number of tests (default: 100)"
@@ -109,7 +115,7 @@ options =
            (ReqArg (safeReadNat (\n opts -> opts { optMaxFail = n })) "<n>")
            "maximal number of condition failures\n(default: 10000)"
   , Option "d" ["deftype"]
-            (ReqArg checkDefType "<t>")
+           (ReqArg checkDefType "<t>")
            "type for defaulting polymorphic tests:\nBool | Int | Char | Ordering (default)"
   , Option "" ["nosource"]
            (NoArg (\opts -> opts { optSource = False }))
@@ -129,6 +135,9 @@ options =
   , Option "" ["nocolor"]
            (NoArg (\opts -> opts { optColor = False }))
            "do not use colors when showing tests"
+  , Option "" ["mainprog"]
+           (ReqArg (\s opts -> opts { optMainProg = s }) "<prog>")
+           "name of generated main program\n(default: TEST<pid>.curry)"
   ]
  where
   safeReadNat opttrans s opts =
@@ -759,7 +768,9 @@ genMainFunction opts testModule tests =
           applyF (testModule, "runPropertyTests")
                  [constF (pre (if optColor opts then "True" else "False")),
                   easyCheckExprs]
-     , CSExpr $ applyF ("System", "exitWith") [cvar "x1"]
+     , CSExpr $ applyF (pre "when")
+                  [applyF (pre "/=") [cvar "x1", cInt 0],
+                   applyF ("System", "exitWith") [cvar "x1"]]
      ]
 
   easyCheckExprs = list2ac $ map makeExpr tests
@@ -812,10 +823,10 @@ createTestDataGenerator mainmodname qt@(mn,_) = do
     ctvars = map (\i -> CTVar (i,"a"++show i)) tvars
     cvars  = map (\i -> (i,"a"++show i)) tvars
 
--- remove the generated files (except in highest verbose mode)
+-- remove the generated files (except if option "--keep" is set)
 cleanup :: Options -> String -> [TestModule] -> IO ()
 cleanup opts mainmodname modules =
-  unless (optVerb opts > 3) $ do
+  unless (optKeep opts) $ do
     removeCurryModule mainmodname
     mapIO_ removeCurryModule (map testModuleName modules)
  where
@@ -849,7 +860,9 @@ main = do
   testModules <- mapIO (analyseModule opts) (map stripCurrySuffix args)
   let staticerrs       = concatMap staticErrors (concat testModules)
       finaltestmodules = filter testThisModule (concat testModules)
-      testmodname = "TEST" ++ show pid
+      testmodname = if null (optMainProg opts)
+                      then "TEST" ++ show pid
+                      else optMainProg opts
   if not (null staticerrs)
    then do showStaticErrors opts staticerrs
            putStrLn $ withColor opts red "Testing aborted!"

@@ -25,7 +25,7 @@ rm -f TO-PROVE-* $LOGFILE
 # execute all tests:
 # Check whether the Agda compiler compiles the generated programs.
 AGDA=`which agda`
-AGDAIMPORTS="-i . -i /net/medoc/home/mh/home/languages_systems/agda/ial_org -i /usr/share/agda-stdlib"
+AGDAIMPORTS="-i . -i /net/medoc/home/mh/home/languages_systems/agda/ial -i /usr/share/agda-stdlib"
 AGDAOPTS="--allow-unsolved-metas"
 
 if [ -z "$AGDA" ] ; then

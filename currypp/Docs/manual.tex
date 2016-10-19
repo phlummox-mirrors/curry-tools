@@ -71,6 +71,17 @@ one has to put the line
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=foreigncode --optF=defaultrules --optF=-o #-}
 \end{curry}
 at the beginning of the program.
+%
+If the options about the kind of preprocessing is omitted,
+all kinds of preprocessing (except for \ccode{seqrules})
+are applied. Thus, the preprocessor directive
+\begin{curry}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp #-}
+\end{curry}
+is equivalent to
+\begin{curry}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=foreigncode --optF=defaultrules --optF=contracts #-}
+\end{curry}
 
 
 \subsection{Integrated Code}
@@ -88,8 +99,14 @@ the following expressions are valid in source programs:
   s ````regex aba*c''''
 \end{curry}
 The Curry preprocessor transforms these code pieces into regular
-Curry expressions. The next sections describe the currently
-supported foreign languages.
+Curry expressions.
+For this purpose, the program containing this code must start with
+the preprocessing directive
+\begin{curry}
+{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=foreigncode #-}
+\end{curry}
+%
+The next sections describe the currently supported foreign languages.
 
 
 \subsubsection{Regular Expressions}
@@ -252,7 +269,346 @@ main = putStrLn $ showXmlDoc $ head ``xml
  ''
 \end{currynomath}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{SQL Statements}
+\label{sec:integratedsql}
 
+The Curry preprocessor also supports SQL statements in their
+standard syntax as integrated code.
+In order to ensure a type-safe integration of SQL statements
+in Curry programs, SQL queries are type-checked in order to
+determine their result type and ensure that the
+entities used in the queries are type correct with the
+underlying relational database.
+For this purpose, SQL statements are integrated code
+require a specification of the database model
+in form of entity-relationship (ER) model.
+From this description, a set of Curry data types are generated
+which are used to represent entities in the Curry program
+(see Section~\ref{sec:erd2cdbi}).
+The Curry preprocessor uses this information to type check
+the SQL statements and replace them by type-safe access
+methods to the database.
+In the following, we sketch the use of SQL statements
+as integrated code.
+A detailed description of the ideas behind this technique
+can be found in \cite{HanusKrone16WFLP}.
+Currently, only SQLite databases are supported.
+
+
+\subsubsection{ER Specifications}
+\label{sec:erd2cdbi}
+
+The structure of the data stored in underlying database
+must be described as an entity-relationship model.
+Such a description consists of
+\begin{enumerate}
+\item a list of entities where each entity has attributes,
+\item a list of relationships between entities which have
+      cardinality constraints that must be satisfied
+      in each valid state of the database.
+\end{enumerate}
+%
+Entity-relationships models are often visualized as
+entity-relationship diagrams (ERDs).
+Figure~\ref{fig:erd} shows an ERD which we use in the following examples.
+
+\begin{figure*}[t]
+\begin{center}
+  \includegraphics[trim= 0 320 120 0,scale=0.7, clip=true]{\curryhome/currytools/currypp/Docs/diagram.pdf}
+\end{center}
+\caption{A simple entity-relationship diagram for university lectures \cite{HanusKrone16WFLP}}
+\label{fig:erd}
+\end{figure*}
+
+Instead of requiring the use of soem graphical ER modeling tool,
+ERDs must be specified in textual form as a Curry data term,
+see also \cite{BrasselHanusMueller08PADL}.
+In this representation, an ERD has a name, which is also used
+as the module name of the generated Curry code,
+lists of entities and relationships:
+%
+\begin{curry}
+data ERD = ERD String [Entity] [Relationship]
+\end{curry}
+%
+Each entity consists of a name and a list of attributes, where
+each attribute has a name, a domain, and specifications
+about its key and null value property:
+\begin{curry}
+data Entity = Entity String [Attribute]
+
+data Attribute = Attribute String Domain Key Null
+
+data Key = NoKey | PKey | Unique
+
+type Null = Bool
+
+data Domain = IntDom             (Maybe Int)
+            | FloatDom           (Maybe Float)
+            | CharDom            (Maybe Char)
+            | StringDom          (Maybe String)
+            | BoolDom            (Maybe Bool)
+            | DateDom            (Maybe ClockTime)
+            | UserDefined String (Maybe String)
+            | KeyDom String   -- later used for foreign keys
+\end{curry}
+%
+Thus, each attribute is part of a primary key (\code{PKey}),
+unique (\code{Unique}), or not a key (\code{NoKey}).
+Furthermore, it is allowed that specific attributes can have null values, i.e.,
+can be undefined. The domain of each attribute is one of the standard
+domains or some user-defined type. In the latter case, the
+first argument of the constructor \code{UserDefined}
+is the qualified type name used in the Curry application program.
+For each kind of domain, one can also have a default value
+(modeled by the \code{Maybe} type).
+The constructor \code{KeyDom} is not necessary to represent ERDs
+but it is internally used to transform complex ERDs
+into relational database schemas.
+
+Finally, each relationship has a name and a list of connections
+to entities (\code{REnd}), where each connection has the name
+of the connected entity, the role name of this connection,
+and its cardinality as arguments:
+\begin{curry}
+data Relationship = Relationship String [REnd]
+
+data REnd = REnd String String Cardinality
+
+data Cardinality = Exactly Int | Between Int MaxValue
+
+data MaxValue = Max Int | Infinite
+\end{curry}
+The cardinality is either a fixed integer or a range between two
+integers (where \code{Infinite} as the upper bound represents an
+arbitrary cardinality).
+For instance, the simple-complex (1:n) relationship \code{Teaching}
+in Fig.\ref{fig:erd} can be represented by
+the term
+\begin{curry}
+Relationship "Teaching"
+             [REnd "Lecturer" "taught_by" (Exactly 1),
+              REnd "Lecture" "teaches"    (Between 0 Infinite)]
+\end{curry}
+%
+The \CYS library \code{Database.ERD} contains the ER datatypes
+described above. Thus, the specification of the
+conceptual database model must be a data term of type
+\code{Database.ERD.ERD}.
+%
+\begin{figure}[t]
+\begin{curry}
+ ERD "Uni"
+   [Entity "Student"
+           [Attribute "Name" (StringDom Nothing) NoKey False,
+            Attribute "Firstname" (StringDom Nothing) NoKey False,
+            Attribute "MatNum" (IntDom Nothing) Unique False,
+            Attribute "Email" (StringDom Nothing) Unique False,
+            Attribute "Age" (IntDom Nothing) NoKey True],
+    Entity "Lecture"
+           [Attribute "Title" (StringDom Nothing) NoKey False,
+            Attribute "Topic" (StringDom Nothing) NoKey True],
+    Entity "Lecturer"
+           [Attribute "Name" (StringDom Nothing) NoKey False,
+            Attribute "Firstname" (StringDom Nothing) NoKey False],
+    Entity "Place"
+           [Attribute "Street" (StringDom Nothing) NoKey False,
+            Attribute "StrNr" (IntDom Nothing) NoKey False,
+            Attribute "RoomNr" (IntDom Nothing) NoKey False], 
+    Entity "Time"
+           [Attribute "Time" (DateDom Nothing) Unique False],
+    Entity "Exam"
+           [Attribute "GradeAverage" (FloatDom Nothing) NoKey True],
+    Entity "Result"
+           [Attribute "Attempt" (IntDom Nothing) NoKey False,  
+            Attribute "Grade" (FloatDom Nothing) NoKey True,
+            Attribute "Points" (IntDom Nothing) NoKey True]]
+   [Relationship "Teaching"
+                 [REnd "Lecturer" "taught_by" (Exactly 1),
+                  REnd "Lecture" "teaches" (Between 0 Infinite)],
+    Relationship "Participation"
+                 [REnd "Student" "participated_by" (Between 0 Infinite),
+                  REnd "Lecture" "participates" (Between 0 Infinite)],
+    Relationship "Taking"
+                 [REnd "Result" "has_a" (Between 0 Infinite),
+                  REnd "Student" "belongs_to" (Exactly 1)],
+    Relationship "Resulting"
+                 [REnd "Exam" "result_of" (Exactly 1),
+                  REnd "Result" "results_in" (Between 0 Infinite)],
+    Relationship "Belonging"
+                 [REnd "Exam" "has_a" (Between 0 Infinite),
+                  REnd "Lecture" "belongs_to" (Exactly 1)],
+    Relationship "ExamDate"
+                 [REnd "Exam" "taking_place" (Between 0 Infinite),
+                  REnd "Time" "at" (Exactly 1)],
+    Relationship "ExamPlace"
+                 [REnd "Exam" "taking_place" (Between 0 Infinite),
+                  REnd "Place" "in" (Exactly 1)]]
+\end{curry}
+\caption{The ER data term specification of Fig.~\ref{fig:erd}\label{fig:erdterm}}
+\end{figure}
+Figure~\ref{fig:erdterm} on (page~\pageref{fig:erdterm})
+shows the complete ER data term specification
+corresponding to the ERD of Fig.~\ref{fig:erd}.
+
+If such a data term specification is stored in file
+\code{UniERD.term}, then one can use the tool \ccode{erd2cdbi},
+which is stored in the directory \code{\cyshome/bin},
+to process the ER model so that it can be used
+in SQL statements. This tool is invoked with the name of the term file
+and the (preferably absolute) file name of the SQLite database.
+If the later does not exist, it will be initialized by the tool.
+In our example, we execute the following command
+(provided that the directory \code{\cyshome/bin} is in the path):
+%
+\begin{curry}
+> erd2cdbi Uni_ERD.term `pwd`/Uni.db
+\end{curry}
+%
+This initializes the SQLite database \code{Uni.db}
+and performs the following steps:
+%
+\begin{enumerate}
+\item 
+The ER model is transformed into tables of a relational database,
+i.e., the relations of the ER model are either represented
+by adding foreign keys to entities (in case of (0/1:1) or (0/1:n) relations)
+or by new entities with the corresponding relations
+(in case of complex (n:m) relations).
+This task is performed by the tool \code{erd2curry}
+(see Sect.~\ref{sec-erd2curry}).
+\item
+A new Curry module \code{Uni\us{}CDBI} is generated.
+It contains the definitions of
+entities and relationships as Curry data types.
+Since entities are uniquely identified via a database key,
+each entity definition has, in addition to its attributes, this key as the
+first argument.
+For instance, the following definitions are generated
+for our university ERD (among many others):
+%
+\begin{curry}
+data StudentID = StudentID Int$\listline$
+data Student = Student StudentID String String Int String Int$\listline$
+-- Representation of n:m relationship Participation:
+data Participation = Participation StudentID LectureID
+\end{curry}
+%
+Note that the two typed foreign key columns (\code{StudentID}, \code{LectureID})
+ensures a type-safe handling of foreign-key constraints.
+These entity descriptions are relevant for SQL queries
+since some queries (e.g., those that do not project on particular database
+columns) return lists of such entities.
+Moreover, the generated module contains useful getter and setter functions
+for each entity.
+Other generated operations, like entity description and definitions
+of their columns, are not relevant for the programming
+but only used for the translation of SQL statements.
+\item
+Finally, an \emph{info file} \code{Uni_SQLCODE.info} is created.
+It contains information about all entities,
+attributes and their types, and relationships.
+This file is used by the SQL parser and translator of the
+Curry preprocessor to type check the SQL statements
+and generate appropriate Curry library calls.
+\end{enumerate}
+
+
+\subsubsection{SQL Statements as Integrated Code}
+
+After specifying and processing the ER model of the database,
+one can write SQL statement in their standard syntax
+as integrated code (marked by the prefix \ccode{sql}) in Curry programs.
+For instance, to retrieve all students from the database, one
+can define the following SQL query:
+%
+\begin{curry}
+allStudents :: IO (SQLResult [Student])
+allStudents = ``sql Select * From Student;''
+\end{curry}
+%
+Since database accesses might produce errors,
+the result of SQL statements is always of type
+\ccode{SQLResult $\tau$}, where \code{SQLResult} is a type synonym
+defined in the \CYS library \code{Database.CDBI.Connection}:
+%
+\begin{curry}
+type SQLResult a = Either DBError a
+\end{curry}
+%
+This library defines also an operation
+%
+\begin{curry}
+fromSQLResult :: SQLResult a -> a
+\end{curry}
+%
+which returns the retrieved database value or raises a run-time error.
+Hence, if one does not want to check the occurrence of database errors
+immediately, one can also define the above query as follows:
+%
+\begin{curry}
+allStudents :: IO [Student]
+allStudents = liftIO fromSQLResult ``sql Select * From Student;''
+\end{curry}
+%
+In order to select students with an age between 20 and 25,
+one can put a condition as usual:
+%
+\begin{curry}
+youngStudents :: IO (SQLResult [Student])
+youngStudents = ``sql Select * From Student
+                      Where Age between 18 and 21;''
+\end{curry}
+%
+Usually, one wants to parameterize queries over some values
+computed by the context of the Curry program.
+Therefore, one can embed Curry expressions instead of concrete
+values in SQL statements by enclosing them in curly brackets:
+%
+\begin{curry}
+studAgeBetween :: Int -> Int -> IO (SQLResult [Student])
+studAgeBetween min max =
+  ``sql Select * From Student
+        Where Age between {min} and {max};''
+\end{curry}
+%
+Instead of retrieving complete entities (database tables),
+one can also project on some attributes (database columns)
+and one can also order them with the usual \ccode{Order By} clause:
+%
+\begin{curry}
+studAgeBetween :: Int -> Int -> IO (SQLResult [(String,Int)])
+studAgeBetween min max =
+  ``sql Select Name, Age
+        From Student Where Age between {min} and {max}
+        Order By Name Desc;''
+\end{curry}
+%
+In addition to the usual SQL syntax, one can also
+write conditions on relationships between entities.
+For instance, the following code will be accepted:
+%
+\begin{curry}
+studGoodGrades :: IO (SQLResult [(String, Float])
+studGoodGrades = ``sql Select Distinct s.Name, r.Grade 
+                       From Student as s, Result as r
+                       Where Satisfies s has_a r And r.Grade < 2.0;''
+\end{curry}
+%
+This query retrieves a list of pairs containing the
+names and grades of students having a grade better than \code{2.0}.
+This query is beyond pure SQL since it also includes
+a condition on the relation \code{has\us{}a} specified in the ER model
+(\ccode{Satisfies s has\us{}a r}).
+
+The complete SQL syntax supported by the Curry preprocessor
+is shown in Appendix~\ref{app:sqlsyntax}.
+More details about the implementation of this
+SQL translator can be found in \cite{HanusKrone16WFLP,Krone15}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Sequential Rules}
 
 If the Curry preprocessor is called with the option
@@ -282,6 +638,7 @@ mlookup _   _                         = Nothing
 \end{curry}
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Default Rules}
 
 An alternative to sequential rules are default rules, i.e.,
@@ -405,3 +762,9 @@ ERROR: Execution aborted due to contract violation!
 \end{curry}
 
 %  LocalWords:  preprocessor
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "../../../docs/src/manual"
+%%% End: 

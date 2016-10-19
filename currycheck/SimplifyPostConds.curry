@@ -109,6 +109,8 @@ maxSimpSteps = 100
 simplifyRule :: Int -> TRS QName ->  QName -> CRule ->  IO CRule
 simplifyRule verb simprules qn crule@(CRule rpats _) = do
   (id $!! (lhs,rhs)) `seq` done -- in order to raise a fromRule error here!
+  unless (null trs) $
+    error $ "simplifyRule: cannot handle local TRS:\n" ++ showTRS snd trs
   when (verb > 1 ) $ putStrLn $ unlines
     ["POSTCONDITION: " ++ showRule snd (lhs,rhs),
      "POSTCONDEXP:   " ++ showTerm snd postcondexp,
@@ -116,11 +118,11 @@ simplifyRule verb simprules qn crule@(CRule rpats _) = do
      "SIMPPOSTCOND:  " ++ showRule snd simppostcond ]     
   return (simpleRule rpats (term2acy (concatMap varsOfPat rpats) simppostrhs))
  where
-   (lhs,rhs)   = fromRule qn crule
-   postcondexp = postCondition2Term lhs rhs
-   simpterm = simplifyTerm maxSimpSteps simprules postcondexp
-   simppostrhs  = postConditionTermToRule lhs simpterm
-   simppostcond = (lhs, simppostrhs)
+   ((lhs,rhs),trs) = fromRule qn crule
+   postcondexp     = postCondition2Term lhs rhs
+   simpterm        = simplifyTerm maxSimpSteps simprules postcondexp
+   simppostrhs     = postConditionTermToRule lhs simpterm
+   simppostcond    = (lhs, simppostrhs)
 
 --- Transform a post-condition rule into a term by substituting
 ---  the last argument variable by the function call.
@@ -165,7 +167,7 @@ simplifyTerm maxsteps simprules term =
             | p <- positions term,
               rule <- simprules,
               let vMax = maximum (0: tVars term) + 1,
-              let (lhs,rhs) = renameRVars vMax rule,
+              let (lhs,rhs) = renameRuleVars vMax rule,
               sub <- maybeToList (match (term |> p) lhs) ]
 
 -- match t1 t2 = sub  iff  sub(t2) = t1

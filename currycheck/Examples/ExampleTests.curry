@@ -71,14 +71,12 @@ coin_plus_coin_multi = coin+coin <~~> (0?1?1?2)
 
 -- As a more advanced example, we want to test whether the operation
 -- `last` defined with a functional pattern always yields a single result.
--- This can be done by checking whether to different calls to `last`
--- on the same input yield always identical values:
+-- This can be done by checking whether each call of `last` with
+-- a non-empty list yields a single result:
 last :: [a] -> a
 last (_ ++ [x]) = x
 
-last_is_deterministic xs =
- let ys = last xs
-  in ys==ys ==> (ys == last xs) <~> True
+last_has_single_results xs = not (null xs) ==> last xs # 1
 
 --------------------------------------------------------------------------
 -- I/O tests:

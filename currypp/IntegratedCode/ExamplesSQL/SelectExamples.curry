@@ -2,6 +2,7 @@
 
 --- Test module for integration of SQL
 
+import Database.CDBI.Connection 
 import Database.CDBI.ER 
 import Time
 import Uni_CDBI
@@ -10,6 +11,9 @@ import Test.Prop
 
 queryS1 :: IO (SQLResult [Student])
 queryS1 = ``sql Select * From Student;''
+
+allStudents :: IO [Student]
+allStudents = liftIO fromSQLResult ``sql Select * From Student;''
 
 testS1 :: PropIO
 testS1 = queryS1 `returns` Right

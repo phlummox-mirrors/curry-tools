@@ -41,7 +41,7 @@ writeFunction db stats =
                         [(string2ac db), (concatStatements stats)]) 
       finStr = (pPrint (ppCExpr defaultOptions finExpr))  
       newLines = splitOn ['\n'] finStr
-  in (removeIndents (intercalate [' '] newLines))
+  in '(' : removeIndents (intercalate [' '] newLines) ++ ")"
 
 removeIndents :: String -> String
 removeIndents [] = []
