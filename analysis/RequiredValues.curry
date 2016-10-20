@@ -34,6 +34,12 @@ import Unsafe(trace)
 data AType = Cons [QName] | AnyC | Any
  deriving (Eq,Ord)
 
+instance Show AType where
+  show AnyC = "AnyC"
+  show Any  = "Any"
+  show (Cons qns) =
+    "Cons [" ++ intercalate "," (map (\ (mn,fn) -> mn ++ "." ++ fn) qns) ++ "]"
+
 --- Abstract representation of no possible value.
 empty :: AType
 empty = Cons []
