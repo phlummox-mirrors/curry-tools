@@ -223,12 +223,12 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
   transformExp tst (Var i) _ = (Var i, tst)
   transformExp tst (Lit v) _ = (Lit v, tst)
   transformExp tst0 exp@(Comb ct qf es) reqval
-    | reqval == aTrue && isBoolNotEqualCall "==" exp
-    = (Comb FuncCall (pre "=:=") (argsOfBoolNotEqualCall "==" (Comb ct qf tes))
+    | reqval == aTrue && isBoolEqualCall "==" exp
+    = (Comb FuncCall (pre "=:=") (argsOfBoolEqualCall "==" (Comb ct qf tes))
       , incOccNumber tst1)
-    | reqval == aFalse && isBoolNotEqualCall "/=" exp
+    | reqval == aFalse && isBoolEqualCall "/=" exp
     = (Comb FuncCall (pre "not")
-          [Comb FuncCall (pre "=:=") (argsOfBoolNotEqualCall "/=" (Comb ct qf tes))]
+         [Comb FuncCall (pre "=:=") (argsOfBoolEqualCall "/=" (Comb ct qf tes))]
       , incOccNumber tst1)
     | qf == pre "$" && length es == 2 &&
       (isFuncPartCall (head es) || isConsPartCall (head es))
@@ -284,8 +284,8 @@ transformRule lookupreqinfo tstr (Rule args rhs) =
 --   (where dict is a dictionary parameter)
 -- * a default instance (dis)equality call:
 --   apply (apply ("_impl#==#Prelude.Eq#..." []) e1) e2
-checkBoolNotEqualCall :: String -> Expr -> Maybe [Expr]
-checkBoolNotEqualCall deq exp = case exp of
+checkBoolEqualCall :: String -> Expr -> Maybe [Expr]
+checkBoolEqualCall deq exp = case exp of
   Comb FuncCall qf es ->
     if isNotEqualInstanceFunc qf && length es > 1
       then Just (if length es == 2
@@ -295,12 +295,12 @@ checkBoolNotEqualCall deq exp = case exp of
              then case es of
                     [Comb FuncCall qfa [Comb FuncCall qfe [_],e1],e2] ->
                       if qfa == pre "apply" &&
-                         (qfe == pre "/=" || isNotEqualInstanceFunc qfe)
+                         (qfe == pre deq || isNotEqualInstanceFunc qfe)
                         then Just [e1,e2]
                         else Nothing
                     [Comb FuncCall qfa [Comb FuncCall qfe [],e1],e2] ->
                       if qfa == pre "apply" &&
-                         (qfe == pre "/=" || isNotEqualInstanceFunc qfe)
+                         (qfe == pre deq || isNotEqualInstanceFunc qfe)
                         then Just [e1,e2]
                         else Nothing
                     _ -> Nothing
@@ -311,12 +311,12 @@ checkBoolNotEqualCall deq exp = case exp of
     ("_impl#"++deq++"#Prelude.Eq#") `isPrefixOf` f
 
 -- Is this a call to a Boolean equality?
-isBoolNotEqualCall :: String -> Expr -> Bool
-isBoolNotEqualCall deq exp = checkBoolNotEqualCall deq exp /= Nothing
+isBoolEqualCall :: String -> Expr -> Bool
+isBoolEqualCall deq exp = checkBoolEqualCall deq exp /= Nothing
 
 -- Returns the arguments of a call to a Boolean equality.
-argsOfBoolNotEqualCall :: String -> Expr -> [Expr]
-argsOfBoolNotEqualCall deq exp = fromJust (checkBoolNotEqualCall deq exp)
+argsOfBoolEqualCall :: String -> Expr -> [Expr]
+argsOfBoolEqualCall deq exp = fromJust (checkBoolEqualCall deq exp)
 
 -------------------------------------------------------------------------
 
@@ -379,7 +379,7 @@ containsBeqRule (Rule _ rhs) = containsBeqExp rhs
   containsBeqExp (Var _) = False
   containsBeqExp (Lit _) = False
   containsBeqExp exp@(Comb _ _ es) =
-    isBoolNotEqualCall "==" exp || isBoolNotEqualCall "/=" exp ||
+    isBoolEqualCall "==" exp || isBoolEqualCall "/=" exp ||
     any containsBeqExp es
   containsBeqExp (Free _ e   ) = containsBeqExp e
   containsBeqExp (Or e1 e2   ) = containsBeqExp e1 || containsBeqExp e2
@@ -399,10 +399,10 @@ numberBeqRule (Rule _ rhs) = numberBeqExp rhs
   numberBeqExp (Var _) = 0
   numberBeqExp (Lit _) = 0
   numberBeqExp exp@(Comb _ _ es) =
-    if isBoolNotEqualCall "==" exp
-      then 1 + sum (map numberBeqExp (argsOfBoolNotEqualCall "==" exp))
-      else if isBoolNotEqualCall "/=" exp
-             then 1  + sum (map numberBeqExp (argsOfBoolNotEqualCall "/=" exp))
+    if isBoolEqualCall "==" exp
+      then 1 + sum (map numberBeqExp (argsOfBoolEqualCall "==" exp))
+      else if isBoolEqualCall "/=" exp
+             then 1  + sum (map numberBeqExp (argsOfBoolEqualCall "/=" exp))
              else sum (map numberBeqExp es)
   numberBeqExp (Free _ e) = numberBeqExp e
   numberBeqExp (Or e1 e2) = numberBeqExp e1 + numberBeqExp e2
