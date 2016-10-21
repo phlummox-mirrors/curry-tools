@@ -7,9 +7,9 @@
 
 module ToAgda(theoremToAgda) where
 
-import AbstractCurry.Types
-import AbstractCurry.Select
-import AbstractCurry.Build
+import AbstractCurry2.Types
+import AbstractCurry2.Select
+import AbstractCurry2.Build
 import Directory
 import Distribution      (installDir)
 import FilePath          ((</>))
@@ -127,7 +127,7 @@ funcDeclToTypedRule (CFunc qn ar vis texp rules) =
   funcDeclToTypedRule (CmtFunc "" qn ar vis texp rules) 
 funcDeclToTypedRule fdecl@(CmtFunc _ _ _ _ texp _) =
   let (fn, trs) = fromFuncDecl fdecl
-   in (fn, [], texp, trs)
+   in (fn, [], typeOfQualType texp, trs)
 
 -------------------------------------------------------------------------
 -- Eliminate overlapping rules by introducing a new operation
@@ -300,7 +300,7 @@ transformRuleWithNondet opts (fn,cmt,texp,trs)
 
   addNDToResultType te = case te of
     CFuncType t1 t2 -> CFuncType t1 (addNDToResultType t2)
-    _ -> CTCons (pre "ND") [te]
+    _               -> applyT (pre "ND") [te]
 
   addNondet rl@(lhs,rhs)
    | isTheoremRule opts rl
@@ -473,18 +473,18 @@ showVarAsAgda v | v >= 0 = if q == 0
 typeDeclAsAgda :: CTypeDecl -> String
 typeDeclAsAgda (CTypeSyn tc _ _ _) =
   error $ "Type synonyms not supported: " ++ showQName tc
-typeDeclAsAgda (CNewType tc vis tvars consdecl) =
-  typeDeclAsAgda (CType tc vis tvars [consdecl])
-typeDeclAsAgda (CType tc _ tvars constrs) = unlines $
+typeDeclAsAgda (CNewType tc vis tvars consdecl dvs) =
+  typeDeclAsAgda (CType tc vis tvars [consdecl] dvs)
+typeDeclAsAgda (CType tc _ tvars constrs _) = unlines $
   (unwords $
      ["data", snd tc] ++
      map (\tv -> "("++ showTypeAsAgda False (CTVar tv) ++ " : Set)") tvars ++
      [": Set where"]) : map typeConsDeclAsAgda constrs
  where
-  typeConsDeclAsAgda (CCons qc _ texps) =
+  typeConsDeclAsAgda (CCons _ _ qc _ texps) =
     "   " ++ snd qc ++ " : " ++
-    showTypeAsAgda False (foldr CFuncType (CTCons tc (map CTVar tvars)) texps)
-  typeConsDeclAsAgda (CRecord qc _ _) =
+    showTypeAsAgda False (foldr CFuncType (applyT tc (map CTVar tvars)) texps)
+  typeConsDeclAsAgda (CRecord _ _ qc _ _) =
     error $ "Records not yet supported: " ++ showQName qc
 
 -------------------------------------------------------------------------
@@ -504,10 +504,10 @@ showTypeAsAgda withbrackets texp = case texp of
   CFuncType t1 t2 -> inBrackets $ showTypeAsAgda False t1 ++ " \x2192 " ++
                                   showTypeAsAgda False t2
   CTVar (i,_) -> showVarAsAgda (i + 18) -- to get 'a' for var index 0...
-  CTCons tc targs ->
-    if null targs
-     then showTCon tc
-     else inBrackets $ unwords (showTCon tc : map (showTypeAsAgda True) targs)
+  CTCons tc   -> showTCon tc
+  CTApply _ _ -> error "showTypeAsAgda: complex type not yet supported"
+     -- TODO: old code
+     -- inBrackets $ unwords (showTCon tc : map (showTypeAsAgda True) targs)
  where
   inBrackets s = if withbrackets then "(" ++ s ++ ")" else s
 

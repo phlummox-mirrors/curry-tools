@@ -7,10 +7,10 @@
 
 module ToVerifier where
 
-import AbstractCurry.Types
-import AbstractCurry.Files
-import AbstractCurry.Select
-import AbstractCurry.Transform
+import AbstractCurry2.Types
+import AbstractCurry2.Files
+import AbstractCurry2.Select
+import AbstractCurry2.Transform
 import Distribution      (stripCurrySuffix)
 import GetOpt
 import List
@@ -83,7 +83,8 @@ generateTheorem :: Options -> QName -> IO ()
 generateTheorem opts qpropname = do
   (newopts, allprogs, allfuncs) <- getAllFunctions opts [] [] [qpropname]
   let alltypenames = foldr union []
-                           (map (\fd -> tconsOfType (funcType fd)) allfuncs)
+                       (map (\fd -> tconsOfType (typeOfQualType (funcType fd)))
+                            allfuncs)
   alltypes <- getAllTypeDecls opts allprogs alltypenames []
   when (optVerb opts > 2) $ do
     putStrLn $ "Theorem `" ++ snd qpropname ++ "':\nInvolved operations:"
@@ -124,9 +125,9 @@ sortTypeDecls :: [CTypeDecl] -> [CTypeDecl]
 sortTypeDecls tdecls = concat (scc definedBy usedIn tdecls)
  where
   definedBy tdecl = [typeName tdecl]
-  usedIn (CType    _ _ _ cdecls) = nub (concatMap typesOfConsDecl cdecls)
-  usedIn (CTypeSyn _ _ _ texp)   = nub (typesOfTypeExpr texp)
-  usedIn (CNewType _ _ _ cdecl)  = nub (typesOfConsDecl cdecl)
+  usedIn (CType    _ _ _ cdecls _) = nub (concatMap typesOfConsDecl cdecls)
+  usedIn (CTypeSyn _ _ _ texp)     = nub (typesOfTypeExpr texp)
+  usedIn (CNewType _ _ _ cdecl _)  = nub (typesOfConsDecl cdecl)
 
 -------------------------------------------------------------------------
 

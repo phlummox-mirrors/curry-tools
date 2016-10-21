@@ -11,8 +11,8 @@ module DefaultRuleUsage
   , isDefaultFunc, isDefaultName, fromDefaultName
   )  where
 
-import AbstractCurry.Types
-import AbstractCurry.Select
+import AbstractCurry2.Types
+import AbstractCurry2.Select
 import List
 
 --- Does a program contains default rules?

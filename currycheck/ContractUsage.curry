@@ -15,9 +15,9 @@ module ContractUsage
   , isPostCondName, toPostCondName, fromPostCondName
   )  where
 
-import AbstractCurry.Types
-import AbstractCurry.Select
-import AbstractCurry.Build  (boolType)
+import AbstractCurry2.Types
+import AbstractCurry2.Select
+import AbstractCurry2.Build  (boolType)
 import List
 
 --- Checks the intended usage of contracts.
@@ -56,7 +56,7 @@ checkPrePostResultTypes prog =
    in preerrs ++ posterrs
 
 hasBoolResultType :: CFuncDecl -> Bool
-hasBoolResultType fd = resultType (funcType fd) == boolType
+hasBoolResultType fd = resultType (typeOfQualType (funcType fd)) == boolType
 
 -- Get function names from a Curry module with a name satisfying the predicate:
 funDeclsWithNameArity :: (String -> Bool) -> CurryProg -> [(String,Int)]
@@ -66,7 +66,8 @@ funDeclsWithNameArity pred prog =
 
 -- Computes the unqualified name and the arity from the type of the function.
 nameArityOfFunDecl :: CFuncDecl -> (String,Int)
-nameArityOfFunDecl fd = (snd (funcName fd), length (argTypes (funcType fd)))
+nameArityOfFunDecl fd =
+  (snd (funcName fd), length (argTypes (typeOfQualType (funcType fd))))
 
 
 -- Is this the name of a specification?

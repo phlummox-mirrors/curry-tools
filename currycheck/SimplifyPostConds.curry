@@ -18,9 +18,9 @@ module SimplifyPostConds
   ( simplifyPostConditionsWithTheorems)
  where
 
-import AbstractCurry.Types
-import AbstractCurry.Select
-import AbstractCurry.Build
+import AbstractCurry2.Types
+import AbstractCurry2.Select
+import AbstractCurry2.Build
 import List                 (last, maximum)
 import Maybe                (maybeToList)
 import ReadShowTerm         (readQTerm)

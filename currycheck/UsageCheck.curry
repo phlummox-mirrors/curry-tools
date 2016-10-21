@@ -13,7 +13,7 @@
 
 module UsageCheck(checkSetUse, checkBlacklistUse) where
 
-import qualified AbstractCurry.Types as AC
+import qualified AbstractCurry2.Types as AC
 import AbstractCurryMatch
 import Char(isDigit)
 import FlatCurry.Types
@@ -74,7 +74,7 @@ isID (_,n) = all (`elem` infixIDs) n || '.' `notElem` n
 --- Returns messages about uses of black-listed operations occurring
 --- in an AbstractCurry program.
 checkBlacklistUse :: AC.CurryProg -> IO [(QName,String)]
-checkBlacklistUse (AC.CurryProg _ _ _ cfdecls _) = do
+checkBlacklistUse (AC.CurryProg _ _ _ _ _ _ cfdecls _) = do
   blerrors <- values2list (set1 blacklistUsage cfdecls)
   return (map showBlacklistError blerrors)
  where

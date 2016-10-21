@@ -17,12 +17,12 @@
 --- @version August 2016
 -------------------------------------------------------------------------
 
-import AbstractCurry.Types
-import AbstractCurry.Files
-import AbstractCurry.Select
-import AbstractCurry.Build
-import AbstractCurry.Pretty    (showCProg)
-import AbstractCurry.Transform (renameCurryModule,updCProg,updQNamesInCProg)
+import AbstractCurry2.Types
+import AbstractCurry2.Files
+import AbstractCurry2.Select
+import AbstractCurry2.Build
+import AbstractCurry2.Pretty    (showCProg)
+import AbstractCurry2.Transform (renameCurryModule,updCProg,updQNamesInCProg)
 import AnsiCodes
 import Distribution
 import FilePath                ((</>), takeDirectory)
@@ -260,9 +260,8 @@ userTestDataOfModule testmod = concatMap testDataOf (propTests testmod)
 
   userTypesOf (CTVar _) = []
   userTypesOf (CFuncType from to) = union (userTypesOf from) (userTypesOf to)
-  userTypesOf (CTCons (mn,tc) argtypes) =
-    union (if mn == preludeName then [] else [(mn,tc)])
-          (unionOn userTypesOf argtypes)
+  userTypesOf (CTCons (mn,tc)) = if mn == preludeName then [] else [(mn,tc)]
+  userTypesOf (CTApply tc ta) = union (userTypesOf tc) (userTypesOf ta)
 
   unionOn f = foldr union [] . map f
 
@@ -273,7 +272,7 @@ createTests opts mainmodname tm = map createTest (propTests tm)
  where
   createTest test =
     cfunc (mainmodname, (genTestName $ getTestName test)) 0 Public
-          (ioType (maybeType stringType))
+          (emptyClassType (ioType (maybeType stringType)))
           (case test of PropTest   name t _ -> propBody name (argTypes t) test
                         IOTest name       _ -> ioTestBody name test)
 
@@ -307,10 +306,15 @@ createTests opts mainmodname tm = map createTest (propTests tm)
                   ])]
    where
     useUserDefinedGen texp = case texp of
-      CTVar _         -> error "No polymorphic generator!"
-      CFuncType _ _   -> error "No generator for functional types!"
-      CTCons (_,tc) _ -> isJust
-                           (find (\qn -> "gen"++tc == snd qn) (generators tm))
+      CTVar _       -> error "No polymorphic generator!"
+      CFuncType _ _ -> error "No generator for functional types!"
+      CTApply _ _   ->
+        maybe (error "No generator for type applications!")
+              (\ ((_,tc),_) -> isJust
+                         (find (\qn -> "gen"++tc == snd qn) (generators tm)))
+              (tconsArgsOfType texp)
+      CTCons (_,tc) -> isJust
+                         (find (\qn -> "gen"++tc == snd qn) (generators tm))
 
     configOpWithMaxTest =
       let n = optMaxTest opts
@@ -344,9 +348,13 @@ easyCheckConfig opts =
 type2genop :: String -> TestModule -> CTypeExpr -> CExpr
 type2genop _ _ (CTVar _)       = error "No polymorphic generator!"
 type2genop _ _ (CFuncType _ _) = error "No generator for functional types!"
-type2genop mainmod tm (CTCons qt targs) =
-  applyF (typename2genopname mainmod (generators tm) qt)
-         (map (type2genop mainmod tm) targs)
+type2genop mainmod tm (CTCons qt) =
+  constF (typename2genopname mainmod (generators tm) qt)
+type2genop mainmod tm te@(CTApply _ _) =
+  maybe (error "No generator for type applications!")
+        (\ (qt,targs) -> applyF (typename2genopname mainmod (generators tm) qt)
+                                (map (type2genop mainmod tm) targs))
+        (tconsArgsOfType te)
 
 typename2genopname :: String -> [QName] -> QName -> QName
 typename2genopname mainmod definedgenops (mn,tc)
@@ -373,8 +381,10 @@ typename2genopname mainmod definedgenops (mn,tc)
 -- Turn all functions into public ones.
 -- This ensures that all tests can be executed.
 makeAllPublic :: CurryProg -> CurryProg
-makeAllPublic (CurryProg modname imports typedecls functions opdecls) =
-  CurryProg modname stimports typedecls publicFunctions opdecls
+makeAllPublic (CurryProg modname imports dfltdecl clsdecls instdecls
+                         typedecls functions opdecls) =
+  CurryProg modname stimports dfltdecl clsdecls instdecls
+            typedecls publicFunctions opdecls
  where
   stimports = if generatorModule `elem` imports &&
                  searchTreeModule `notElem` imports
@@ -400,16 +410,18 @@ makeAllPublic (CurryProg modname imports typedecls functions opdecls) =
 classifyTests :: [CFuncDecl] -> [Test]
 classifyTests = map makeProperty
  where
-  makeProperty test = if isPropIOType (funcType test)
+  makeProperty test = if isPropIOType ftype
                       then IOTest (funcName test) 0
-                      else PropTest (funcName test) (funcType test) 0
+                      else PropTest (funcName test) ftype 0
+   where ftype = typeOfQualType (funcType test)
 
 -- Extracts all tests from a given Curry module and transforms
 -- all polymorphic tests into tests on a base type.
 -- The result contains a triple consisting of all actual tests,
 -- all ignored tests, and the public version of the original module.
 transformTests :: Options -> CurryProg -> IO ([CFuncDecl],[CFuncDecl],CurryProg)
-transformTests opts prog@(CurryProg mname imps typeDecls functions opDecls) = do
+transformTests opts prog@(CurryProg mname imps dfltdecl clsdecls instdecls
+                                    typeDecls functions opDecls) = do
   theofuncs <- if optProof opts then getTheoremFunctions prog else return []
   simpfuncs <- simplifyPostConditionsWithTheorems (optVerb opts) theofuncs funcs
   let preCondOps  = preCondOperations simpfuncs
@@ -434,6 +446,7 @@ transformTests opts prog@(CurryProg mname imps typeDecls functions opDecls) = do
           map snd ignoredtests,
           CurryProg mname
                     (nub (easyCheckModule:imps))
+                    dfltdecl clsdecls instdecls
                     typeDecls
                     (simpfuncs ++ map snd (realtests ++ ignoredtests))
                     opDecls)
@@ -450,10 +463,12 @@ transformTests opts prog@(CurryProg mname imps typeDecls functions opDecls) = do
 transformDetTests :: Options -> [String] -> CurryProg
                   -> ([CFuncDecl],[CFuncDecl],CurryProg)
 transformDetTests opts prooffiles
-                  (CurryProg mname imports typeDecls functions opDecls) =
+                  (CurryProg mname imports dfltdecl clsdecls instdecls
+                             typeDecls functions opDecls) =
   (map snd realtests, map snd ignoredtests,
    CurryProg mname
              (nub (easyCheckModule:imports))
+             dfltdecl clsdecls instdecls
              typeDecls
              (map (revertDetOpTrans detOpNames) functions ++
               map snd (realtests ++ ignoredtests))
@@ -502,7 +517,7 @@ genPostCondTest prefuns postops (CmtFunc _ qf ar vis texp rules) =
 genPostCondTest prefuns postops (CFunc qf@(mn,fn) _ _ texp _) =
  if qf `notElem` postops then [] else
   [CFunc (mn, fn ++ postCondSuffix) ar Public
-    (propResultType texp)
+    (emptyClassType (propResultType (typeOfQualType texp)))
     [simpleRule (map CPVar cvars) $
       if qf `elem` prefuns
        then applyF (easyCheckModule,"==>")
@@ -510,7 +525,7 @@ genPostCondTest prefuns postops (CFunc qf@(mn,fn) _ _ texp _) =
        else postprop
     ]]
  where
-  ar       = arityOfType texp
+  ar       = arityOfType (typeOfQualType texp)
   cvars    = map (\i -> (i,"x"++show i)) [1 .. ar]
   rcall    = applyF qf (map CVar cvars)
   postprop = applyF (easyCheckModule,"always")
@@ -528,14 +543,14 @@ genSpecTest prefuns specops (CmtFunc _ qf ar vis texp rules) =
 genSpecTest prefuns specops (CFunc qf@(mn,fn) _ _ texp _) =
  if qf `notElem` specops then [] else
   [CFunc (mn, fn ++ satSpecSuffix) ar Public
-    (propResultType texp)
+    (emptyClassType (propResultType (typeOfQualType texp)))
     [simpleRule (map CPVar cvars) $
        addPreCond (applyF (easyCheckModule,"<~>")
                           [applyF qf (map CVar cvars),
                            applyF (mn,toSpecName fn) (map CVar cvars)])]]
  where
   cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
-  ar    = arityOfType texp
+  ar    = arityOfType (typeOfQualType texp)
 
   addPreCond exp = if qf `elem` prefuns
                    then applyF (easyCheckModule,"==>")
@@ -573,7 +588,7 @@ genDetProp prefuns (CmtFunc _ qf ar vis texp rules) =
   genDetProp prefuns (CFunc qf ar vis texp rules)
 genDetProp prefuns (CFunc (mn,fn) ar _ texp _) =
   CFunc (mn, forg ++ isDetSuffix) ar Public
-   (propResultType texp)
+   (emptyClassType (propResultType (typeOfQualType texp)))
    [simpleRule (map CPVar cvars) $
       if (mn,forg) `elem` prefuns
        then applyF (easyCheckModule,"==>")
@@ -592,18 +607,21 @@ genDetProp prefuns (CFunc (mn,fn) ar _ texp _) =
 poly2default :: String -> CFuncDecl -> [(Bool,CFuncDecl)]
 poly2default dt (CmtFunc _ name arity vis ftype rules) =
   poly2default dt (CFunc name arity vis ftype rules)
-poly2default dt fdecl@(CFunc (mn,fname) arity vis ftype _)
+poly2default dt fdecl@(CFunc (mn,fname) arity vis qftype _)
   | isPolyType ftype
   = [(False,fdecl)
-    ,(True, CFunc (mn,fname++defTypeSuffix) arity vis (p2dt ftype)
-                     [simpleRule [] (applyF (mn,fname) [])])
+    ,(True, CFunc (mn,fname++defTypeSuffix) arity vis
+                  (emptyClassType (p2dt ftype))
+                  [simpleRule [] (applyF (mn,fname) [])])
     ]
   | otherwise
   = [(True,fdecl)]
  where
-  p2dt (CTVar _) = baseType (pre dt)
+  ftype = typeOfQualType qftype
+  p2dt (CTVar _)         = baseType (pre dt)
   p2dt (CFuncType t1 t2) = CFuncType (p2dt t1) (p2dt t2)
-  p2dt (CTCons ct ts) = CTCons ct (map p2dt ts)
+  p2dt (CTApply t1 t2)   = CTApply (p2dt t1) (p2dt t2)
+  p2dt (CTCons ct)       = CTCons ct
 
 -- Transforms a possibly changed test name (like "test_ON_BASETYPE")
 -- back to its original name.
@@ -723,11 +741,12 @@ generatorsOfProg :: CurryProg -> [QName]
 generatorsOfProg = map funcName . filter isGen . functions
  where
    isGen fdecl = "gen" `isPrefixOf` snd (funcName fdecl) &&
-                 isSearchTreeType (resultType (funcType fdecl))
+                 isSearchTreeType (resultType (typeOfQualType (funcType fdecl)))
 
    isSearchTreeType (CTVar _) = False
    isSearchTreeType (CFuncType _ _) = False
-   isSearchTreeType (CTCons tc _) = tc == searchTreeTC
+   isSearchTreeType (CTApply _ _) = False
+   isSearchTreeType (CTCons tc) = tc == searchTreeTC -- TODO!
 
 -------------------------------------------------------------------------
 -- Create the main test module containing all tests of all test modules as
@@ -750,14 +769,16 @@ genMainTestModule opts mainmodname modules = do
                            map fst testtypes ++ map testModuleName modules
   appendix <- readFile (installDir </> "currytools" </> "currycheck"
                                    </> "TestAppendix.curry")
-  writeCurryProgram (CurryProg mainmodname imports [] (mainFunction : funcs) [])
-                    appendix
+  writeCurryProgram
+    (CurryProg mainmodname imports Nothing [] [] [] (mainFunction : funcs) [])
+    appendix
 
 -- Generates the main function which executes all property tests
 -- of all test modules.
 genMainFunction :: Options -> String -> [Test] -> CFuncDecl
 genMainFunction opts testModule tests =
-  CFunc (testModule, "main") 0 Public (ioType unitType) [simpleRule [] body]
+  CFunc (testModule, "main") 0 Public (emptyClassType (ioType unitType))
+        [simpleRule [] body]
  where
   body = CDoExpr $
      (if isQuiet opts
@@ -800,8 +821,10 @@ createTestDataGenerator mainmodname qt@(mn,_) = do
     then error $ "Cannot create value generator for type '" ++ qtString ++
                  "' without constructors!"
     else CFunc (typename2genopname mainmodname [] qt) (length tvars) Public
-               (foldr (~>) (CTCons searchTreeTC [CTCons qt ctvars])
-                           (map (\v -> CTCons searchTreeTC [v]) ctvars))
+               (emptyClassType
+                 (foldr (~>) (CTApply (CTCons searchTreeTC)
+                                      (applyT qt ctvars))
+                             (map (\v -> applyT searchTreeTC [v]) ctvars)))
                [simpleRule (map CPVar cvars)
                   (foldr1 (\e1 e2 -> applyF (generatorModule,"|||") [e1,e2])
                           (map cons2gen cdecls))]
@@ -892,7 +915,7 @@ main = do
 -- Rename all module references to "Test.Prog" into "Test.EasyCheck"
 renameProp2EasyCheck :: CurryProg -> CurryProg
 renameProp2EasyCheck prog =
-  updCProg id (map rnmMod) id id id
+  updCProg id (map rnmMod) id id id id id id
            (updQNamesInCProg (\ (mod,n) -> (rnmMod mod,n)) prog)
  where
   rnmMod mod | mod == propModule = easyCheckModule

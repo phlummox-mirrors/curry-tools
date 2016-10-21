@@ -7,7 +7,7 @@
 
 module VerifyOptions where
 
-import AbstractCurry.Types
+import AbstractCurry2.Types
 import Char              (toLower)
 import GetOpt
 import List              (intercalate, last, splitOn)
