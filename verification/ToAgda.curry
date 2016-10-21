@@ -300,7 +300,7 @@ transformRuleWithNondet opts (fn,cmt,texp,trs)
 
   addNDToResultType te = case te of
     CFuncType t1 t2 -> CFuncType t1 (addNDToResultType t2)
-    _               -> applyT (pre "ND") [te]
+    _               -> applyTC (pre "ND") [te]
 
   addNondet rl@(lhs,rhs)
    | isTheoremRule opts rl
@@ -483,7 +483,7 @@ typeDeclAsAgda (CType tc _ tvars constrs _) = unlines $
  where
   typeConsDeclAsAgda (CCons _ _ qc _ texps) =
     "   " ++ snd qc ++ " : " ++
-    showTypeAsAgda False (foldr CFuncType (applyT tc (map CTVar tvars)) texps)
+    showTypeAsAgda False (foldr CFuncType (applyTC tc (map CTVar tvars)) texps)
   typeConsDeclAsAgda (CRecord _ _ qc _ _) =
     error $ "Records not yet supported: " ++ showQName qc
 

@@ -823,8 +823,8 @@ createTestDataGenerator mainmodname qt@(mn,_) = do
     else CFunc (typename2genopname mainmodname [] qt) (length tvars) Public
                (emptyClassType
                  (foldr (~>) (CTApply (CTCons searchTreeTC)
-                                      (applyT qt ctvars))
-                             (map (\v -> applyT searchTreeTC [v]) ctvars)))
+                                      (applyTC qt ctvars))
+                             (map (\v -> applyTC searchTreeTC [v]) ctvars)))
                [simpleRule (map CPVar cvars)
                   (foldr1 (\e1 e2 -> applyF (generatorModule,"|||") [e1,e2])
                           (map cons2gen cdecls))]
