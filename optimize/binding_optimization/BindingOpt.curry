@@ -7,7 +7,7 @@
 -------------------------------------------------------------------------
 
 module BindingOpt (main, transformFlatProg) where
-import Unsafe
+
 import AnalysisServer    (analyzeGeneric, analyzePublic, analyzeInterface)
 import Analysis
 import GenericProgInfo
