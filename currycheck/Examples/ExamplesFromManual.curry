@@ -85,6 +85,7 @@ addIsAssociative x y z = add (add x y) z -=- add x (add y z)
 
 -- A general tree type:
 data Tree a = Leaf a | Node [Tree a]
+ deriving (Eq,Show)
 
 -- The leaves of a tree:
 leaves (Leaf x) = [x]

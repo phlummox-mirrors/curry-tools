@@ -22,7 +22,8 @@ import AbstractCurry2.Files
 import AbstractCurry2.Select
 import AbstractCurry2.Build
 import AbstractCurry2.Pretty    (showCProg)
-import AbstractCurry2.Transform (renameCurryModule,updCProg,updQNamesInCProg)
+import AbstractCurry2.Transform (renameCurryModule, trCTypeExpr
+                                ,updCProg, updQNamesInCProg)
 import AnsiCodes
 import Distribution
 import FilePath                ((</>), takeDirectory)
@@ -514,10 +515,11 @@ propResultType te = case te of
 genPostCondTest :: [QName] -> [QName] -> CFuncDecl -> [CFuncDecl]
 genPostCondTest prefuns postops (CmtFunc _ qf ar vis texp rules) =
   genSpecTest prefuns postops (CFunc qf ar vis texp rules)
-genPostCondTest prefuns postops (CFunc qf@(mn,fn) _ _ texp _) =
+genPostCondTest prefuns postops
+                (CFunc qf@(mn,fn) _ _ (CQualType clscon texp) _) =
  if qf `notElem` postops then [] else
   [CFunc (mn, fn ++ postCondSuffix) ar Public
-    (emptyClassType (propResultType (typeOfQualType texp)))
+    (CQualType clscon (propResultType texp))
     [simpleRule (map CPVar cvars) $
       if qf `elem` prefuns
        then applyF (easyCheckModule,"==>")
@@ -525,7 +527,7 @@ genPostCondTest prefuns postops (CFunc qf@(mn,fn) _ _ texp _) =
        else postprop
     ]]
  where
-  ar       = arityOfType (typeOfQualType texp)
+  ar       = arityOfType texp
   cvars    = map (\i -> (i,"x"++show i)) [1 .. ar]
   rcall    = applyF qf (map CVar cvars)
   postprop = applyF (easyCheckModule,"always")
@@ -540,17 +542,18 @@ genPostCondTest prefuns postops (CFunc qf@(mn,fn) _ _ texp _) =
 genSpecTest :: [QName] -> [QName] -> CFuncDecl -> [CFuncDecl]
 genSpecTest prefuns specops (CmtFunc _ qf ar vis texp rules) =
   genSpecTest prefuns specops (CFunc qf ar vis texp rules)
-genSpecTest prefuns specops (CFunc qf@(mn,fn) _ _ texp _) =
+genSpecTest prefuns specops
+            (CFunc qf@(mn,fn) _ _ (CQualType clscon texp) _) =
  if qf `notElem` specops then [] else
   [CFunc (mn, fn ++ satSpecSuffix) ar Public
-    (emptyClassType (propResultType (typeOfQualType texp)))
+    (CQualType clscon (propResultType texp))
     [simpleRule (map CPVar cvars) $
        addPreCond (applyF (easyCheckModule,"<~>")
                           [applyF qf (map CVar cvars),
                            applyF (mn,toSpecName fn) (map CVar cvars)])]]
  where
   cvars = map (\i -> (i,"x"++show i)) [1 .. ar]
-  ar    = arityOfType (typeOfQualType texp)
+  ar    = arityOfType texp
 
   addPreCond exp = if qf `elem` prefuns
                    then applyF (easyCheckModule,"==>")
@@ -586,9 +589,9 @@ genDetOpTests prooffiles prefuns fdecls =
 genDetProp :: [QName] -> CFuncDecl -> CFuncDecl
 genDetProp prefuns (CmtFunc _ qf ar vis texp rules) =
   genDetProp prefuns (CFunc qf ar vis texp rules)
-genDetProp prefuns (CFunc (mn,fn) ar _ texp _) =
+genDetProp prefuns (CFunc (mn,fn) ar _ (CQualType clscon texp) _) =
   CFunc (mn, forg ++ isDetSuffix) ar Public
-   (emptyClassType (propResultType (typeOfQualType texp)))
+   (CQualType clscon (propResultType texp))
    [simpleRule (map CPVar cvars) $
       if (mn,forg) `elem` prefuns
        then applyF (easyCheckModule,"==>")
@@ -607,7 +610,7 @@ genDetProp prefuns (CFunc (mn,fn) ar _ texp _) =
 poly2default :: String -> CFuncDecl -> [(Bool,CFuncDecl)]
 poly2default dt (CmtFunc _ name arity vis ftype rules) =
   poly2default dt (CFunc name arity vis ftype rules)
-poly2default dt fdecl@(CFunc (mn,fname) arity vis qftype _)
+poly2default dt fdecl@(CFunc (mn,fname) arity vis qftype rs)
   | isPolyType ftype
   = [(False,fdecl)
     ,(True, CFunc (mn,fname++defTypeSuffix) arity vis
@@ -615,13 +618,61 @@ poly2default dt fdecl@(CFunc (mn,fname) arity vis qftype _)
                   [simpleRule [] (applyF (mn,fname) [])])
     ]
   | otherwise
-  = [(True,fdecl)]
+  = [(True, CFunc (mn,fname) arity vis (CQualType clscon ftype) rs)]
  where
-  ftype = typeOfQualType qftype
+  CQualType clscon ftype = defaultQualType qftype
+  
   p2dt (CTVar _)         = baseType (pre dt)
   p2dt (CFuncType t1 t2) = CFuncType (p2dt t1) (p2dt t2)
   p2dt (CTApply t1 t2)   = CTApply (p2dt t1) (p2dt t2)
   p2dt (CTCons ct)       = CTCons ct
+
+-------------------------------------------------------------------------
+-- Try to default a qualified type by replacing Num-constrained types by Int
+-- and Fractional-constrained types by Float.
+defaultQualType :: CQualTypeExpr -> CQualTypeExpr
+defaultQualType (CQualType (CContext allclscon) ftype) =
+  CQualType (CContext deffractxt) deffratype
+ where
+  (numcons,nonnumcons) = partition (\ (cls,te) -> cls == pre "Num" && isTVar te)
+                                   allclscon
+  defnumtype = def2TConsInType numcons (pre "Int") ftype
+  defnumctxt = removeNonTVarClassContexts
+                 (map (\ (cls,con) ->
+                                (cls, def2TConsInType numcons (pre "Int") con))
+                      nonnumcons)
+
+  (fracons,nonfracons) =
+    partition (\ (cls,te) -> cls == pre "Fractional" && isTVar te) defnumctxt
+  deffratype = def2TConsInType fracons (pre "Float") defnumtype
+  deffractxt = removeNonTVarClassContexts
+                 (map (\ (cls,con) ->
+                              (cls, def2TConsInType fracons (pre "Float") con))
+                      nonfracons)
+
+  -- remove constant type class contexts
+  removeNonTVarClassContexts = filter (\ (_,te) -> isTVar te)
+
+  -- replace all type variables (occurring in the first list of class
+  -- constraints) by the type constructor (second argument) in a given
+  -- type expression (third argument)
+  def2TConsInType clscons tcons texp =
+    foldr (tvar2TCons tcons) texp (map snd clscons)
+
+  -- substitute a type variable by type Int in a type
+  tvar2TCons tcons texp = case texp of
+    CTVar tv -> substTVar tv (CTCons tcons)
+    _        -> id
+
+  -- substitute a type variable by a type expression in a type expression:
+  substTVar tvariname texp =
+    trCTypeExpr (\tv -> if tv==tvariname then texp else CTVar tv)
+                CTCons CFuncType CTApply
+
+  isTVar te = case te of CTVar _ -> True
+                         _       -> False
+
+-------------------------------------------------------------------------
 
 -- Transforms a possibly changed test name (like "test_ON_BASETYPE")
 -- back to its original name.
