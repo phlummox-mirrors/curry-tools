@@ -6,7 +6,7 @@ rev []     = []
 rev (x:xs) = rev xs ++ [x]
 
 -- Unit tests:
-revNull = rev []      -=- []
+revNull = rev []      -=- ([] :: [Int])
 rev123  = rev [1,2,3] -=- [3,2,1]
 
 -- Property: reversing two times is the identity:
@@ -109,6 +109,7 @@ sumUpIsCorrect n = n>=0 ==> sumUp n -=- n * (n+1) `div` 2
 -- To test sumUpIsCorrect explicitly on non-ngeative integers,
 -- we define a new data type to wrap integers:
 data NonNeg = NonNeg { nonNeg :: Int }
+ deriving (Eq,Show)
 
 -- We define our own generator for producing only non-negative integers:
 genNonNeg = genCons1 NonNeg genNN

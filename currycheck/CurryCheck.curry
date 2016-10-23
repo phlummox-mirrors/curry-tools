@@ -628,14 +628,16 @@ poly2default dt fdecl@(CFunc (mn,fname) arity vis qftype rs)
   p2dt (CTCons ct)       = CTCons ct
 
 -------------------------------------------------------------------------
--- Try to default a qualified type by replacing Num-constrained types by Int
--- and Fractional-constrained types by Float.
+-- Try to default a qualified type by replacing Num/Integral-constrained
+-- types by Int and Fractional-constrained types by Float.
 defaultQualType :: CQualTypeExpr -> CQualTypeExpr
 defaultQualType (CQualType (CContext allclscon) ftype) =
   CQualType (CContext deffractxt) deffratype
  where
-  (numcons,nonnumcons) = partition (\ (cls,te) -> cls == pre "Num" && isTVar te)
-                                   allclscon
+  (numcons,nonnumcons) =
+    partition (\ (cls,te) -> (cls == pre "Num" || cls == pre "Integral")
+                             && isTVar te)
+              allclscon
   defnumtype = def2TConsInType numcons (pre "Int") ftype
   defnumctxt = removeNonTVarClassContexts
                  (map (\ (cls,con) ->
