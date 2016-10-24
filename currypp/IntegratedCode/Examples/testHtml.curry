@@ -37,4 +37,18 @@ htmlDoc1 =
         [HtmlText "eoJ", HtmlText "\n"],
        HtmlText "Bye!"]]]
 
-test_Html_code = htmlTest1 "Joe" -=- htmlDoc1
+------------------------------------------------------------------------------
+-- Partial equality on HTML documents for testing.
+eqHtml hexp1 hexp2 = case hexp1 of
+  HtmlText s -> case hexp2 of HtmlText t -> s == t
+                              _          -> False
+  HtmlStruct t ats hes -> case hexp2 of
+             HtmlStruct t' ats' hes' -> t==t' && ats==ats' && eqHtmls hes hes'
+             _                       -> False
+  _ -> error "HTML.==: cannot compare cgi refs or handlers"
+
+eqHtmls hes1 hes2 = all (uncurry eqHtml) (zip hes1 hes2)
+
+------------------------------------------------------------------------------
+
+test_Html_code = always (eqHtmls (htmlTest1 "Joe") htmlDoc1)
