@@ -11,7 +11,7 @@
 --- > Declarative Languages (PADL 2012), pp. 33-47, Springer LNCS 7149, 2012
 ---
 --- @author Michael Hanus
---- @version August 2016
+--- @version October 2016
 ------------------------------------------------------------------------
 
 module TransContracts(main,transContracts) where
@@ -241,7 +241,7 @@ genPostCond4Spec :: Options -> [CFuncDecl] -> ProgInfo Deterministic
                  -> [CFuncDecl] -> CFuncDecl -> [CFuncDecl]
 genPostCond4Spec _ _ _ _ (CFunc _ _ _ _ _) = error "genPostCond4Spec"
 genPostCond4Spec _ allfdecls detinfo postdecls
-                 (CmtFunc _ (m,f) ar vis (CQualType clsctxt texp) _) =
+               (CmtFunc _ (m,f) ar vis (CQualType (CContext clscons) texp) _) =
  let fname     = fromSpecName f
      -- is the specification deterministic?
      detspec   = maybe False (== Det) (lookupProgInfo (m,f) detinfo)
@@ -262,7 +262,7 @@ genPostCond4Spec _ allfdecls detinfo postdecls
                              allfdecls)
      gspecname = (m,f++"'g")
      gspec     = cfunc gspecname ar Private
-                  (CQualType clsctxt
+                  (CQualType (CContext ((pre "Eq", gtype) : clscons))
                    ((resultType texp ~> gtype) ~> replaceResultType texp gtype))
                   [let gsargvars = map (\i -> (i,"x"++show i)) [1..ar]
                    in  simpleRule (CPVar varg : map CPVar gsargvars)
@@ -286,7 +286,7 @@ genPostCond4Spec _ allfdecls detinfo postdecls
        ("Parametric postcondition for '"++fname++
         "' (generated from specification). "++oldcmt)
        (m,fpgenname) (ar+2) Private
-       (CQualType clsctxt
+       (CQualType (CContext ((pre "Eq", gtype) : clscons))
                   ((resultType texp ~> gtype) ~> extendFuncType texp boolType))
        [if null oldfpostc
         then simpleRule (map CPVar (varg:argvars)) postcheck
@@ -303,18 +303,34 @@ genPostCond4Spec _ allfdecls detinfo postdecls
        ("Postcondition for '"++fname++"' (generated from specification). "++
         oldcmt)
        (m,fpostname) (ar+1) vis
-       (CQualType clsctxt (extendFuncType texp boolType))
+       (CQualType
+          (CContext (union (type2EqConstraints (resultType texp)) clscons))
+          (extendFuncType texp boolType))
        [simpleRule (map CPVar argvars)
                    (applyF (m,fpgenname)
                            (constF obsfun : map CVar argvars))]
      ]
+
+-- Transform a type into Eq constraints for all type variables occurring
+-- in this type. Note: this is not sufficient since one needs also be
+-- sure that each type constructor has an Eq instance.
+type2EqConstraints :: CTypeExpr -> [CConstraint]
+type2EqConstraints texp =
+  map (\tv -> (pre "Eq",CTVar tv)) (nub (tvarsOfType texp))
+
+-- Transform a type into Eq constraints for all type variables occurring
+-- in this type. Note: this is not sufficient since one needs also be
+-- sure that each type constructor has an Eq instance.
+type2ShowConstraints :: CTypeExpr -> [CConstraint]
+type2ShowConstraints texp =
+  map (\tv -> (pre "Show",CTVar tv)) (nub (tvarsOfType texp))
 
 -- adds contract checking to a function if it has a pre- or postcondition
 addContract :: Options -> [(QName,Int)] -> [CFuncDecl] -> [CFuncDecl]
             -> [CFuncDecl] -> CFuncDecl -> CFuncDecl
 addContract _ _ _ _ _ (CFunc _ _ _ _ _) = error "addContract"
 addContract opts funposs allfdecls predecls postdecls
-            fdecl@(CmtFunc cmt qn@(m,f) ar vis texp _) =
+   fdecl@(CmtFunc cmt qn@(m,f) ar vis (CQualType (CContext clscons) texp) _) =
  let argvars   = map (\i -> (i,"x"++show i)) [1..ar]
      predecl   = find (\fd -> fromPreCondName (snd(funcName fd)) == f) predecls
      prename   = funcName (fromJust predecl)
@@ -350,8 +366,12 @@ addContract opts funposs allfdecls predecls postdecls
                 then updQNamesInCLocalDecl rename (CLocalFunc (deleteCmt fdecl))
                 else CLocalFunc (renameFDecl rename (deleteCmt fdecl))
   in if isNothing predecl && isNothing postdecl then fdecl else
-       cmtfunc cmt (m,f) ar vis texp
-               [simpleRuleWithLocals (map CPVar argvars) asrtCall [oldfdecl]]
+       cmtfunc cmt (m,f) ar vis
+         (CQualType (CContext
+                       (union (type2EqConstraints (resultType texp))
+                              (union (type2ShowConstraints texp) clscons)))
+                    texp)
+         [simpleRuleWithLocals (map CPVar argvars) asrtCall [oldfdecl]]
 
 
 -- An operation of the module Test.Contract:
