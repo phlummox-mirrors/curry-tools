@@ -17,7 +17,6 @@ ICODEDIR      = $(CURDIR)/IntegratedCode
 PARSEDIR      = $(ICODEDIR)/Parser
 MLDIR         = $(PARSEDIR)/ML
 SQLDIR        = $(PARSEDIR)/SQL
-SEQRULESDIR   = $(CURDIR)/SequentialRules
 DEFRULESDIR   = $(CURDIR)/DefaultRules
 CONTRACTDIR   = $(CURDIR)/ContractWrapper
 REWRITINGDIR  = $(CURDIR)/../verification
@@ -27,9 +26,9 @@ CURRYCHECKDIR = $(CURDIR)/../currycheck
 DETANAPATH    = ../analysis:../CASS
 
 # preprocessor input path and dependencies:
-PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR):$(CONTRACTDIR):$(REWRITINGDIR):$(CURRYCHECKDIR):$(DETANAPATH)
+PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(DEFRULESDIR):$(CONTRACTDIR):$(REWRITINGDIR):$(CURRYCHECKDIR):$(DETANAPATH)
 DEPS   = Main.curry $(ICODEDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
-          $(SQLDIR)/*.curry $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry \
+          $(SQLDIR)/*.curry $(DEFRULESDIR)/*.curry \
 	  $(CONTRACTDIR)/*.curry $(CURRYCHECKDIR)/ContractUsage.curry \
 	  $(CURRYCHECKDIR)/DefaultRuleUsage.curry \
 	  $(CURRYCHECKDIR)/TheoremUsage.curry \
@@ -61,7 +60,5 @@ Main: $(DEPS)
 runtest:
 	cd IntegratedCode/Examples    && ./test.sh
 	cd IntegratedCode/ExamplesSQL && ./test.sh
-	# The following test is removed due to problems with SWI-Prolog:
-	#cd SequentialRules/Examples && ./test.sh 
 	cd DefaultRules/Examples      && ./test.sh
 	cd ContractWrapper/Examples   && ./test.sh

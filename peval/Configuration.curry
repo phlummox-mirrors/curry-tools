@@ -46,6 +46,7 @@ semantics =
 ---              translating them to expressions.
 --- Note that only None and WQO really pass the "KMP-test".
 data Abstraction = None | WFO | WQO
+ deriving Eq
 
 --- Description and flag of abstractions
 abstractions :: [(Abstraction, String, String)]

@@ -23,9 +23,7 @@ data WarnID = TagNameFirstDigit
 --- A text element can be a raw text, a Curry expression that evaluates to some
 --- text, or a Curry expression that evaluates to some content.
 data Text = Raw String | ExpT String | ExpC String
-
-instance Eq Text where
-  _ == _ = error "TODO: Eq MLTypes.Text"
+ deriving Eq
 
 type TPos = (SimplePos,Int)
 type Symbol = (Token,TPos)

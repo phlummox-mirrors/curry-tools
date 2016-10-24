@@ -17,16 +17,9 @@ This extension allows to integrate
 code written in some other language into Curry programs,
 like regular expressions, format specifications (\ccode{printf}),
 HTML and XML code.
-\item[Sequential rules:]
-If this feature is used, all rules in a Curry module are
-interpreted as sequential, i.e., a rule is applied only
-if all previous rules defining the same operation are not applicable.
-The idea of sequential rules are described in \cite{AntoyHanus14}.
 \item[Default rules:]
 If this feature is used, one can add a default rule
 to operations defined in a Curry module.
-This provides a similar power than sequential rules
-but with a better operational behavior.
 The idea of default rules is described in \cite{AntoyHanus16PADL}.
 \item[Contracts:]
 If this feature is used, the Curry preprocessor looks for contracts
@@ -53,11 +46,10 @@ This option tells the \CYS front end to process the Curry source program
 with \code{currypp} before actually parsing the source text.
 
 The option \ccode{defaultrules} has to be replaced by
-\ccode{seqrules} if the sequential rule matching should be replaced,
-or by \ccode{contracts} to enable dynamic contract checking.
+\ccode{contracts} to enable dynamic contract checking.
 To support integrated code, one has to set the option
 \ccode{foreigncode} (which can also be combined with
-either \ccode{defaultrules} or \ccode{seqrules}).
+either \ccode{defaultrules} or \ccode{contracts}).
 If one wants to see the result of the transformation, one can
 also set the option \ccode{-o}. This has the effect that the
 transformed source program is stored in the file
@@ -73,7 +65,7 @@ one has to put the line
 at the beginning of the program.
 %
 If the options about the kind of preprocessing is omitted,
-all kinds of preprocessing (except for \ccode{seqrules})
+all kinds of preprocessing
 are applied. Thus, the preprocessor directive
 \begin{curry}
 {-# OPTIONS_CYMAKE -F --pgmF=currypp #-}
@@ -609,40 +601,8 @@ SQL translator can be found in \cite{HanusKrone16WFLP,Krone15}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Sequential Rules}
-
-If the Curry preprocessor is called with the option
-\ccode{seqrules}, then all rules in the Curry module are
-interpreted in a sequential manner, i.e., a rule is applied only
-if all previous rules defining the same operation are not applicable,
-either because the left-hand side's pattern does not match
-or the condition is not satisfiable.
-The idea and detailed semantics of
-sequential rules are described in \cite{AntoyHanus14}.
-Sequential rules are useful and preferable over
-rules with multiple guards if the patterns are non-trivial
-(e.g., functional patterns) or the condition involve complex
-constraints.
-
-As a simple example, the following module defines
-a lookup operation in association lists by a functional pattern.
-Due to the sequential rule strategy,
-the second rule is applied only if there is no appropriate
-key in the association list:
-%
-\begin{curry}
-{-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=seqrules #-}
-
-mlookup key (_ ++ [(key,value)] ++ _) = Just value
-mlookup _   _                         = Nothing 
-\end{curry}
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Default Rules}
 
-An alternative to sequential rules are default rules, i.e.,
-these two options cannot be simultaneously used.
 Default rules are activated by the preprocessor option
 \ccode{defaultrules}.
 In this case, one can add to each operation a default rule.
@@ -655,17 +615,11 @@ or the conditions are not satisfiable.
 The idea and detailed semantics of
 default rules are described in \cite{AntoyHanus16PADL}.
 
-Default rules are preferable over the sequential rule selection
-strategy since they have a better operational behavior.
-This is due to the fact that the test for the application
-of default rules is done with the same (sometimes optimal)
-strategy than the selection of standard rules.
-Moreover, default rules provide a similar power than sequential rules,
-i.e., they can be applied if the standard rules have
-complex (functional) patterns or complex conditions.
-
-As a simple example, we show the implementation of the
-previous example for sequential rules with a default rule:
+As a simple example, the following module defines
+a lookup operation in association lists by a functional pattern.
+Since the second rule is a default rule,
+it is applied only if the first rule is not applicable, i.e.,
+there is no appropriate key in the association list:
 %
 \begin{curry}
 {-# OPTIONS_CYMAKE -F --pgmF=currypp --optF=defaultrules #-}

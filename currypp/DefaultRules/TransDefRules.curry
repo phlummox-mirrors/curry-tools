@@ -6,11 +6,11 @@
 --- @version May 2016
 -----------------------------------------------------------------------------
 
-import AbstractCurry.Types
-import AbstractCurry.Files
-import AbstractCurry.Select
-import AbstractCurry.Build
-import AbstractCurry.Pretty
+import AbstractCurry2.Types
+import AbstractCurry2.Files
+import AbstractCurry2.Select
+import AbstractCurry2.Build
+import AbstractCurry2.Pretty
 import Char(isDigit,digitToInt)
 import DefaultRuleUsage
 import Directory
@@ -34,12 +34,7 @@ banner = unlines [bannerLine,bannerText,bannerLine]
 -- Available translation schemes
 data TransScheme = SpecScheme -- as specified in the PADL'16 paper
                  | NoDupScheme -- scheme without checking conditions twice
-
-instance Eq TransScheme where
-  _ == _ = error "TODO: Eq TransDefRules.TransScheme"
-
-instance Show TransScheme where
-  show _ = error "TODO: Show TransDefRules.TransScheme"
+ deriving (Eq,Show)
 
 -- The default translation scheme:
 defaultTransScheme :: TransScheme
@@ -118,7 +113,8 @@ showQName (qn,fn) = "'" ++ qn ++ "." ++ fn ++ "'"
 -- If the program was not transformed, `Nothing` is returned.
 
 translateProg :: TransScheme -> CurryProg -> IO (Maybe ([QName],CurryProg))
-translateProg trscm prog@(CurryProg mn imps tdecls fdecls ops) = do
+translateProg trscm
+  prog@(CurryProg mn imps dfltdecl clsdecls instdecls tdecls fdecls ops) = do
   let usageerrors = checkDefaultRules prog
   unless (null usageerrors) $ do
     putStr (unlines $ "ERROR: ILLEGAL USE OF DEFAULT RULES:" :
@@ -128,7 +124,8 @@ translateProg trscm prog@(CurryProg mn imps tdecls fdecls ops) = do
   -- now we do not have to check the correct usage of default rules...
   return $ if null deffuncs && null detfuncnames
          then Nothing
-         else Just (detfuncnames, CurryProg mn newimports tdecls newfdecls ops)
+         else Just (detfuncnames, CurryProg mn newimports dfltdecl clsdecls
+                                            instdecls tdecls newfdecls ops)
  where
   newimports       = if setFunMod `elem` imps then imps else setFunMod:imps
   detfuncnames     = map funcName (filter isDetFun fdecls)
@@ -144,11 +141,12 @@ translateProg trscm prog@(CurryProg mn imps tdecls fdecls ops) = do
 isDetFun :: CFuncDecl -> Bool
 isDetFun (CmtFunc _ qf ar vis texp rules) =
   isDetFun (CFunc qf ar vis texp rules)
-isDetFun (CFunc _ _ _ texp _) = hasDetResultType texp
+isDetFun (CFunc _ _ _ (CQualType _ texp) _) = hasDetResultType texp
   where
-   hasDetResultType (CTVar _) = False
+   hasDetResultType (CTVar _)        = False
+   hasDetResultType (CTCons _)       = False
    hasDetResultType (CFuncType _ rt) = hasDetResultType rt
-   hasDetResultType (CTCons tc _) = tc == pre "DET"
+   hasDetResultType (CTApply tc _)   = tc == CTCons (pre "DET")
 
 -- translate a function (where the names of all deterministic functions
 -- is provided as a first argument):
@@ -177,15 +175,13 @@ transDetFun detfnames fdecl@(CFunc qf@(mn,fn) ar vis texp rules)
 
   argvars = map (\i->(i,"x"++show i)) [1..ar]
 
-removeDetResultType :: CTypeExpr -> CTypeExpr
-removeDetResultType tv@(CTVar _) = tv
-removeDetResultType (CFuncType t1 t2) =
-  CFuncType (removeDetResultType t1) (removeDetResultType t2)
-removeDetResultType (CTCons tc texps) =
-  if tc == pre "DET"
-  then head texps
-  else CTCons tc (map removeDetResultType texps)
-
+removeDetResultType :: CQualTypeExpr -> CQualTypeExpr
+removeDetResultType (CQualType clsctxt te) = CQualType clsctxt (removeDet te)
+ where
+  removeDet tv@(CTVar _)      = tv
+  removeDet tc@(CTCons _)     = tc
+  removeDet (CFuncType t1 t2) = CFuncType t1 (removeDet t2)
+  removeDet t@(CTApply tc ta) = if tc == CTCons (pre "DET") then ta else t
 
 ------------------------------------------------------------------------
 -- implementation of default rule transformation:
@@ -269,14 +265,17 @@ transFDecl2ApplyCond nqf (CFunc _ ar _ texp rules) =
      in CRule (map (anonymPat singlepatvars) rpats)
               (CGuardedRhs (map (\gd -> (fst gd,preUnit)) gds) rlocals)
 
--- Adjust the result type of a type by setting the result type to ():
-adjustResultTypeToUnit :: CTypeExpr -> CTypeExpr
-adjustResultTypeToUnit texp =
-  if texp == preUntyped
-  then texp
-  else case texp of
-         CFuncType te1 te2 -> CFuncType te1 (adjustResultTypeToUnit te2)
-         _                 -> unitType
+-- Adjust the result type of a function type by setting this type to ():
+adjustResultTypeToUnit :: CQualTypeExpr -> CQualTypeExpr
+adjustResultTypeToUnit (CQualType clsctxt te) =
+  CQualType clsctxt (adjustRType te)
+ where
+  adjustRType texp =
+    if texp == preUntyped
+      then texp
+      else case texp of
+             CFuncType te1 te2 -> CFuncType te1 (adjustRType te2)
+             _                 -> unitType
 
 -- Translates a function declaration into one where the right-hand side
 -- is encapsulated in a unary function, i.e., it just checks for applicability
@@ -297,14 +296,18 @@ transFDecl2FunRHS nqf (CFunc _ ar _ texp rules) =
              (map (\ (gd,rhs) -> (gd,(CLambda [CPVar (999,"_")] rhs))) gds)
              rlocals)
 
--- Adjust the result type of a type by setting the result type to ():
-adjustResultTypeToFunRHS :: CTypeExpr -> CTypeExpr
-adjustResultTypeToFunRHS texp =
-  if texp == preUntyped
-  then texp
-  else case texp of
-         CFuncType te1 te2 -> CFuncType te1 (adjustResultTypeToFunRHS te2)
-         _                 -> CFuncType unitType texp
+-- Adjust the result type of a function type by setting the result type
+-- `te` to `() -> texp`:
+adjustResultTypeToFunRHS :: CQualTypeExpr -> CQualTypeExpr
+adjustResultTypeToFunRHS (CQualType clsctxt te) =
+  CQualType clsctxt (adjustRType te)
+ where
+  adjustRType texp =
+    if texp == preUntyped
+      then texp
+      else case texp of
+             CFuncType te1 te2 -> CFuncType te1 (adjustRType te2)
+             _                 -> CFuncType unitType texp
 
 transDefaultRule :: QName -> Int -> CRule -> CRule
 transDefaultRule _ _ (CRule _ (CGuardedRhs _ _)) =
@@ -333,7 +336,7 @@ preUnit :: CExpr
 preUnit = CSymbol (pre "()")
 
 preUntyped :: CTypeExpr
-preUntyped = CTCons (pre "untyped") []
+preUntyped = CTCons (pre "untyped")
 
 setFunMod :: String
 setFunMod = "SetFunctions"

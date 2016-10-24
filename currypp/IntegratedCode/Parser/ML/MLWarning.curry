@@ -31,8 +31,7 @@ warn pos id ws = (fromSimplePos (fst pos),msg) : ws
           -> "end tag without previous start tag"
 
 -- map a list with a warning function, to get all warnings
---wmap :: (a -> (b,[Warning])) -> [a] -> ([b],[Warning])
--- NOTE: this type annotation produces error w.r.t. new front end (TODO!)
+wmap :: (a -> (b,[Warning])) -> [a] -> ([b],[Warning])
 wmap f ys = wmapper ys
   where --wmapper :: [a] -> ([b],[Warning])
         wmapper [] = ([],[])

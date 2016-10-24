@@ -71,10 +71,7 @@ data Token
     | Asterix
    -- unsupported Char
     | Unexpected Char
-
-instance Eq Token where
-  _ == _ = error "TODO: Eq SQLToken.Token"
-
+ deriving Eq
 
 data ConstVal = NumInt Int 
               | NumFloat Float 
@@ -83,11 +80,19 @@ data ConstVal = NumInt Int
               | VarStr String 
               | VarChar Char
               | Null
+ deriving Eq
+
 data Func = Sum | Avg | Min | Max | Count
+ deriving Eq
  
 data BinOperator = Lth | Gth | Lte | Gte | Equal | Uneq | Like
+ deriving Eq
+
 data LogOperator = And | Or 
+ deriving Eq
+
 data SetOperator = Union | Intersect | Except
+ deriving Eq
 
 --auxiliary function to print token for error messages
 tokentoString :: Token -> String

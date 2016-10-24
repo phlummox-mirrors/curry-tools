@@ -546,7 +546,7 @@ genSpecTest prefuns specops
             (CFunc qf@(mn,fn) _ _ (CQualType clscon texp) _) =
  if qf `notElem` specops then [] else
   [CFunc (mn, fn ++ satSpecSuffix) ar Public
-    (CQualType clscon (propResultType texp))
+    (CQualType (addShowContext clscon) (propResultType texp))
     [simpleRule (map CPVar cvars) $
        addPreCond (applyF (easyCheckModule,"<~>")
                           [applyF qf (map CVar cvars),
@@ -591,7 +591,7 @@ genDetProp prefuns (CmtFunc _ qf ar vis texp rules) =
   genDetProp prefuns (CFunc qf ar vis texp rules)
 genDetProp prefuns (CFunc (mn,fn) ar _ (CQualType clscon texp) _) =
   CFunc (mn, forg ++ isDetSuffix) ar Public
-   (CQualType clscon (propResultType texp))
+   (CQualType (addShowContext clscon) (propResultType texp))
    [simpleRule (map CPVar cvars) $
       if (mn,forg) `elem` prefuns
        then applyF (easyCheckModule,"==>")
@@ -673,6 +673,11 @@ defaultQualType (CQualType (CContext allclscon) ftype) =
 
   isTVar te = case te of CTVar _ -> True
                          _       -> False
+
+-- Add a "Show" class context to all types occurring in the context.
+addShowContext :: CContext -> CContext
+addShowContext (CContext clscons) =
+  CContext (nub (clscons ++ (map (\t -> (pre "Show",t)) (map snd clscons))))
 
 -------------------------------------------------------------------------
 
