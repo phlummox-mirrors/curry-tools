@@ -28,7 +28,7 @@
 
 module CurryDoc where
 
-import AbstractCurry.Files
+import AbstractCurry2.Files
 import Directory
 import Distribution
 import FileGoodies
