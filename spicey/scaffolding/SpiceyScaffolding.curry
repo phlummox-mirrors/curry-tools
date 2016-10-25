@@ -2,9 +2,9 @@
 --- This is the main file for scaffolding.
 ------------------------------------------------------------------------
 
-import AbstractCurry.Types
-import AbstractCurry.Build
-import AbstractCurry.Pretty hiding(showCProg)
+import AbstractCurry2.Types
+import AbstractCurry2.Build
+import AbstractCurry2.Pretty hiding(showCProg)
 import Database.ERD
 import Database.ERDGoodies
 import Distribution(installDir)

@@ -1,6 +1,6 @@
 
-import AbstractCurry.Types
-import AbstractCurry.Build
+import AbstractCurry2.Types
+import AbstractCurry2.Build
 import Char
 import Database.ERD
 import Database.ERDGoodies
@@ -144,7 +144,7 @@ viewFunctionName entityName viewFunction =
   (viewModuleName entityName, viewFunction ++ entityName ++ "View")
 
 viewBlockType :: CTypeExpr
-viewBlockType = listType (CTCons ("HTML","HtmlExp") [])
+viewBlockType = listType (baseType ("HTML","HtmlExp"))
 
 
 attrType :: Attribute -> CTypeExpr

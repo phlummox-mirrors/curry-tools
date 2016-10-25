@@ -1,5 +1,5 @@
-import AbstractCurry.Types
-import AbstractCurry.Build
+import AbstractCurry2.Types
+import AbstractCurry2.Build
 import GenerationHelper
 import Database.ERD
 import Database.ERDGoodies
@@ -18,7 +18,7 @@ generateControllersForEntity :: String -> [Entity] -> Entity
                              -> CurryProg
 generateControllersForEntity erdname allEntities
                              (Entity ename attrlist) relationships =
- CurryProg
+ simpleCurryProg
   (controllerModuleName ename)
   -- imports:
   ["Spicey", "KeyDatabase", "HTML", "Time", erdname, viewModuleName ename,
@@ -179,14 +179,14 @@ createTransaction erdname (Entity entityName attrList) relationships allEntities
     manyToManyEntities = manyToMany allEntities (Entity entityName attrList)
     manyToOneEntities  = manyToOne (Entity entityName attrList) relationships
   in
-    cmtfunc
+    stCmtFunc
     ("Transaction to persist a new "++entityName++" entity to the database.")
     (transFunctionName entityName "create")
     1 Private
       (tupleType (map attrType notGeneratedAttributes ++
                   map ctvar manyToOneEntities ++
                   map (listType . ctvar) manyToManyEntities)
-        ~> CTCons (db "Transaction") [baseType (pre "()")])
+        ~> applyTC (db "Transaction") [baseType (pre "()")])
       [simpleRule 
         [tuplePattern
           (map (\ (param, varId) -> CPVar (varId, param)) 
@@ -308,14 +308,14 @@ updateTransaction erdname (Entity entityName attrList) _ allEntities =
      -- manyToOneEntities = manyToOne (Entity entityName attrList) relationships
      -- noPKeys = (filter notPKey attrList)
   in
-    cmtfunc
+    stCmtFunc
     ("Transaction to persist modifications of a given "++entityName++" entity\n"++
      "to the database.")
     (transFunctionName entityName "update")
     2 Private
       (tupleType ([baseType (erdname, entityName)] ++
                    map (\name -> listType (ctvar name)) manyToManyEntities)
-        ~> CTCons (db "Transaction") [baseType (pre "()")]
+        ~> applyTC (db "Transaction") [baseType (pre "()")]
       )
       [simpleRule 
         [tuplePattern
@@ -382,12 +382,12 @@ deleteTransaction erdname (Entity entityName attrList) _ allEntities =
       entlc  = lowerFirst entityName  -- entity name in lowercase
       entvar = (0, entlc)             -- entity parameter for trans.
   in
-   cmtfunc
+   stCmtFunc
     ("Transaction to delete a given "++entityName++" entity.")
     (transFunctionName entityName "delete")
     1 Private
     (baseType (erdname, entityName) ~>
-                     CTCons (db "Transaction") [baseType (pre "()")])
+                     applyTC (db "Transaction") [baseType (pre "()")])
     [simpleRule 
       [CPVar entvar] -- entity parameter for controller
       (foldr1 (\a b -> applyF (db "|>>") [a,b])
@@ -511,14 +511,14 @@ manyToManyAddOrRemove erdname (Entity entityName _) entities allEntities =
   where
     addOrRemoveFunction :: String -> String -> String -> String -> CFuncDecl
     addOrRemoveFunction funcPrefix dbFuncPrefix e1 e2 =      
-      cmtfunc 
+      stCmtFunc 
       (if (funcPrefix == "add")
         then ("Associates given entities with the "++entityName++" entity.")
         else ("Removes association to the given entities with the "++entityName++" entity."))
       (controllerModuleName e1, funcPrefix++(linkTableName e1 e2 allEntities))
       2 
       Private
-      (listType (ctvar e2) ~> ctvar e1 ~> CTCons (db "Transaction")
+      (listType (ctvar e2) ~> ctvar e1 ~> applyTC (db "Transaction")
                                                  [tupleType []])
       [simpleRule [CPVar (0, (lowerFirst e2)++"s"), CPVar (1, (lowerFirst e1))]
         (applyF (db "mapT_")
@@ -534,7 +534,7 @@ getAll erdname (Entity entityName _) entities _ =
   where
     getAllFunction :: String -> CFuncDecl
     getAllFunction foreignEntity =
-      cmtfunc 
+      stCmtFunc 
       ("Gets all "++foreignEntity++" entities.")
       (controllerModuleName entityName, "getAll"++foreignEntity++"s")
       0
@@ -559,12 +559,12 @@ manyToManyGetRelated erdname (Entity entityName _) entities allEntities =
   where
     getRelatedFunction :: String -> CFuncDecl
     getRelatedFunction foreignEntity =
-      cmtfunc 
+      stCmtFunc 
       ("Gets the associated "++foreignEntity++" entities for a given "++entityName++" entity.")
       (controllerModuleName entityName, "get"++(linkTableName entityName foreignEntity allEntities)++foreignEntity++"s")
       0
       Private
-      (ctvar entityName ~> CTCons (db "Query") [listType (ctvar foreignEntity)])
+      (ctvar entityName ~> applyTC (db "Query") [listType (ctvar foreignEntity)])
       [simpleRule [CPVar (1, (take 1 $ lowerFirst entityName)++foreignEntity)]
         (applyF (db "queryAll")
           [CLambda [CPVar(0, take 1 (lowerFirst foreignEntity) )] 
@@ -594,14 +594,14 @@ manyToOneGetRelated erdname (Entity entityName _) entities _ relationships =
           rname   = fst (relationshipName entityName foreignEntity relationships)
           fkeysel = lowerFirst entityName++foreignEntity++rname++"Key"
       in
-      cmtfunc 
+      stCmtFunc 
       ("Gets the associated "++foreignEntity++" entity for a given "++
        entityName++" entity.")
       (controllerModuleName entityName,
        "get"++rname++foreignEntity)
       0
       Private
-      ((ctvar entityName) ~> CTCons (db "Transaction") [ctvar foreignEntity])
+      ((ctvar entityName) ~> applyTC (db "Transaction") [ctvar foreignEntity])
       [simpleRule [CPVar argvar]
                   (applyF (erdname,"get"++foreignEntity)
                           [applyF (erdname,fkeysel) [CVar argvar]])]
@@ -631,7 +631,7 @@ entityConstructorFunction erdname (Entity entityName attrList) relationships =
 -- rules: the rules defining the controller
 controllerFunction description entityName controllerType arity functionType
                    rules =
-  cmtfunc description (controllerFunctionName entityName controllerType) arity
+  stCmtFunc description (controllerFunctionName entityName controllerType) arity
           (if controllerType `elem` ["main"]
            then Public
            else Private)
@@ -693,12 +693,12 @@ relationshipsForEntityName ename rels = filter endsIn rels
 ------------------------------------------------------------------------
 -- Generate the module defining the default controller.
 generateDefaultController :: String -> [Entity] -> CurryProg
-generateDefaultController _ (Entity ename _:_) = CurryProg
+generateDefaultController _ (Entity ename _:_) = simpleCurryProg
   defCtrlModName
   [ename++"Controller","Spicey"] -- imports
   [] -- typedecls
   -- functions
-  [cmtfunc
+  [stCmtFunc
     "The default controller of the application."
     (defCtrlModName,"defaultController")
     1
@@ -711,7 +711,7 @@ generateDefaultController _ (Entity ename _:_) = CurryProg
 ------------------------------------------------------------------------
 -- Generate all default authorizations.
 generateAuthorizations :: String -> [Entity] -> CurryProg
-generateAuthorizations erdname entities = CurryProg
+generateAuthorizations erdname entities = simpleCurryProg
   enauthModName
   ["Authorization", "SessionInfo", erdname] -- imports
   [] -- typedecls
@@ -720,14 +720,14 @@ generateAuthorizations erdname entities = CurryProg
   [] -- opdecls
  where
   operationAllowed (Entity entityName _) =
-   cmtfunc
+   stCmtFunc
     ("Checks whether the application of an operation to a "++entityName++"\n"++
      "entity is allowed.")
     (enauthModName, lowerFirst entityName ++ "OperationAllowed")
     1
     Public
-    (CTCons (authModName,"AccessType") [baseType (erdname,entityName)]
-     ~> CTCons ("SessionInfo","UserSessionInfo") []
+    (applyTC (authModName,"AccessType") [baseType (erdname,entityName)]
+     ~> baseType ("SessionInfo","UserSessionInfo")
      ~> ioType (baseType (authModName,"AccessResult")))
     [simpleRule [CPVar (1,"at"), CPVar (2,"_")]
      (CCase CRigid (CVar (1,"at"))

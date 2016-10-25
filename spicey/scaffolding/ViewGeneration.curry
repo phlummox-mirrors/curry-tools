@@ -1,5 +1,5 @@
-import AbstractCurry.Types
-import AbstractCurry.Build
+import AbstractCurry2.Types
+import AbstractCurry2.Build
 import Database.ERD
 import Database.ERDGoodies
 import GenerationHelper
@@ -11,7 +11,7 @@ generateViewsForEntity erdname allEntities
                        (Entity ename attrlist) relationships =
  let noKeyAttrs  = filter (\a -> notKey a && notPKey a) attrlist
      noPKeyAttrs = filter notPKey attrlist
-  in CurryProg
+  in simpleCurryProg
   (viewModuleName ename)
   ["WUI", "HTML", "Time", "Sort", "Bootstrap3Style", "Spicey", "SessionInfo",
    erdname, erdname++"EntitiesToHtml"] -- imports
@@ -42,14 +42,14 @@ wuiSpec erdname (Entity entityName attrlist) relationships allEntities =
     argumentCount = length attrlist + length manyToOneEntities
                     + length manyToManyEntities
   in
-    cmtfunc 
+    stCmtFunc 
     ("The WUI specification for the entity type "++entityName++".\n"++
      if null (manyToOneEntities ++ manyToManyEntities)
      then ""
      else "It also includes fields for associated entities.")
     (viewModuleName entityName, "w"++entityName) 2 Public
     (foldr CFuncType
-           (CTCons ("WUI", "WuiSpec")
+           (applyTC ("WUI", "WuiSpec")
                [entityInterface attrlist manyToOneEntities manyToManyEntities])
            (map (\e -> listType (ctvar e))
                 (manyToOneEntities ++ manyToManyEntities))-- possible values
@@ -84,11 +84,6 @@ wuiSpec erdname (Entity entityName attrlist) relationships allEntities =
                             lowerFirst entityName++"LabelList")]
           ]
         )]
-  where
-    getFirstAttributeName myEntityName =
-      gf (head (filter (\(Entity name _) -> name == myEntityName) allEntities))
-    gf (Entity _ (_:((Attribute name _ _ _):_))) = name
-
 
 
 tuple2Entity :: ViewGenerator
@@ -97,7 +92,7 @@ tuple2Entity erdname (Entity entityName attrlist) relationships allEntities =
     manyToManyEntities = manyToMany allEntities (Entity entityName attrlist)
     manyToOneEntities = manyToOne (Entity entityName attrlist) relationships
   in
-    cmtfunc 
+    stCmtFunc 
     ("Transformation from data of a WUI form to entity type "++entityName++".")
     (viewModuleName entityName, "tuple2"++entityName) 2 Public
     (
@@ -148,7 +143,7 @@ entity2Tuple erdname (Entity entityName attrlist) relationships allEntities =
     manyToManyEntities = manyToMany allEntities (Entity entityName attrlist)
     manyToOneEntities = manyToOne (Entity entityName attrlist) relationships
   in
-    cmtfunc
+    stCmtFunc
     ("Transformation from entity type "++entityName++" to a tuple\n"++
      "which can be used in WUI specifications.")
     (viewModuleName entityName, (lowerFirst entityName)++"2Tuple") 2 Public
@@ -196,13 +191,13 @@ wuiType _ (Entity entityName attrlist) relationships allEntities =
     manyToManyEntities = manyToMany allEntities (Entity entityName attrlist)
     manyToOneEntities  = manyToOne (Entity entityName attrlist) relationships
   in
-    cmtfunc 
+    stCmtFunc 
     ("WUI Type for editing or creating "++entityName++" entities.\n"++
      "Includes fields for associated entities.")
     (viewModuleName entityName, "w"++entityName++"Type") 2 Public
     (
       foldr CFuncType
-      (CTCons ("WUI", "WuiSpec") [
+      (applyTC ("WUI", "WuiSpec") [
         if null manyToManyEntities
         then ctvar entityName
         else
@@ -399,7 +394,7 @@ blankView _ (Entity entityName attrlist) relationships allEntities =
 -- Generate function to compare to entities in lexicographic order.
 leqEntity :: ViewGenerator
 leqEntity erdname (Entity entityName attrlist) _ _ =
-  cmtfunc
+  stCmtFunc
     ("Compares two "++entityName++" entities. This order is used in the list view.")
     (viewModuleName entityName, "leq" ++ entityName) 2 Private
     -- function type
@@ -506,7 +501,7 @@ listView erdname (Entity entityName attrlist) _ _ =
               ]
             ]
           )
-        [CLocalFunc (cfunc
+        [CLocalFunc (stFunc
           (viewModuleName entityName, "list"++entityName) 2 Private
           (ctvar entityName ~> listType viewBlockType)
           [simpleRule [CPVar envar]
@@ -551,8 +546,8 @@ listView erdname (Entity entityName attrlist) _ _ =
 viewFunction :: String -> String -> String -> Int -> CTypeExpr -> [CRule]
              -> CFuncDecl
 viewFunction description entityName viewType arity functionType rules =
-  cmtfunc description (viewFunctionName entityName viewType) arity
-          Public functionType rules
+  stCmtFunc description (viewFunctionName entityName viewType) arity
+            Public functionType rules
   
 entityInterface :: [Attribute] -> [String] -> [String] -> CTypeExpr
 entityInterface attrlist manyToOne manyToMany = 

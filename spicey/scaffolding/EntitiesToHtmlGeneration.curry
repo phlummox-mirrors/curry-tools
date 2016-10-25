@@ -1,12 +1,12 @@
-import AbstractCurry.Types
-import AbstractCurry.Build
+import AbstractCurry2.Types
+import AbstractCurry2.Build
 import Database.ERD
 import Database.ERDGoodies
 import GenerationHelper
 
 -- "main"-function
 generateToHtml :: String -> [Entity] -> [Relationship] -> CurryProg
-generateToHtml erdname allEntities relationships = CurryProg
+generateToHtml erdname allEntities relationships = simpleCurryProg
   (erdname++"EntitiesToHtml")
   ["WUI", "HTML", "Time", "Spicey", erdname] -- imports
   [] -- typedecls
@@ -34,7 +34,7 @@ type ToHtmlGenerator = String -> Entity -> [Relationship] -> [Entity] -> CFuncDe
 
 toListView :: ToHtmlGenerator
 toListView erdname (Entity entityName attrlist) _ _ =
- cmtfunc
+ stCmtFunc
   ("The list view of a "++entityName++" entity in HTML format.\n"++
    "This view is used in a row of a table of all entities.")
   (thisModuleName erdname, (lowerFirst entityName)++"ToListView") 2 Public
@@ -57,7 +57,7 @@ toListView erdname (Entity entityName attrlist) _ _ =
 
 toShortView :: ToHtmlGenerator
 toShortView erdname (Entity entityName attrlist) _ _ =
-  cmtfunc
+  stCmtFunc
   ("The short view of a "++entityName++" entity as a string.\n"++
    "This view is used in menus and comments to refer to a "++entityName++" entity.")
   (thisModuleName erdname, (lowerFirst entityName)++"ToShortView")
@@ -89,7 +89,7 @@ toDetailsView erdname (Entity entityName attrlist) relationships allEntities =
      eName = lowerFirst entityName
      evar  = (1,eName)
   in
- cmtfunc
+ stCmtFunc
   ("The detailed view of a "++entityName++" entity in HTML format.\n"++
    if null (manyToOneEntities ++ manyToManyEntities) then "" else
    "It also takes associated entities for every associated entity type.")
@@ -160,11 +160,11 @@ labelList erdname (Entity entityName attrlist) relationships allEntities =
     manyToManyEntities = manyToMany allEntities (Entity entityName attrlist)
     manyToOneEntities = manyToOne (Entity entityName attrlist) relationships
   in
-   cmtfunc
+   stCmtFunc
     ("The labels of a "++entityName++" entity, as used in HTML tables.")
     (thisModuleName erdname, (lowerFirst entityName)++"LabelList") 2 Public
     (
-      listType (listType (CTCons ("HTML", "HtmlExp") []))
+      listType (listType (baseType ("HTML", "HtmlExp")))
     )
     [simpleRule []
       (list2ac (

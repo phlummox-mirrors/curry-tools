@@ -1640,9 +1640,6 @@ isMinRange card = case card of Exactly i   -> i>1
 -- Auxiliary functions for AbstractCurry
 ---------------------------------------------------------------
 
-simpleCCons :: QName -> CVisibility -> [CTypeExpr] -> CConsDecl
-simpleCCons = CCons [] (CContext [])
-
 x :: CPattern
 x = CPVar (1,"x")
 
