@@ -48,12 +48,7 @@ data Category = General
               | Database
               | Web
               | Meta
-
-instance Eq Category where
-  _ == _ = error "TODO: Eq CurryDocRead.Category"
-
-instance Ord Category where
-  _ < _ = error "TODO: Ord CurryDocRead.Category"
+ deriving (Eq,Ord)
 
 type ModInfo = (Category, String, String)
 

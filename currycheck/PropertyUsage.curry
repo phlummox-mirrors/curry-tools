@@ -11,8 +11,8 @@ module PropertyUsage
   , propModule, easyCheckModule, easyCheckExecModule
   )  where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Select (funcType, resultType, typeOfQualType)
+import AbstractCurry.Types
+import AbstractCurry.Select (funcType, resultType, typeOfQualType)
 
 ------------------------------------------------------------------------
 -- Check whether a function definition is a property,

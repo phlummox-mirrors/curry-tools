@@ -11,16 +11,16 @@
 ---      theorem'sorted xs = always (sorted (sort xs))
 ---
 --- @author Michael Hanus
---- @version August 2016
+--- @version October 2016
 ------------------------------------------------------------------------
 
 module SimplifyPostConds
   ( simplifyPostConditionsWithTheorems)
  where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Select
-import AbstractCurry2.Build
+import AbstractCurry.Types
+import AbstractCurry.Select
+import AbstractCurry.Build
 import List                 (last, maximum)
 import Maybe                (maybeToList)
 import ReadShowTerm         (readQTerm)

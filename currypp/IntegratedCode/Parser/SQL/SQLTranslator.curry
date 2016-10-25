@@ -9,9 +9,9 @@
 
 module SQLTranslator(translate) where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Pretty
-import AbstractCurry2.Build
+import AbstractCurry.Types
+import AbstractCurry.Pretty
+import AbstractCurry.Build
 import Char(toLower, toUpper)
 import List(intercalate, splitOn)
 import Pretty

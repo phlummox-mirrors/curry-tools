@@ -12,8 +12,8 @@
 
 module CheckDetUsage(containsDetOperations, checkDetUse) where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Select
+import AbstractCurry.Types
+import AbstractCurry.Select
 
 ---------------------------------------------------------------------
 --- Does a Curr program contains operations with DET annotations?

@@ -5,7 +5,7 @@
 
 {-# OPTIONS_CYMAKE -Wno-overlapping #-}
 
-import AbstractCurry2.Types
+import AbstractCurry.Types
 
 --- Returns (non-deterministically) some expression that contains
 --- the given expression as a subexpression.

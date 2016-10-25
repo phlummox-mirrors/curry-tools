@@ -12,9 +12,9 @@
 
 module AddTypes(main,addTypeSignatures) where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Files
-import AbstractCurry2.Pretty
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Pretty
 import AllSolutions
 import CurryStringClassifier
 import FileGoodies

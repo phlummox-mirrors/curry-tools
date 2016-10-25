@@ -2,14 +2,14 @@
 --- A transformation of Curry programs into Agda programs.
 ---
 --- @author Michael Hanus
---- @version August 2016
+--- @version October 2016
 -------------------------------------------------------------------------
 
 module ToAgda(theoremToAgda) where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Select
-import AbstractCurry2.Build
+import AbstractCurry.Types
+import AbstractCurry.Select
+import AbstractCurry.Build
 import Directory
 import Distribution      (installDir)
 import FilePath          ((</>))

@@ -46,7 +46,4 @@ data ContentsKind =
   | LCurryProg     -- Literate Curry source code
   | FlatCurryExp   -- FlatCurry expression
   | OtherText      -- some other text
-
-instance Eq ContentsKind where
-  _ == _ = error "TODO: Eq AnalysisTypes.ContentsKind"
-
+ deriving Eq

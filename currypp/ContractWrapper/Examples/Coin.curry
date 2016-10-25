@@ -2,7 +2,7 @@
 
 import Test.Prop
 
--- Examples with nondeterministicm specifications
+-- Examples with non-determinististic specifications
 
 coin'spec = 0 ? 1
 

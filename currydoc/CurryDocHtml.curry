@@ -2,7 +2,7 @@
 --- Operations to generate documentation in HTML format.
 ---
 --- @author Michael Hanus, Jan Tikovsky
---- @version April 2016
+--- @version October 2016
 ----------------------------------------------------------------------
 
 {-# OPTIONS_CYMAKE -Wno-incomplete-patterns #-}
@@ -14,11 +14,11 @@ import CurryDocParams
 import CurryDocRead
 import CurryDocConfig
 import TotallyDefined(Completeness(..))
-import AbstractCurry2.Types
-import AbstractCurry2.Files
-import AbstractCurry2.Select
-import AbstractCurry2.Build
-import AbstractCurry2.Pretty
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Select
+import AbstractCurry.Build
+import AbstractCurry.Pretty
 import qualified FlatCurry.Types as FC
 import qualified FlatCurry.Goodies as FCG
 import FilePath

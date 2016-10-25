@@ -13,9 +13,7 @@ systemBanner =
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
 data FileMode = Exec | NoExec
-
-instance Eq FileMode where
-  _ == _ = error "TODO: Eq SpiceUp.FileMode"
+ deriving Eq
 
 setFileMode :: FileMode -> String -> IO ()
 setFileMode fmode filename =

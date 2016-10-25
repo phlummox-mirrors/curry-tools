@@ -26,16 +26,16 @@
 ---     readXmlFile "Nat.xml" >>= return . xmlToNat
 ---
 --- @author Bernd Brassel, Michael Hanus
---- @version September 2015
+--- @version October 2016
 ------------------------------------------------------------------------------
 
 module Data2Xml where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Files
-import AbstractCurry2.Select
-import AbstractCurry2.Build
-import AbstractCurry2.Pretty(showCProg)
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Select
+import AbstractCurry.Build
+import AbstractCurry.Pretty(showCProg)
 import Char
 import Distribution(stripCurrySuffix)
 import List

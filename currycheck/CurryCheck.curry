@@ -14,16 +14,16 @@
 ---   (together with possible preconditions).
 ---
 --- @author Michael Hanus, Jan-Patrick Baye
---- @version August 2016
+--- @version October 2016
 -------------------------------------------------------------------------
 
-import AbstractCurry2.Types
-import AbstractCurry2.Files
-import AbstractCurry2.Select
-import AbstractCurry2.Build
-import AbstractCurry2.Pretty    (showCProg)
-import AbstractCurry2.Transform (renameCurryModule, trCTypeExpr
-                                ,updCProg, updQNamesInCProg)
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Select
+import AbstractCurry.Build
+import AbstractCurry.Pretty    (showCProg)
+import AbstractCurry.Transform (renameCurryModule, trCTypeExpr
+                               ,updCProg, updQNamesInCProg)
 import AnsiCodes
 import Distribution
 import FilePath                ((</>), takeDirectory)

@@ -5,7 +5,7 @@
 --- and pre/postconditions.
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version October 2016
 ------------------------------------------------------------------------
 
 module ContractUsage
@@ -15,9 +15,9 @@ module ContractUsage
   , isPostCondName, toPostCondName, fromPostCondName
   )  where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Select
-import AbstractCurry2.Build  (boolType)
+import AbstractCurry.Types
+import AbstractCurry.Select
+import AbstractCurry.Build  (boolType)
 import List
 
 --- Checks the intended usage of contracts.

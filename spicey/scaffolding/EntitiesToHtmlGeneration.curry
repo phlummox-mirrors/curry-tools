@@ -1,5 +1,5 @@
-import AbstractCurry2.Types
-import AbstractCurry2.Build
+import AbstractCurry.Types
+import AbstractCurry.Build
 import Database.ERD
 import Database.ERDGoodies
 import GenerationHelper

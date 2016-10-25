@@ -82,9 +82,7 @@ showAType _ Empty = "_|_"
 --- the possible result of the function,
 --- or a list of possible argument/result type pairs.
 data AFType = EmptyFunc | AFType [([AType],AType)]
-
-instance Eq AFType where
-  _ == _ = error "TODO: Eq RequiredValue.AFType"
+ deriving Eq
 
 -- Shows an abstract value.
 showAFType :: AOutFormat -> AFType -> String

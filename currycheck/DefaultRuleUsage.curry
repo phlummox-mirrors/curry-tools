@@ -3,7 +3,7 @@
 --- default rules in a Curry program.
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version October 2016
 ------------------------------------------------------------------------
 
 module DefaultRuleUsage
@@ -11,8 +11,8 @@ module DefaultRuleUsage
   , isDefaultFunc, isDefaultName, fromDefaultName
   )  where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Select
+import AbstractCurry.Types
+import AbstractCurry.Select
 import List
 
 --- Does a program contains default rules?

@@ -16,12 +16,12 @@
 
 module TransContracts(main,transContracts) where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Files
-import AbstractCurry2.Pretty
-import AbstractCurry2.Build
-import AbstractCurry2.Select
-import AbstractCurry2.Transform
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Pretty
+import AbstractCurry.Build
+import AbstractCurry.Select
+import AbstractCurry.Transform
 import Char
 import ContractUsage
 import Directory

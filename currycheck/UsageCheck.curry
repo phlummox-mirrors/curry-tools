@@ -8,12 +8,12 @@
 --- See example program `Examples/UsageErrors.curry` for some examples.
 ---
 --- @author Michael Hanus
---- @version February 2015
+--- @version October 2016
 ---------------------------------------------------------------------------
 
 module UsageCheck(checkSetUse, checkBlacklistUse) where
 
-import qualified AbstractCurry2.Types as AC
+import qualified AbstractCurry.Types as AC
 import AbstractCurryMatch
 import Char(isDigit)
 import FlatCurry.Types

@@ -1,8 +1,8 @@
 module ERD2Curry where
 
-import AbstractCurry2.Files  (readCurry)
-import AbstractCurry2.Select (imports)
-import AbstractCurry2.Pretty
+import AbstractCurry.Files  (readCurry)
+import AbstractCurry.Select (imports)
+import AbstractCurry.Pretty
 import Database.ERD
 import Database.ERDGoodies
 import Directory

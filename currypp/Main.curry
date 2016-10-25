@@ -7,13 +7,13 @@
 --- is supported (option `foreigncode`, see module `Translator`).
 ---
 --- @author Michael Hanus
---- @version September 2016
+--- @version October 2016
 ------------------------------------------------------------------------------
 
-import AbstractCurry2.Types
-import AbstractCurry2.Files
-import AbstractCurry2.Pretty(showCProg)
-import AbstractCurry2.Select(progName)
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Pretty(showCProg)
+import AbstractCurry.Select(progName)
 import Char(isDigit,digitToInt)
 import Directory(copyFile,renameFile)
 import Distribution

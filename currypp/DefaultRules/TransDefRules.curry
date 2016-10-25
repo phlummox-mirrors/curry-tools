@@ -3,14 +3,14 @@
 --- and deterministic functions.
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version October 2016
 -----------------------------------------------------------------------------
 
-import AbstractCurry2.Types
-import AbstractCurry2.Files
-import AbstractCurry2.Select
-import AbstractCurry2.Build
-import AbstractCurry2.Pretty
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Select
+import AbstractCurry.Build
+import AbstractCurry.Pretty
 import Char(isDigit,digitToInt)
 import DefaultRuleUsage
 import Directory

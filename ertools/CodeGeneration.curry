@@ -3,14 +3,14 @@
 --- from an already transformed ERD term.
 ---
 --- @author Michael Hanus, Marion Mueller
---- @version February 2015
+--- @version October 2016
 ------------------------------------------------------------------------------
 
 module CodeGeneration(Option,Storage(..),ConsistencyTest(..),
                       isSQLite,erd2code) where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Build
+import AbstractCurry.Types
+import AbstractCurry.Build
 import Database.ERD
 import Database.ERDGoodies
 import List

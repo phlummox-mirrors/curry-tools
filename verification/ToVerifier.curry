@@ -2,15 +2,15 @@
 --- A transformation of Curry programs into verification tools.
 ---
 --- @author Michael Hanus
---- @version Augsut 2016
+--- @version October 2016
 -------------------------------------------------------------------------
 
 module ToVerifier where
 
-import AbstractCurry2.Types
-import AbstractCurry2.Files
-import AbstractCurry2.Select
-import AbstractCurry2.Transform
+import AbstractCurry.Types
+import AbstractCurry.Files
+import AbstractCurry.Select
+import AbstractCurry.Transform
 import Distribution      (stripCurrySuffix)
 import GetOpt
 import List
