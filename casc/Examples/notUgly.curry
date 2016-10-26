@@ -1,7 +1,6 @@
 import AllSolutions  (getAllFailures, getAllSolutions
                      , getOneValue, getSearchTree)
 import Combinatorial (permute)
-import Integer       (abs)
 
 -- apply a function to all list elements (predefined as `map'):
 map_ ::  (a -> b) -> [a] -> [b]
