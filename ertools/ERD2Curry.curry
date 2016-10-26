@@ -18,7 +18,7 @@ import ERD2Graph
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "ERD->Curry Compiler (Version of 07/06/16)"
+  let bannerText = "ERD->Curry Compiler (Version of 27/10/16)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 

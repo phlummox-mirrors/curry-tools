@@ -256,7 +256,7 @@ getImports (Entity _ attrs) = getImportsAttrs attrs
 entity2datatype :: Option -> String -> Entity -> [CTypeDecl]
 entity2datatype _ ername (Entity name attrs) =
   [CType (ername,name) Public []
-         [simpleCCons (ername,name) Private argTypes] [],
+         [simpleCCons (ername,name) Private argTypes] [pre "Eq"],
    CTypeSyn (ername,name++"Tuple") Private [] (tupleType (tail argTypes))]
  where
   arity = length attrs
@@ -323,7 +323,7 @@ datatypeKey :: QName -> CTypeExpr -> CTypeDecl
 datatypeKey (s, name) argType =
   let n = (s, name ++ "Key")
   in
-  CType n Public [] [simpleCCons n Private [argType]] []
+  CType n Public [] [simpleCCons n Private [argType]] [pre "Eq", pre "Show"]
 
 generatedEntity2datatype :: Option -> String -> Entity -> [CTypeDecl]
 generatedEntity2datatype _ n (Entity name attrs) =

@@ -6,30 +6,31 @@
 --- integer key as a first parameter.
 ---
 --- This module reimplements the interface of the module
---- <code>KeyDatabase</code> based on the
---- <a href="http://sqlite.org/">SQLite</a> database engine.
---- In order to use it you need to have <code>sqlite3</code> in your
---- <code>PATH</code> environment variable or adjust the value of the
---- constant <code>path'to'sqlite3</code>.
+--- `KeyDatabase` based on the
+--- [SQLite](http://sqlite.org/) database engine.
+--- In order to use it you need to have `sqlite3` in your
+--- `PATH` environment variable or adjust the value of the
+--- constant `path'to'sqlite3`.
 ---
---- Programs that use the <code>KeyDatabase</code> module can be adjusted
+--- Programs that use the `KeyDatabase` module can be adjusted
 --- to use this module instead by replacing the imports of
---- <code>Dynamic</code>, <code>Database</code>, and
---- <code>KeyDatabase</code> with this module and changing the declarations
---- of database predicates to use the function <code>persistentSQLite</code>
---- instead of <code>dynamic</code> or <code>persistent</code>.
---- This module redefines the types <code>Dynamic</code>,
---- <code>Query</code>, and <code>Transaction</code> and although both
+--- `Dynamic`, `Database`, and
+--- `KeyDatabase` with this module and changing the declarations
+--- of database predicates to use the function `persistentSQLite`
+--- instead of `dynamic` or `persistent`.
+--- This module redefines the types `Dynamic`,
+--- `Query`, and `Transaction` and although both
 --- implementations can be used in the same program (by importing modules
 --- qualified) they cannot be mixed.
 ---
---- Compared with the interface of <code>KeyDatabase</code>, this module
---- lacks definitions for <code>index</code>, <code>sortByIndex</code>,
---- <code>groupByIndex</code>, and <code>runTNA</code> and adds the
---- functions <code>deleteDBEntries</code> and <code>closeDBHandles</code>.
+--- Compared with the interface of `KeyDatabase`, this module
+--- lacks definitions for `index`, `sortByIndex`,
+--- `groupByIndex`, and `runTNA` and adds the
+--- functions `deleteDBEntries` and `closeDBHandles`.
 ---
 --- @author Sebastian Fischer with changes by Michael Hanus
 --- @version August 2011
+--- @category database
 ------------------------------------------------------------------------------
 
 module KeyDatabase (
@@ -45,6 +46,8 @@ module KeyDatabase (
   existsDBKey,
 
   allDBKeys, allDBInfos, allDBKeyInfos,
+
+  ColVal, (@=), someDBKeys, someDBInfos, someDBKeyInfos, someDBKeyProjections,
 
   getDBInfo, getDBInfos,
 
@@ -124,10 +127,10 @@ runT trans =
 
 catchTrans :: IO (TransResult a) -> IO (TransResult a)
 catchTrans action =
-  action `catch` \ (IOError msg) ->
+  action `catch` \terr ->
     do err <- readGlobal lastQueryError
        writeGlobal lastQueryError Nothing
-       return . Error $ maybe (TError ExecutionError msg) id err
+       return . Error $ maybe (TError ExecutionError (showError terr)) id err
 
 --- Executes a possibly composed transaction on the current state
 --- of dynamic predicates as a single transaction.
@@ -192,7 +195,10 @@ t1 |>> t2 = t1 |>>= const t2
 sequenceT :: [Transaction a] -> Transaction [a]
 sequenceT = foldr seqT (returnT [])
  where
-  seqT t ts = t |>>= \x -> ts |>>= \xs -> returnT (x:xs)
+  -- seqT t ts = t |>>= \x -> ts |>>= \xs -> returnT (x:xs)
+  seqT t ts = do x  <- t
+                 xs <- ts
+                 return (x:xs)
 
 --- Executes a list of transactions sequentially, ignoring their
 --- results.
@@ -299,6 +305,47 @@ readKeyInfo row =
      return $!! (key, readInfo infoStr)
  where
   (keyStr,_:infoStr) = break (','==) row
+
+--- Abstract type for value restrictions
+data ColVal = ColVal Int String
+
+--- Constructs a value restriction for the column given as first argument
+(@=) :: Int -> a -> ColVal
+n @= x = ColVal n . quote $ showQTerm x
+
+--- Returns a list of those stored keys where the corresponding info
+--- part matches the gioven value restriction. Safe to use even on
+--- large databases if the number of results is small.
+someDBKeys :: KeyPred _ -> [ColVal] -> Query [Key]
+someDBKeys keyPred cvs = Query $
+  do rows <- selectSomeRows keyPred cvs "_rowid_"
+     mapIO readIntOrExit rows
+
+--- Returns a list of those info parts of stored entries that match
+--- the given value restrictions for columns. Safe to use even on
+--- large databases if the number of results is small.
+someDBInfos :: KeyPred a -> [ColVal] -> Query [a]
+someDBInfos keyPred cvs = Query $
+  do rows <- selectSomeRows keyPred cvs "*"
+     return $!! map readInfo rows
+
+--- Returns a list of those entries that match the given value
+--- restrictions for columns. Safe to use even on large databases if
+--- the number of results is small.
+someDBKeyInfos :: KeyPred a -> [ColVal] -> Query [(Key,a)]
+someDBKeyInfos keyPred cvs = Query $
+  do rows <- selectSomeRows keyPred cvs "_rowid_,*"
+     mapIO readKeyInfo rows
+
+--- Returns a list of column projections on
+--- those entries that match the given value
+--- restrictions for columns. Safe to use even on large databases if
+--- the number of results is small.
+someDBKeyProjections :: KeyPred a -> [Int] -> [ColVal] -> Query [(Key,b)]
+someDBKeyProjections keyPred cols cvs = Query $
+  do let colnames = commaSep (map ((colNames keyPred) !!) cols)
+     rows <- selectSomeRows keyPred cvs ("_rowid_,"++colnames)
+     mapIO readKeyInfo rows
 
 --- Queries the information stored under the given key. Yields
 --- <code>Nothing</code> if the given key is not present.
@@ -461,6 +508,17 @@ hGetLinesBefore h stop =
        else do rest <- hGetLinesBefore h stop
                return (line : rest)
 
+selectSomeRows :: KeyPred _ -> [ColVal] -> String -> IO [Row]
+selectSomeRows keyPred cvs cols =
+  selectRows keyPred cols $ if null cvs then ""
+                            else "where " ++ showColVals keyPred cvs
+
+showColVals :: KeyPred a -> [ColVal] -> String
+showColVals _       []     = "1"
+showColVals keyPred (c:vs) = concat . intersperse " AND " $ map showCV (c:vs)
+ where
+  showCV (ColVal n s) = colNames keyPred !! n ++ " = " ++ s
+
 --- Closes all database connections. Should be called when no more
 --- database access will be necessary.
 closeDBHandles :: IO ()
@@ -525,7 +583,7 @@ unless False action = action
 unless True  _      = done
 
 on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
-(f `on` g) x y = f (g x) (g y)
+on f g x y = f (g x) (g y)
 
 ensureDBTable :: DBFile -> TableName -> [ColName] -> IO ()
 ensureDBTable db table cols =
@@ -635,6 +693,7 @@ updStack char stack =
 
 --- The type of errors that might occur during a transaction.
 data TError = TError TErrorKind String
+ deriving (Eq,Show)
 
 --- The various kinds of transaction errors.
 data TErrorKind = KeyNotExistsError
@@ -646,8 +705,15 @@ data TErrorKind = KeyNotExistsError
                 | MaxError
                 | UserDefinedError
                 | ExecutionError
+ deriving (Eq,Show)
 
 --- Transforms a transaction error into a string.
 showTError :: TError -> String
 showTError (TError k s) = "Transaction error " ++ show k ++ ": " ++ s
+
+------------------------------------------------------------------------------
+instance Monad Transaction where
+  a1 >>= a2 = a1 |>>= a2
+  a1 >>  a2 = a1 |>>  a2
+  return x = returnT x
 
