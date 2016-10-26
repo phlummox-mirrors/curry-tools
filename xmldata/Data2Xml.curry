@@ -143,26 +143,26 @@ tagNameForCons (mname,cname)
 -------------------------------------------------
 
 mkType2Xml :: [Options] -> CTypeDecl -> CFuncDecl
-mkType2Xml _ (CTypeSyn name vis vars t)
-  = stFunc (toXmlName name) 1 vis
-          (CFuncType (applyTC name (map CTVar vars)) xmlType)
-          [simpleRule [CPVar (0,"x0")] (call2xml (t,0))]
-mkType2Xml opts (CType name vis vars cs _)
-  = stFunc (toXmlName name) (1+length vars) vis
-          (type2XmlType vars
-            (CFuncType (applyTC name (map CTVar vars)) xmlType))
-          (map (mkConsDecl2Xml opts $ map (CPVar . renVar) vars) cs)
-mkType2Xml _ (CNewType _ _ _ _ _)
-  = error "Data2Xml.mkType2Xml: CNewType not yet implemented!"
+mkType2Xml _ (CTypeSyn name vis vars texp) =
+  stFunc (toXmlName name) 1 vis
+         (CFuncType (applyTC name (map CTVar vars)) xmlType)
+         [simpleRule [CPVar (0,"x0")] (call2xml (texp,0))]
+mkType2Xml opts (CType name vis vars cs _) =
+  stFunc (toXmlName name) (1+length vars) vis
+         (type2XmlType vars
+                       (CFuncType (applyTC name (map CTVar vars)) xmlType))
+         (map (mkConsDecl2Xml opts $ map (CPVar . renVar) vars) cs)
+mkType2Xml _ (CNewType _ _ _ _ _) =
+  error "Data2Xml.mkType2Xml: CNewType not yet implemented!"
 
 mkConsDecl2Xml :: [Options] -> [CPattern] -> CConsDecl -> CRule
-mkConsDecl2Xml opts patVars (CCons _ _ name _ args)
-  = simpleRule (newPatVars++[CPComb name (pVars arity)])
-               (xml opts (tagNameForCons name) []
-                    (map call2xml (zip args [0..])))
-  where
-   arity = length args
-   newPatVars = renameUnused (map renVar $ concatMap tvarsOfType args) patVars
+mkConsDecl2Xml opts patVars (CCons _ _ name _ args) =
+  simpleRule (newPatVars++[CPComb name (pVars arity)])
+             (xml opts (tagNameForCons name) []
+                  (map call2xml (zip args [0..])))
+ where
+  arity = length args
+  newPatVars = renameUnused (map renVar $ concatMap tvarsOfType args) patVars
 mkConsDecl2Xml _ _ (CRecord _ _ _ _ _)
   = error "Data2Xml.mkConsDecl2Xml: CRecord not yet implemented!"
 
@@ -177,13 +177,14 @@ call2xmlType :: CTypeExpr -> CExpr
 call2xmlType (CTVar v) = CVar (renVar v)
 call2xmlType (CTCons name) = constF (toXmlName name)
 call2xmlType t@(CTApply _ _) =
-  maybe (error "unable to transform type applications to XML")
+  maybe (error $ "unable to transform type applications to XML: " ++ show t)
         (\ (name,args) ->
            if name == pre "[]" && args == [charType]
              then constF (toXmlName (pre "String"))
              else applyF (toXmlName name) (map call2xmlType args))
         (tconsArgsOfType t)
-call2xmlType (CFuncType _ _) = error "unable to transform functions to XML"
+call2xmlType t@(CFuncType _ _) =
+  error $ "unable to transform function types to XML: " ++ show t
 
 xml :: [Options] -> String -> [CExpr] -> [CExpr] -> CExpr
 xml opts name attrs elems
@@ -198,17 +199,17 @@ xmlType = baseType ("XML","XmlExp")
 -------------------------------------------------
 
 mkXml2Type :: [Options] -> CTypeDecl -> CFuncDecl
-mkXml2Type _ (CTypeSyn name vis vars t)
-  = stFunc (fromXmlName name) 1 vis
-          (CFuncType xmlType (applyTC name (map CTVar vars)))
-          [simpleRule [CPVar (0,"x0")] (callXml2 (t,0))]
-mkXml2Type opts (CType name vis vars cs _)
-  = stFunc (fromXmlName name) (1+length vars) vis
-          (xml2typeType vars
+mkXml2Type _ (CTypeSyn name vis vars texp) =
+  stFunc (fromXmlName name) 1 vis
+         (CFuncType xmlType (applyTC name (map CTVar vars)))
+         [simpleRule [CPVar (0,"x0")] (callXml2 (texp,0))]
+mkXml2Type opts (CType name vis vars cs _) =
+  stFunc (fromXmlName name) (1+length vars) vis
+         (xml2typeType vars
              (CFuncType xmlType (applyTC name (map CTVar vars))))
-          (map (mkXml2ConsDecl opts $ map (CPVar . renVar) vars) cs)
-mkXml2Type _ (CNewType _ _ _ _ _)
-  = error "Data2Xml.mkXml2Type: CNewType not yet implemented!"
+         (map (mkXml2ConsDecl opts $ map (CPVar . renVar) vars) cs)
+mkXml2Type _ (CNewType _ _ _ _ _) =
+  error "Data2Xml.mkXml2Type: CNewType not yet implemented!"
 
 renVar :: (a,String) -> (a,String)
 renVar (i,s) = case s of
@@ -249,13 +250,14 @@ callXml2Type :: CTypeExpr -> CExpr
 callXml2Type (CTVar v) = CVar (renVar v)
 callXml2Type (CTCons name) = constF (fromXmlName name)
 callXml2Type t@(CTApply _ _) =
-  maybe (error "unable to transform type applications from XML")
+  maybe (error $ "unable to transform type applications from XML: " ++ show t)
         (\ (name,args) ->
            if name == pre "[]" && args == [charType]
              then constF (fromXmlName (pre "String"))
              else applyF (fromXmlName name) (map callXml2Type args))
         (tconsArgsOfType t)
-callXml2Type (CFuncType _ _) = error "unable to transform functions from XML"
+callXml2Type t@(CFuncType _ _) =
+  error $ "unable to transform functions from XML: " ++ show t
 
 -----------------------------
 -- treat imported data types
@@ -290,7 +292,8 @@ importType (m,f)
 
 specialNames :: [String]
 specialNames =
-  ["Int","Float","String","Char","IO","Success","[]","()","(,)","DET"]
+  ["Int","Float","String","Char","IO","Success","[]","()","(,)"
+  ,"DET","ShowS","ReadS"]
 
 filterSpecials :: [CTypeDecl] -> [CTypeDecl]
 filterSpecials
