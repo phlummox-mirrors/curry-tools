@@ -39,16 +39,13 @@ htmlDoc1 =
 
 ------------------------------------------------------------------------------
 -- Partial equality on HTML documents for testing.
-eqHtml hexp1 hexp2 = case hexp1 of
-  HtmlText s -> case hexp2 of HtmlText t -> s == t
-                              _          -> False
-  HtmlStruct t ats hes -> case hexp2 of
-             HtmlStruct t' ats' hes' -> t==t' && ats==ats' && eqHtmls hes hes'
-             _                       -> False
-  _ -> error "HTML.==: cannot compare cgi refs or handlers"
-
-eqHtmls hes1 hes2 = all (uncurry eqHtml) (zip hes1 hes2)
+instance Eq HtmlExp where
+  hexp1 == hexp2 = case (hexp1,hexp2) of
+    (HtmlText s, HtmlText t) -> s == t
+    (HtmlStruct t ats hes, HtmlStruct t' ats' hes') ->
+                                        t==t' && ats==ats' && hes == hes'
+    _ -> error "HTML.==: cannot compare cgi refs or handlers"
 
 ------------------------------------------------------------------------------
 
-test_Html_code = always (eqHtmls (htmlTest1 "Joe") htmlDoc1)
+test_Html_code = always (htmlTest1 "Joe" == htmlDoc1)
