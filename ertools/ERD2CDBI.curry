@@ -294,13 +294,15 @@ writeDatatype :: String -> Entity -> CTypeDecl
 writeDatatype mName (Entity name attrs)  = 
  CType (mName, name) Public []
        [(simpleCCons (mName, name) Public
-                     (map (writeAttributes mName name) attrs))] []
+                     (map (writeAttributes mName name) attrs))]
+       [pre "Eq", pre "Show"]
                     
 -- Generates a ID-datatype based on an entity.
 writeID :: String -> Entity -> CTypeDecl
 writeID mName (Entity name _) = 
  CType (mName, (name++"ID")) Public []
-       [(simpleCCons (mName, (name ++"ID")) Public [intType])] []
+       [(simpleCCons (mName, (name ++"ID")) Public [intType])]
+       [pre "Eq", pre "Show"]
 
 -- Generates all function declarations for an entity.                                               
 getEntityFuncDecls :: String -> Entity -> [CFuncDecl]
