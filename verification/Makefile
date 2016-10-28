@@ -18,7 +18,6 @@ compile: ToVerifier
 install: ToVerifier
 	rm -f $(TOOL) $(BINDIR)/curry2verify
 	ln -s $(CURDIR)/ToVerifier $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/curry2verify # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

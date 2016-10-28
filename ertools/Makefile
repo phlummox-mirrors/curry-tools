@@ -29,8 +29,6 @@ install: compile
 	rm -f $(ERD2CURRY) $(ERD2CDBI) $(BINDIR)/erd2curry $(BINDIR)/erd2cdbi
 	ln -s $(CURDIR)/erd2curry $(ERD2CURRY)
 	ln -s $(CURDIR)/ERD2CDBI $(ERD2CDBI)
-	ln -s $(ERD2CURRY) $(BINDIR)/erd2curry # for backward compatibility
-	ln -s $(ERD2CDBI)  $(BINDIR)/erd2cdbi  # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

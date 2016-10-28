@@ -23,7 +23,6 @@ compile: cass_worker cass
 install: compile
 	rm -f $(TOOL) $(BINDIR)/cass
 	ln -s $(CURDIR)/cass $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/cass # for backward compatibility
 
 clean:
 	$(CLEANCURRY) -r

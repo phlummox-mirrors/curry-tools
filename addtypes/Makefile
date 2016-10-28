@@ -11,7 +11,6 @@ compile: AddTypes
 install: compile
 	rm -f $(TOOL) $(BINDIR)/addtypes
 	ln -s $(CURDIR)/AddTypes $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/addtypes # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

@@ -14,7 +14,6 @@ compile: CurryCheck
 install: CurryCheck
 	rm -f $(TOOL) $(BINDIR)/currycheck
 	ln -s $(CURDIR)/CurryCheck $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/currycheck # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

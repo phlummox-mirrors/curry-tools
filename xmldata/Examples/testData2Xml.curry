@@ -1,17 +1,17 @@
 -- Test for Data2Xml tool
 --
 -- Execute:
--- > data2xml Prelude
--- > data2xml FlatCurry
--- > <REPL> :load xmldatatest :eval main :quit
+-- > curry data2xml Prelude
+-- > curry data2xml FlatCurry
+-- > curry :load xmldatatest :eval main :quit
 
 import Distribution(installDir)
 import System(system)
 import Test.EasyCheck
 
 testGenerateXMLConversions = init `returns` 0
- where init = do system (installDir++"/bin/data2xml Prelude")
-                 system (installDir++"/bin/data2xml FlatCurry.Types")
+ where init = do system (installDir++"/bin/curry data2xml Prelude")
+                 system (installDir++"/bin/curry data2xml FlatCurry.Types")
 
 testXMLDataConversion = system convertCmd `returns` 0
  where

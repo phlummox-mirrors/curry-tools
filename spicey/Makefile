@@ -21,7 +21,6 @@ compile: spiceup
 install: compile
 	rm -f $(TOOL) $(BINDIR)/spiceup
 	ln -s $(CURDIR)/spiceup $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/spiceup # for backward compatibility
 
 clean:
 	$(CLEANCURRY) -r

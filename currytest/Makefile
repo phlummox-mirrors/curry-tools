@@ -11,7 +11,6 @@ compile: CurryTest
 install: compile
 	rm -f $(TOOL) $(BINDIR)/currytest
 	ln -s $(CURDIR)/CurryTest $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/currytest # for backward compatibility
 
 clean:
 	$(CLEANCURRY)
