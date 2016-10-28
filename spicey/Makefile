@@ -2,11 +2,8 @@
 # Makefile for Spicey Web Framework
 ##############################################################################
 
-# Required:
-# - root location of the Curry System specified by variable ROOT
-
-# binaries
-TOOL = $(ROOT)/bin/spiceup
+# binary
+TOOL = $(BINDIR)/$(CURRYSYSTEM)-spiceup
 
 # The directory containg the project generator
 PROJECT_GEN_DIR=project_generator
@@ -22,8 +19,9 @@ all: install
 compile: spiceup
 
 install: compile
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/spiceup
 	ln -s $(CURDIR)/spiceup $(TOOL)
+	ln -s $(TOOL) $(BINDIR)/spiceup # for backward compatibility
 
 clean:
 	$(CLEANCURRY) -r

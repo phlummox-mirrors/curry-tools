@@ -1,6 +1,6 @@
 # Makefile for generating the curry2verify tool
 
-TOOL=$(BINDIR)/curry2verify
+TOOL=$(BINDIR)/$(CURRYSYSTEM)-verify
 
 # for determinism analysis and for module TheoremUsage:
 TOOLDIR=..
@@ -16,8 +16,9 @@ all: install
 compile: ToVerifier
 
 install: ToVerifier
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/curry2verify
 	ln -s $(CURDIR)/ToVerifier $(TOOL)
+	ln -s $(TOOL) $(BINDIR)/curry2verify # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

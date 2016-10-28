@@ -7,7 +7,7 @@
 ANADIR = ../analysis
 
 # binary
-TOOL   = $(BINDIR)/cass
+TOOL   = $(BINDIR)/$(CURRYSYSTEM)-analyze
 
 # Source modules of CASS:
 DEPS = *.curry \
@@ -21,8 +21,9 @@ all: install
 compile: cass_worker cass
 
 install: compile
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/cass
 	ln -s $(CURDIR)/cass $(TOOL)
+	ln -s $(TOOL) $(BINDIR)/cass # for backward compatibility
 
 clean:
 	$(CLEANCURRY) -r

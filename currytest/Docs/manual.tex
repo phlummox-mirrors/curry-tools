@@ -1,4 +1,4 @@
-\section{CurryTest: A Tool for Testing Curry Programs}
+\section{\texttt{curry test}: A Tool for Testing Curry Programs}
 
 \paragraph{General remark:}
 {\em The CurryTest tool described in this section has been replaced
@@ -65,13 +65,10 @@ test3 = assertSolutions "prefix" (\x -> x++_ =:= [1,2])
 For instance, \code{test1} asserts that the result of evaluating the
 expression \code{([1,2]++[3,4])} is equal to \code{[1,2,3,4]}.
 
-We can execute a test suite by the command\pindex{currytest}
+We can execute a test suite by the command\pindex{curry test}\pindex{test}
 \begin{curry}
-currytest TestList
+curry test TestList
 \end{curry}
-(\code{currytest} is a program stored in \code{\cyshome/bin}
-where \cyshome is the installation directory of \CYS;
-see Section~\ref{sec-general}).
 In our example, \ccode{TestList.curry} is the program containing the
 definition of all assertions. This has the effect
 that all exported top-level functions
@@ -95,11 +92,11 @@ more nicely.
 In order to start this interface, one has to add the parameter
 \ccode{--window} (or \ccode{-w}), e.g., executing a test suite by
 \begin{curry}
-currytest --window TestList
+curry test --window TestList
 \end{curry}
 or
 \begin{curry}
-currytest -w TestList
+curry test -w TestList
 \end{curry}
 A snapshot of the interface is shown in Figure~\ref{fig-currytest}.
 

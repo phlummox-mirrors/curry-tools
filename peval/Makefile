@@ -4,7 +4,7 @@
 # - root location of the Curry System specified by variable ROOT
 
 # binary
-TOOL   = $(BINDIR)/peval
+TOOL   = $(BINDIR)/$(CURRYSYSTEM)-peval
 
 # Source modules of peval:
 DEPS = *.curry
@@ -16,7 +16,7 @@ all: install
 compile: peval
 
 install: compile
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/peval
 	ln -s $(CURDIR)/peval $(TOOL)
 
 clean:

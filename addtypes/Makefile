@@ -1,6 +1,6 @@
 # Makefile for generating AddTypes tool
 
-TOOL = $(BINDIR)/addtypes
+TOOL = $(BINDIR)/$(CURRYSYSTEM)-addtypes
 
 .PHONY: all compile install clean uninstall
 
@@ -9,8 +9,9 @@ all: install
 compile: AddTypes
 
 install: compile
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/addtypes
 	ln -s $(CURDIR)/AddTypes $(TOOL)
+	ln -s $(TOOL) $(BINDIR)/addtypes # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

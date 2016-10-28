@@ -1,4 +1,4 @@
-\section{Curry2Verify: A Tool to Support the Verification of Curry Programs}
+\section{\texttt{curry verify}: A Tool to Support the Verification of Curry Programs}
 \label{sec-curry2verify}
 
 Curry2Verify\index{Curry2Verify}\index{verifying programs}\index{program!verification}
@@ -33,10 +33,10 @@ approach to support the verification of Curry programs.
 
 To translate the properties of a Curry program stored
 in the file \code{prog.curry} into Agda,
-one can invoke the command\pindex{curry2verify}
+one can invoke the command\pindex{curry verify}\pindex{verify}
 %
 \begin{curry}
-curry2verify prog
+curry verify prog
 \end{curry}
 %
 This generates for each property $p$ in module \code{prog}
@@ -83,7 +83,7 @@ In order to prove the correctness of this property,
 we translate it into an Agda program by executing
 %
 \begin{curry}
-> curry2verify Double
+> curry verify Double
 $\ldots$
 Agda module 'TO-PROVE-evendoublecoin.agda' written.
 If you completed the proof, rename it to 'PROOF-evendoublecoin.agda'.
@@ -174,11 +174,11 @@ can be used by further invocations of CurryCheck.
 
 \subsection{Options}
 
-The command \code{curry2verify} can be parameterized
+The command \code{curry verify} can be parameterized
 with various options.
 The available options can also be shown by executing
 \begin{curry}
-curry2verify --help
+curry verify --help
 \end{curry}
 The options are briefly described in the following.
 

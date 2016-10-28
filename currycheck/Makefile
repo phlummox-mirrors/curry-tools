@@ -1,6 +1,6 @@
 # Makefile for generating the currycheck tool
 
-TOOL=$(BINDIR)/currycheck
+TOOL=$(BINDIR)/$(CURRYSYSTEM)-check
 
 # currycheck (main) dependencies:
 DEPS = *.curry $(LIBDIR)/Test/EasyCheck.curry $(LIBDIR)/AbstractCurry/*.curry
@@ -12,8 +12,9 @@ all: install
 compile: CurryCheck
 
 install: CurryCheck
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/currycheck
 	ln -s $(CURDIR)/CurryCheck $(TOOL)
+	ln -s $(TOOL) $(BINDIR)/currycheck # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

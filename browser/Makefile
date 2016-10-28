@@ -9,7 +9,7 @@ CASS       = $(CURRYTOOLS)/CASS
 ANADIR     = $(CURRYTOOLS)/analysis
 
 # binary
-TOOL       = $(BINDIR)/currybrowse
+TOOL       = $(BINDIR)/$(CURRYSYSTEM)-browse
 
 # source modules of the Curry Browser:
 DEPS = BrowserGUI.curry Imports.curry \
@@ -33,8 +33,9 @@ all: install
 compile: GenInt BrowserGUI SourceProgGUI
 
 install: compile
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/currybrowse
 	ln -s $(CURDIR)/BrowserGUI $(TOOL)
+	ln -s $(TOOL) $(BINDIR)/currybrowse # for backward compatibility
 
 clean:
 	$(CLEANCURRY) -r

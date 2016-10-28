@@ -1,6 +1,6 @@
 # Makefile for tool "CreateMakefile"
 
-TOOL = $(BINDIR)/currycreatemake
+TOOL = $(BINDIR)/$(CURRYSYSTEM)-createmake
 
 .PHONY: all compile install clean uninstall
 

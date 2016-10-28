@@ -1,6 +1,6 @@
 # Makefile for generating the Curry Automatic Style Checker
 
-TOOL=$(BINDIR)/casc
+TOOL=$(BINDIR)/$(CURRYSYSTEM)-style
 
 DEPS = *.curry AST/*.curry AutoCorr/*.curry Check/*.curry Config/*.curry
 
@@ -11,8 +11,9 @@ all: install
 compile: CASC
 
 install: CASC
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/casc
 	ln -s $(CURDIR)/CASC $(TOOL)
+	ln -s $(TOOL) $(BINDIR)/casc # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

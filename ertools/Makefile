@@ -7,8 +7,8 @@
 #****************************************************************************
 
 # installation binaries
-ERD2CURRY = $(BINDIR)/erd2curry
-ERD2CDBI  = $(BINDIR)/erd2cdbi
+ERD2CURRY = $(BINDIR)/$(CURRYSYSTEM)-erd2curry
+ERD2CDBI  = $(BINDIR)/$(CURRYSYSTEM)-erd2cdbi
 
 # Some modules required by the erd2curry tool:
 DEPSERD2CURRY = ERD2Curry.curry CodeGeneration.curry Transformation.curry \
@@ -26,9 +26,11 @@ all: install
 compile: erd2curry ERD2CDBI
 
 install: compile
-	rm -f $(ERD2CURRY) $(ERD2CDBI)
+	rm -f $(ERD2CURRY) $(ERD2CDBI) $(BINDIR)/erd2curry $(BINDIR)/erd2cdbi
 	ln -s $(CURDIR)/erd2curry $(ERD2CURRY)
 	ln -s $(CURDIR)/ERD2CDBI $(ERD2CDBI)
+	ln -s $(ERD2CURRY) $(BINDIR)/erd2curry # for backward compatibility
+	ln -s $(ERD2CDBI)  $(BINDIR)/erd2cdbi  # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

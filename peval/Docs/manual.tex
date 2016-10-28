@@ -1,4 +1,4 @@
-\section{\code{peval}: A Partial Evaluator for Curry}
+\section{\texttt{curry peval}: A Partial Evaluator for Curry}
 \label{sec-peval}
 
 peval\index{peval}\index{partial evaluation}
@@ -43,8 +43,9 @@ will be improved w.r.t. the arguments \code{4} and\code{x}.
 Since the first argument is known in this case,
 the partial evalautor is able to remove the case distinctions
 in the implementation of \code{power}, and we invoke it via
+\pindex{curry peval}\pindex{peval}
 \begin{lstlisting}[mathescape=false]
-$ peval Examples/power4.curry
+$ curry peval Examples/power4.curry
 Curry Partial Evaluator
 Version 0.1 of 12/09/2016
 CAU Kiel
@@ -67,7 +68,7 @@ The new auxiliary function \code{power4._pe0} is integrated into the
 existing module such that only the implementation of \code{power4} is changed,
 which becomes visible if we increase the level of verbosity:
 \begin{lstlisting}[mathescape=false]
-$ peval -v2 Examples/power4.curry
+$ curry peval -v2 Examples/power4.curry
 Curry Partial Evaluator
 Version 0.1 of 12/09/2016
 CAU Kiel
