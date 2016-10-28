@@ -5,7 +5,7 @@
 
 module ERDGeneric where
 
-import KeyDatabase
+import Database.KeyDatabaseSQLite
 import List
 import ReadShowTerm
 import Read

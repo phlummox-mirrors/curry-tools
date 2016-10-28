@@ -31,7 +31,7 @@ isSQLite (storage,_) =
 
 -- The name of the KeyDatabase module:
 keyDatabaseMod :: String
-keyDatabaseMod = "KeyDatabase"
+keyDatabaseMod = "Database.KeyDatabaseSQLite"
 
 erd2code :: Option -> ERD -> CurryProg
 erd2code opt@(_, consistencyTest) (ERD n es rs) =

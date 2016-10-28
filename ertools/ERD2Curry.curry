@@ -36,9 +36,7 @@ parseArgs _ [] = Nothing
 parseArgs (file,fromxml,storage,vis,trerdt) (arg:args) = case arg of
   "-x" -> parseArgs (file,True,storage,vis,trerdt) args
   "-l" -> parseArgs (file,fromxml,setSQLite storage,vis,trerdt) args
-  "-f" -> if curryCompiler == "pakcs"
-          then parseArgs (file,fromxml,setFileDB storage,vis,trerdt) args
-          else error "Wrong parameter -f: file-based database only available in PAKCS!"
+  "-f" -> error "Wrong parameter -f: file-based database no longer supported!"
   "-d" -> parseArgs (file,fromxml,DB,vis,trerdt) args
   "-p" -> if null args then Nothing else
           parseArgs (file,fromxml,setFilePath (head args) storage,vis,trerdt)
@@ -51,24 +49,17 @@ parseArgs (file,fromxml,storage,vis,trerdt) (arg:args) = case arg of
   "-v" -> parseArgs (file,fromxml,storage,True,trerdt) args
   f    -> if null args then Just (f,fromxml,storage,vis,trerdt) else Nothing
  where
-  setFilePath path (Files  _) = Files  path
   setFilePath path (SQLite _) = SQLite path
   setFilePath _    DB         = DB
 
-  setSQLite (Files  p) = SQLite p
   setSQLite (SQLite p) = SQLite p
   setSQLite DB         = SQLite "."
 
-  setFileDB (Files  p) = Files p
-  setFileDB (SQLite p) = Files p
-  setFileDB DB         = Files "."
-
 helpText :: String
 helpText =
-  "Usage: erd2curry [-l] [-f] [-d] [-t] [-x] [-v] [--dbpath <dir>] <file>\n" ++
+  "Usage: erd2curry [-l] [-d] [-t] [-x] [-v] [--dbpath <dir>] <file>\n" ++
   "Parameters:\n" ++
   "-l: generate interface to SQLite3 database (default)\n" ++
-  "-f: generate interface to file-based database implementation (only in PAKCS)\n" ++
   "-d: generate interface to SQL database (experimental)\n" ++
   "-x: generate from ERD xmi document instead of ERD term file\n" ++
   "-t: only transform ERD term file to ERDT term file\n" ++
@@ -113,12 +104,8 @@ start erd2currydir opt fromxml trerdt srcfile path = do
     putStrLn $ "Database operations generated into file '"++curryfile++"'\n"++
                "with " ++ showOption (erdName erd) opt ++ ".\n"
  where
-  -- Copy auxiliary files ERDGeneric.curry and KeyDatabase.curry to target dir
+  -- Copy auxiliary file ERDGeneric.curry to target dir
   copyAuxiliaryFiles = do
-    if isSQLite opt
-      then copyFile (erd2currydir++"/KeyDatabase.curry.sqlite")
-                    (addPath path "KeyDatabase.curry")
-      else done
     copyFile (erd2currydir++"/ERDGeneric.curry")
              (addPath path "ERDGeneric.curry")
 

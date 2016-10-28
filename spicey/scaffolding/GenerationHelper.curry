@@ -18,9 +18,9 @@ upperFirst (y:ys) = (toUpper y) : ys
 upperFirst []     = [] -- this case should not occur, but one never knows...
 
 ------------------------------------------------------------------------
---- Converts a string into a qualified name of the module "KeyDatabase".
+--- Converts a string into a qualified name of the module "KeyDatabaseSQLite".
 db :: String -> QName
-db f = ("KeyDatabase", f)
+db f = ("Database.KeyDatabaseSQLite", f)
 
 --- Converts a string into a qualified name of the module "WUI".
 wui :: String -> QName

@@ -27,7 +27,7 @@ module Spicey (
 import Bootstrap3Style
 import Char (isSpace,isDigit)
 import HTML
-import KeyDatabase
+import Database.KeyDatabaseSQLite
 import ReadNumeric
 import ReadShowTerm(readsQTerm)
 import System

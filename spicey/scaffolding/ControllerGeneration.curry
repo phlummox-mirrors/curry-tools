@@ -21,7 +21,8 @@ generateControllersForEntity erdname allEntities
  simpleCurryProg
   (controllerModuleName ename)
   -- imports:
-  ["Spicey", "KeyDatabase", "HTML", "Time", erdname, viewModuleName ename,
+  ["Spicey", "Database.KeyDatabaseSQLite", "HTML", "Time",
+   erdname, viewModuleName ename,
    "Maybe", "SessionInfo", authModName, enauthModName, "UserProcesses",
    erdname++"EntitiesToHtml"]
   [] -- typedecls

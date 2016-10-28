@@ -3,10 +3,8 @@
 CURRYBIN=`cd ../../../bin && pwd`
 
 if [ -x "$CURRYBIN/pakcs" ] ; then
-    CURRYEXEC=pakcs
     CURRYOPTIONS="-q :set v0 :set printdepth 0 :set -free :set +verbose"
 elif [ -x "$CURRYBIN/kics2" ] ; then
-    CURRYEXEC=kics2
     CURRYOPTIONS=":set v0 :set -ghci"
 else
     echo "ERROR: Unknown Curry system!"

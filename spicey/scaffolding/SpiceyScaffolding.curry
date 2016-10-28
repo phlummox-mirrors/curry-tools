@@ -103,8 +103,7 @@ createModelsForTerm _ term_path path db_path = do
   let orgerdfile   = erdName erd ++ "_ERD.term"
       transerdfile = erdName erd ++ "_ERDT.term"
       curryfile    = erdName erd ++ ".curry"
-  system $ unwords ["mv",transerdfile,curryfile,"ERDGeneric.curry",
-                         "KeyDatabase.curry",path]
+  system $ unwords ["mv",transerdfile,curryfile,"ERDGeneric.curry",path]
   system $ unwords ["cp",term_path,path ++ "/" ++ orgerdfile]
   done
 
