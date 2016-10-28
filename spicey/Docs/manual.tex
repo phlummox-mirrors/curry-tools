@@ -36,18 +36,15 @@ presented in the paper \cite{BrasselHanusMueller08PADL}.
 %
 Then change to the directory in which you want to create
 the project sources.
-Execute the command\pindex{spiceup}
+Execute the command\pindex{curry spiceup}\pindex{spiceup}
 \begin{curry}
-spiceup .../mymodel.erdterm
+curry spiceup .../mymodel.erdterm
 \end{curry}
 with the path to the ERD term file as a parameter
-(\code{spiceup} is a program stored in \code{\cyshome/bin}
-where \cyshome is the installation directory of \CYS;
-see Section~\ref{sec-general}).
 You can also provide a path name, i.e., the name of a directory,
 where the database files should be stored, e.g.,
 \begin{curry}
-spiceup --dbpath DBDIR .../mymodel.erdterm
+curry spiceup --dbpath DBDIR .../mymodel.erdterm
 \end{curry}
 If the parameter \ccode{--dbpath DBDIR} is not provided,
 then DBDIR is set to the current directory (\ccode{.}).

@@ -1,4 +1,4 @@
-\section{CurryDoc: A Documentation Generator for Curry Programs}
+\section{\texttt{curry doc}: A Documentation Generator for Curry Programs}
 
 CurryDoc\index{CurryDoc}%
 \index{program!documentation}\index{documentation generator}
@@ -122,13 +122,11 @@ last xs | conc ys [x] =:= xs  = x   where x,ys free
 data Tree a = Leaf a | Node [Tree a]
 \end{curry}
 \noindent
-To generate the documentation, execute the command\pindex{currydoc}
+To generate the documentation, execute the command
+\pindex{curry doc}\pindex{doc}
 \begin{curry}
-currydoc Example
+curry doc Example
 \end{curry}
-(\code{currydoc} is a command usually stored in \code{\cyshome/bin}
-(where \cyshome is the installation directory of \CYS;
-see Section~\ref{sec-general}).
 This command creates the directory \code{DOC_Example} (if it does not exist)
 and puts all HTML documentation files for the main program module
 \code{Example}
@@ -137,21 +135,21 @@ a main index file \code{index.html}.
 If one prefers another directory for the documentation files,
 one can also execute the command
 \begin{curry}
-currydoc docdir Example
+curry doc docdir Example
 \end{curry}
 where \code{docdir} is the directory for the documentation files.
 
 In order to generate the common documentation for large collections
 of Curry modules (e.g., the libraries contained in the \CYS distribution),
-one can call \code{currydoc} with the following options:
+one can call \code{curry doc} with the following options:
 \begin{description}
-\item[\code{currydoc --noindexhtml docdir Mod}~:]
+\item[\code{curry doc --noindexhtml docdir Mod}~:]
 \pindex{noindex}
 This command generates the documentation for module \code{Mod}
 in the directory \code{docdir} without the index pages (i.e., main index page
 and index pages for all functions and constructors defined in \code{Mod}
 and its imported modules).
-\item[\code{currydoc --onlyindexhtml docdir Mod1 Mod2 \ldots Mod$n$}~:]
+\item[\code{curry doc --onlyindexhtml docdir Mod1 Mod2 \ldots Mod$n$}~:]
 \pindex{onlyindex}
 This command generates only the index pages (i.e., a main index page
 and index pages for all functions and constructors defined in the modules

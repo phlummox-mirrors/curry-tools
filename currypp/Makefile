@@ -10,7 +10,7 @@
 #****************************************************************************
 
 # Tool binary
-TOOL = $(BINDIR)/currypp
+TOOL = $(BINDIR)/$(CURRYSYSTEM)-pp
 
 # Source filepaths
 ICODEDIR      = $(CURDIR)/IntegratedCode
@@ -42,8 +42,9 @@ all: install
 compile: Main
 
 install: compile
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/currypp
 	ln -s $(CURDIR)/Main $(TOOL)
+	ln -s $(TOOL) $(BINDIR)/currypp # for backward compatibility
 
 clean:
 	$(CLEANCURRY) -r

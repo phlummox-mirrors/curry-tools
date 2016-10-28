@@ -15,13 +15,10 @@ with the Umbrello UML Modeller, one has to store its
 XML description in XMI format (as offered by Umbrello)
 in a file, e.g., \ccode{myerd.xmi}.
 This description can be compiled into a Curry program by the
-command\pindex{erd2curry}
+command\pindex{curry erd2curry}\pindex{erd2curry}
 \begin{curry}
-erd2curry -x myerd.xmi
+curry erd2curry -x myerd.xmi
 \end{curry}
-(\code{erd2curry} is a program stored in \code{\cyshome/bin}
-where \cyshome is the installation directory of \CYS;
-see Section~\ref{sec-general}).
 If \code{MyData} is the name of the ERD, the Curry program file
 \ccode{MyData.curry} is generated containing all the necessary
 database access code as described in \cite{BrasselHanusMueller08PADL}.
@@ -39,9 +36,9 @@ as a Curry term of type \code{ERD}
 \code{\cyshome/currytools/erd2curry/ERD.curry})
 and store it in some file, e.g., \ccode{myerd.term}.
 This description can be compiled into a Curry program by the
-command\pindex{erd2curry}
+command\pindex{curry erd2curry}
 \begin{curry}
-erd2curry myerd.term
+curry erd2curry myerd.term
 \end{curry}
 %
 The directory \code{\cyshome/currytools/erd2curry/}
@@ -63,6 +60,6 @@ see Section~\ref{sec-customization},
 according to your local environment).
 The visualization can be performed by the command
 \begin{curry}
-erd2curry -v myerd.term
+curry erd2curry -v myerd.term
 \end{curry}
 

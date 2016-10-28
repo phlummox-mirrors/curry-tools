@@ -1,4 +1,4 @@
-\section{CurryCheck: A Tool for Testing Curry Programs}
+\section{\texttt{curry check}: A Tool for Testing Properties of Curry Programs}
 \label{sec-currycheck}
 
 CurryCheck\index{CurryCheck}\index{testing programs}\index{program!testing}
@@ -64,12 +64,11 @@ rev123  = rev [1,2,3] -=- [3,2,1]
 
 revRevIsId xs = rev (rev xs) -=- xs
 \end{curry}
-Now we can run all tests by invoking the CurryCheck executable
-\ccode{currycheck}, which is stored in the directory \code{\cyshome/bin}.
+Now we can run all tests by invoking the CurryCheck tool.
 If our program is stored in the file \code{Rev.curry},
 we can execute the tests as follows:
 \begin{curry}
-> currycheck Rev
+> curry check Rev
 ...
 Executing all tests...
 revNull (module Rev, line 7):
@@ -92,14 +91,14 @@ where \code{Prop} denotes the type of a test:
 revRevIsId :: [Int] -> Prop
 revRevIsId xs = rev (rev xs) -=- xs
 \end{curry}
-The command \code{currycheck} has some options to influence
+The command \code{curry check} has some options to influence
 the output, like \ccode{-q} for a quiet execution
 (only errors and failed tests are reported) or
 \ccode{-v} for a verbose execution where all generated test cases
 are shown.
-Moreover, the return code of \code{currycheck} is \code{0}
+Moreover, the return code of \code{curry check} is \code{0}
 in case of successful tests, otherwise, it is \code{1}.
-Hence, \code{currycheck} can be easily integrated in tool chains
+Hence, CurryCheck can be easily integrated in tool chains
 for automatic testing.
 
 In order to support the inclusion of properties in the source code,
@@ -242,7 +241,7 @@ qsortIsSorting xs = qsort xs <~> psort xs
 Actually, if we test this property, we obtain a failure:
 %
 \begin{curry}
-> currycheck ExampleTests
+> curry check ExampleTests
 ...
 qsortIsSorting (module ExampleTests, line 53) failed
 Falsified by third test.
@@ -285,7 +284,7 @@ neg_or b1 b2 = not (b1 || b2) -=- not b1 && not b2
 This property is validated by checking it with all possible values:
 %
 \begin{curry}
-> currycheck -v ExampleTests
+> curry check -v ExampleTests
 ...
 0:
 False
@@ -310,7 +309,7 @@ by the command-line flag \ccode{-m}. For instance, to test
 each property with 200 tests, CurryCheck can be invoked by
 %
 \begin{curry}
-> currycheck -m 200 ExampleTests
+> curry check -m 200 ExampleTests
 \end{curry}
 %
 For a given type, CurryCheck automatically enumerates all values

@@ -8,7 +8,7 @@
 CASS       = ../CASS
 ANADIR     = ../analysis
 # binary
-TOOL       = $(BINDIR)/currydoc
+TOOL       = $(BINDIR)/$(CURRYSYSTEM)-doc
 
 # Source modules of currydoc
 DEPS = CurryDoc.curry CurryDocRead.curry CurryDocAnaInfo.curry \
@@ -32,8 +32,9 @@ all: install
 compile: CurryDoc
 
 install: compile
-	rm -f $(TOOL)
+	rm -f $(TOOL) $(BINDIR)/currydoc
 	ln -s $(CURDIR)/CurryDoc $(TOOL)
+	ln -s $(TOOL) $(BINDIR)/currydoc # for backward compatibility
 
 clean:
 	$(CLEANCURRY)
