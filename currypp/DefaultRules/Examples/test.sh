@@ -25,14 +25,14 @@ CCOPTS=-m40
 LOGFILE=xxx$$
 
 if [ $VERBOSE = yes ] ; then
-  $CURRYBIN/currycheck $CCOPTS $ALLTESTS
+  $CURRYBIN/curry check $CCOPTS $ALLTESTS
   if [ $? -gt 0 ] ; then
     exit 1
   fi
 else
-  $CURRYBIN/currycheck $CCOPTS $ALLTESTS > $LOGFILE 2>&1
+  $CURRYBIN/curry check $CCOPTS $ALLTESTS > $LOGFILE 2>&1
   if [ $? -gt 0 ] ; then
-    echo "ERROR in currycheck:"
+    echo "ERROR in curry check:"
     cat $LOGFILE
     exit 1
   fi

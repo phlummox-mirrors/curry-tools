@@ -58,7 +58,7 @@ ccBanner = unlines [bannerLine,bannerText,bannerLine]
 
 -- Help text
 usageText :: String
-usageText = usageInfo ("Usage: currycheck [options] <module names>\n") options
+usageText = usageInfo ("Usage: curry check [options] <module names>\n") options
   
 -------------------------------------------------------------------------
 -- Representation of command line options.

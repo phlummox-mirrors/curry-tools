@@ -7,9 +7,10 @@ To generate an application, follow the steps below.
 
 2. Change to the directory in which you want to create the project.
 
-3. From there execute `spiceup` and supply the name of the term file, e.g.,
+3. From there execute `curry spiceup` and supply the name of the term file,
+   e.g.,
 
-       spiceup .../Blog.erdterm
+       curry spiceup .../Blog.erdterm
 
    This generates the complete source code of the initial application
    (see the generated file README.txt for some explanations).
@@ -17,7 +18,7 @@ To generate an application, follow the steps below.
    You can also provide a path name, i.e., the name of a directory,
    where the database files should be stored, e.g.,
 
-       spiceup --dbpath DBDIR .../Blog.erdterm
+       curry spiceup --dbpath DBDIR .../Blog.erdterm
 
    If the parameter "--dbpath DBDIR" is not provided, then DBDIR is the
    current directory ("."). Since will be used in the _generated_ cgi

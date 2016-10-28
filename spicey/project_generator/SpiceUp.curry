@@ -168,7 +168,7 @@ main generatordir = do
 
 helpText :: String
 helpText =
-  "Usage: spiceup [--dbpath <dirpath>] <ERD term file>\n" ++
+  "Usage: curry spiceup [--dbpath <dirpath>] <ERD term file>\n" ++
    "Parameters:\n" ++
   "--dbpath <dir> : name of the directory where DB files are stored\n" ++
   "<ERD term file>: name of file containing the ERD term\n"

@@ -29,7 +29,7 @@ exectests() {
   # fill database:
   $CURRYBIN/curry :l CreateData :eval createTestData :q
   # run query tests:
-  $CURRYBIN/currycheck SelectExamples
+  $CURRYBIN/curry check SelectExamples
 }
 
 LOGFILE=xxx$$
