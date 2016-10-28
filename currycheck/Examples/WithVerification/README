@@ -31,7 +31,7 @@ To do so, we first formulate it as a property:
 
 To get some confidence in its general correctness, we test it:
 
-    > currycheck ListProp
+    > curry check ListProp
     ...
     Executing all tests...
     appendAddLengths_ON_BASETYPE (module ListProp, line 14):
@@ -56,7 +56,7 @@ Since the proof is complete, we rename the Agda module into
 
 To see the effect of this proof for program testing, we run CurryCheck again:
 
-    > currycheck ListProp
+    > curry check ListProp
     Analyzing module 'ListProp'...
     >
 
@@ -65,7 +65,7 @@ Hence, CurryCheck does not perform any test since the property
 simplify the postcondition to `True` so that it trivially holds.
 This simplification process can be visualized with option `-v`:
 
-    > currycheck ListProp -v
+    > curry check ListProp -v
     Analyzing module 'ListProp'...
     ...
     POSTCONDITION: append'post(a, b, c) → ==(+(length(a), length(b)), length(c))
