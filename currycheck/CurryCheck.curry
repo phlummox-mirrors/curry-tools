@@ -106,7 +106,7 @@ options =
            "run quietly (no output, only exit code)"
   , Option "v" ["verbosity"]
             (OptArg (maybe (checkVerb 3) (safeReadNat checkVerb)) "<n>")
-            "verbosity level:\n0: quiet (same as `-q')\n1: show test names (default)\n2: show more information about test generation\n3: show test data (same as `-v')\n4: keep intermediate program files"
+            "verbosity level:\n0: quiet (same as `-q')\n1: show test names (default)\n2: show more information about test generation\n3: show test data (same as `-v')\n4: show intermediate program files"
   , Option "k" ["keep"] (NoArg (\opts -> opts { optKeep = True }))
            "keep temporarily generated program files"
   , Option "m" ["maxtests"]
@@ -775,8 +775,13 @@ analyseCurryProg opts modname orgprog = do
                          []
                          (addLinesNumbers words (classifyTests rawDetTests))
                          (generatorsOfProg pubmod)
-  when (testThisModule tm) $ writeCurryProgram pubmod ""
-  when (testThisModule dettm) $ writeCurryProgram pubdetmod ""
+  when (testThisModule tm) $ do
+    writeCurryProgram pubmod ""
+    showGeneratedModule opts "public module" (progName pubmod)
+  when (testThisModule dettm) $ do
+    writeCurryProgram pubdetmod ""
+    showGeneratedModule opts "public determinism test module"
+                        (progName pubdetmod)
   return (if testThisModule dettm then [tm,dettm] else [tm])
  where
   showOpError words (qf,err) =
@@ -953,6 +958,7 @@ main = do
     putStrIfNormal opts $ withColor opts blue $
                           "Generating main test module '"++testmodname++"'..."
     genMainTestModule opts testmodname finaltestmodules
+    showGeneratedModule opts "main test" testmodname
     putStrIfNormal opts $ withColor opts blue $ "and compiling it...\n"
     ret <- system $ unwords $ [installDir </> "bin" </> "curry"
                               ,":set v0"
@@ -965,6 +971,16 @@ main = do
  where
   showStaticErrors opts errs = putStrLn $ withColor opts red $
     unlines (line : "STATIC ERRORS IN PROGRAMS:" : errs) ++ line
+  line = take 78 (repeat '=')
+
+showGeneratedModule :: Options -> String -> String -> IO ()
+showGeneratedModule opts mkind modname = when (optVerb opts > 3) $ do
+  putStrLn $ '\n' : line
+  putStrLn $ "Generated " ++ mkind ++ " module `" ++ modname ++ ".curry':"
+  putStrLn line
+  readFile (modname ++ ".curry") >>= putStr
+  putStrLn line
+ where
   line = take 78 (repeat '=')
 
 -------------------------------------------------------------------------
