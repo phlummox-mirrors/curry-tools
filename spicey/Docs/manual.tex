@@ -19,17 +19,17 @@ in order to generate a web application.
 
 First, one has to create a textual description of the
 entity-relationship model
-as a Curry term of type \code{ERD}
-(w.r.t.\ the type definitions given in module
-\code{\cyshome/currytools/erd2curry/ERD.curry})
-and store it in some file, e.g., \ccode{mymodel.erdterm}.
+in a Curry program file as an (exported!) top-level operation type \code{ERD}
+(w.r.t.\ the type definitions given in the system library
+\code{Database.ERD})
+and store it in some program file, e.g., \ccode{MyERD.curry}.
 The directory \code{\cyshome/currytools/spicey/}
-contains two examples for such ERD term files:
+contains two examples for such ERD program files:
 \begin{description}
-\item[\code{Blog.erdterm}:]
+\item[\code{BlogERD.curry}:]
 This is a simple ER model for a blog with entries, comments,
 and tags, as presented in the paper \cite{HanusKoschnicke14TPLP}.
-\item[\code{Uni.erdterm}:]
+\item[\code{UniERD.curry}:]
 This is an ER model for university lectures as
 presented in the paper \cite{BrasselHanusMueller08PADL}.
 \end{description}
@@ -38,13 +38,13 @@ Then change to the directory in which you want to create
 the project sources.
 Execute the command\pindex{curry spiceup}\pindex{spiceup}
 \begin{curry}
-curry spiceup .../mymodel.erdterm
+curry spiceup .../MyERD.curry
 \end{curry}
 with the path to the ERD term file as a parameter
 You can also provide a path name, i.e., the name of a directory,
 where the database files should be stored, e.g.,
 \begin{curry}
-curry spiceup --dbpath DBDIR .../mymodel.erdterm
+curry spiceup --dbpath DBDIR .../MyERD.curry
 \end{curry}
 If the parameter \ccode{--dbpath DBDIR} is not provided,
 then DBDIR is set to the current directory (\ccode{.}).

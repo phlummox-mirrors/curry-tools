@@ -6,8 +6,9 @@ import AbstractCurry.Pretty
 import Database.ERD
 import Database.ERDGoodies
 import Directory
-import Distribution(curryCompiler)
-import System(exitWith, getArgs,system)
+import Distribution         (curryCompiler)
+import List                 (isSuffixOf)
+import System               (exitWith, getArgs,system)
 import Time
 import XML
 
@@ -18,7 +19,7 @@ import ERD2Graph
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "ERD->Curry Compiler (Version of 07/06/16)"
+  let bannerText = "ERD->Curry Compiler (Version of 30/10/16)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -65,25 +66,28 @@ parseArgs (file,fromxml,storage,vis,trerdt) (arg:args) = case arg of
 
 helpText :: String
 helpText =
-  "Usage: erd2curry [-l] [-f] [-d] [-t] [-x] [-v] [--dbpath <dir>] <file>\n" ++
+  "Usage: erd2curry [-l] [-f] [-d] [-t] [-x] [-v] [--dbpath <dir>] <prog>\n" ++
   "Parameters:\n" ++
   "-l: generate interface to SQLite3 database (default)\n" ++
   "-f: generate interface to file-based database implementation (only in PAKCS)\n" ++
   "-d: generate interface to SQL database (experimental)\n" ++
-  "-x: generate from ERD xmi document instead of ERD term file\n" ++
-  "-t: only transform ERD term file to ERDT term file\n" ++
-  "-v: only show visualization of ERD term file with dotty\n" ++
+  "-x: generate from ERD xmi document instead of ERD Curry program\n" ++
+  "-t: only transform ERD into ERDT term file\n" ++
+  "-v: only show visualization of ERD with dotty\n" ++
   "--dbpath <dir>: name of the directory where DB files are stored\n" ++
-  "<file>: name of file containing xmi document or ERD term\n"
+  "<prog>        : name of Curry program file containing ERD definition\n"
 
 callStart :: String -> Maybe (String,Bool,Storage,Bool,Bool) -> IO ()
 callStart _ Nothing = do
   putStrLn $ "ERROR: Illegal arguments\n\n" ++ helpText
   exitWith 1
-callStart erd2currydir (Just (file,fromxml,storage,vis,trerdt)) =
- if vis
- then readERDTermFile file >>= viewERD
- else start erd2currydir (storage,WithConsistencyTest) fromxml trerdt file "."
+callStart erd2currydir (Just (orgfile,fromxml,storage,vis,trerdt)) = do
+  file <- if ".curry" `isSuffixOf` orgfile
+            then storeERDFromProgram orgfile
+            else return orgfile
+  if vis
+   then readERDTermFile file >>= viewERD
+   else start erd2currydir (storage,WithConsistencyTest) fromxml trerdt file "."
 
 --- Main function to invoke the ERD->Curry translator.
 start :: String -> Option -> Bool -> Bool -> String -> String -> IO ()

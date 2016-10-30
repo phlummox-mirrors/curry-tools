@@ -30,24 +30,24 @@ are created in the same directory.
 If one does not want to use the Umbrello UML Modeller,
 which might be the preferred method since the interface to the
 Umbrello UML Modeller is no longer actively supported,
-one can also create a textual description of the ERD
-as a Curry term of type \code{ERD}
-(w.r.t.\ the type definition given in module
-\code{\cyshome/currytools/erd2curry/ERD.curry})
-and store it in some file, e.g., \ccode{myerd.term}.
-This description can be compiled into a Curry program by the
+one can also define an ERD in a Curry program as a (exported!)
+top-level operation of type \code{ERD}
+(w.r.t.\ the type definition given in the library
+\code{\cyshome/lib/Database/ERD.curry}).
+If this definition is stored in the Curry program file \ccode{MyERD.curry},
+it can be compiled into a Curry program by the
 command\pindex{curry erd2curry}
 \begin{curry}
-curry erd2curry myerd.term
+curry erd2curry MyERD.curry
 \end{curry}
 %
 The directory \code{\cyshome/currytools/erd2curry/}
-contains two examples for such ERD term files:
+contains two examples for such ERD program files:
 \begin{description}
-\item[\code{Blog.erdterm}:]
+\item[\code{BlogERD.curry}:]
 This is a simple ERD model for a blog with entries, comments,
 and tags.
-\item[\code{Uni.erdterm}:]
+\item[\code{UniERD.curry}:]
 This is an ERD model for university lectures as
 presented in the paper \cite{BrasselHanusMueller08PADL}.
 \end{description}
@@ -60,6 +60,6 @@ see Section~\ref{sec-customization},
 according to your local environment).
 The visualization can be performed by the command
 \begin{curry}
-curry erd2curry -v myerd.term
+curry erd2curry -v MyERD.curry
 \end{curry}
 
