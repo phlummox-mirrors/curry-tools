@@ -22,7 +22,7 @@ CURRYOPTIONS=":set -time :set v0 :set parser -Wnone"
 /bin/rm -rf spicey_blog
 mkdir spicey_blog
 cd spicey_blog
-$CURRYBIN/curry spiceup ../Blog.erdterm > $LOGFILE 2>&1
+$CURRYBIN/curry spiceup ../BlogERD.curry > $LOGFILE 2>&1
 echo "Compiling spicey_blog..."
 make CURRYOPTIONS="$CURRYOPTIONS" compile >> $LOGFILE 2>&1
 if [ $? -gt 0 ] ; then
@@ -35,7 +35,7 @@ cd ..
 #/bin/rm -rf spicey_uni
 #mkdir spicey_uni
 #cd spicey_uni
-#$CURRYBIN/curry spiceup ../Uni.erdterm
+#$CURRYBIN/curry spiceup ../UniERD.curry
 #cp ../MyModule.curry models
 #make CURRYOPTIONS="$CURRYOPTIONS" compile 2>&1 | tee $LOGFILE
 #cd ..

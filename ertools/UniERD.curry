@@ -1,5 +1,8 @@
+import Database.ERD
 
-(ERD "Uni"
+uniERD :: ERD
+uniERD =
+ ERD "Uni"
  [Entity "Student" [Attribute "MatNum"    (IntDom Nothing) PKey False,
                     Attribute "Name"      (StringDom Nothing) NoKey False,
                     Attribute "Firstname" (StringDom Nothing) NoKey False,
@@ -20,4 +23,4 @@
                 REnd "Lecture" "participates"    (Between 0 Infinite)],
   Relationship "Membership"
                [REnd "Student" "consists_of" (Exactly 3),
-                REnd "Group" "member_of"     (Between 0 Infinite)]])
+                REnd "Group" "member_of"     (Between 0 Infinite)]]

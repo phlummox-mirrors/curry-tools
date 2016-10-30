@@ -1,9 +1,13 @@
-(ERD "Blog" 
+import Database.ERD
+
+blogERD :: ERD
+blogERD =
+ ERD "Blog" 
      [Entity "Entry" 
-     	  [Attribute "Title"  (StringDom Nothing) Unique False, 
-     	   Attribute "Text"   (StringDom Nothing) NoKey  False,
-     	   Attribute "Author" (StringDom Nothing) NoKey  False,
-     	   Attribute "Date"   (DateDom   Nothing) NoKey  False],
+          [Attribute "Title"  (StringDom Nothing) Unique False, 
+           Attribute "Text"   (StringDom Nothing) NoKey  False,
+           Attribute "Author" (StringDom Nothing) NoKey  False,
+           Attribute "Date"   (DateDom   Nothing) NoKey  False],
       Entity "Comment"
         [Attribute "Text"   (StringDom Nothing) NoKey False,
          Attribute "Author" (StringDom Nothing) NoKey False,
@@ -18,4 +22,3 @@
        [REnd "Entry" "tags" (Between 0 Infinite),
         REnd "Tag" "tagged" (Between 0 Infinite)]
      ]
-)

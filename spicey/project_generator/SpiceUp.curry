@@ -1,14 +1,15 @@
 -- Main module to generate the initial Spicey application
 
+import Database.ERDGoodies (storeERDFromProgram)
 import Directory
-import List(last)
-import System(system, getArgs, exitWith)
+import List                (isSuffixOf, last)
+import System              (system, getArgs, exitWith)
 import SpiceyScaffolding
 import Distribution
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Spicey Web Framework (Version of 08/06/16)"
+  let bannerText = "Spicey Web Framework (Version of 30/10/16)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -157,19 +158,26 @@ main generatordir = do
   curdir <- getCurrentDirectory
   args <- getArgs
   case args of
-    ["--dbpath",dbpath,termfile] -> 
+    ["--dbpath",dbpath,orgfile] -> do
+      termfile <- createTermFile orgfile
       createStructure curdir generatordir termfile dbpath spiceyStructure
-    [termfile] ->
+    [orgfile] -> do
+      termfile <- createTermFile orgfile
       createStructure curdir generatordir termfile "." spiceyStructure
     _ -> putStrLn ("Wrong argument!\n" ++ helpText) >> exitWith 1
   putStrLn $ take 70 (repeat '-')
   putStrLn "Source files for the application generated.\n"
   putStrLn "IMPORTANT NOTE: Before you deploy your web application (by 'make deploy'),"
   putStrLn "you should define the variable WEBSERVERDIR in the Makefile!"
+ where
+  createTermFile orgfile =
+    if ".curry" `isSuffixOf` orgfile
+      then storeERDFromProgram orgfile
+      else return orgfile
 
 helpText :: String
 helpText =
-  "Usage: curry spiceup [--dbpath <dirpath>] <ERD term file>\n" ++
+  "Usage: curry spiceup [--dbpath <dirpath>] <ERD program file>\n" ++
    "Parameters:\n" ++
   "--dbpath <dir> : name of the directory where DB files are stored\n" ++
-  "<ERD term file>: name of file containing the ERD term\n"
+  "<ERD program file>: name of Curry program file containing ERD definition\n"
