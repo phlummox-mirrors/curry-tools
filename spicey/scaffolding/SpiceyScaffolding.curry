@@ -98,7 +98,7 @@ createHtmlHelper path (ERD name entities relationship) =
 createModelsForTerm :: String -> String -> String -> String -> IO ()
 createModelsForTerm _ term_path path db_path = do
   erd <- readERDTermFile term_path
-  system $ installDir ++ "/bin/erd2curry -l --dbpath " ++ db_path
+  system $ installDir ++ "/bin/curry erd2curry -l --dbpath " ++ db_path
                       ++ " " ++ term_path
   let orgerdfile   = erdName erd ++ "_ERD.term"
       transerdfile = erdName erd ++ "_ERDT.term"

@@ -25,7 +25,7 @@ cleandir () {
 exectests() {
   cleandir
   # compile model:
-  $CURRYBIN/erd2cdbi Uni_ERD.term `pwd`/Uni.db  
+  $CURRYBIN/curry erd2cdbi Uni_ERD.term `pwd`/Uni.db  
   # fill database:
   $CURRYBIN/curry :l CreateData :eval createTestData :q
   # run query tests:

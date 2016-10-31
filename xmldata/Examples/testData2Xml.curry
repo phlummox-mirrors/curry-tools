@@ -10,8 +10,8 @@ import System(system)
 import Test.EasyCheck
 
 testGenerateXMLConversions = init `returns` 0
- where init = do system (installDir++"/bin/data2xml Prelude")
-                 system (installDir++"/bin/data2xml FlatCurry.Types")
+ where init = do system (installDir++"/bin/curry data2xml Prelude")
+                 system (installDir++"/bin/curry data2xml FlatCurry.Types")
 
 testXMLDataConversion = system convertCmd `returns` 0
  where

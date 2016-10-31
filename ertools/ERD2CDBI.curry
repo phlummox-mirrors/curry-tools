@@ -63,7 +63,7 @@ translateERD2ERDT erdfname = do
       erdtfile = erdName erdterm ++ "_ERDT.term"
   if file == erdtfile
    then return erdterm
-   else do system (unwords [installDir FP.</> "bin" FP.</> "erd2curry",
+   else do system (unwords [installDir FP.</> "bin" FP.</> "curry", "erd2curry",
                             "-t ",erdfname])
            readERDTermFile (FP.combine dir erdtfile)
 
