@@ -106,10 +106,10 @@ processArgs params args = case args of
 usageMessage :: String
 usageMessage = unlines
  [ "ERROR: Illegal arguments for currydoc"
- , "Usage: currydoc [--nomarkdown] [--html|--tex|--cdoc] [<doc directory>] <module_name>"
- , "       currydoc [--nomarkdown] --noindexhtml <doc directory> <module_name>"
- , "       currydoc --onlyindexhtml <doc directory> <module_names>"
- , "       currydoc --libsindexhtml <doc directory> <module_names>"
+ , "Usage: curry doc [--nomarkdown] [--html|--tex|--cdoc] [<doc directory>] <module_name>"
+ , "       curry doc [--nomarkdown] --noindexhtml <doc directory> <module_name>"
+ , "       curry doc --onlyindexhtml <doc directory> <module_names>"
+ , "       curry doc --libsindexhtml <doc directory> <module_names>"
  ]
 
 

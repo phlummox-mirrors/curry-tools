@@ -49,7 +49,7 @@ main = do
                 exitWith 1
    _ -> do putStrLn $ "ERROR: Illegal arguments for currytest: " ++
                       concat (intersperse " " args) ++ "\n" ++
-                      "Usage: currytest [--window|-w] <module_names>"
+                      "Usage: curry test [--window|-w] <module_names>"
            exitWith 1
  where
    putStrFlush s = putStr s >> hFlush stdout

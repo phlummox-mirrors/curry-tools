@@ -175,6 +175,6 @@ updateOpts opts args = (opts', files, errs ++ errs2)
 
 -- |Print the usage information of the command line tool.
 usage :: String -> String
-usage prog = usageInfo header options
+usage _ = usageInfo header options
  where
-  header = "Usage: " ++ prog ++ " [OPTIONS] ... MODULES ... DIRECTORIES ...\n"
+  header = "Usage: curry style [OPTIONS] ... MODULES ... DIRECTORIES ...\n"

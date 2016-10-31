@@ -48,9 +48,10 @@ main  = do
 showUsageString :: IO ()
 showUsageString = do
   putStrLn $ unlines
-    ["Usage:",
-     "<name of ERD term file>",
-     "<absolute path to database (including name of database)>"]
+    ["Usage: curry erd2cdbi <ERD file> <DB path>",
+     "",
+     "<ERD file>: name of file containing ERD specification",
+     "<DB path> : absolute path to database (including name of database)>"]
   exitWith 1
 
 -- Translate the ERD file, if it is not a ERDT file, into ERDT format

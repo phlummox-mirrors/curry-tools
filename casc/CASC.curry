@@ -235,4 +235,4 @@ cascVersion = "1.0 of 29/08/2016"
 badUsage :: String -> [String] -> IO ()
 badUsage prog errs = do
   putStrsLn $ map (\ err -> prog ++ ": " ++ err) errs
-  error $ "Try '" ++ prog ++ " --help' for more information"
+  error $ "Try 'curry style --help' for more information"

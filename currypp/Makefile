@@ -47,6 +47,7 @@ install: compile
 
 clean:
 	$(CLEANCURRY) -r
+	rm -f Main
 
 uninstall: clean
 	rm -f $(TOOL)

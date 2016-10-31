@@ -155,8 +155,8 @@ printHelp args =
 -- Help text
 usageText :: String
 usageText =
-  usageInfo ("Usage: cass <options> <analysis name> <module name>\n" ++
-             "   or: cass <options> [-s|--server]\n")
+  usageInfo ("Usage: curry analyze <options> <analysis name> <module name>\n" ++
+             "   or: curry analyze <options> [-s|--server]\n")
             options ++
   unlines ("" : "Registered analyses names:" :
            "(use option `-h <analysis name>' for more documentation)" :
