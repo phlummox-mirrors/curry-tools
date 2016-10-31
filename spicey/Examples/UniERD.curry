@@ -6,8 +6,7 @@ uniERD =
  [Entity "Student" [Attribute "MatNum"    (IntDom Nothing) PKey False,
                     Attribute "Name"      (StringDom Nothing) NoKey False,
                     Attribute "Firstname" (StringDom Nothing) NoKey False,
-                    Attribute "Email"     (UserDefined "MyModule.Email" Nothing)
-                                          NoKey True],
+                    Attribute "Email"     (StringDom Nothing) NoKey True],
   Entity "Lecture" [Attribute "Id"    (IntDom Nothing) PKey False,
                     Attribute "Title" (StringDom Nothing) Unique False,
                     Attribute "Hours" (IntDom (Just 4)) NoKey False],

@@ -2,6 +2,11 @@
 # Shell script to test the current set of examples
 CURRYBIN=`cd ../../../bin && pwd`
 
+VERBOSE=no
+if [ "$1" = "-v" ] ; then
+  VERBOSE=yes
+fi
+
 if [ -x "$CURRYBIN/pakcs" ] ; then
     CURRYEXEC=pakcs
     CURRYOPTIONS="-q :set v0 :set printdepth 0 :set -free :set +verbose"
@@ -21,27 +26,38 @@ export PATH
 
 CURRYOPTIONS=":set -time :set v0 :set parser -Wnone"
 
-/bin/rm -rf spicey_blog
-mkdir spicey_blog
-cd spicey_blog
-$CURRYBIN/curry spiceup ../BlogERD.curry > $LOGFILE 2>&1
-echo "Compiling spicey_blog..."
-make CURRYOPTIONS="$CURRYOPTIONS" compile >> $LOGFILE 2>&1
-if [ $? -gt 0 ] ; then
-  echo "ERROR in Spicey generation:"
-  cat $LOGFILE
-  exit 1
-fi
-cd ..
+compile_spicey()
+{
+  ERD=$1
+  /bin/rm -rf spicey_$ERD
+  mkdir spicey_$ERD
+  cd spicey_$ERD
+  $CURRYBIN/curry spiceup ../"$ERD"ERD.curry
+  echo "Compiling spicey_$ERD..."
+  make CURRYOPTIONS="$CURRYOPTIONS" compile && cd ..
+}
 
-#/bin/rm -rf spicey_uni
-#mkdir spicey_uni
-#cd spicey_uni
-#$CURRYBIN/curry spiceup ../UniERD.curry
-#cp ../MyModule.curry models
-#make CURRYOPTIONS="$CURRYOPTIONS" compile 2>&1 | tee $LOGFILE
-#cd ..
+compile_spicey_and_check()
+{
+  if [ $VERBOSE = yes ] ; then
+    compile_spicey $1
+    if [ $? -gt 0 ] ; then
+      exit 1
+    fi
+  else
+    compile_spicey $1 > $LOGFILE 2>&1
+    if [ $? -gt 0 ] ; then
+      echo "ERROR in Spicey generation:"
+      cat $LOGFILE
+      exit 1
+    fi
+  fi
+}
+
+compile_spicey_and_check Blog
+# omitted due to bug in controller generation:
+#compile_spicey_and_check Uni
 
 ################ end of tests ####################
 # Clean:
-/bin/rm -rf $LOGFILE spicey_blog spicey_uni
+/bin/rm -rf $LOGFILE spicey_Blog spicey_Uni
