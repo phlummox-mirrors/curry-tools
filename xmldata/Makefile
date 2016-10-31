@@ -15,7 +15,6 @@ compile: Data2Xml
 install: compile
 	rm -f $(TOOL) $(BINDIR)/data2xml
 	ln -s $(CURDIR)/Data2Xml $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/data2xml # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

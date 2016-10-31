@@ -35,7 +35,6 @@ compile: GenInt BrowserGUI SourceProgGUI
 install: compile
 	rm -f $(TOOL) $(BINDIR)/currybrowse
 	ln -s $(CURDIR)/BrowserGUI $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/currybrowse # for backward compatibility
 
 clean:
 	$(CLEANCURRY) -r

@@ -34,7 +34,6 @@ compile: CurryDoc
 install: compile
 	rm -f $(TOOL) $(BINDIR)/currydoc
 	ln -s $(CURDIR)/CurryDoc $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/currydoc # for backward compatibility
 
 clean:
 	$(CLEANCURRY)

@@ -13,7 +13,6 @@ compile: CASC
 install: CASC
 	rm -f $(TOOL) $(BINDIR)/casc
 	ln -s $(CURDIR)/CASC $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/casc # for backward compatibility
 
 clean:
 	$(CLEANCURRY)
