@@ -34,12 +34,12 @@ cvBanner :: String
 cvBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "curry2verify: Curry programs -> Verifiers (version of 16/08/2016)"
+     "curry verify: Curry programs -> Verifiers (version of 16/08/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
 usageText :: String
-usageText = usageInfo ("Usage: curry2verify [options] <module names>\n") options
+usageText = usageInfo ("Usage: curry verify [options] <module names>\n") options
   
 main :: IO ()
 main = do

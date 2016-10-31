@@ -137,7 +137,7 @@ showUsage args = do
 
 usageText :: String
 usageText = unlines $
- [ "Usage: currypp <OrgFileName> <InputFilePath> <OutputFilePath> <options>\n"
+ [ "Usage: curry pp <OrgFileName> <InputFilePath> <OutputFilePath> <options>\n"
  , "<OrgFileName>   : name of original program source file"
  , "<InputFilePath> : name of the actual input file"
  , "<OutputFilePath>: name of the file where output should be written\n"

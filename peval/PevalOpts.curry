@@ -196,7 +196,7 @@ printUsage :: String -> IO a
 printUsage prog = do
   putStrLn $ usageInfo header options
   exitWith 0
-    where header = "usage: " ++ prog ++ " [OPTION] ... MODULE ..."
+    where header = "usage: curry " ++ prog ++ " [OPTION] ... MODULE ..."
 
 --- Complain about bad program usage (wrong options)
 --- and print the usage information before exiting with error code 1.

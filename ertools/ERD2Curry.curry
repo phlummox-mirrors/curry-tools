@@ -66,7 +66,7 @@ parseArgs (file,fromxml,storage,vis,trerdt) (arg:args) = case arg of
 
 helpText :: String
 helpText =
-  "Usage: erd2curry [-l] [-f] [-d] [-t] [-x] [-v] [--dbpath <dir>] <prog>\n" ++
+  "Usage: curry erd2curry [-l] [-f] [-d] [-t] [-x] [-v] [--dbpath <dir>] <prog>\n" ++
   "Parameters:\n" ++
   "-l: generate interface to SQLite3 database (default)\n" ++
   "-f: generate interface to file-based database implementation (only in PAKCS)\n" ++
