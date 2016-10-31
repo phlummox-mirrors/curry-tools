@@ -9,7 +9,7 @@ import Distribution
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Spicey Web Framework (Version of 30/10/16)"
+  let bannerText = "Spicey Web Framework (Version of 31/10/16)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -155,29 +155,31 @@ createStructure target_path generator_path term_path db_path
 main :: String -> IO ()
 main generatordir = do
   putStrLn systemBanner
-  curdir <- getCurrentDirectory
   args <- getArgs
   case args of
-    ["--dbpath",dbpath,orgfile] -> do
-      termfile <- createTermFile orgfile
-      createStructure curdir generatordir termfile dbpath spiceyStructure
-    [orgfile] -> do
-      termfile <- createTermFile orgfile
-      createStructure curdir generatordir termfile "." spiceyStructure
-    _ -> putStrLn ("Wrong argument!\n" ++ helpText) >> exitWith 1
+    ["--dbpath",dbpath,orgfile] -> createStructureWith orgfile dbpath
+    [orgfile]                   -> createStructureWith orgfile "."
+    _ -> putStrLn ("Wrong arguments!\n" ++ helpText) >> exitWith 1
   putStrLn $ take 70 (repeat '-')
   putStrLn "Source files for the application generated.\n"
   putStrLn "IMPORTANT NOTE: Before you deploy your web application (by 'make deploy'),"
   putStrLn "you should define the variable WEBSERVERDIR in the Makefile!"
  where
-  createTermFile orgfile =
-    if ".curry" `isSuffixOf` orgfile
-      then storeERDFromProgram orgfile
-      else return orgfile
+  createStructureWith orgfile dbpath = do
+    exfile <- doesFileExist orgfile
+    unless exfile $ error ("File `" ++ orgfile ++ "' does not exist!")
+    termfile <- if ".curry" `isSuffixOf` orgfile ||
+                   ".lcurry" `isSuffixOf` orgfile
+                  then storeERDFromProgram orgfile
+                  else return orgfile
+    curdir <- getCurrentDirectory
+    createStructure curdir generatordir termfile dbpath spiceyStructure
+    -- delete generated ERD term file:
+    when (orgfile /= termfile) $ removeFile termfile
 
 helpText :: String
 helpText =
   "Usage: curry spiceup [--dbpath <dirpath>] <ERD program file>\n" ++
    "Parameters:\n" ++
-  "--dbpath <dir> : name of the directory where DB files are stored\n" ++
+  "--dbpath <dir>    : name of the directory where DB files are stored\n" ++
   "<ERD program file>: name of Curry program file containing ERD definition\n"
