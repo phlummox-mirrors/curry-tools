@@ -3,7 +3,7 @@
 -- write while developing the program. 
 --
 -- @author Bernd Brassel, with changes by Michael Hanus
--- @version October 2016
+-- @version November 2016
 -- 
 -- Possible extensions: Use type synonyms to reduce annotations
 ------------------------------------------------------------------
@@ -91,15 +91,14 @@ getTypes (CurryProg _ _ _ _ _ _ funcDecls1 _)
 
 addTypes :: Tokens -> [(String,CQualTypeExpr)] -> Tokens
 addTypes [] _ = []
-addTypes (ModuleHead s:ts) fts = ModuleHead s : (addTypes ts fts)
+addTypes (ModuleHead s:ts)   fts = ModuleHead s : (addTypes ts fts)
 addTypes (SmallComment s:ts) fts = SmallComment s : (addTypes ts fts)
-addTypes (BigComment s:ts) fts = BigComment s : (addTypes ts fts)
-addTypes (Text s:ts) fts = Text s : (addTypes ts fts)
-addTypes (Letter s:ts) fts = Letter s : (addTypes ts fts)
-addTypes (Code s:ts) fts = Code newS : newTs
+addTypes (BigComment s:ts)   fts = BigComment s : (addTypes ts fts)
+addTypes (Text s:ts)         fts = Text s : (addTypes ts fts)
+addTypes (Letter s:ts)       fts = Letter s : (addTypes ts fts)
+addTypes (Code s:ts)         fts = Code newS : newTs
   where
-    newS = let (lastline,newline)=break (=='\n') s
-            in lastline++addTypesCode newline newFts fts
+    newS = addTypesCode s newFts fts
     newTs = if null newFts then ts else addTypes ts newFts
     newFts = unknown
 
