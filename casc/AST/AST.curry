@@ -137,28 +137,6 @@ data Import
  deriving Show
 
 -- ---------------------------------------------------------------------------
--- Module interfaces
--- ---------------------------------------------------------------------------
-
--- | Module interface
-data Interface = Interface ModuleIdent [IImportDecl] [IDecl]
-
--- |Interface import declaration
-data IImportDecl = IImportDecl Pos ModuleIdent
-
--- |Arity of a function
-type Arity = Int
-
--- |Interface declaration
-data IDecl
-  = IInfixDecl     Pos Infix Precedence  QualIdent
-  | HidingDataDecl Pos QualIdent [Ident]
-  | IDataDecl      Pos QualIdent [Ident] [ConstrDecl]  [Ident]
-  | INewtypeDecl   Pos QualIdent [Ident] NewConstrDecl [Ident]
-  | ITypeDecl      Pos QualIdent [Ident] TypeExpr
-  | IFunctionDecl  Pos QualIdent Arity   TypeExpr
-
--- ---------------------------------------------------------------------------
 -- Declarations (local or top-level)
 -- ---------------------------------------------------------------------------
 
