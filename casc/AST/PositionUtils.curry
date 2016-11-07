@@ -101,26 +101,28 @@ infPos i = case i of
 -- |Get start position of ConstrDecl
 constrDeclPos :: ConstrDecl -> Pos
 constrDeclPos c = case c of
-  ConstrDecl _ i  _       -> idPos i
-  ConOpDecl  _ te _ _     -> typeExprPos te
-  RecordDecl _ i  _ _ _ _ -> idPos i
+  ConstrDecl s _ _ _ _ i _        -> maybe (idPos i) start s
+  ConOpDecl  s _ _ _ _ te _ _     -> maybe (typeExprPos te) start s
+  RecordDecl s _ _ _ _ i  _ _ _ _ -> maybe (idPos i) start s
 
 -- |Get Type positions of ConstrDecl
 constrDeclConstrTypePos :: ConstrDecl -> [Pos]
 constrDeclConstrTypePos cd = case cd of
-  ConstrDecl _ _ cts       -> if null cts
-                                then [virtualPos]
-                                else map typeExprPos cts
-  RecordDecl _ _ _ fds _ _ -> if null fds
-                                then [virtualPos]
-                                else map fieldDeclTEPos fds
-  _                        -> [virtualPos]
+  ConstrDecl _ _ _ _ _ _ cts       -> if null cts
+                                        then [virtualPos]
+                                        else map typeExprPos cts
+  RecordDecl _ _ _ _ _ _ _ fds _ _ -> if null fds
+                                        then [virtualPos]
+                                        else map fieldDeclTEPos fds
+  _                                -> [virtualPos]
 
 -- |Get position of first Type in ConstrDecl
 firstCDConstrTypePos :: ConstrDecl -> Pos
 firstCDConstrTypePos cd = case cd of
-  ConstrDecl _ _ cts -> if null cts then virtualPos else typeExprPos $ head cts
-  _                  -> virtualPos
+  ConstrDecl _ _ _ _ _ _  cts -> if null cts
+                                   then virtualPos
+                                   else typeExprPos $ head cts
+  _                           -> virtualPos
 
 -- |Get position of commas in FieldDecl
 fieldDeclCPos :: FieldDecl -> [Pos]
@@ -141,9 +143,8 @@ fieldDeclTEPos (FieldDecl _ _ _ te) = typeExprPos te
 -- |Get start position of TypeExpr
 typeExprPos :: TypeExpr -> Pos
 typeExprPos te = case te of
-  ConstructorType msp qi _ _ -> case msp of
-                                    Just sp -> start sp
-                                    Nothing -> qidPos qi
+  ConstructorType qi         -> qidPos qi
+  ApplyType       te1 _      -> typeExprPos te1
   VariableType    i          -> idPos i
   TupleType       sp   _ _ _ -> start sp
   ListType        sp   _ _   -> start sp
@@ -179,7 +180,7 @@ litPos l = case l of
 patPos :: Pattern -> Pos
 patPos p = case p of
   LiteralPattern     l             -> litPos l
-  NegativePattern    i   _         -> idPos  i
+  NegativePattern    sp _          -> start sp
   VariablePattern    i             -> idPos  i
   ConstructorPattern qi  _         -> qidPos qi
   InfixPattern       pat _   _     -> patPos pat
@@ -209,7 +210,7 @@ exprPos e = case e of
   EnumFromThen   spl _ _ _ _ _   -> start spl
   EnumFromTo     spl _ _ _ _     -> start spl
   EnumFromThenTo spl _ _ _ _ _ _ -> start spl
-  UnaryMinus     i  _            -> idPos    i
+  UnaryMinus     sp _            -> start sp
   Apply          e1 _            -> exprPos  e1
   InfixApply     e1 _ _          -> exprPos  e1
   LeftSection    spl _ _ _       -> start spl

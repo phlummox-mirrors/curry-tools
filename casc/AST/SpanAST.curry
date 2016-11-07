@@ -110,16 +110,24 @@ data Decl
   -- 1. Span         -  KW_data
   -- 2. (Maybe Span) -  Equals
   -- 3. [Span]       -  Bars
-  | DataDecl     Span Ident [Ident] (Maybe Span) [ConstrDecl] [Span]
-  -- 1. Span   -  KW_newtype
-  -- 2. Span   -  Equals
-  | NewtypeDecl  Span Ident [Ident] Span NewConstrDecl
+  -- 4. (Maybe Span) -  KW_deriving
+  -- 5. (Maybe Span) -  LeftParen
+  -- 6. [Span]       -  Commas
+  -- 7. (Maybe Span) -  RightParen
+  | DataDecl     Span Ident [Ident] (Maybe Span) [ConstrDecl] [Span] (Maybe Span) (Maybe Span) [QualIdent] [Span] (Maybe Span)
+  -- 1. Span         -  KW_newtype
+  -- 2. Span         -  Equals
+  -- 3. (Maybe Span) -  KW_deriving
+  -- 4. (Maybe Span) -  LeftParen
+  -- 5. [Span]       -  Commas
+  -- 6. (Maybe Span) -  RightParen
+  | NewtypeDecl  Span Ident [Ident] Span NewConstrDecl (Maybe Span) (Maybe Span) [QualIdent] [Span] (Maybe Span)
   -- 1. Span   -  KW_type
   -- 2. Span   -  Equals
   | TypeDecl     Span Ident [Ident] Span TypeExpr
   -- 1. [Span] - Commas
   -- 2. Span   - DotDot
-  | TypeSig      [SymIdent] [Span] Span TypeExpr
+  | TypeSig      [SymIdent] [Span] Span QualTypeExpr
   | FunctionDecl Ident [Equation]
   -- 1. Span                   -  KW_foreign
   -- 2. (Maybe (Span, String)) -  Id "name.h"
@@ -132,6 +140,19 @@ data Decl
   -- 1. [Span] -  Commas
   -- 2. Span   -  KW_free
   | FreeDecl     [Ident] [Span] Span
+  -- 1. Span   -  KW_default
+  -- 2. Span   -  LeftParen
+  -- 3. [Span] -  Commas
+  -- 4. Span   -  RightParen
+  | DefaultDecl  Span Span [TypeExpr] [Span] Span
+  -- 1. Span         -  KW_class
+  -- 2. (Maybe Span) -  DoubleArrow
+  -- 3. (Maybe Span) -  KW_where
+  | ClassDecl    Span Context (Maybe Span) Ident Ident (Maybe Span) [Decl]
+  -- 1. Span         -  KW_instance
+  -- 2. (Maybe Span) -  DoubleArrow
+  -- 3. (Maybe Span) -  KW_where
+  | InstanceDecl Span Context (Maybe Span) QualIdent InstanceType (Maybe Span) [Decl]
  deriving Show
 
 -- |Operator precedence
@@ -146,21 +167,30 @@ data Infix
 
 -- |Constructor declaration for algebraic data types
 data ConstrDecl
-  = ConstrDecl [Ident] Ident [TypeExpr]
-  | ConOpDecl  [Ident] TypeExpr Ident TypeExpr
-  -- 1. Span   -  LeftBrace
-  -- 2. [Span] -  Commas
-  -- 3. Span   -  RightBrace
-  | RecordDecl [Ident] Ident Span [FieldDecl] [Span] Span
+  -- 1. (Maybe Span) -  Id_forall
+  -- 2. (Maybe Span) -  Dot
+  -- 3. (Maybe Span) -  DoubleArrow
+  = ConstrDecl (Maybe Span) [Ident] (Maybe Span)  Context (Maybe Span) Ident [TypeExpr]
+  -- 1. (Maybe Span) -  Id_forall
+  -- 2. (Maybe Span) -  Dot
+  -- 3. (Maybe Span) -  DoubleArrow
+  | ConOpDecl  (Maybe Span) [Ident] (Maybe Span) Context (Maybe Span) TypeExpr Ident TypeExpr
+  -- 1. (Maybe Span) -  Id_forall
+  -- 2. (Maybe Span) -  Dot
+  -- 3. (Maybe Span) -  DoubleArrow
+  -- 4. Span         -  LeftBrace
+  -- 5. [Span]       -  Commas
+  -- 6. Span         -  RightBrace
+  | RecordDecl (Maybe Span) [Ident] (Maybe Span) Context (Maybe Span) Ident Span [FieldDecl] [Span] Span
  deriving Show
 
 -- |Constructor declaration for renaming types (newtypes)
 data NewConstrDecl
-  = NewConstrDecl [Ident] Ident TypeExpr
+  = NewConstrDecl Ident TypeExpr
   -- 1. Span -  LeftBrace
   -- 2. Span -  DotDot
   -- 3. Span -  RightBrace
-  | NewRecordDecl [Ident] Ident Span (Ident, Span, TypeExpr) Span
+  | NewRecordDecl Ident Span (Ident, Span, TypeExpr) Span
  deriving Show
 
 -- |Declaration for labelled fields
@@ -177,9 +207,8 @@ data CallConv
 
 -- |Type expressions
 data TypeExpr
-  -- 1. (Maybe Span) - LeftParen
-  -- 2. (Maybe Span) - RightParen
-  = ConstructorType (Maybe Span) QualIdent [TypeExpr] (Maybe Span)
+  = ConstructorType QualIdent
+  | ApplyType       TypeExpr TypeExpr
   | VariableType    Ident
   -- 1. Span   -  LeftParen
   -- 2. [Span] -  Commas
@@ -194,6 +223,26 @@ data TypeExpr
   -- 2. Span   - RightParen
   | ParenType       Span TypeExpr Span
  deriving Show
+
+-- |Qualified type expressions
+-- 1. (Maybe Span) -  DoubleArrow
+data QualTypeExpr = QualTypeExpr Context (Maybe Span) TypeExpr
+ deriving Show
+
+-- ---------------------------------------------------------------------------
+-- Type classes
+-- ---------------------------------------------------------------------------
+
+-- 1. (Maybe Span) -  LeftParen
+-- 2. [Span]       -  Commas
+-- 3. (Maybe Span) -  RightParen
+data Context = Context (Maybe Span) [Constraint] [Span] (Maybe Span)
+ deriving Show
+
+data Constraint = Constraint QualIdent TypeExpr
+ deriving Show
+
+type InstanceType = TypeExpr
 
 -- ---------------------------------------------------------------------------
 -- Functions
@@ -236,7 +285,8 @@ data Literal
 -- |Constructor term (used for patterns)
 data Pattern
   = LiteralPattern     Literal
-  | NegativePattern    Ident Literal
+  -- 1. Span -  Minus
+  | NegativePattern    Span Literal
   | VariablePattern    Ident
   | ConstructorPattern QualIdent [Pattern]
   | InfixPattern       Pattern QualIdent Pattern
@@ -272,7 +322,7 @@ data Expression
   -- 2. Span   -  RightParen
   | Paren             Span Expression Span
   -- 1. Span   -  DotDot
-  | Typed             Expression Span TypeExpr
+  | Typed             Expression Span QualTypeExpr
   -- 1. Span   -  LeftBrace
   -- 2. [Span] -  Commas
   -- 3. Span   -  RightBrace
@@ -312,7 +362,8 @@ data Expression
   -- 3. Span   -  DotDot
   -- 4. Span   -  RightBracket
   | EnumFromThenTo    Span Expression Span Expression Span Expression Span
-  | UnaryMinus        Ident Expression
+  -- 1. Span -  Minus
+  | UnaryMinus        Span Expression
   | Apply             Expression Expression
   | InfixApply        Expression InfixOp Expression
   -- 1. Span   - LeftParen

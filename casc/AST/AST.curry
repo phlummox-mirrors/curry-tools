@@ -45,10 +45,11 @@ data Extension
  deriving Show
 
 data KnownExtension
-  = AnonFreeVars       -- ^ anonymous free variables
-  | FunctionalPatterns -- ^ functional patterns
-  | NegativeLiterals   -- ^ negative literals
-  | NoImplicitPrelude  -- ^ no implicit import of the prelude
+  = AnonFreeVars              -- ^ anonymous free variables
+  | FunctionalPatterns        -- ^ functional patterns
+  | NegativeLiterals          -- ^ negative literals
+  | NoImplicitPrelude         -- ^ no implicit import of the prelude
+  | ExistentialQuantification -- ^ existential quantification
  deriving Show
 
 -- |Different Curry tools which may accept compiler options.
@@ -164,15 +165,18 @@ data IDecl
 -- |Declaration in a module
 data Decl
   = InfixDecl    Pos Infix (Maybe Precedence) [Ident]
-  | DataDecl     Pos Ident [Ident] [ConstrDecl]
-  | NewtypeDecl  Pos Ident [Ident] NewConstrDecl
+  | DataDecl     Pos Ident [Ident] [ConstrDecl] [QualIdent]
+  | NewtypeDecl  Pos Ident [Ident] NewConstrDecl [QualIdent]
   | TypeDecl     Pos Ident [Ident] TypeExpr
-  | TypeSig      Pos [Ident] TypeExpr
+  | TypeSig      Pos [Ident] QualTypeExpr
   | FunctionDecl Pos Ident [Equation]
   | ForeignDecl  Pos CallConv (Maybe String) Ident TypeExpr
   | ExternalDecl Pos [Ident]
   | PatternDecl  Pos Pattern Rhs
   | FreeDecl     Pos [Ident]
+  | DefaultDecl  Pos [TypeExpr]
+  | ClassDecl    Pos Context Ident Ident [Decl]
+  | InstanceDecl Pos Context QualIdent InstanceType [Decl]
  deriving Show
 
 -- ---------------------------------------------------------------------------
@@ -191,15 +195,15 @@ data Infix
 
 -- |Constructor declaration for algebraic data types
 data ConstrDecl
-  = ConstrDecl Pos [Ident] Ident [TypeExpr]
-  | ConOpDecl  Pos [Ident] TypeExpr Ident TypeExpr
-  | RecordDecl Pos [Ident] Ident [FieldDecl]
+  = ConstrDecl Pos [Ident] Context Ident [TypeExpr]
+  | ConOpDecl  Pos [Ident] Context TypeExpr Ident TypeExpr
+  | RecordDecl Pos [Ident] Context Ident [FieldDecl]
  deriving Show
 
 -- |Constructor declaration for renaming types (newtypes)
 data NewConstrDecl
-  = NewConstrDecl Pos [Ident] Ident TypeExpr
-  | NewRecordDecl Pos [Ident] Ident (Ident, TypeExpr)
+  = NewConstrDecl Pos Ident TypeExpr
+  | NewRecordDecl Pos Ident (Ident, TypeExpr)
  deriving Show
 
 -- |Declaration for labelled fields
@@ -214,13 +218,29 @@ data CallConv
 
 -- |Type expressions
 data TypeExpr
-  = ConstructorType QualIdent [TypeExpr]
+  = ConstructorType QualIdent
+  | ApplyType       TypeExpr TypeExpr
   | VariableType    Ident
   | TupleType       [TypeExpr]
   | ListType        TypeExpr
   | ArrowType       TypeExpr TypeExpr
   | ParenType       TypeExpr
  deriving Show
+
+-- |Qualified type expressions
+data QualTypeExpr = QualTypeExpr Context TypeExpr
+ deriving Show
+
+-- ---------------------------------------------------------------------------
+-- Type classes
+-- ---------------------------------------------------------------------------
+
+type Context = [Constraint]
+
+data Constraint = Constraint QualIdent TypeExpr
+ deriving Show
+
+type InstanceType = TypeExpr
 
 -- ---------------------------------------------------------------------------
 -- Functions
@@ -250,7 +270,7 @@ data CondExpr = CondExpr Pos Expression Expression
 -- |Literal
 data Literal
   = Char   Char
-  | Int    Ident  Int
+  | Int    Int
   | Float  Float
   | String String
  deriving Show
@@ -258,7 +278,7 @@ data Literal
 -- |Constructor term (used for patterns)
 data Pattern
   = LiteralPattern     Literal
-  | NegativePattern    Ident Literal
+  | NegativePattern    Literal
   | VariablePattern    Ident
   | ConstructorPattern QualIdent [Pattern]
   | InfixPattern       Pattern QualIdent Pattern
@@ -278,7 +298,7 @@ data Expression
   | Variable          QualIdent
   | Constructor       QualIdent
   | Paren             Expression
-  | Typed             Expression TypeExpr
+  | Typed             Expression QualTypeExpr
   | Record            QualIdent [Field Expression]
   | RecordUpdate      Expression [Field Expression]
   | Tuple             [Expression]
@@ -288,7 +308,7 @@ data Expression
   | EnumFromThen      Expression Expression
   | EnumFromTo        Expression Expression
   | EnumFromThenTo    Expression Expression Expression
-  | UnaryMinus        Ident Expression
+  | UnaryMinus        Expression
   | Apply             Expression Expression
   | InfixApply        Expression InfixOp Expression
   | LeftSection       Expression InfixOp
