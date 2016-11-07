@@ -78,7 +78,7 @@ tokenSpanOneOf :: Token -> Token -> ASM Span
 tokenSpanOneOf t1 t2 ((p,t') : ts)
   | t1 == t'  = (p, ts)
   | t2 == t'  = (p, ts)
-  | otherwise = error $ "expexted " ++ show t1 ++ " or "
+  | otherwise = error $ "expected " ++ show t1 ++ " or "
                      ++ show t2 ++ ", got " ++ show t'
 tokenSpanOneOf _ _ []  = error "Token stream is empty."
 
