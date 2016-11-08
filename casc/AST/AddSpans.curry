@@ -17,7 +17,7 @@ import           AST.ASM
 import           AST.AST                                    as AST
 import qualified AST.Ident                                  as I
 import           AST.PositionUtils (moveColBy)
-import           AST.Span (Span, virtualSpan, isVirtualPos)
+import           AST.Span (Span, virtualSpan, isVirtualPos, start, end)
 import qualified AST.SpanAST                                as SpanAST
 import           AST.Token
 
@@ -180,22 +180,22 @@ apDecl (AST.DataDecl _ i is cds clss) =
   tokenSpan KW_data                      >+= \ pd          ->
   apIdent  i                             >+= \ i'          ->
   mapM apIdent is                        >+= \ is'         ->
-  maybeTokenSpan Equals                  >+= \ pe          ->
-  sepBy apConstrDecl (tokenSpan Bar) cds >+= \ (pcds, pss) ->
-  maybeTokenSpan KW_deriving             >+= \ pde         ->
-  maybeParens (apClasses clss)           >+= \ (mpl, (clss', ps), mpr) ->
+  choose
+    (tokenSpan Equals                       >+= \ pe          ->
+     sepBy apConstrDecl (tokenSpan Bar) cds >+= \ (pcds, pss) ->
+     apDeriving clss                        >+= \ (pde, mpl, clss', ps, mpr) ->
+     returnP (Just pe, pcds, pss, pde, mpl, clss', ps, mpr))
+    (returnP (Nothing, [], [], Nothing, Nothing, [], [], Nothing))
+    >+= \ (pe, pcds, pss, pde, mpl, clss', ps, mpr) ->
   returnP (SpanAST.DataDecl pd i' is' pe pcds pss pde mpl clss' ps mpr)
-  where apClasses = sepBy apQualIdent (tokenSpan Comma)
 apDecl (AST.NewtypeDecl _ i is ncd clss) =
   tokenSpan KW_newtype         >+= \ pn   ->
   apIdent i                    >+= \ i'   ->
   mapM apIdent is              >+= \ is'  ->
   tokenSpan Equals             >+= \ pe   ->
   apNewConstrDecl ncd          >+= \ ncd' ->
-  maybeTokenSpan KW_deriving   >+= \ pde  ->
-  maybeParens (apClasses clss) >+= \ (mpl, (clss', ps), mpr) ->
+  apDeriving clss              >+= \ (pde, mpl, clss', ps, mpr) ->
   returnP (SpanAST.NewtypeDecl pn i' is' pe ncd' pde mpl clss' ps mpr)
-  where apClasses = sepBy apQualIdent (tokenSpan Comma)
 apDecl (AST.TypeDecl _ i is te) =
   tokenSpan   KW_type >+= \ pt  ->
   apIdent    i       >+= \ i'  ->
@@ -239,8 +239,7 @@ apDecl (AST.DefaultDecl _ tes) =
   returnP (SpanAST.DefaultDecl pd lp tes' pss rp)
 apDecl (AST.ClassDecl _ cx cls tv ds) =
   tokenSpan KW_class         >+= \ pc   ->
-  apContext cx               >+= \ cx'  ->
-  maybeTokenSpan DoubleArrow >+= \ pa   ->
+  apOptContext cx            >+= \ (cx', pa) ->
   apIdent cls                >+= \ cls' ->
   apIdent tv                 >+= \ tv'  ->
   maybeTokenSpan KW_where    >+= \ pw   ->
@@ -248,13 +247,21 @@ apDecl (AST.ClassDecl _ cx cls tv ds) =
   returnP (SpanAST.ClassDecl pc cx' pa cls' tv' pw ds')
 apDecl (AST.InstanceDecl _ cx qcls inst ds) =
   tokenSpan KW_instance      >+= \ pi    ->
-  apContext cx               >+= \ cx'   ->
-  maybeTokenSpan DoubleArrow >+= \ pa    ->
+  apOptContext cx            >+= \ (cx', pa) ->
   apQualIdent qcls           >+= \ qcls' ->
   apInstanceType inst        >+= \ inst' ->
   maybeTokenSpan KW_where    >+= \ pw    ->
   mapM apDecl ds             >+= \ ds'   ->
   returnP (SpanAST.InstanceDecl pi cx' pa qcls' inst' pw ds')
+
+apDeriving :: [AST.QualIdent]
+           -> ASM (Maybe Span, Maybe Span, [I.QualIdent], [Span], Maybe Span)
+apDeriving clss = choose
+  (tokenSpan KW_deriving        >+= \ pde                     ->
+   maybeParens (apClasses clss) >+= \ (mpl, (clss', ps), mpr) ->
+   returnP (Just pde, mpl, clss', ps, mpr))
+  (returnP (Nothing, Nothing, [], [], Nothing))
+  where apClasses = sepBy apQualIdent (tokenSpan Comma)
 
 -- ----------------------------------------------------------------------------
 -- Infix declaration
@@ -269,33 +276,32 @@ apInfix AST.Infix  = SpanAST.Infix  <$> tokenSpan KW_infix
 -- |Add span information to constructor declaration for algebraic data types
 apConstrDecl :: AST.ConstrDecl -> ASM SpanAST.ConstrDecl
 apConstrDecl (AST.ConstrDecl _ is cx i tes) =
-  maybeTokenSpan Id_forall   >+= \ pf  ->
-  mapM apIdent is            >+= \ is' ->
-  maybeTokenSpan SymDot      >+= \ pd  ->
-  apContext cx               >+= \ cx' ->
-  maybeTokenSpan DoubleArrow >+= \ pa  ->
+  apExistVars is             >+= \ (pf, is', pd) ->
+  apOptContext cx            >+= \ (cx', pa) ->
   apIdent i                  >+= \ i'  ->
   mapM apTypeExpr tes        >+= \tes' ->
   returnP (SpanAST.ConstrDecl pf is' pd cx' pa i' tes')
 apConstrDecl (AST.ConOpDecl _ is cx te1 i te2) =
-  maybeTokenSpan Id_forall   >+= \ pf  ->
-  mapM apIdent is            >+= \ is' ->
-  maybeTokenSpan SymDot      >+= \ pd  ->
-  apContext cx               >+= \ cx' ->
-  maybeTokenSpan DoubleArrow >+= \ pa  ->
+  apExistVars is             >+= \ (pf, is', pd) ->
+  apOptContext cx            >+= \ (cx', pa) ->
   apTypeExpr te1             >+= \ te1' ->
   apIdent i                  >+= \ i'   ->
   apTypeExpr te2             >+= \ te2' ->
   returnP (SpanAST.ConOpDecl pf is' pd cx' pa te1' i' te2')
 apConstrDecl (AST.RecordDecl _ is cx i fds) =
-  maybeTokenSpan Id_forall   >+= \ pf  ->
-  mapM apIdent is            >+= \ is' ->
-  maybeTokenSpan SymDot      >+= \ pd  ->
-  apContext cx               >+= \ cx' ->
-  maybeTokenSpan DoubleArrow >+= \ pa  ->
+  apExistVars is             >+= \ (pf, is', pd) ->
+  apOptContext cx            >+= \ (cx', pa) ->
   apIdent i                  >+= \ i'  ->
   braces (sepBy apFieldDecl (tokenSpan Comma) fds) >+= \ (pl, (pfds, pss), pr) ->
   returnP (SpanAST.RecordDecl pf is' pd cx' pa i' pl pfds pss pr)
+
+apExistVars :: [AST.Ident] -> ASM (Maybe Span, [I.Ident], Maybe Span)
+apExistVars is = choose
+  (tokenSpan Id_forall      >+= \ pf  ->
+   mapM apIdent is          >+= \ is' ->
+   tokenSpan SymDot         >+= \ pd  ->
+   returnP (Just pf, is', Just pd))
+  (returnP (Nothing, [], Nothing))
 
 -- |Add span information to constructor declaration for renaming types (newtypes)
 apNewConstrDecl :: AST.NewConstrDecl -> ASM SpanAST.NewConstrDecl
@@ -333,7 +339,17 @@ apCallConv (AST.CallConvCCall) =
 
 -- |Add span information to type expressions
 apTypeExpr :: AST.TypeExpr -> ASM SpanAST.TypeExpr
-apTypeExpr (AST.ConstructorType qi) = SpanAST.ConstructorType <$> apQualIdent qi
+apTypeExpr (AST.ConstructorType qi)
+  | qidName qi == "(->)" =
+    SpanAST.ConstructorType <$> expectTokens [LeftParen, RightArrow, RightParen]
+  | qidName qi == "[]" =
+    SpanAST.ConstructorType <$> expectTokens [LeftBracket, RightBracket]
+  | otherwise = SpanAST.ConstructorType <$> apQualIdent qi
+  where
+  expectTokens :: [Token] -> ASM I.QualIdent
+  expectTokens ts =
+    mapM tokenSpan ts >+= \ps ->
+    returnP (setQIdSpan (start (head ps), end (last ps)) qi)
 apTypeExpr (AST.ApplyType te1 te2) =
   SpanAST.ApplyType <$> apTypeExpr te1 <*> apTypeExpr te2
 apTypeExpr (AST.VariableType x) = SpanAST.VariableType <$> apIdent x
@@ -355,14 +371,20 @@ apTypeExpr (AST.ParenType te) =
 -- |Add span information to qualified type expressions
 apQualTypeExpr :: AST.QualTypeExpr -> ASM SpanAST.QualTypeExpr
 apQualTypeExpr (AST.QualTypeExpr cx te) =
-  apContext cx               >+= \ cx' ->
-  maybeTokenSpan DoubleArrow >+= \ p   ->
+  apOptContext cx            >+= \ (cx', pa) ->
   apTypeExpr te              >+= \ te' ->
-  returnP (SpanAST.QualTypeExpr cx' p te')
+  returnP (SpanAST.QualTypeExpr cx' pa te')
 
 -- ---------------------------------------------------------------------------
 -- Type classes
 -- ---------------------------------------------------------------------------
+
+apOptContext :: AST.Context -> ASM (SpanAST.Context, Maybe Span)
+apOptContext cx = choose
+  (apContext cx          >+= \ cx' ->
+   tokenSpan DoubleArrow >+= \ pa  ->
+   returnP (cx', Just pa))
+  (returnP (SpanAST.Context Nothing [] [] Nothing, Nothing))
 
 apContext :: AST.Context -> ASM SpanAST.Context
 apContext cs =
@@ -463,27 +485,37 @@ apIdent i = getTokenSpan >+= \ (p, t) -> case t of
   SymMinus    -> ensure (idName i == "-")  (setIdSpan p i)
   SymStar     -> ensure (idName i == "*")  (setIdSpan p i)
   Underscore  -> ensure (idName i == "_")  (setIdSpan p i)
-  _           -> error (  "Tried to apply apIdent to Token "
+  _           -> failP (  "Tried to apply apIdent to Token "
                        ++ show t ++ " on position " ++ show p
                        ++ " which doesn't represent an Ident.")
 
 -- |Add span information to qualified identifier
 apQualIdent :: AST.QualIdent -> ASM I.QualIdent
-apQualIdent q = getTokenSpan >+=  \ (p, t) -> case t of
-  Colon       -> ensure (qidName q == ":")  (setQIdSpan p q)
-  Id        i -> ensure (qidName q == i)    (setQIdSpan p q)
-  QId       i -> ensure (qidName q == i)    (setQIdSpan p q)
-  QSym      i -> ensure (qidName q == i)    (setQIdSpan p q)
-  -- no `ensure` here because a symbol like `\\` will be
-  -- escaped as `\\\\` and won't be recognized
-  Sym       _ -> returnP (setQIdSpan p q)
-  SymDot      -> ensure (qidName q == ".")  (setQIdSpan p q)
-  SymMinus    -> ensure (qidName q == "-")  (setQIdSpan p q)
-  SymStar     -> ensure (qidName q == "*")  (setQIdSpan p q)
-  Underscore  -> ensure (qidName q == "_")  (setQIdSpan p q)
-  _           -> error (  "Tried to apply apQualIdent to Token "
-                       ++ show t ++ " on position " ++ show p
-                       ++ " which doesn't represent a QualIdent.")
+apQualIdent q
+  | qidName q == "()" = expectTokens [LeftParen, RightParen]
+  | qidName q == '(' : replicate (length (qidName q) - 2) ',' ++ ")" =
+    expectTokens $
+      LeftParen : replicate (length (qidName q) - 2) Comma ++ [RightParen]
+  | otherwise = getTokenSpan >+=  \ (p, t) -> case t of
+    Colon       -> ensure (qidName q == ":")  (setQIdSpan p q)
+    Id        i -> ensure (qidName q == i)    (setQIdSpan p q)
+    QId       i -> ensure (qidName q == i)    (setQIdSpan p q)
+    QSym      i -> ensure (qidName q == i)    (setQIdSpan p q)
+    -- no `ensure` here because a symbol like `\\` will be
+    -- escaped as `\\\\` and won't be recognized
+    Sym       _ -> returnP (setQIdSpan p q)
+    SymDot      -> ensure (qidName q == ".")  (setQIdSpan p q)
+    SymMinus    -> ensure (qidName q == "-")  (setQIdSpan p q)
+    SymStar     -> ensure (qidName q == "*")  (setQIdSpan p q)
+    Underscore  -> ensure (qidName q == "_")  (setQIdSpan p q)
+    _           -> failP (  "Tried to apply apQualIdent to Token "
+                        ++ show t ++ " on position " ++ show p
+                        ++ " which doesn't represent a QualIdent.")
+  where
+  expectTokens :: [Token] -> ASM I.QualIdent
+  expectTokens ts =
+    mapM tokenSpan ts >+= \ps ->
+    returnP (setQIdSpan (start (head ps), end (last ps)) q)
 
 -- |Add span information to qualified identifier but ignore the qualification
 apQualIdent2 :: AST.QualIdent -> ASM I.QualIdent
@@ -491,7 +523,7 @@ apQualIdent2 q
   = getTokenSpan >+=  \ (p, t) -> case t of
       Id  i -> ensure (qidName2 q == i)    (setQIdSpan p q)
       QId i -> ensure (qidName2 q == i)    (setQIdSpan p q)
-      _     -> error (  "Tried to apply apQualIdent2 to Token "
+      _     -> failP (  "Tried to apply apQualIdent2 to Token "
                      ++ show t++ " on position " ++ show p
                      ++ " which doesn't represent a QualIdent.")
   where qidName2 (QualIdent _ i) = idName i
@@ -506,10 +538,15 @@ apSymIdent i = maybeEnclosedBy
 -- |Add span information to qualified identifier that might be surrounded
 -- |by parens or backticks
 apSymQualIdent :: QualIdent -> ASM I.SymQualIdent
-apSymQualIdent qi = maybeEnclosedBy
-                      [(LeftParen, RightParen), (Backquote, Backquote)]
-                      (apQualIdent qi) >+= \ (mpl, qi', mpr) ->
-                    returnP (I.SymQualIdent mpl qi' mpr)
+apSymQualIdent qi
+  | qidName qi == "()" ||
+    qidName qi ==  '(' : replicate (length (qidName qi) - 2) ',' ++ ")" =
+    apQualIdent qi >+= \ qi' ->
+    returnP (I.SymQualIdent Nothing qi' Nothing)
+  | otherwise = maybeEnclosedBy
+                  [(LeftParen, RightParen), (Backquote, Backquote)]
+                  (apQualIdent qi) >+= \ (mpl, qi', mpr) ->
+                returnP (I.SymQualIdent mpl qi' mpr)
 
 -- |Add span information to module identifier
 apModIdent :: AST.ModuleIdent -> ASM I.ModuleIdent
@@ -517,7 +554,7 @@ apModIdent mi =
   getTokenSpan >+= \ (p, t) -> case t of
   Id  i -> ensure (moduleName mi == i) (setMIdSpan p mi)
   QId i -> ensure (moduleName mi == i) (setMIdSpan p mi)
-  _     -> error (  "Tried to apply apModIdent to Token "
+  _     -> failP (  "Tried to apply apModIdent to Token "
                  ++ show t ++ " on position " ++ show p
                  ++ " which doesn't represent a ModuleIdent.")
 
