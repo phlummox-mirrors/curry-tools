@@ -40,7 +40,7 @@ run:
 .PHONY: deploy
 deploy:
 	mkdir -p $(WEBSERVERDIR)
-	$(CURRYBIN)/makecurrycgi -standalone -m main -o $(WEBSERVERDIR)/spicey.cgi Main.curry
+	$(CURRYBIN)/curry makecgi -standalone -m main -o $(WEBSERVERDIR)/spicey.cgi Main.curry
 	# copy other files (style sheets, images,...)
 	cp -r $(SRCDIR)/public/* $(WEBSERVERDIR)
 	chmod -R go+rX $(WEBSERVERDIR)
