@@ -11,6 +11,7 @@ browser/GenInt
 browser/ShowFlatCurry
 browser/SourceProgGUI
 casc/CASC
+casc/Docs/curry-style-guide.html
 CASS/cass
 CASS/cass_worker
 createmakefile/CreateMakefile
