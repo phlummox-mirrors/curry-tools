@@ -9,7 +9,7 @@ import Distribution
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "Spicey Web Framework (Version of 31/10/16)"
+  let bannerText = "Spicey Web Framework (Version of 12/11/16)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -156,6 +156,9 @@ main generatordir = do
   putStrLn systemBanner
   args <- getArgs
   case args of
+    ["-h"]     -> putStrLn helpText >> exitWith 0
+    ["--help"] -> putStrLn helpText >> exitWith 0
+    ["-?"]     -> putStrLn helpText >> exitWith 0
     ["--dbpath",dbpath,orgfile] -> createStructureWith orgfile dbpath
     [orgfile]                   -> createStructureWith orgfile "."
     _ -> putStrLn ("Wrong arguments!\n" ++ helpText) >> exitWith 1
@@ -177,8 +180,12 @@ main generatordir = do
     when (orgfile /= termfile) $ removeFile termfile
 
 helpText :: String
-helpText =
-  "Usage: curry spiceup [--dbpath <dirpath>] <ERD program file>\n" ++
-   "Parameters:\n" ++
-  "--dbpath <dir>    : name of the directory where DB files are stored\n" ++
-  "<ERD program file>: name of Curry program file containing ERD definition\n"
+helpText = unlines $
+  [ "Usage:"
+  , ""
+  , "    curry spiceup [--dbpath <dirpath>] <ERD program file>"
+  , ""
+  , "Parameters:"
+  , "--dbpath <dir>    : name of the directory where DB files are stored"
+  , "<ERD program file>: name of Curry program file containing ERD definition"
+  ]

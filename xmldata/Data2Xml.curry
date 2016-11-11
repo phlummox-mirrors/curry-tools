@@ -48,20 +48,28 @@ main = do
   args <- getArgs
   derive (reverse (argsToOptions args))
 
-usageMsg :: String
-usageMsg = "Usage: data2xml [-low] <filename>\n"++
-           "Options:\n" ++
-           "-low: make all tags lowercase"
+printUsage :: IO ()
+printUsage = putStrLn $ unlines
+  [ "Usage:"
+  , ""
+  , "     data2xml [-low] <filename>"
+  , ""
+  , "Options:"
+  , "-low: make all tags lowercase"
+  ]
 
 argsToOptions :: [String] -> [Options]
 argsToOptions args = case args of
+  ["-h"]      -> []
+  ["--help"]  -> []
+  ["-?"]      -> []
   "-low":opts -> LowCase : argsToOptions opts
   [s]         -> [FileName (stripCurrySuffix s)]
   _           -> []
 
 derive :: [Options] -> IO ()
-derive []                 = putStrLn usageMsg
-derive (LowCase    : _  ) = putStrLn usageMsg
+derive []                 = printUsage
+derive (LowCase    : _  ) = printUsage
 derive (FileName fn:opts) = do
   CurryProg modName  _ ts _ _ <- readCurry fn
   let (specials,types) = if isPrelude modName

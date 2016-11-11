@@ -2,30 +2,40 @@
 --- A tool to create a simple makefile for a Curry application.
 ---
 --- @author Michael Hanus
---- @version May 2016
+--- @version November 2016
 -----------------------------------------------------------------
 
 module CreateMakefile where
 
+import Distribution
+import FileGoodies
 import FlatCurry.Types
 import FlatCurry.Files
 import FlatCurry.Read
 import List
 import System
-import Distribution
-import FileGoodies
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
-   [mainmod] -> createMake (stripSuffix mainmod) Nothing
-   [mainmod,target] -> createMake (stripSuffix mainmod) (Just target)
-   _ -> putStrLn $
-    "ERROR: Illegal arguments: " ++
-    concat (intersperse " " args) ++ "\n" ++
-    "Usage: currycreatemake <main_module_name>\n" ++
-    "   or: currycreatemake <main_module_name> <makefile>"
+    ["-h"]     -> printUsage
+    ["--help"] -> printUsage
+    ["-?"]     -> printUsage
+    [mainmod] -> createMake (stripCurrySuffix mainmod) Nothing
+    [mainmod,target] -> createMake (stripCurrySuffix mainmod) (Just target)
+    _ -> do putStrLn $ "ERROR: Illegal arguments: " ++
+                       concat (intersperse " " args) ++ "\n"
+            printUsage
+            exitWith 1
+
+printUsage :: IO ()
+printUsage = putStrLn $ unlines
+  [ "A tool to create a simple makefile for a Curry application"
+  , ""
+  , "Usage: curry createmake <main_module_name>\n"
+  , "   or: curry createmake <main_module_name> <makefile>"
+  ]
 
 -- Create a simple makefile for a main module:
 createMake :: String -> Maybe String -> IO ()

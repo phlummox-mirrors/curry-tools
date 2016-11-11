@@ -33,6 +33,9 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
+   ["-h"]     -> printUsage
+   ["--help"] -> printUsage
+   ["-?"]     -> printUsage
    "--window":modnames -> startGUI modnames
    "-w":modnames -> startGUI modnames
    "-window":modnames -> startGUI modnames
@@ -48,11 +51,20 @@ main = do
                               (zip rcs testmods)
                 exitWith 1
    _ -> do putStrLn $ "ERROR: Illegal arguments for currytest: " ++
-                      concat (intersperse " " args) ++ "\n" ++
-                      "Usage: curry test [--window|-w] <module_names>"
+                      concat (intersperse " " args) ++ "\n"
+           printUsage
            exitWith 1
  where
    putStrFlush s = putStr s >> hFlush stdout
+
+printUsage :: IO ()
+printUsage = putStrLn $ unlines
+  [ "A tool to run simple tests for Curry programs"
+  , ""
+  , "Usage:"
+  , ""
+  , "    curry test [--window|-w] <module_names>"
+  ]
 
 -- This operation creates a new socket to receive messages that are forwarded
 -- to a continues connection to a socket with the argument port number:
