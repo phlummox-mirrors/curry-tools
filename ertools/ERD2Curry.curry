@@ -19,7 +19,7 @@ import ERD2Graph
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "ERD->Curry Compiler (Version of 30/10/16)"
+  let bannerText = "ERD->Curry Compiler (Version of 12/11/16)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
@@ -29,26 +29,31 @@ main :: String -> IO ()
 main erd2currydir = do
   putStrLn systemBanner
   args <- getArgs
-  callStart erd2currydir (parseArgs ("",False,SQLite ".",False,False) args)
+  configs <- parseArgs ("",False,SQLite ".",False,False) args
+  callStart erd2currydir configs
 
 parseArgs :: (String,Bool,Storage,Bool,Bool) -> [String]
-          -> Maybe (String,Bool,Storage,Bool,Bool)
-parseArgs _ [] = Nothing
+          -> IO (Maybe (String,Bool,Storage,Bool,Bool))
+parseArgs _ [] = return Nothing
 parseArgs (file,fromxml,storage,vis,trerdt) (arg:args) = case arg of
+  "-h" -> putStrLn helpText >> exitWith 0
+  "-?" -> putStrLn helpText >> exitWith 0
+  "--help" -> putStrLn helpText >> exitWith 0
   "-x" -> parseArgs (file,True,storage,vis,trerdt) args
   "-l" -> parseArgs (file,fromxml,setSQLite storage,vis,trerdt) args
   "-f" -> error "Wrong parameter -f: file-based database no longer supported!"
   "-d" -> parseArgs (file,fromxml,DB,vis,trerdt) args
-  "-p" -> if null args then Nothing else
+  "-p" -> if null args then return Nothing else
           parseArgs (file,fromxml,setFilePath (head args) storage,vis,trerdt)
                     (tail args)
   "--dbpath" ->
-          if null args then Nothing else
+          if null args then return Nothing else
             parseArgs (file,fromxml,setFilePath (head args) storage,vis,trerdt)
                       (tail args)
   "-t" -> parseArgs (file,fromxml,storage,vis,True) args
   "-v" -> parseArgs (file,fromxml,storage,True,trerdt) args
-  f    -> if null args then Just (f,fromxml,storage,vis,trerdt) else Nothing
+  f    -> return $ if null args then Just (f,fromxml,storage,vis,trerdt)
+                                else Nothing
  where
   setFilePath path (SQLite _) = SQLite path
   setFilePath _    DB         = DB
@@ -57,16 +62,20 @@ parseArgs (file,fromxml,storage,vis,trerdt) (arg:args) = case arg of
   setSQLite DB         = SQLite "."
 
 helpText :: String
-helpText =
-  "Usage: curry erd2curry [-l] [-d] [-t] [-x] [-v] [--dbpath <dir>] <prog>\n" ++
-  "Parameters:\n" ++
-  "-l: generate interface to SQLite3 database (default)\n" ++
-  "-d: generate interface to SQL database (experimental)\n" ++
-  "-x: generate from ERD xmi document instead of ERD Curry program\n" ++
-  "-t: only transform ERD into ERDT term file\n" ++
-  "-v: only show visualization of ERD with dotty\n" ++
-  "--dbpath <dir>: name of the directory where DB files are stored\n" ++
-  "<prog>        : name of Curry program file containing ERD definition\n"
+helpText = unlines
+  [ "Usage:"
+  , ""
+  , "    curry erd2curry [-l] [-d] [-t] [-x] [-v] [--dbpath <dir>] <prog>"
+  , ""
+  , "Parameters:"
+  , "-l: generate interface to SQLite3 database (default)"
+  , "-d: generate interface to SQL database (experimental)"
+  , "-x: generate from ERD xmi document instead of ERD Curry program"
+  , "-t: only transform ERD into ERDT term file"
+  , "-v: only show visualization of ERD with dotty"
+  , "--dbpath <dir>: name of the directory where DB files are stored"
+  , "<prog>        : name of Curry program file containing ERD definition"
+  ]
 
 callStart :: String -> Maybe (String,Bool,Storage,Bool,Bool) -> IO ()
 callStart _ Nothing = do

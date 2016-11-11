@@ -17,10 +17,11 @@ import AbstractCurry.Files
 import AbstractCurry.Pretty
 import AllSolutions
 import CurryStringClassifier
+import Distribution (stripCurrySuffix)
 import FileGoodies
 import List
 import Pretty
-import System (system,getArgs)
+import System (exitWith, system, getArgs)
 
 -- The tool is rather simple, it uses Curry's facilities for 
 -- meta-programming to read the program in the form defined 
@@ -35,36 +36,50 @@ import System (system,getArgs)
 
 --- addtypes is supposed to get its argument, the file to add type signatures
 --- to from the shell. 
-
 main :: IO ()
-main = do args <- getArgs
-          if length args /= 1 then putStrLn "Usage: curry addtypes <Curry program>"
-            else do let fileName = stripSuffix (head args)
-                    writeWithTypeSignatures fileName
-                    putStrLn $ "Signatures added.\nA backup of the original "
-                         ++"file has been written to "++fileName++".TS.curry"
+main = do
+  args <- getArgs
+  case args of
+    ["-h"]     -> printUsage
+    ["--help"] -> printUsage
+    ["-?"]     -> printUsage
+    [fname]    -> do
+            let progname = stripCurrySuffix fname
+            writeWithTypeSignatures progname
+            putStrLn $ "Signatures added.\nA backup of the original " ++
+                       "file has been written to "++progname++".ORG.curry"
+    _          -> printUsage >> exitWith 1
+
+printUsage :: IO ()
+printUsage = putStrLn $ unlines
+  [ "A tool to add missing type signatures to top-level operations"
+  , ""
+  , "Usage:"
+  , ""
+  , "    curry addtypes <Curry program>"
+  ]
 
 --- the given file is read three times: a) typed, to get all the necessary 
 --- type information b) untyped to find out, which of the types were 
 --- specified by the user and c) as a simple string to which the signatures
 --- are added. Before adding anything, addtypes will write a backup
---- to <given filename>.TS.curry
+--- to <given filename>.ORG.curry
 
 writeWithTypeSignatures :: String -> IO ()
-writeWithTypeSignatures fileName = do
-   system ("cp -p "++fileName++".curry "++fileName++".TS.curry")
-   newprog <- addTypeSignatures fileName
-   writeFile (fileName++".curry") newprog
+writeWithTypeSignatures progname = do
+   system $ "cp -p "++progname++".curry "++progname++".ORG.curry"
+   newprog <- addTypeSignatures progname
+   writeFile (progname++".curry") newprog
 
 addTypeSignatures :: String -> IO String
-addTypeSignatures fileName = do
-   typedProg <- readCurry fileName
-   untypedProg <- readUntypedCurry fileName
-   progLines <- readFile (fileName++".curry")
+addTypeSignatures progname = do
+   typedProg <- readCurry progname
+   untypedProg <- readUntypedCurry progname
+   progLines <- readFile (progname++".curry")
    mbprog <- getOneSolution -- enforce reading of all files before returning
                (\p -> p =:= unscan (addTypes (scan progLines) 
                                              (getTypes typedProg untypedProg)))
-   system $ "rm -f "++fileName++".acy "++fileName++".uacy"
+   system $ "rm -f "++progname++".acy "++progname++".uacy"
    maybe (error "AddTypes: can't add type signatures") return mbprog
 
 
