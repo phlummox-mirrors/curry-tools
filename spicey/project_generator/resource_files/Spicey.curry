@@ -222,7 +222,6 @@ readMaybeFloat s =
    else Nothing
  where
    isFloatChar c = isDigit c || c == '.'
-   stripSpaces = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
 --------------------------------------------------------------------------
 -- Define page layout of the application.

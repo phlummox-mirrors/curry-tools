@@ -170,12 +170,12 @@ labelList erdname (Entity entityName attrlist) relationships allEntities =
       (list2ac (
             (map (\ (Attribute name domain _ _) ->
                    list2ac [applyF ("HTML", "textstyle")
-                               [string2ac ("label label_for_type_"++
+                               [string2ac ("spicey_label spicey_label_for_type_"++
                                            domainToString domain),
                                 string2ac name]])
                  attrlist) ++
             (map (\s -> list2ac [applyF ("HTML", "textstyle")
-                                  [string2ac "label label_for_type_relation",
+                                  [string2ac "spicey_label spicey_label_for_type_relation",
                                    string2ac s]])
                  (manyToOneEntities++manyToManyEntities))
           )

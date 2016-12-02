@@ -1,23 +1,23 @@
-.label {
+.spicey_label {
   display: block;
   padding: 3px 8px;
   color: black;
   font-size: 10pt;
 }
 
-.label_for_type_string:before {
+.spicey_label_for_type_string:before {
   content: url(../images/text.png);
 }
 
-.label_for_type_int:before {
+.spicey_label_for_type_int:before {
   content: url(../images/number.png);
 }
 
-.label_for_type_calendarTime:before {
+.spicey_label_for_type_calendarTime:before {
   content: url(../images/time.png);
 }
 
-.label_for_type_relation:before {
+.spicey_label_for_type_relation:before {
   content: url(../images/foreign.png);
 }
 
