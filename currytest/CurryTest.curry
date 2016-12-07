@@ -50,7 +50,7 @@ main = do
                     concatMap (\ (rc,tmod) -> if rc==0 then "" else ' ':tmod)
                               (zip rcs testmods)
                 exitWith 1
-   _ -> do putStrLn $ "ERROR: Illegal arguments for currytest: " ++
+   _ -> do putStrLn $ "ERROR: Illegal arguments for CurryTest: " ++
                       concat (intersperse " " args) ++ "\n"
            printUsage
            exitWith 1
@@ -97,7 +97,7 @@ terminateForwardMessages portnum = do
 startGUI :: [String] -> IO ()
 startGUI modnames = do
   (guiportnum,socket) <- listenOnFresh
-  system (installDir++"/bin/currytest -f "++show guiportnum++" &")
+  system (installDir++"/bin/curry test -f "++show guiportnum++" &")
   (_,inhandle) <- socketAccept socket
   portnums <- hGetLine inhandle
   let portnum = readNat portnums
