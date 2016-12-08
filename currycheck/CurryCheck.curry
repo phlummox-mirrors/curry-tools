@@ -739,8 +739,9 @@ generatorsOfProg = map funcName . filter isGen . functions
 genMainTestModule :: Options -> String -> [TestModule] -> IO ()
 genMainTestModule opts mainmodname modules = do
   let testtypes = nub (concatMap userTestDataOfModule modules)
-  generators <- mapIO (createTestDataGenerator mainmodname) testtypes
-  let funcs        = concatMap (createTests opts mainmodname) modules ++
+  testtypedecls <- collectAllTestTypeDecls [] testtypes
+  let generators   = map (createTestDataGenerator mainmodname) testtypedecls
+      funcs        = concatMap (createTests opts mainmodname) modules ++
                                generators
       mainFunction = genMainFunction opts mainmodname
                                      (concatMap propTests modules)
@@ -781,16 +782,47 @@ genMainFunction opts testModule tests =
   makeExpr (IOTest (mn, name) _) =
     constF (testModule, name ++ "_" ++modNameToId  mn)
 
-
 -------------------------------------------------------------------------
--- Creates a test data generator for a given type.
-createTestDataGenerator :: String -> QName -> IO CFuncDecl
-createTestDataGenerator mainmodname qt@(mn,_) = do
-  fprog <- readFlatCurry mn
-  maybe (error $ "Definition of type '" ++ qtString ++ "' not found!")
-        (return . type2genData)
-        (find (\t -> FCG.typeName t == qt) (FCG.progTypes fprog))
+-- Collect all type declarations for a given list of type
+-- constructor names, including the type declarations which are
+-- used in these type declarations.
+collectAllTestTypeDecls :: [FC.TypeDecl] -> [QName] -> IO [FC.TypeDecl]
+collectAllTestTypeDecls tdecls testtypenames = do
+  newtesttypedecls <- mapIO getTypeDecl testtypenames
+  let alltesttypedecls = tdecls ++ newtesttypedecls
+      newtcons = filter (\ (mn,_) -> mn /= preludeName)
+                        (nub (concatMap allTConsInDecl newtesttypedecls)
+                         \\ map FCG.typeName alltesttypedecls)
+  if null newtcons then return alltesttypedecls
+                   else collectAllTestTypeDecls alltesttypedecls newtcons
  where
+  -- gets the type declaration for a given type constructor
+  -- (could be improved by caching programs that are already read)
+  getTypeDecl :: QName -> IO FC.TypeDecl
+  getTypeDecl qt@(mn,_) = do
+    fprog <- readFlatCurry mn
+    maybe (error $ "Definition of type '" ++ FC.showQNameInModule "" qt ++
+                   "' not found!")
+          return
+          (find (\t -> FCG.typeName t == qt) (FCG.progTypes fprog))
+
+  -- compute all type constructors used in a type declaration
+  allTConsInDecl :: FC.TypeDecl -> [QName]
+  allTConsInDecl = FCG.trType (\_ _ _ -> concatMap allTConsInConsDecl)
+                              (\_ _ _ -> allTConsInTypeExpr)
+  
+  allTConsInConsDecl :: FC.ConsDecl -> [QName]
+  allTConsInConsDecl = FCG.trCons (\_ _ _ -> concatMap allTConsInTypeExpr)
+  
+  allTConsInTypeExpr :: FC.TypeExpr -> [QName]
+  allTConsInTypeExpr =
+    FCG.trTypeExpr (\_ -> []) (\tc targs -> tc : concat targs) (++)
+
+-- Creates a test data generator for a given type declaration.
+createTestDataGenerator :: String -> FC.TypeDecl -> CFuncDecl
+createTestDataGenerator mainmodname tdecl = type2genData tdecl
+ where
+  qt       = FCG.typeName tdecl
   qtString = FC.showQNameInModule "" qt
 
   type2genData (FC.TypeSyn _ _ _ _) =
@@ -823,6 +855,7 @@ createTestDataGenerator mainmodname qt@(mn,_) = do
     ctvars = map (\i -> CTVar (i,"a"++show i)) tvars
     cvars  = map (\i -> (i,"a"++show i)) tvars
 
+-------------------------------------------------------------------------
 -- remove the generated files (except if option "--keep" is set)
 cleanup :: Options -> String -> [TestModule] -> IO ()
 cleanup opts mainmodname modules =
@@ -847,6 +880,7 @@ showTestStatistics testmodules =
  where
   sumOf p = foldr (+) 0 . map (length . filter p . propTests)
 
+-------------------------------------------------------------------------
 main :: IO ()
 main = do
   argv <- getArgs
