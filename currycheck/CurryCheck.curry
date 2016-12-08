@@ -14,7 +14,7 @@
 ---   (together with possible preconditions).
 ---
 --- @author Michael Hanus, Jan-Patrick Baye
---- @version August 2016
+--- @version December 2016
 -------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -53,7 +53,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 26/09/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 08/12/2016)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
