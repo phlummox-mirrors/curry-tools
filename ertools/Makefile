@@ -27,8 +27,8 @@ compile: erd2curry ERD2CDBI
 
 install: compile
 	rm -f $(ERD2CURRY) $(ERD2CDBI) $(BINDIR)/erd2curry $(BINDIR)/erd2cdbi
-	ln -s $(CURDIR)/erd2curry $(ERD2CURRY)
-	ln -s $(CURDIR)/ERD2CDBI $(ERD2CDBI)
+	cd $(BINDIR) && ln -s ../currytools/ertools/erd2curry $(notdir $(ERD2CURRY))
+	cd $(BINDIR) && ln -s ../currytools/ertools/ERD2CDBI $(notdir $(ERD2CDBI))
 
 clean:
 	$(CLEANCURRY)

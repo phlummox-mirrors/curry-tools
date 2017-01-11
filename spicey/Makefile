@@ -20,7 +20,7 @@ compile: spiceup
 
 install: compile
 	rm -f $(TOOL) $(BINDIR)/spiceup
-	ln -s $(CURDIR)/spiceup $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/spicey/spiceup $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY) -r

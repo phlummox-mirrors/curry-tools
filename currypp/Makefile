@@ -43,8 +43,8 @@ compile: Main
 
 install: compile
 	rm -f $(TOOL) $(BINDIR)/currypp
-	ln -s $(CURDIR)/Main $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/currypp # for backward compatibility
+	cd $(BINDIR) && ln -s ../currytools/currypp/Main $(notdir $(TOOL))
+	cd $(BINDIR) && ln -s $(notdir $(TOOL)) currypp # for backward compatibility
 
 clean:
 	$(CLEANCURRY) -r

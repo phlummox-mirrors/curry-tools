@@ -33,7 +33,7 @@ compile: CurryDoc
 
 install: compile
 	rm -f $(TOOL) $(BINDIR)/currydoc
-	ln -s $(CURDIR)/CurryDoc $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/currydoc/CurryDoc $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY)

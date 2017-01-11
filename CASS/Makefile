@@ -22,7 +22,7 @@ compile: cass_worker cass
 
 install: compile
 	rm -f $(TOOL) $(BINDIR)/cass
-	ln -s $(CURDIR)/cass $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/CASS/cass $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY) -r

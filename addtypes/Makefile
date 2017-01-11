@@ -10,7 +10,7 @@ compile: AddTypes
 
 install: compile
 	rm -f $(TOOL) $(BINDIR)/addtypes
-	ln -s $(CURDIR)/AddTypes $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/addtypes/AddTypes $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY)

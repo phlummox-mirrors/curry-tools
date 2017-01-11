@@ -11,8 +11,8 @@ compile: RunCurry
 
 install: compile # no further installation required
 	rm -f $(TOOL) $(BINDIR)/runcurry
-	ln -s $(CURDIR)/RunCurry $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/runcurry # for backward compatibility
+	cd $(BINDIR) && ln -s ../currytools/runcurry/RunCurry $(notdir $(TOOL))
+	cd $(BINDIR) && ln -s $(notdir $(TOOL)) runcurry # for backward compatibility
 
 clean:
 	$(CLEANCURRY)
