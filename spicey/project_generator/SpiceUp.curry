@@ -2,10 +2,11 @@
 
 import Database.ERDGoodies (storeERDFromProgram)
 import Directory
+import Distribution
+import FilePath            ((</>))
 import List                (isSuffixOf, last)
 import System              (system, getArgs, exitWith)
 import SpiceyScaffolding
-import Distribution
 
 systemBanner :: String
 systemBanner =
@@ -150,9 +151,8 @@ createStructure target_path generator_path term_path db_path
   generatorFunction generator_path term_path target_path db_path
 
 --- The main operation to start the scaffolding.
---- The argument is the directory containing the project generator.
-main :: String -> IO ()
-main generatordir = do
+main :: IO ()
+main = do
   putStrLn systemBanner
   args <- getArgs
   case args of
@@ -168,6 +168,9 @@ main generatordir = do
   putStrLn "you should define the variable WEBSERVERDIR in the Makefile!"
  where
   createStructureWith orgfile dbpath = do
+    -- The directory containing the project generator:
+    let generatordir = installDir </> "currytools"
+                                  </> "spicey" </> "project_generator"
     exfile <- doesFileExist orgfile
     unless exfile $ error ("File `" ++ orgfile ++ "' does not exist!")
     termfile <- if ".curry" `isSuffixOf` orgfile ||

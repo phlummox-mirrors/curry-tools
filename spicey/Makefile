@@ -34,5 +34,5 @@ spiceup: $(DEPS)
 	CURRYPATH=scaffolding && export CURRYPATH && \
 	cd $(PROJECT_GEN_DIR) && \
 	  $(REPL) $(REPL_OPTS) :set path ../scaffolding:../../erd2curry \
-	    :load SpiceUp :save "main \"$(CURDIR)/$(PROJECT_GEN_DIR)\"" :quit
+	                       :load SpiceUp :save :quit
 	mv $(PROJECT_GEN_DIR)/SpiceUp $@
