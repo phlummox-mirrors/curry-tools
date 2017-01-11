@@ -20,6 +20,7 @@ clean:
 
 uninstall: clean
 	rm -f $(TOOL)
+	rm -f $(BINDIR)/runcurry # for backward compatibility
 
 # generate executable for currydoc program:
 RunCurry: RunCurry.curry

@@ -52,6 +52,7 @@ clean:
 
 uninstall: clean
 	rm -f $(TOOL)
+	rm -f $(BINDIR)/currypp # for backward compatibility
 
 # generate executable of currypp translator:
 Main: $(DEPS)
