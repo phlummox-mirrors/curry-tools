@@ -13,15 +13,15 @@ module AnalysisServer(mainServer, initializeAnalysisSystem, analyzeModuleAsText,
                       analyzeGeneric, analyzePublic, analyzeInterface)
   where
 
-import ReadNumeric(readNat)
-import Char(isSpace)
+import ReadNumeric   (readNat)
+import Char          (isSpace)
 import Directory
+import FileGoodies   (splitDirectoryBaseName)
 import FlatCurry.Types(QName)
-import Socket(Socket(..),listenOn,listenOnFresh,sClose,waitForSocketAccept)
 import IO
-import ReadShowTerm(readQTerm,showQTerm)
-import System(system,sleep,setEnviron,getArgs)
-import FileGoodies(stripSuffix,splitDirectoryBaseName)
+import ReadShowTerm (readQTerm, showQTerm)
+import Socket (Socket(..),listenOn,listenOnFresh,sClose,waitForSocketAccept)
+import System       (system, sleep, setEnviron, getArgs)
 
 import Analysis(Analysis,AOutFormat(..))
 import Configuration
@@ -76,7 +76,7 @@ mainServer mbport = do
 --- by 'initializeAnalysisSystem'.
 analyzeModuleAsText :: String -> String -> Bool -> Bool -> IO String
 analyzeModuleAsText ananame mname optall enforce =
-  analyzeModule ananame (stripSuffix mname) enforce AText >>=
+  analyzeModule ananame mname enforce AText >>=
              return . formatResult mname "Text" Nothing (not optall)
 
 --- Run the analysis system to show the analysis results in the BrowserGUI.

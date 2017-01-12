@@ -49,7 +49,8 @@ import RootReplaced
 --- together with an operation to show the analysis result as a string.
 registeredAnalysis :: [RegisteredAnalysis]
 registeredAnalysis =
-  [cassAnalysis "Overlapping rules"          overlapAnalysis  showOverlap
+  [cassAnalysis "Functionally defined"       functionalAnalysis showFunctional
+  ,cassAnalysis "Overlapping rules"          overlapAnalysis  showOverlap
   ,cassAnalysis "Deterministic operations"   nondetAnalysis   showDet
   ,cassAnalysis "Depends on non-deterministic operations"
                                              nondetDepAnalysis showNonDetDeps
