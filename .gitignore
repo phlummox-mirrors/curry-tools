@@ -23,7 +23,7 @@ currydoc/CurryDoc
 currytest/CurryTest
 cusage/CheckUsage
 ertools/ERD2CDBI
-ertools/erd2curry
+ertools/ERD2Curry
 importcalls/ImportCalls
 optimize/bindingopt
 optimize/binding_optimization/BindingOpt

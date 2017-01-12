@@ -23,11 +23,11 @@ DEPSERD2CDBI = ERD2CDBI.curry $(ROOT)/lib/Database/ERD*.curry \
 
 all: install
 
-compile: erd2curry ERD2CDBI
+compile: ERD2Curry ERD2CDBI
 
 install: compile
 	rm -f $(ERD2CURRY) $(ERD2CDBI) $(BINDIR)/erd2curry $(BINDIR)/erd2cdbi
-	cd $(BINDIR) && ln -s ../currytools/ertools/erd2curry $(notdir $(ERD2CURRY))
+	cd $(BINDIR) && ln -s ../currytools/ertools/ERD2Curry $(notdir $(ERD2CURRY))
 	cd $(BINDIR) && ln -s ../currytools/ertools/ERD2CDBI $(notdir $(ERD2CDBI))
 
 clean:
@@ -37,9 +37,8 @@ clean:
 uninstall: clean
 	rm -f $(ERD2CURRY) $(ERD2CDBI)
 
-erd2curry: $(DEPSERD2CURRY)
-	$(REPL) $(REPL_OPTS) :load ERD2Curry :save "main \"$(CURDIR)\"" :q
-	mv ERD2Curry $@
+ERD2Curry: $(DEPSERD2CURRY)
+	$(REPL) $(REPL_OPTS) :load ERD2Curry :save :quit
 
 ERD2CDBI: $(DEPSERD2CDBI)
 	$(REPL) $(REPL_OPTS) :load ERD2CDBI :save :quit

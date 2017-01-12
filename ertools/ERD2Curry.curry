@@ -6,9 +6,10 @@ import AbstractCurry.Pretty
 import Database.ERD
 import Database.ERDGoodies
 import Directory
-import Distribution         (curryCompiler)
+import Distribution         (curryCompiler, installDir)
+import FilePath             ((</>))
 import List                 (isSuffixOf)
-import System               (exitWith, getArgs,system)
+import System               (exitWith, getArgs, system)
 import Time
 import XML
 
@@ -19,17 +20,19 @@ import ERD2Graph
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "ERD->Curry Compiler (Version of 12/11/16)"
+  let bannerText = "ERD->Curry Compiler (Version of 12/01/17)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
 
 --- Main function for saved state. The argument is the directory containing
 --- these sources.
-main :: String -> IO ()
-main erd2currydir = do
+main :: IO ()
+main = do
   putStrLn systemBanner
   args <- getArgs
   configs <- parseArgs ("",False,SQLite ".",False,False) args
+  -- the directory containing the sources of this tool:
+  let erd2currydir = installDir </> "currytools" </> "ertools"
   callStart erd2currydir configs
 
 parseArgs :: (String,Bool,Storage,Bool,Bool) -> [String]
@@ -129,10 +132,10 @@ start erd2currydir opt fromxml trerdt srcfile path = do
   -- Copy auxiliary files ERDGeneric.curry and KeyDatabase.curry to target dir
   copyAuxiliaryFiles = do
     if isSQLite opt
-      then copyFile (erd2currydir++"/KeyDatabase.curry.sqlite")
+      then copyFile (erd2currydir </> "KeyDatabase.curry.sqlite")
                     (addPath path "KeyDatabase.curry")
       else done
-    copyFile (erd2currydir++"/ERDGeneric.curry")
+    copyFile (erd2currydir </> "ERDGeneric.curry")
              (addPath path "ERDGeneric.curry")
 
   showOption _ (Files f,_) = "database files stored in directory '"++f++"'"
