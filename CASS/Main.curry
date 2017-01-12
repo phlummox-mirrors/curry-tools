@@ -2,7 +2,7 @@
 --- This is the main module to start the executable of the analysis system.
 ---
 --- @author Michael Hanus
---- @version August 2016
+--- @version January 2017
 --------------------------------------------------------------------------
 
 module Main(main) where
@@ -48,7 +48,7 @@ main = do
            fullananame <- checkAnalysisName ananame
            putStrLn $ "Computing results for analysis `" ++ fullananame ++ "'"
            analyzeModuleAsText fullananame (stripCurrySuffix mname)
-                                           (optReAna opts) >>= putStrLn
+                               (optAll opts) (optReAna opts) >>= putStrLn
  where
   deleteFiles args = case args of
     [aname] -> do fullaname <- checkAnalysisName aname
@@ -79,6 +79,7 @@ data Options = Options
   , optVerb    :: Int      -- verbosity level
   , optServer  :: Bool     -- start CASS in server mode?
   , optPort    :: Int      -- port number (if used in server mode)
+  , optAll     :: Bool     -- show analysis results for all operations?
   , optReAna   :: Bool     -- force re-analysis?
   , optDelete  :: Bool     -- delete analysis files?
   , optProp    :: [(String,String)] -- property (of ~/.curryanalsisrc) to be set
@@ -91,6 +92,7 @@ defaultOptions = Options
   , optVerb    = -1
   , optServer  = False
   , optPort    = 0
+  , optAll     = False
   , optReAna   = False
   , optDelete  = False
   , optProp    = []
@@ -106,18 +108,21 @@ options =
   , Option "v" ["verbosity"]
             (ReqArg (safeReadNat checkVerb) "<n>")
             "verbosity/debug level:\n0: quiet (same as `-q')\n1: show worker activity, e.g., timings\n2: show server communication\n3: ...and show read/store information\n4: ...show also stored/computed analysis data\n(default: see debugLevel in ~/.curryanalysisrc)"
-  , Option "s" ["server"]
-           (NoArg (\opts -> opts { optServer = True }))
-           "start analysis system in server mode"
-  , Option "p" ["port"]
-           (ReqArg (safeReadNat (\n opts -> opts { optPort = n })) "<n>")
-           "port number for communication\n(only for server mode;\n if omitted, a free port number is selected)"
+  , Option "a" ["all"]
+           (NoArg (\opts -> opts { optAll = True }))
+           "show-analysis results for all operations\n(i.e., also for non-exported operations)"
   , Option "r" ["reanalyze"]
            (NoArg (\opts -> opts { optReAna = True }))
            "force re-analysis \n(i.e., ignore old analysis information)"
   , Option "d" ["delete"]
            (NoArg (\opts -> opts { optDelete = True }))
            "delete existing analysis results"
+  , Option "s" ["server"]
+           (NoArg (\opts -> opts { optServer = True }))
+           "start analysis system in server mode"
+  , Option "p" ["port"]
+           (ReqArg (safeReadNat (\n opts -> opts { optPort = n })) "<n>")
+           "port number for communication\n(only for server mode;\n if omitted, a free port number is selected)"
   , Option "D" []
             (ReqArg checkSetProperty "name=v")
            "set property (of ~/.curryanalysisrc)\n`name' as `v'"

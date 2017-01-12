@@ -5,7 +5,7 @@
 --- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version June 2016
+--- @version January 2017
 --------------------------------------------------------------------------
 
 module AnalysisServer(mainServer, initializeAnalysisSystem, analyzeModuleAsText,
@@ -68,14 +68,16 @@ mainServer mbport = do
 
 --- Run the analysis system and show the analysis results in standard textual
 --- representation.
---- The third argument is a flag indicating whether the
+--- If the third argument is true, all operations are shown,
+--- otherwise only the interface operations.
+--- The fourth argument is a flag indicating whether the
 --- (re-)analysis should be enforced.
 --- Note that, before its first use, the analysis system must be initialized
 --- by 'initializeAnalysisSystem'.
-analyzeModuleAsText :: String -> String -> Bool -> IO String
-analyzeModuleAsText ananame mname enforce =
+analyzeModuleAsText :: String -> String -> Bool -> Bool -> IO String
+analyzeModuleAsText ananame mname optall enforce =
   analyzeModule ananame (stripSuffix mname) enforce AText >>=
-             return . formatResult mname "Text" Nothing True
+             return . formatResult mname "Text" Nothing (not optall)
 
 --- Run the analysis system to show the analysis results in the BrowserGUI.
 --- Note that, before its first use, the analysis system must be initialized
