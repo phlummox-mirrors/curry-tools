@@ -8,11 +8,14 @@
 ---     h x = k x : []
 ---
 --- then the root replacements of f are [g,h].
+---
 --- This analysis could be useful to detect simple loops, e.g., if
---- a function is in its root replacement.
+--- a function is in its root replacement. This is the purpose
+--- of the analysis `RootCyclic` which assigns `True` to some
+--- operation if this operation might cause a cyclic root replacement.
 ---
 --- @author Michael Hanus
---- @version June 2016
+--- @version January 2017
 ------------------------------------------------------------------------------
 
 module RootReplaced
@@ -20,6 +23,7 @@ module RootReplaced
 
 import Analysis
 import FlatCurry.Types
+import GenericProgInfo
 import List
 import Sort(sort)
 
@@ -29,7 +33,7 @@ import Sort(sort)
 --- all function names to which a function can be root replaced.
 type RootReplaced = [QName]
 
--- Show determinism information as a string.
+-- Show root-replacement information as a string.
 showRootRepl :: AOutFormat -> RootReplaced -> String
 showRootRepl AText []     = "no root replacements"
 showRootRepl ANote []     = ""
@@ -64,5 +68,32 @@ rrFuncRule calledFuncs (Rule _ rhs) = rrOfExp rhs
     Or    e1 e2 -> sort (union (rrOfExp e1) (rrOfExp e2))
     Case _ e bs -> sort (foldr union (rrOfExp e)
                                (map (\ (Branch _ be) -> rrOfExp be) bs))
+
+------------------------------------------------------------------------------
+-- Show root-cyclic information as a string.
+showRootCyclic :: AOutFormat -> Bool -> String
+showRootCyclic AText False = "no cycles at the root"
+showRootCyclic ANote False = ""
+showRootCyclic AText True  = "possible cyclic root replacement"
+showRootCyclic ANote True  = "root-cyclic"
+
+--- Root cyclic analysis.
+rootCyclicAnalysis :: Analysis Bool
+rootCyclicAnalysis =
+  combinedSimpleFuncAnalysis "RootCyclic" rootReplAnalysis rcFunc
+
+rcFunc :: ProgInfo RootReplaced -> FuncDecl -> Bool
+-- we assume that external functions are not root cyclic:
+rcFunc _ (Func _  _ _ _ (External _)) = False
+-- otherwise we check whether the operation is in its set of root replacements:
+rcFunc rrinfo (Func qf _ _ _ (Rule _ _)) =
+  maybe True -- no information, but this case should not occur
+        (\rrfuncs -> qf `elem` rrfuncs -- direct cycle
+                     -- or cycle in some root-replacement:
+                  || any (\rrf -> maybe True
+                                        (rrf  `elem`)
+                                        (lookupProgInfo rrf rrinfo))
+                         rrfuncs)
+        (lookupProgInfo qf rrinfo)
 
 ------------------------------------------------------------------------------

@@ -10,17 +10,18 @@
 ---                (instead of the data constructors).
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version May 2013
+--- @version January 2017
 -------------------------------------------------------------------------
 
 module Analysis(Analysis(..),
-                simpleFuncAnalysis,simpleTypeAnalysis,
+                simpleFuncAnalysis, simpleTypeAnalysis,
                 simpleConstructorAnalysis,
-                dependencyFuncAnalysis,dependencyTypeAnalysis,
-                combinedSimpleFuncAnalysis,combinedSimpleTypeAnalysis,
-                combinedDependencyFuncAnalysis,combinedDependencyTypeAnalysis,
-                isSimpleAnalysis,isCombinedAnalysis,isFunctionAnalysis,
-                analysisName,baseAnalysisName,startValue,
+                dependencyFuncAnalysis, dependencyTypeAnalysis,
+                combinedSimpleFuncAnalysis, combined2SimpleFuncAnalysis,
+                combinedSimpleTypeAnalysis,
+                combinedDependencyFuncAnalysis, combinedDependencyTypeAnalysis,
+                isSimpleAnalysis, isCombinedAnalysis, isFunctionAnalysis,
+                analysisName, baseAnalysisNames, startValue,
                 AOutFormat(..))
   where
 
@@ -40,7 +41,7 @@ data Analysis a =
  | SimpleConstructorAnalysis String (ConsDecl -> TypeDecl -> a)
  | DependencyFuncAnalysis String a (FuncDecl -> [(QName,a)] -> a)
  | DependencyTypeAnalysis String a (TypeDecl -> [(QName,a)] -> a)
- | CombinedSimpleFuncAnalysis String String Bool
+ | CombinedSimpleFuncAnalysis [String] String Bool
                               (String -> IO (FuncDecl -> a))
  | CombinedSimpleTypeAnalysis String String Bool
                               (String -> IO (TypeDecl -> a))
@@ -101,9 +102,22 @@ dependencyTypeAnalysis anaName startval anaType =
 combinedSimpleFuncAnalysis :: String -> Analysis b
                            -> (ProgInfo  b -> FuncDecl -> a) -> Analysis a
 combinedSimpleFuncAnalysis ananame baseAnalysis anaFunc =
-  CombinedSimpleFuncAnalysis analysisAName ananame True
+  CombinedSimpleFuncAnalysis [analysisName baseAnalysis] ananame True
                              (runWithBaseAnalysis baseAnalysis anaFunc)
- where analysisAName = analysisName baseAnalysis
+
+--- A simple combined analysis for functions.
+--- The analysis is based on an operation that computes
+--- some information from a given function declaration
+--- and information provided by two base analyses.
+--- The base analyses are provided as the second and third argument.
+combined2SimpleFuncAnalysis :: String -> Analysis b -> Analysis c
+                  -> (ProgInfo b -> ProgInfo c -> FuncDecl -> a) -> Analysis a
+combined2SimpleFuncAnalysis ananame baseAnalysisA baseAnalysisB anaFunc =
+  CombinedSimpleFuncAnalysis
+    [analysisName baseAnalysisA, analysisName baseAnalysisB]
+    ananame
+    True
+    (runWith2BaseAnalyses baseAnalysisA baseAnalysisB anaFunc)
 
 --- A simple combined analysis for types.
 --- The analysis is based on an operation that computes
@@ -162,6 +176,23 @@ runWithBaseAnalysis baseAnalysis analysisFunction moduleName = do
   let baseinfos = combineProgInfo impbaseinfos mainbaseinfos
   return (analysisFunction baseinfos)
 
+--- Loads the results of the base analysis and put it as the first
+--- argument of the main analysis operation which is returned.
+runWith2BaseAnalyses :: Analysis a -> Analysis b
+                     -> (ProgInfo a -> ProgInfo b -> (input -> c)) -> String
+                     -> IO (input -> c)
+runWith2BaseAnalyses baseanaA baseanaB analysisFunction moduleName = do
+  importedModules <- getImports moduleName
+  let baseananameA = analysisName baseanaA
+      baseananameB = analysisName baseanaB
+  impbaseinfosA  <- getInterfaceInfos baseananameA importedModules
+  mainbaseinfosA <- loadCompleteAnalysis baseananameA moduleName
+  impbaseinfosB  <- getInterfaceInfos baseananameB importedModules
+  mainbaseinfosB <- loadCompleteAnalysis baseananameB moduleName
+  let baseinfosA = combineProgInfo impbaseinfosA mainbaseinfosA
+      baseinfosB = combineProgInfo impbaseinfosB mainbaseinfosB
+  return (analysisFunction baseinfosA baseinfosB)
+
 --- Is the analysis a simple analysis?
 --- Otherwise, it is a dependency analysis which requires a fixpoint
 --- computation to compute the results.
@@ -206,19 +237,23 @@ analysisName (CombinedSimpleTypeAnalysis _ nameB _ _) = nameB
 analysisName (CombinedDependencyFuncAnalysis _ nameB _ _ _) = nameB
 analysisName (CombinedDependencyTypeAnalysis _ nameB _ _ _) = nameB
 
---- Name of the base analysis of a combined analysis.
-baseAnalysisName :: Analysis a -> String
-baseAnalysisName (CombinedSimpleFuncAnalysis     bName _ _ _) = bName
-baseAnalysisName (CombinedSimpleTypeAnalysis     bName _ _ _) = bName
-baseAnalysisName (CombinedDependencyFuncAnalysis bName _ _ _ _) = bName
-baseAnalysisName (CombinedDependencyTypeAnalysis bName _ _ _ _) = bName
+--- Names of the base analyses of a combined analysis.
+baseAnalysisNames :: Analysis a -> [String]
+baseAnalysisNames ana = case ana of
+  CombinedSimpleFuncAnalysis     bnames _ _ _  -> bnames
+  CombinedSimpleTypeAnalysis     bname _ _ _   -> [bname]
+  CombinedDependencyFuncAnalysis bname _ _ _ _ -> [bname]
+  CombinedDependencyTypeAnalysis bname _ _ _ _ -> [bname]
+  _                                            -> []
 
 --- Start value of a dependency analysis.
 startValue :: Analysis a -> a
-startValue (DependencyFuncAnalysis _ startval _) = startval
-startValue (DependencyTypeAnalysis _ startval _) = startval 
-startValue (CombinedDependencyFuncAnalysis _ _ _ startval _) = startval
-startValue (CombinedDependencyTypeAnalysis _ _ _ startval _) = startval
+startValue ana = case ana of
+  DependencyFuncAnalysis _             startval _ -> startval
+  DependencyTypeAnalysis _             startval _ -> startval 
+  CombinedDependencyFuncAnalysis _ _ _ startval _ -> startval
+  CombinedDependencyTypeAnalysis _ _ _ startval _ -> startval
+  _ -> error "Internal error in Analysis.startValue"
 
 -------------------------------------------------------------------------
 --- The desired kind of output of an analysis result.
