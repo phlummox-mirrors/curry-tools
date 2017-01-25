@@ -43,11 +43,11 @@ data Analysis a =
  | DependencyTypeAnalysis String a (TypeDecl -> [(QName,a)] -> a)
  | CombinedSimpleFuncAnalysis [String] String Bool
                               (String -> IO (FuncDecl -> a))
- | CombinedSimpleTypeAnalysis String String Bool
+ | CombinedSimpleTypeAnalysis [String] String Bool
                               (String -> IO (TypeDecl -> a))
- | CombinedDependencyFuncAnalysis String String Bool a
+ | CombinedDependencyFuncAnalysis [String] String Bool a
                                   (String -> IO (FuncDecl -> [(QName,a)] -> a))
- | CombinedDependencyTypeAnalysis String String Bool a
+ | CombinedDependencyTypeAnalysis [String] String Bool a
                                   (String -> IO (TypeDecl -> [(QName,a)] -> a))
 
 
@@ -127,9 +127,8 @@ combined2SimpleFuncAnalysis ananame baseAnalysisA baseAnalysisB anaFunc =
 combinedSimpleTypeAnalysis :: String -> Analysis b
                            -> (ProgInfo  b -> TypeDecl -> a) -> Analysis a
 combinedSimpleTypeAnalysis ananame baseAnalysis anaFunc =
-  CombinedSimpleTypeAnalysis analysisAName ananame True
+  CombinedSimpleTypeAnalysis [analysisName baseAnalysis] ananame True
                              (runWithBaseAnalysis baseAnalysis anaFunc)
- where analysisAName = analysisName baseAnalysis
 
 --- A combined analysis for functions with dependencies.
 --- The analysis is based on an operation that computes
@@ -142,10 +141,9 @@ combinedSimpleTypeAnalysis ananame baseAnalysis anaFunc =
 combinedDependencyFuncAnalysis :: String -> Analysis b -> a
              -> (ProgInfo b -> FuncDecl -> [(QName,a)] -> a) -> Analysis a
 combinedDependencyFuncAnalysis ananame baseAnalysis startval anaFunc =
-  CombinedDependencyFuncAnalysis baseAnaName ananame True startval
-                                 (runWithBaseAnalysis baseAnalysis anaFunc)
- where
-  baseAnaName = analysisName baseAnalysis
+  CombinedDependencyFuncAnalysis
+    [analysisName baseAnalysis] ananame True startval
+    (runWithBaseAnalysis baseAnalysis anaFunc)
 
 --- A combined analysis for types with dependencies.
 --- The analysis is based on an operation that computes
@@ -158,10 +156,9 @@ combinedDependencyFuncAnalysis ananame baseAnalysis startval anaFunc =
 combinedDependencyTypeAnalysis :: String -> Analysis b -> a
    -> (ProgInfo b -> TypeDecl -> [(QName,a)] -> a) -> Analysis a
 combinedDependencyTypeAnalysis ananame baseAnalysis startval anaType =
-  CombinedDependencyTypeAnalysis baseAnaName ananame True startval
-                                 (runWithBaseAnalysis baseAnalysis anaType)
- where
-  baseAnaName = analysisName baseAnalysis
+  CombinedDependencyTypeAnalysis
+    [analysisName baseAnalysis] ananame True startval
+    (runWithBaseAnalysis baseAnalysis anaType)
 
 
 --- Loads the results of the base analysis and put it as the first
@@ -240,11 +237,11 @@ analysisName (CombinedDependencyTypeAnalysis _ nameB _ _ _) = nameB
 --- Names of the base analyses of a combined analysis.
 baseAnalysisNames :: Analysis a -> [String]
 baseAnalysisNames ana = case ana of
-  CombinedSimpleFuncAnalysis     bnames _ _ _  -> bnames
-  CombinedSimpleTypeAnalysis     bname _ _ _   -> [bname]
-  CombinedDependencyFuncAnalysis bname _ _ _ _ -> [bname]
-  CombinedDependencyTypeAnalysis bname _ _ _ _ -> [bname]
-  _                                            -> []
+  CombinedSimpleFuncAnalysis     bnames _ _ _   -> bnames
+  CombinedSimpleTypeAnalysis     bnames _ _ _   -> bnames
+  CombinedDependencyFuncAnalysis bnames _ _ _ _ -> bnames
+  CombinedDependencyTypeAnalysis bnames _ _ _ _ -> bnames
+  _                                             -> []
 
 --- Start value of a dependency analysis.
 startValue :: Analysis a -> a

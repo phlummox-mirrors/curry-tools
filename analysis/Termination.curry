@@ -52,9 +52,12 @@ isTerminating (Func qfunc _ _ _ rule) calledFuncs = hasTermRule rule
   
   hasTermExp _ (Var _)    = True
   hasTermExp _ (Lit _)    = True
-  hasTermExp _ (Free _ _) = False -- to be improved!!!
+  hasTermExp _ (Free _ _) = False -- could be improved if the domain is finite
   hasTermExp args (Let bs e) =
-    all (hasTermExp args) (map snd bs) && hasTermExp args e -- ???
+    let brexps = map snd bs
+    in if any (`elem` concatMap allVars brexps) (map fst bs)
+         then False -- non-terminating due to recursive let
+         else all (hasTermExp args) (e : brexps)
   hasTermExp args (Or e1 e2) =
     hasTermExp args e1 && hasTermExp args e2
   hasTermExp args (Case _ e bs) =
@@ -92,64 +95,92 @@ addSmallerArgs args de pat =
    
 ------------------------------------------------------------------------------
 -- The productivity analysis is a global function dependency analysis
--- which depends on the termination and root-cyclic analysis.
--- It assigns to a FlatCurry function definition a flag which is True
--- if this operation is terminating, i.e., whether all evaluations
+-- which depends on the termination analysis.
+-- An operation is considered as being productive if it cannot
+-- perform an infinite number of steps without producing
+-- outermost constructors.
+-- It assigns to a FlatCurry function definition an abstract value
+-- indicating whether the function is looping or productive.
 
 --- Data type to represent productivity status of an operation.
-data Productivity = Terminating | Productive | Looping
+data Productivity =
+    NoInfo
+  | Terminating    -- definitely terminating operation
+  | DCalls [QName] -- possible direct (top-level) calls to operations that may
+                   -- not terminate, which corresponds to being productive
+  | Looping        -- possibly looping
 
 productivityAnalysis :: Analysis Productivity
 productivityAnalysis =
-  combined2SimpleFuncAnalysis "Productive"
-                              terminationAnalysis
-                              rootCyclicAnalysis
-                              isProductive
+  combinedDependencyFuncAnalysis "Productive"
+                                 terminationAnalysis
+                                 NoInfo
+                                 isProductive
 
 -- Show productivity information as a string.
 showProductivity :: AOutFormat -> Productivity -> String
-showProductivity _ Looping     = "possibly looping"
-showProductivity _ Productive  = "productive"
+showProductivity _ NoInfo      = "no info" 
 showProductivity _ Terminating = "terminating" 
+showProductivity _ (DCalls qfs) =
+  "Top-level calls: " ++ "[" ++ intercalate ", " (map snd qfs) ++ "]"
+showProductivity _ Looping     = "possibly looping"
 
 lubProd :: Productivity -> Productivity -> Productivity
-lubProd Looping     _           = Looping
-lubProd Productive  Terminating = Productive
-lubProd Productive  Productive  = Productive
-lubProd Productive  Looping     = Looping
-lubProd Terminating p           = p
+lubProd Looping      _            = Looping
+lubProd (DCalls _ )  Looping      = Looping
+lubProd (DCalls xs)  (DCalls ys)  = DCalls (sort (union xs ys))
+lubProd (DCalls xs)  Terminating  = DCalls xs
+lubProd (DCalls xs)  NoInfo       = DCalls xs
+lubProd Terminating  p            = if p==NoInfo then Terminating else p
+lubProd NoInfo       p            = p
 
--- An operation is functionally defined if its definition is not
--- non-deterministic (no overlapping rules, no extra variables) and
--- it depends only on functionally defined operations.
-isProductive :: ProgInfo Bool -> ProgInfo Bool
-             -> FuncDecl -> Productivity --[(QName,Bool)] -> Bool
-isProductive terminfo rcyclicinfo (Func _ _ _ _ rule) = hasProdRule rule
+-- An operation is productive if its all recursive calls are below
+-- a constructor (except for calls to terminating operations so that
+-- this property is also checked).
+isProductive :: ProgInfo Bool -> FuncDecl -> [(QName,Productivity)]
+             -> Productivity
+isProductive terminfo (Func qf _ _ _ rule) calledFuncs = hasProdRule rule
  where
-  hasProdRule (Rule _ e) = hasProdExp e
   -- we assume that all externally defined operations are terminating:
   hasProdRule (External _) = Terminating
-  
-  hasProdExp (Var _)    = Terminating
-  hasProdExp (Lit _)    = Terminating
-  hasProdExp (Free _ e) = lubProd Productive (hasProdExp e) -- to be improved!!!
-  hasProdExp (Let bs e) =
-    lubProd (hasProdExp e)
-            (foldr lubProd Terminating (map (\ (_,be) -> hasProdExp be) bs))
-  hasProdExp (Or e1 e2) = lubProd (hasProdExp e1) (hasProdExp e2)
-  hasProdExp (Case _ e bs) =
-    foldr lubProd (hasProdExp e) (map (\ (Branch _ be) -> hasProdExp be) bs)
-  hasProdExp (Typed e _) = hasProdExp e
-  hasProdExp (Comb ct qf es) =
+  hasProdRule (Rule _ e) =
+    case hasProdExp False e of
+      DCalls fs -> if qf `elem` fs then Looping else DCalls fs
+      prodinfo  -> prodinfo
+
+  -- first argument: True if we are below a constructor
+  hasProdExp _  (Var _)    = Terminating
+  hasProdExp _  (Lit _)    = Terminating
+  hasProdExp bc (Free _ e) = -- could be improved for finite domains:
+    lubProd (DCalls []) (hasProdExp bc e)
+  hasProdExp bc (Let bs e) =
+    let brexps = map snd bs
+    in if any (`elem` concatMap allVars brexps) (map fst bs)
+         then Looping -- improve: check for variable occs under constructors
+         else foldr lubProd (hasProdExp bc e)
+                    (map (\ (_,be) -> hasProdExp bc be) bs)
+  hasProdExp bc (Or e1 e2) = lubProd (hasProdExp bc e1) (hasProdExp bc e2)
+  hasProdExp bc (Case _ e bs) =
+    foldr lubProd (hasProdExp bc e)
+          (map (\ (Branch _ be) -> hasProdExp bc be) bs)
+  hasProdExp bc (Typed e _) = hasProdExp bc e
+  hasProdExp bc (Comb ct qg es) =
+    let prodargs = foldr lubProd NoInfo (map (hasProdExp True) es) in
     case ct of
-      ConsCall       -> foldr lubProd Terminating (map hasProdExp es)
-      ConsPartCall _ -> foldr lubProd Terminating (map hasProdExp es)
-      _ -> foldr lubProd
-                 (if maybe False id (lookupProgInfo qf terminfo)
-                    then Terminating
-                    else if maybe True id (lookupProgInfo qf rcyclicinfo)
-                           then Looping
-                           else Productive)
-                 (map hasProdExp es)
+      ConsCall       -> prodargs
+      ConsPartCall _ -> prodargs
+      _ -> let prodinfo =
+                foldr lubProd
+                  (if maybe False id (lookupProgInfo qg terminfo)
+                     then Terminating
+                     else lubProd (DCalls [qg])
+                                  (maybe Looping id (lookup qg calledFuncs))
+                  )
+                  (map (hasProdExp bc) es)
+           in if not bc
+                then prodinfo
+                else case prodinfo of
+                       DCalls _ -> DCalls []
+                       _        -> prodinfo
 
 ------------------------------------------------------------------------------
