@@ -134,7 +134,7 @@ lubProd (DCalls xs)  NoInfo       = DCalls xs
 lubProd Terminating  p            = if p==NoInfo then Terminating else p
 lubProd NoInfo       p            = p
 
--- An operation is productive if its all recursive calls are below
+-- An operation is productive if its recursive calls are below
 -- a constructor (except for calls to terminating operations so that
 -- this property is also checked).
 isProductive :: ProgInfo Bool -> FuncDecl -> [(QName,Productivity)]
@@ -165,22 +165,16 @@ isProductive terminfo (Func qf _ _ _ rule) calledFuncs = hasProdRule rule
           (map (\ (Branch _ be) -> hasProdExp bc be) bs)
   hasProdExp bc (Typed e _) = hasProdExp bc e
   hasProdExp bc (Comb ct qg es) =
-    let prodargs = foldr lubProd NoInfo (map (hasProdExp True) es) in
+    let cprodargs = foldr lubProd NoInfo (map (hasProdExp True) es)
+        fprodargs = foldr lubProd NoInfo (map (hasProdExp bc  ) es) in
     case ct of
-      ConsCall       -> prodargs
-      ConsPartCall _ -> prodargs
-      _ -> let prodinfo =
-                foldr lubProd
-                  (if maybe False id (lookupProgInfo qg terminfo)
+      ConsCall       -> cprodargs
+      ConsPartCall _ -> cprodargs
+      _ -> if fprodargs <= Terminating
+             then if maybe False id (lookupProgInfo qg terminfo)
                      then Terminating
-                     else lubProd (DCalls [qg])
+                     else lubProd (DCalls (if bc then [] else [qg]))
                                   (maybe Looping id (lookup qg calledFuncs))
-                  )
-                  (map (hasProdExp bc) es)
-           in if not bc
-                then prodinfo
-                else case prodinfo of
-                       DCalls _ -> DCalls []
-                       _        -> prodinfo
+             else Looping -- worst case assumption, could be improved...
 
 ------------------------------------------------------------------------------
