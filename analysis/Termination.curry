@@ -122,7 +122,7 @@ showProductivity :: AOutFormat -> Productivity -> String
 showProductivity _ NoInfo      = "no info" 
 showProductivity _ Terminating = "terminating" 
 showProductivity _ (DCalls qfs) =
-  "Top-level calls: " ++ "[" ++ intercalate ", " (map snd qfs) ++ "]"
+  "productive / calls: " ++ "[" ++ intercalate ", " (map snd qfs) ++ "]"
 showProductivity _ Looping     = "possibly looping"
 
 lubProd :: Productivity -> Productivity -> Productivity
@@ -145,7 +145,7 @@ isProductive terminfo (Func qf _ _ _ rule) calledFuncs = hasProdRule rule
   hasProdRule (External _) = Terminating
   hasProdRule (Rule _ e) =
     case hasProdExp False e of
-      DCalls fs -> if qf `elem` fs then Looping else DCalls fs
+      DCalls fs -> trace (show qf ++ ": " ++ show fs) $ if qf `elem` fs then Looping else DCalls fs
       prodinfo  -> prodinfo
 
   -- first argument: True if we are below a constructor
@@ -170,11 +170,17 @@ isProductive terminfo (Func qf _ _ _ rule) calledFuncs = hasProdRule rule
     case ct of
       ConsCall       -> cprodargs
       ConsPartCall _ -> cprodargs
-      _ -> if fprodargs <= Terminating
-             then if maybe False id (lookupProgInfo qg terminfo)
-                     then Terminating
-                     else lubProd (DCalls (if bc then [] else [qg]))
-                                  (maybe Looping id (lookup qg calledFuncs))
-             else Looping -- worst case assumption, could be improved...
+      _ -> let prodinfo =
+                 if fprodargs <= Terminating
+                 then if maybe False id (lookupProgInfo qg terminfo)
+                        then Terminating
+                        else lubProd (DCalls [qg])
+                                     (maybe Looping id (lookup qg calledFuncs))
+                 else Looping -- worst case assumption, could be improved...
+           in if not bc
+                then prodinfo
+                else case prodinfo of
+                       DCalls _ -> DCalls []
+                       _        -> prodinfo
 
 ------------------------------------------------------------------------------
