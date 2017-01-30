@@ -56,10 +56,10 @@ $(uninstall_TOOLDIRS):
 # run the test suites to check the tools
 .PHONY: runtest
 runtest:
-	cd optimize/binding_optimization/Examples && ./test.sh
+	cd optimize/binding_optimization/Examples && ./test.sh $(RUNTESTPARAMS)
 	cd currypp  && $(MAKE) runtest
-	cd runcurry/Examples && ./test.sh
-	cd currycheck/Examples && ./test.sh
-	cd currycheck/Examples/WithVerification && ./test.sh
-	cd spicey/Examples && ./test.sh
-	cd xmldata/Examples && ./test.sh
+	cd runcurry/Examples && ./test.sh $(RUNTESTPARAMS)
+	cd currycheck/Examples && ./test.sh $(RUNTESTPARAMS)
+	cd currycheck/Examples/WithVerification && ./test.sh $(RUNTESTPARAMS)
+	cd spicey/Examples && ./test.sh $(RUNTESTPARAMS)
+	cd xmldata/Examples && ./test.sh $(RUNTESTPARAMS)

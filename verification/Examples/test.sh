@@ -29,7 +29,7 @@ AGDAIMPORTS="-i . -i /net/medoc/home/mh/home/languages_systems/agda/ial -i /usr/
 AGDAOPTS="--allow-unsolved-metas"
 
 if [ -z "$AGDA" ] ; then
-  echo "WARNING: cannot completely test curry2verify ('agda' not found)"
+  echo "WARNING: cannot completely test 'curry verify' ('agda' not found)"
 fi
 
 compile_to_agda()
