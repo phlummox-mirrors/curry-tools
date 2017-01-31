@@ -20,7 +20,7 @@ createTestData = do
   case result of
     Left (DBError kind str) -> putStrLn ((show kind) ++ " " ++ str)
     Right _ -> putStrLn "Ok"
-    
+
 -- Students
 studentList = [student1, student2, student3, student4]
 student1 = Student (StudentID 1) "Muster" "Max" 23 "max@email.de" Nothing
@@ -30,22 +30,25 @@ student4 = Student (StudentID 4) "Sonne" "Ruben" 100 "ruben@email.de" (Just 28)
 
 -- Lecturers
 lecturerList = [lecturer1, lecturer2, lecturer3]
-lecturer1 = Lecturer (LecturerID 1) "Müller" "Hans" 
+lecturer1 = Lecturer (LecturerID 1) "Mueller" "Hans"
 lecturer2 = Lecturer (LecturerID 2) "Klein" "Frauke"
 lecturer3 = Lecturer (LecturerID 3) "Hansen" "Frank"
 
 -- Lectures
 lectureList = [lecture1, lecture2, lecture3]
-lecture1 = Lecture (LectureID 1) "Fortgeschrittene Programmierung" 
-           "Funktionale und Deklarative Programmierung wird vertieft." (LecturerID 1)
-lecture2 = Lecture (LectureID 2) "Technische Informatik" "" (LecturerID 2)
-lecture3 = Lecture (LectureID 3) "Datenbanken" 
-               "Theoretische Grundlagen rund um Datenbanken und SQL wird den Studenten näher gebracht." (LecturerID 3)
+lecture1 = Lecture (LectureID 1) "Advanced Programming"
+                   "Advanced techniques for functional and logic programming."
+                   (LecturerID 1)
+lecture2 = Lecture (LectureID 2)
+                   "Theoretical Computer Science" "" (LecturerID 2)
+lecture3 = Lecture (LectureID 3) "Databases"
+                   "This lecture provides an introduction to databases and SQL."
+                   (LecturerID 3)
 
 -- Places 
 placeList = [place1, place2]
-place1 = Place (PlaceID 1) "Alte Straße" 3 24
-place2 = Place (PlaceID 2) "Alte Straße" 3 25
+place1 = Place (PlaceID 1) "Main street" 3 24
+place2 = Place (PlaceID 2) "Main street" 3 25
 
 -- Times
 timeList = [time1, time2, time3, time4]
