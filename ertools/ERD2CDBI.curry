@@ -98,7 +98,7 @@ writeCDBI erdfname (ERD name ents rels)  dbPath = do
     -- TODO: if the database exists, check its consistency with ER model
    else do
     putStrLn $ "Creating new sqlite3 database: " ++ dbPath
-    exsqlite3 <- system "which sqlite3"
+    exsqlite3 <- system "which sqlite3 > /dev/null"
     when (exsqlite3>0) $
       error "Database interface `sqlite3' not found. Please install package `sqlite3'!"
     db <- connectToCommand $ "sqlite3 " ++ dbPath
