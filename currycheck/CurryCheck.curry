@@ -14,7 +14,7 @@
 ---   (together with possible preconditions).
 ---
 --- @author Michael Hanus, Jan-Patrick Baye
---- @version December 2016
+--- @version January 2017
 -------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -53,7 +53,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 08/12/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 01/02/2017)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -908,6 +908,8 @@ main = do
     genMainTestModule opts testmodname finaltestmodules
     putStrIfNormal opts $ withColor opts blue $ "and compiling it...\n"
     ret <- system $ unwords $ [installDir </> "bin" </> "curry"
+                              ,"--noreadline"
+                              ,":set -time"
                               ,":set v0"
                               ,":set parser -Wnone"
                               ,":l "++testmodname,":eval main :q"]
