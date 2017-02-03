@@ -625,7 +625,7 @@ orgTestName (mn,tname)
 -- conditions, specifications)
 -- and generates a copy of the module appropriate for the main operation
 -- of CurryCheck (e.g., all operations are made public).
--- If there are determinism tests, it generates also a second copy
+-- If there are determinism tests, it also generates a second copy
 -- where all deterministic functions are defined as non-deterministic
 -- so that these definitions are tested.
 analyseModule :: Options -> String -> IO [TestModule]
@@ -669,7 +669,9 @@ analyseCurryProg opts modname orgprog = do
                  else return []
   unless (null prooffiles) $ putStrIfVerbose opts $
     unlines ("Proof files found:" : map ("- " ++) prooffiles)
-  progtxt <- readFile (modNameToPath modname ++ ".curry")
+  (_,srcfilename) <- lookupModuleSourceInLoadPath modname >>=
+                     return . maybe (error "Source file not found!") id
+  progtxt <- readFile srcfilename
   (missingCPP,staticoperrs) <- staticProgAnalysis opts modname progtxt prog
   let words      = map firstWord (lines progtxt)
       staticerrs = missingCPP ++ map (showOpError words) staticoperrs
