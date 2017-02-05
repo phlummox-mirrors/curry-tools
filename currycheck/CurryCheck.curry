@@ -14,7 +14,7 @@
 ---   (together with possible preconditions).
 ---
 --- @author Michael Hanus, Jan-Patrick Baye
---- @version December 2016
+--- @version February 2017
 -------------------------------------------------------------------------
 
 import AbstractCurry.Types
@@ -105,7 +105,7 @@ options =
            "run quietly (no output, only exit code)"
   , Option "v" ["verbosity"]
             (OptArg (maybe (checkVerb 3) (safeReadNat checkVerb)) "<n>")
-            "verbosity level:\n0: quiet (same as `-q')\n1: show test names (default)\n2: show more information about test generation\n3: show test data (same as `-v')\n4: keep intermediate program files"
+            "verbosity level:\n0: quiet (same as `-q')\n1: show test names (default)\n2: show more information about test generation\n3: show test data (same as `-v')\n4: show also some debug information"
   , Option "k" ["keep"] (NoArg (\opts -> opts { optKeep = True }))
            "keep temporarily generated program files"
   , Option "m" ["maxtests"]
@@ -408,9 +408,12 @@ classifyTests = map makeProperty
 -- all polymorphic tests into tests on a base type.
 -- The result contains a triple consisting of all actual tests,
 -- all ignored tests, and the public version of the original module.
-transformTests :: Options -> CurryProg -> IO ([CFuncDecl],[CFuncDecl],CurryProg)
-transformTests opts prog@(CurryProg mname imps typeDecls functions opDecls) = do
-  theofuncs <- if optProof opts then getTheoremFunctions prog else return []
+transformTests :: Options -> String -> CurryProg
+               -> IO ([CFuncDecl],[CFuncDecl],CurryProg)
+transformTests opts srcdir
+               prog@(CurryProg mname imps typeDecls functions opDecls) = do
+  theofuncs <- if optProof opts then getTheoremFunctions srcdir prog
+                                else return []
   simpfuncs <- simplifyPostConditionsWithTheorems (optVerb opts) theofuncs funcs
   let preCondOps  = preCondOperations simpfuncs
       postCondOps = map ((\ (mn,fn) -> (mn, fromPostCondName fn)) . funcName)
@@ -664,19 +667,22 @@ analyseCurryProg :: Options -> String -> CurryProg -> IO [TestModule]
 analyseCurryProg opts modname orgprog = do
   -- First we rename all references to Test.Prop into Test.EasyCheck
   let prog = renameProp2EasyCheck orgprog
-  prooffiles <- if optProof opts
-                 then getProofFiles (takeDirectory (modNameToPath modname))
-                 else return []
+  (topdir,srcfilename) <- lookupModuleSourceInLoadPath modname >>=
+        return .
+        maybe (error $ "Source file of module '"++modname++"' not found!") id
+  let srcdir = takeDirectory srcfilename
+  when (optVerb opts > 3) $ putStrLn ("Source file: " ++ srcfilename)
+  prooffiles <- if optProof opts then getProofFiles srcdir else return []
   unless (null prooffiles) $ putStrIfVerbose opts $
     unlines ("Proof files found:" : map ("- " ++) prooffiles)
-  progtxt <- readFile (modNameToPath modname ++ ".curry")
+  progtxt <- readFile srcfilename
   (missingCPP,staticoperrs) <- staticProgAnalysis opts modname progtxt prog
   let words      = map firstWord (lines progtxt)
       staticerrs = missingCPP ++ map (showOpError words) staticoperrs
   putStrIfVerbose opts "Generating property tests...\n"
   (rawTests,ignoredTests,pubmod) <-
-        transformTests opts . renameCurryModule (modname++"_PUBLIC")
-                            . makeAllPublic $ prog
+        transformTests opts srcdir . renameCurryModule (modname++"_PUBLIC")
+                                   . makeAllPublic $ prog
   let (rawDetTests,ignoredDetTests,pubdetmod) =
         transformDetTests opts prooffiles
               . renameCurryModule (modname++"_PUBLICDET")
@@ -699,8 +705,8 @@ analyseCurryProg opts modname orgprog = do
                          []
                          (addLinesNumbers words (classifyTests rawDetTests))
                          (generatorsOfProg pubmod)
-  when (testThisModule tm) $ writeCurryProgram pubmod ""
-  when (testThisModule dettm) $ writeCurryProgram pubdetmod ""
+  when (testThisModule tm) $ writeCurryProgram opts topdir pubmod ""
+  when (testThisModule dettm) $ writeCurryProgram opts topdir pubdetmod ""
   return (if testThisModule dettm then [tm,dettm] else [tm])
  where
   showOpError words (qf,err) =
@@ -751,7 +757,8 @@ genMainTestModule opts mainmodname modules = do
                            map fst testtypes ++ map testModuleName modules
   appendix <- readFile (installDir </> "currytools" </> "currycheck"
                                    </> "TestAppendix.curry")
-  writeCurryProgram (CurryProg mainmodname imports [] (mainFunction : funcs) [])
+  writeCurryProgram opts "."
+                    (CurryProg mainmodname imports [] (mainFunction : funcs) [])
                     appendix
 
 -- Generates the main function which executes all property tests
@@ -963,9 +970,11 @@ generatorModule :: String
 generatorModule = "SearchTreeGenerators"
 
 -- Writes a Curry module (together with an appendix) to its file.
-writeCurryProgram :: CurryProg -> String -> IO ()
-writeCurryProgram p appendix =
-  writeFile (modNameToPath (progName p) ++ ".curry")
+writeCurryProgram :: Options -> String -> CurryProg -> String -> IO ()
+writeCurryProgram opts srcdir p appendix = do
+  let progfile = srcdir </> modNameToPath (progName p) ++ ".curry"
+  when (optVerb opts > 3) $ putStrLn ("Writing program: " ++ progfile)
+  writeFile progfile
             (showCProg p ++ "\n" ++ appendix ++ "\n")
 
 isPAKCS :: Bool
