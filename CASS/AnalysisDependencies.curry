@@ -2,7 +2,7 @@
 --- Operations to handle dependencies of analysis files.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version January 2015
+--- @version January 2017
 -----------------------------------------------------------------------
 
 module AnalysisDependencies(getModulesToAnalyze,reduceDependencies) where
@@ -167,7 +167,8 @@ findModulesToAnalyze (m@(mod,imports):ms)
                                 (modulesToDo,(mod:modulesUpToDate))
       else findModulesToAnalyze ms anaTimeList sourceTimeList fcyTimeList
                                 ((m:modulesToDo),modulesUpToDate)
- where
+    Nothing -> error
+                 "Internal error in AnalysisDependencies.findModulesToAnalyz"
   
 
 -- function to check if result file is up-to-date

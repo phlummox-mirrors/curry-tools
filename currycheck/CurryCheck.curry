@@ -53,7 +53,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 08/12/2016)"
+     "CurryCheck: a tool for testing Curry programs (version of 01/02/2017)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -628,7 +628,7 @@ orgTestName (mn,tname)
 -- conditions, specifications)
 -- and generates a copy of the module appropriate for the main operation
 -- of CurryCheck (e.g., all operations are made public).
--- If there are determinism tests, it generates also a second copy
+-- If there are determinism tests, it also generates a second copy
 -- where all deterministic functions are defined as non-deterministic
 -- so that these definitions are tested.
 analyseModule :: Options -> String -> IO [TestModule]
@@ -675,6 +675,8 @@ analyseCurryProg opts modname orgprog = do
   prooffiles <- if optProof opts then getProofFiles srcdir else return []
   unless (null prooffiles) $ putStrIfVerbose opts $
     unlines ("Proof files found:" : map ("- " ++) prooffiles)
+  (_,srcfilename) <- lookupModuleSourceInLoadPath modname >>=
+                     return . maybe (error "Source file not found!") id
   progtxt <- readFile srcfilename
   (missingCPP,staticoperrs) <- staticProgAnalysis opts modname progtxt prog
   let words      = map firstWord (lines progtxt)
@@ -915,6 +917,8 @@ main = do
     genMainTestModule opts testmodname finaltestmodules
     putStrIfNormal opts $ withColor opts blue $ "and compiling it...\n"
     ret <- system $ unwords $ [installDir </> "bin" </> "curry"
+                              ,"--noreadline"
+                              ,":set -time"
                               ,":set v0"
                               ,":set parser -Wnone"
                               ,":l "++testmodname,":eval main :q"]

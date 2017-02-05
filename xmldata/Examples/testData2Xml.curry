@@ -15,8 +15,8 @@ testGenerateXMLConversions = init `returns` 0
 
 testXMLDataConversion = system convertCmd `returns` 0
  where
-  convertCmd = installDir++"/bin/curry :set v0 :set parser -Wnone " ++
-               ":l testData2XmlProg :eval main :q"
+  convertCmd = installDir++"/bin/curry --noreadline :set -time :set v0 " ++
+               ":set parser -Wnone :l testData2XmlProg :eval main :q"
 
 -- Clean:
 testCleanup = clean `returns` 0

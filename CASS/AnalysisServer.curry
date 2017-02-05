@@ -309,6 +309,7 @@ parseServerMessage message = case words message of
     "GetAnalysis" -> GetAnalysis
     "AnalyzeModule" -> case ws of 
       s1:s2:s3:[] -> checkFormat s2 $ AnalyzeModule s1 s2 s3 False
+      _ -> ParseError
     "AnalyzeInterface" -> case ws of 
       s1:s2:s3:[] -> checkFormat s2 $ AnalyzeModule s1 s2 s3 True
       _ -> ParseError

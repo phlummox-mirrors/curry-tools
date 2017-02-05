@@ -3,7 +3,7 @@
 --- In particular, it contains some simple fixpoint computations.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version August 2016
+--- @version January 2017
 --------------------------------------------------------------------------
 
 module WorkerFunctions where
@@ -109,6 +109,7 @@ getStartValues analysis prog =
           CombinedDependencyTypeAnalysis _ _ _ _ _ -> 
             map (\typeDecl->(typeName typeDecl,startValue analysis)) 
                 (progTypes prog)
+          _ -> error "Internal error in WorkerFunctions.getStartValues"
     return startvals
 
 --- Compute a ProgInfo from a given list of infos for each function name w.r.t.
@@ -164,6 +165,7 @@ execCombinedAnalysis analysis prog importInfos startvals moduleName fpmethod =
     anaFunc <- runWithBaseAna moduleName
     runAnalysis (DependencyTypeAnalysis ananame startval anaFunc)
                 prog importInfos startvals fpmethod
+  _ -> error "Internal error in WorkerFunctions.execCombinedAnalysis"
 
 -----------------------------------------------------------------------
 --- Run an analysis but load default values (e.g., for external operations)
@@ -192,6 +194,7 @@ runAnalysis analysis prog importInfos startvals fpmethod = do
          (definedFuncs, funcInfos2ProgInfo defaultFuncs deflts)
         DependencyTypeAnalysis _ _ _ ->
          (definedTypes, typeInfos2ProgInfo defaultTypes deflts)
+        _ -> error "Internal error in WorkerFunctions.runAnalysis"
   let result = executeAnalysis analysis progWithoutDefaults
                                (combineProgInfo importInfos defaultproginfo)
                                startvals fpmethod
@@ -266,6 +269,15 @@ executeAnalysis (DependencyTypeAnalysis _ _ anaType) prog
                 (listToFM (<) startvals)
                 (reverse sccDecls)
   _ -> error unknownFixpointMessage
+-- These cases are handled elsewhere:
+executeAnalysis (CombinedSimpleFuncAnalysis _ _ _ _) _ _ _ _ =
+  error "Internal error in WorkerFunctions.executeAnalysis"
+executeAnalysis (CombinedSimpleTypeAnalysis _ _ _ _) _ _ _ _ =
+  error "Internal error in WorkerFunctions.executeAnalysis"
+executeAnalysis (CombinedDependencyFuncAnalysis _ _ _ _ _) _ _ _ _ =
+  error "Internal error in WorkerFunctions.executeAnalysis"
+executeAnalysis (CombinedDependencyTypeAnalysis _ _ _ _ _) _ _ _ _ =
+  error "Internal error in WorkerFunctions.executeAnalysis"
 
 unknownFixpointMessage :: String
 unknownFixpointMessage = "Unknown value for 'fixpoint' in configuration file!"
