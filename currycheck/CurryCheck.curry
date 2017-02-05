@@ -53,7 +53,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 01/02/2017)"
+     "CurryCheck: a tool for testing Curry programs (version of 05/02/2017)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -675,8 +675,6 @@ analyseCurryProg opts modname orgprog = do
   prooffiles <- if optProof opts then getProofFiles srcdir else return []
   unless (null prooffiles) $ putStrIfVerbose opts $
     unlines ("Proof files found:" : map ("- " ++) prooffiles)
-  (_,srcfilename) <- lookupModuleSourceInLoadPath modname >>=
-                     return . maybe (error "Source file not found!") id
   progtxt <- readFile srcfilename
   (missingCPP,staticoperrs) <- staticProgAnalysis opts modname progtxt prog
   let words      = map firstWord (lines progtxt)
@@ -873,8 +871,11 @@ cleanup opts mainmodname modules =
     mapIO_ removeCurryModule (map testModuleName modules)
  where
   removeCurryModule modname = do
+    (_,srcfilename) <- lookupModuleSourceInLoadPath modname >>=
+        return .
+        maybe (error $ "Source file of module '"++modname++"' not found!") id
     system $ installDir </> "bin" </> "cleancurry" ++ " " ++ modname
-    system $ "rm -f " ++ modname ++ ".curry"
+    system $ "rm -f " ++ srcfilename
 
 -- Show some statistics about number of tests:
 showTestStatistics :: [TestModule] -> String
