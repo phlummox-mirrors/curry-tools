@@ -53,7 +53,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 05/02/2017)"
+     "CurryCheck: a tool for testing Curry programs (version of 06/02/2017)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -353,7 +353,7 @@ typename2genopname mainmod definedgenops (mn,tc)
   | isJust maybeuserdefined -- take user-defined generator:
   = fromJust maybeuserdefined
   | mn==preludeName &&
-    tc `elem` ["Bool","Int","Char","Maybe","Either","Ordering"]
+    tc `elem` ["Bool","Int","Float","Char","Maybe","Either","Ordering"]
   = (generatorModule, "gen" ++ tc)
   | mn==preludeName && tc `elem` ["[]","()","(,)","(,,)","(,,,)","(,,,,)"]
   = (generatorModule, "gen" ++ transTC tc)
