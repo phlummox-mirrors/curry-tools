@@ -24,7 +24,6 @@ import List hiding (union,intersect)
 import Sort(mergeSortBy)
 
 import TotallyDefined(siblingCons)
-import Unsafe(trace)
 
 ------------------------------------------------------------------------------
 -- Our abstract (non-standard) type domain.

@@ -7,7 +7,7 @@
 --- the operation.
 ---
 --- @author Michael Hanus
---- @version Januar 2017
+--- @version February 2017
 ------------------------------------------------------------------------------
 
 module Termination
@@ -23,7 +23,6 @@ import GenericProgInfo
 import List
 import RootReplaced (rootCyclicAnalysis)
 import Sort(sort)
-import Unsafe
 
 ------------------------------------------------------------------------------
 -- The termination analysis is a global function dependency analysis.
@@ -145,7 +144,7 @@ isProductive terminfo (Func qf _ _ _ rule) calledFuncs = hasProdRule rule
   hasProdRule (External _) = Terminating
   hasProdRule (Rule _ e) =
     case hasProdExp False e of
-      DCalls fs -> trace (show qf ++ ": " ++ show fs) $ if qf `elem` fs then Looping else DCalls fs
+      DCalls fs -> if qf `elem` fs then Looping else DCalls fs
       prodinfo  -> prodinfo
 
   -- first argument: True if we are below a constructor
