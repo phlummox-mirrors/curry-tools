@@ -44,6 +44,7 @@ import RootReplaced
 import SolutionCompleteness
 import Termination
 import TotallyDefined
+import TypeUsage
 
 --------------------------------------------------------------------
 --- Each analysis used in our tool must be registered in this list
@@ -75,6 +76,7 @@ registeredAnalysis =
   ,cassAnalysis "Root cyclic replacements"   rootCyclicAnalysis showRootCyclic
   ,cassAnalysis "Root replacements"          rootReplAnalysis showRootRepl
   ,cassAnalysis "Terminating operations"     terminationAnalysis showTermination
+  ,cassAnalysis "Types in values"            typesInValuesAnalysis showTypeNames
   ]
 
 
