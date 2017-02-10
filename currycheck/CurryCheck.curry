@@ -295,15 +295,15 @@ createTests opts mainmodname tm = map createTest (propTests tm)
                 (applyF (easyCheckExecModule, "checkPropWithMsg")
                   [CVar msgvar
                   ,applyF (easyCheckFuncName (length argtypes)) $
-                     [configOpWithMaxFail, CVar msgvar] ++
-                     (map (\t ->
-                           applyF (easyCheckModule,"valuesOfSearchTree")
-                             [if isPAKCS || useUserDefinedGen t
-                              then type2genop mainmodname tm t
-                              else applyF (searchTreeModule,"someSearchTree")
-                                          [constF (pre "unknown")]])
-                          argtypes) ++
-                     [CSymbol (testmname,name)]
+                    [configOpWithMaxFail, CVar msgvar] ++
+                    (map (\t ->
+                          applyF (easyCheckModule,"valuesOfSearchTree")
+                            [if isPAKCS || useUserDefinedGen t || isFloatType t
+                             then type2genop mainmodname tm t
+                             else applyF (searchTreeModule,"someSearchTree")
+                                         [constF (pre "unknown")]])
+                         argtypes) ++
+                    [CSymbol (testmname,name)]
                   ])]
    where
     useUserDefinedGen texp = case texp of
@@ -347,6 +347,10 @@ type2genop _ _ (CFuncType _ _) = error "No generator for functional types!"
 type2genop mainmod tm (CTCons qt targs) =
   applyF (typename2genopname mainmod (generators tm) qt)
          (map (type2genop mainmod tm) targs)
+
+isFloatType :: CTypeExpr -> Bool
+isFloatType texp = case texp of CTCons tc [] -> tc == (preludeName,"Float")
+                                _            -> False
 
 typename2genopname :: String -> [QName] -> QName -> QName
 typename2genopname mainmod definedgenops (mn,tc)
