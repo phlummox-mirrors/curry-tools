@@ -23,7 +23,9 @@ DEPSERD2CDBI = ERD2CDBI.curry $(ROOT)/lib/Database/ERD*.curry \
 
 all: install
 
-compile: ERD2Curry ERD2CDBI
+compile:
+	$(MAKE) ERD2Curry
+	$(MAKE) ERD2CDBI
 
 install: compile
 	rm -f $(ERD2CURRY) $(ERD2CDBI) $(BINDIR)/erd2curry $(BINDIR)/erd2cdbi

@@ -30,7 +30,10 @@ LOADPATH = analysis:$(CASS):$(ANADIR):$(CURRYTOOLS)/importcalls:$(CURRYTOOLS)/ad
 
 all: install
 
-compile: GenInt BrowserGUI SourceProgGUI
+compile:
+	$(MAKE) GenInt
+	$(MAKE) BrowserGUI
+	$(MAKE) SourceProgGUI
 
 install: compile
 	rm -f $(TOOL) $(BINDIR)/currybrowse

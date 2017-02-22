@@ -11,7 +11,9 @@ all: install
 
 install: compile
 
-compile: $(SUBMITFORM) $(REGISTRY)
+compile:
+	$(MAKE) $(SUBMITFORM)
+	$(MAKE) $(REGISTRY)
 
 clean:
 	$(CLEANCURRY)
