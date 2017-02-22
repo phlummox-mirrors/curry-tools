@@ -14,6 +14,7 @@ casc/CASC
 casc/Docs/curry-style-guide.html
 CASS/cass
 CASS/cass_worker
+cpns/CPNSD
 createmakefile/CreateMakefile
 curry2js/Curry2JS
 currypp/Main
@@ -30,4 +31,6 @@ optimize/binding_optimization/BindingOpt
 runcurry/RunCurry
 spicey/spiceup
 verification/ToVerifier
+www/Registry
+www/SubmitForm
 xmldata/Data2Xml
