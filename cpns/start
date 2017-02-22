@@ -26,7 +26,7 @@ else
 fi
 
 if [ $STARTSERVER = yes ] ; then
-  if lockfile -r0 $LOCKFILE ; then
+  if lockfile-create --lock-name $LOCKFILE ; then
     echo "Starting demon for Curry Port Name Server..." >&2
     if test ! -f $LOGFILE ; then
       # create log file with correct access rights:
@@ -40,13 +40,13 @@ if [ $STARTSERVER = yes ] ; then
     chmod -f 666 $PIDFILE  # make the pid file readable for everybody
     nohup "$CPNSBIN" start >> $LOGFILE 2>&1  &
     echo $! > $PIDFILE # write real cpns process into pid file
-    lockfile -1 $LOCKFILE # wait for lockfile deletion by CPNS demon startup
-    rm -f $LOCKFILE
+    lockfile-create --lock-name $LOCKFILE # wait for lockfile deletion by CPNS demon startup
+    lockfile-remove --lock-name $LOCKFILE
     echo "CPNS demon started." >&2
   else
     echo "CPNS demon seems already started by other process" >&2
     echo "If this is not the case, delete file $LOCKFILE" >&2
-    lockfile -1 $LOCKFILE # wait for lockfile deletion by CPNS demon startup
-    rm -f $LOCKFILE
+    lockfile-create --lock-name $LOCKFILE # wait for lockfile deletion by CPNS demon startup
+    lockfile-remove --lock-name $LOCKFILE
   fi
 fi
