@@ -21,8 +21,13 @@ install_TOOLDIRS=$(addprefix install_,$(TOOLDIRS))
 clean_TOOLDIRS=$(addprefix clean_,$(TOOLDIRS))
 uninstall_TOOLDIRS=$(addprefix uninstall_,$(TOOLDIRS))
 
+# Tools to be compiled sequentially to avoid conflict with parallel make:
+CONFLICTINGTOOLS = analysis optimize CASS currycheck
+
 .PHONY: all
-all: $(TOOLDIRS)
+all:
+	for t in $(CONFLICTINGTOOLS); do $(MAKE) $$t; done
+	$(MAKE) $(filter-out $(CONFLICTINGTOOLS), $(TOOLDIRS))
 
 .PHONY: force
 
