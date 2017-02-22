@@ -25,6 +25,12 @@ This directory contains the implementation of the
 Curry Analysis Server System, a generic and distributed analysis system
 for Curry programs.
 
+`cpns`:
+This directory contains scripts and executables for the
+Curry Port Name Server (CPNS) which is responsible for managing the
+symbolic names assigned to the named sockes and ports on a local machine
+(see libraries `NamedSocket` and `Ports` for more details).
+
 `createmakefile`:
 A tool to create a simple makefile for a Curry application.
 
@@ -66,6 +72,11 @@ The implementation of Curry's web framework Spicey.
 `verification`:
 This directory contains tools to support the verification of
 Curry programs, e.g., a translator of Curry programs into Agda.
+
+`www`:
+This directory contains scripts and executables for the
+event handler server that is required to execute dynamic web
+pages implemented with the libraries HTML or WUI.
 
 `xmldata`:
 This directory contains a tool to generate conversion functions
