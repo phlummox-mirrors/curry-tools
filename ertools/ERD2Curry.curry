@@ -122,11 +122,7 @@ start erd2currydir opt fromxml trerdt srcfile path = do
  where
   -- Copy auxiliary file ERDGeneric.curry to target dir
   copyAuxiliaryFiles = do
-    if isSQLite opt
-      then copyFile (erd2currydir </> "KeyDatabase.curry.sqlite")
-                    (addPath path "KeyDatabase.curry")
-      else done
-    copyFile (erd2currydir </> "ERDGeneric.curry")
+    copyFile (erd2currydir++"/ERDGeneric.curry")
              (addPath path "ERDGeneric.curry")
 
   showOption _ (Files f,_) = "database files stored in directory '"++f++"'"
