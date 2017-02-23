@@ -24,9 +24,14 @@ uninstall_TOOLDIRS=$(addprefix uninstall_,$(TOOLDIRS))
 # Tools to be compiled sequentially to avoid conflict with parallel make:
 CONFLICTINGTOOLS = analysis optimize CASS currycheck
 
+empty     :=
+space     := $(empty) $(empty)
+# make_seq "a b c" = "make a && make b && make c"
+make_seq = $(subst MAKE,$(MAKE) ,$(subst $(space), && ,$(addprefix MAKE,$(1))))
+
 .PHONY: all
 all:
-	for t in $(CONFLICTINGTOOLS); do $(MAKE) $$t; done
+	$(call make_seq,$(CONFLICTINGTOOLS))
 	$(MAKE) $(filter-out $(CONFLICTINGTOOLS), $(TOOLDIRS))
 
 .PHONY: force

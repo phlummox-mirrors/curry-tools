@@ -4,12 +4,17 @@ ANALYSES = $(wildcard *.curry)
 ANA_FCY  = $(ANALYSES:%.curry=.curry/%.fcy)
 CASS     = ../CASS
 
+empty     :=
+space     := $(empty) $(empty)
+# make_seq "a b c" = "make a && make b && make c"
+make_seq = $(subst MAKE,$(MAKE) ,$(subst $(space), && ,$(addprefix MAKE,$(1))))
+
 .PHONY: all compile install clean uninstall
 
 all: install
 
 compile:
-	for a in $(ANA_FCY); do $(MAKE) $$a; done
+	$(call make_seq,$(ANA_FCY))
 
 install: compile
 
