@@ -6,7 +6,7 @@ DEPS = Data2Xml.curry $(LIBDIR)/AbstractCurry/*.curry
 # binaries
 TOOL = $(BINDIR)/$(CURRYSYSTEM)-data2xml
 
-.PHONY: all compile install clean uninstall
+.PHONY: all compile install clean uninstall runtest
 
 all: install
 
@@ -26,3 +26,7 @@ uninstall: clean
 # generate executable for Data2Xml program:
 Data2Xml: $(DEPS)
 	$(REPL) $(REPL_OPTS) :load Data2Xml :save :q
+
+# run the test suite
+runtest:
+	cd Examples && ./test.sh $(RUNTESTPARAMS)

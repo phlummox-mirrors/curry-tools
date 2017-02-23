@@ -59,12 +59,17 @@ Main: $(DEPS)
 	@echo Compiling Curry Preprocessor...
 	$(REPL) $(REPL_OPTS) :set path $(PPPATH) :load Main :save :quit
 
-# run the test suites for the Curry preprocessor
+
+########################################################################
+# Testing the preprocessor
+
+# Directories with test suites for the preprocessor:
+TESTTOOLS = IntegratedCode.Examples IntegratedCode.ExamplesSQL \
+            DefaultRules.Examples ContractWrapper.Examples
+
+# run the test suites to check the tools
 .PHONY: runtest
-runtest:
-	cd IntegratedCode/Examples    && ./test.sh $(RUNTESTPARAMS)
-	cd IntegratedCode/ExamplesSQL && ./test.sh $(RUNTESTPARAMS)
-	# The following test is removed due to problems with SWI-Prolog:
-	#cd SequentialRules/Examples && ./test.sh $(RUNTESTPARAMS)
-	cd DefaultRules/Examples      && ./test.sh $(RUNTESTPARAMS)
-	cd ContractWrapper/Examples   && ./test.sh $(RUNTESTPARAMS)
+runtest: $(addprefix runtest_,$(TESTTOOLS))
+
+runtest_%:
+	cd $(subst .,/,$*) && ./test.sh $(RUNTESTPARAMS)

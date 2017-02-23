@@ -3,7 +3,7 @@
 # binary
 TOOL = $(BINDIR)/$(CURRYSYSTEM)-run
 
-.PHONY: all compile install clean uninstall
+.PHONY: all compile install clean uninstall runtest
 
 all: install
 
@@ -25,3 +25,7 @@ uninstall: clean
 # generate executable for currydoc program:
 RunCurry: RunCurry.curry
 	$(REPL) $(REPL_OPTS) :load RunCurry :save :quit
+
+# run the test suite
+runtest:
+	cd Examples && ./test.sh $(RUNTESTPARAMS)
