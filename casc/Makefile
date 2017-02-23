@@ -12,7 +12,7 @@ compile: CASC
 
 install: CASC
 	rm -f $(TOOL) $(BINDIR)/casc
-	ln -s $(CURDIR)/CASC $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/casc/CASC $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY)

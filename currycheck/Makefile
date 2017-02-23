@@ -13,7 +13,7 @@ compile: CurryCheck
 
 install: CurryCheck
 	rm -f $(TOOL) $(BINDIR)/currycheck
-	ln -s $(CURDIR)/CurryCheck $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/currycheck/CurryCheck $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY)

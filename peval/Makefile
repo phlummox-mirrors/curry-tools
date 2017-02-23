@@ -17,7 +17,7 @@ compile: peval
 
 install: compile
 	rm -f $(TOOL) $(BINDIR)/peval
-	ln -s $(CURDIR)/peval $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/peval/peval $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY) -r

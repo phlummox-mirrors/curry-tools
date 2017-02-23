@@ -28,7 +28,7 @@ import TransContracts (transContracts)
 cppBanner :: String
 cppBanner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText = "Curry Preprocessor (version of 07/06/2016)"
+   bannerText = "Curry Preprocessor (version of 12/01/2017)"
    bannerLine = take (length bannerText) (repeat '=')
 
 --- Preprocessor targets, i.e., kind of entities to be preprocessed:
@@ -73,10 +73,12 @@ main = do
                if optHelp opts
                then putStrLn (cppBanner ++ usageText) >> exitWith 1
                else do
-                let modname = pathToModName orgSourceFile
+                cpath <- getEnviron "CURRYPATH"
+                let modname = pathToModName cpath orgSourceFile
                 when (optVerb opts > 1) $ putStr cppBanner
                 when (optVerb opts > 2) $ putStr $ unlines
-                  ["Module name        : " ++ modname
+                  ["CURRYPATH          : " ++ cpath
+                  ,"Module name        : " ++ modname
                   ,"Original file name : " ++ orgSourceFile
                   ,"Input    file name : " ++ inFile
                   ,"Output   file name : " ++ outFile ]
@@ -238,16 +240,21 @@ callPreprocessors opts optlines modname srcprog orgfile
 
 --- Transforms a file path name for a module back into a hierarchical module
 --- since only the file path of a module is passed to the preprocessor.
---- This is done if if it is a local file path name,
---- otherwise only theit is difficult to reconstruct the original module name
+--- This is done only if it is a local file path name,
+--- otherwise it is difficult to reconstruct the original module name
 --- from the file path.
-pathToModName :: String -> String
-pathToModName psf =
+pathToModName :: String -> String -> String
+pathToModName currypath psf =
   if isRelative p
    then intercalate "." (splitDirectories  p)
    else takeBaseName p
  where
-  p = stripCurrySuffix psf
+  p = tryRemovePathPrefix (splitSearchPath currypath) (stripCurrySuffix psf)
+
+  tryRemovePathPrefix [] pp = pp
+  tryRemovePathPrefix (dir:dirs) pp
+    | dir `isPrefixOf` pp = drop (length dir + 1) pp
+    | otherwise           = tryRemovePathPrefix dirs pp
 
 -- Replace OPTIONS_CYMAKE line containing currypp call
 -- in a source text by blank line (to avoid recursive calls):

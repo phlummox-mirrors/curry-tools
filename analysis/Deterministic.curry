@@ -10,6 +10,7 @@
 
 module Deterministic
   ( overlapAnalysis, showOverlap, showDet
+  , functionalAnalysis, showFunctional
   , Deterministic(..),nondetAnalysis
   , showNonDetDeps, nondetDepAnalysis, nondetDepAllAnalysis
   ) where
@@ -52,37 +53,26 @@ showOverlap AText False = "non-overlapping"
 showOverlap ANote False = ""
 
 ------------------------------------------------------------------------------
--- The determinism analysis is a global function dependency analysis.
--- It assigns to a function a flag which indicates whether is function
--- might be non-deterministic, i.e., might reduce in different ways
--- for given ground arguments.
+-- The functional analysis is a global function dependency analysis.
+-- It assigns to a FlatCurry function definition a flag which is True
+-- if this function is purely functional defined, i.e., its definition
+-- does not depend on operation containing overlapping rules or free variables.
 
---- Data type to represent determinism information.
-data Deterministic = NDet | Det
+functionalAnalysis :: Analysis Bool
+functionalAnalysis = dependencyFuncAnalysis "Functional" True isFuncDefined
 
-instance Eq Deterministic where
-  NDet == NDet = True
-  Det  == Det  = True
-  NDet == Det  = False
-  Det  == NDet = False
-  
+-- Show functionally defined information as a string.
+showFunctional :: AOutFormat -> Bool -> String
+showFunctional _     True  = "functional"
+showFunctional AText False = "defined with logic features" 
+showFunctional ANote False = ""
 
--- Show determinism information as a string.
-showDet :: AOutFormat -> Deterministic -> String
-showDet _     NDet = "nondeterministic"
-showDet AText Det  = "deterministic" 
-showDet ANote Det  = ""
-
-nondetAnalysis :: Analysis Deterministic
-nondetAnalysis = dependencyFuncAnalysis "Deterministic" Det nondetFunc
-
--- An operation is non-deterministic if its definition is potentially
--- non-deterministic or it depends on a non-deterministic function.
-nondetFunc :: FuncDecl -> [(QName,Deterministic)] -> Deterministic
-nondetFunc func calledFuncs =
-  if isNondetDefined func || any (==NDet) (map snd calledFuncs)
-  then NDet
-  else Det
+-- An operation is functionally defined if its definition is not
+-- non-deterministic (no overlapping rules, no extra variables) and
+-- it depends only on functionally defined operations.
+isFuncDefined :: FuncDecl -> [(QName,Bool)] -> Bool
+isFuncDefined func calledFuncs =
+  not (isNondetDefined func) && and (map snd calledFuncs)
 
 -- Is a function f defined to be potentially non-deterministic, i.e.,
 -- is the rule non-deterministic or does it contain extra variables?
@@ -108,8 +98,59 @@ extraVarInExpr (Case _  e bs) = extraVarInExpr e || any extraVarInBranch bs
                 where extraVarInBranch (Branch _ be) = extraVarInExpr be
 extraVarInExpr (Typed e _) = extraVarInExpr e
 
-pre :: String -> QName
-pre n = ("Prelude",n)
+------------------------------------------------------------------------------
+-- The determinism analysis is a global function dependency analysis.
+-- It assigns to a function a flag which indicates whether is function
+-- might be non-deterministic, i.e., might reduce in different ways
+-- for given ground arguments.
+-- If the non-determinism is encapsulated (set functions, AllSolutions),
+-- it is classified as deterministic.
+
+--- Data type to represent determinism information.
+data Deterministic = NDet | Det
+  deriving Eq
+
+-- Show determinism information as a string.
+showDet :: AOutFormat -> Deterministic -> String
+showDet _     NDet = "non-deterministic"
+showDet AText Det  = "deterministic" 
+showDet ANote Det  = ""
+
+nondetAnalysis :: Analysis Deterministic
+nondetAnalysis = dependencyFuncAnalysis "Deterministic" Det nondetFunc
+
+-- An operation is non-deterministic if its definition is potentially
+-- non-deterministic or it calls a non-deterministic operation
+-- where the non-deterministic call is not encapsulated.
+nondetFunc :: FuncDecl -> [(QName,Deterministic)] -> Deterministic
+nondetFunc func@(Func _ _ _ _ rule) calledFuncs =
+  if isNondetDefined func || callsNDOpInRule rule
+   then NDet
+   else Det
+ where
+  callsNDOpInRule (Rule _ e) = callsNDOp e
+  callsNDOpInRule (External _) = False
+  
+  callsNDOp (Var _)    = False
+  callsNDOp (Lit _)    = False
+  callsNDOp (Free _ e) = callsNDOp e
+  callsNDOp (Let bs e) = any callsNDOp (map snd bs) || callsNDOp e
+  callsNDOp (Or _ _)   = True
+  callsNDOp (Case _ e bs) =
+    callsNDOp e || any (\ (Branch _ be) -> callsNDOp be) bs
+  callsNDOp (Typed e _) = callsNDOp e
+  callsNDOp (Comb _ qf@(mn,fn) es)
+    | mn == "SetFunctions" && take 3 fn == "set" && all isDigit (drop 3 fn)
+    = -- non-determinism of function (first argument) is encapsulated so that
+      -- its called ND functions are not relevant:
+      if null es then False -- this case should not occur
+                 else any callsNDOp (tail es)
+    | mn == "AllSolutions" -- && fn `elem`== "getAllValues"
+    = -- non-determinism of argument is encapsulated so that
+      -- its called ND functions are not relevant:
+      False
+    | otherwise
+    = maybe False (==NDet) (lookup qf calledFuncs) || any callsNDOp es
 
 ------------------------------------------------------------------------------
 --- Data type to represent information about non-deterministic dependencies.
@@ -201,6 +242,11 @@ nondetDeps alldeps func@(Func f _ _ _ rule) calledFuncs =
       -- its called ND functions are not relevant:
       []
     | otherwise
-    = maybe [] id (lookup qf calledFuncs) ++ (concatMap calledNDFuncs es)
+    = maybe [] id (lookup qf calledFuncs) ++ concatMap calledNDFuncs es
+
+------------------------------------------------------------------------------
+
+pre :: String -> QName
+pre n = ("Prelude",n)
 
 ------------------------------------------------------------------------------

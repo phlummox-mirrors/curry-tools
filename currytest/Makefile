@@ -10,7 +10,7 @@ compile: CurryTest
 
 install: compile
 	rm -f $(TOOL) $(BINDIR)/currytest
-	ln -s $(CURDIR)/CurryTest $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/currytest/CurryTest $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY)

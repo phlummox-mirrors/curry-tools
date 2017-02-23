@@ -5,7 +5,7 @@
 --- by other Curry applications.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version June 2016
+--- @version January 2017
 --------------------------------------------------------------------------
 
 module AnalysisServer(mainServer, initializeAnalysisSystem, analyzeModuleAsText,
@@ -13,15 +13,15 @@ module AnalysisServer(mainServer, initializeAnalysisSystem, analyzeModuleAsText,
                       analyzeGeneric, analyzePublic, analyzeInterface)
   where
 
-import ReadNumeric(readNat)
-import Char(isSpace)
+import ReadNumeric   (readNat)
+import Char          (isSpace)
 import Directory
+import FileGoodies   (splitDirectoryBaseName)
 import FlatCurry.Types(QName)
-import Socket(Socket(..),listenOn,listenOnFresh,sClose,waitForSocketAccept)
 import IO
-import ReadShowTerm(readQTerm,showQTerm)
-import System(system,sleep,setEnviron,getArgs)
-import FileGoodies(stripSuffix,splitDirectoryBaseName)
+import ReadShowTerm (readQTerm, showQTerm)
+import Socket (Socket(..),listenOn,listenOnFresh,sClose,waitForSocketAccept)
+import System       (system, sleep, setEnviron, getArgs)
 
 import Analysis(Analysis,AOutFormat(..))
 import Configuration
@@ -68,14 +68,16 @@ mainServer mbport = do
 
 --- Run the analysis system and show the analysis results in standard textual
 --- representation.
---- The third argument is a flag indicating whether the
+--- If the third argument is true, all operations are shown,
+--- otherwise only the interface operations.
+--- The fourth argument is a flag indicating whether the
 --- (re-)analysis should be enforced.
 --- Note that, before its first use, the analysis system must be initialized
 --- by 'initializeAnalysisSystem'.
-analyzeModuleAsText :: String -> String -> Bool -> IO String
-analyzeModuleAsText ananame mname enforce =
-  analyzeModule ananame (stripSuffix mname) enforce AText >>=
-             return . formatResult mname "Text" Nothing True
+analyzeModuleAsText :: String -> String -> Bool -> Bool -> IO String
+analyzeModuleAsText ananame mname optall enforce =
+  analyzeModule ananame mname enforce AText >>=
+             return . formatResult mname "Text" Nothing (not optall)
 
 --- Run the analysis system to show the analysis results in the BrowserGUI.
 --- Note that, before its first use, the analysis system must be initialized
@@ -307,6 +309,7 @@ parseServerMessage message = case words message of
     "GetAnalysis" -> GetAnalysis
     "AnalyzeModule" -> case ws of 
       s1:s2:s3:[] -> checkFormat s2 $ AnalyzeModule s1 s2 s3 False
+      _ -> ParseError
     "AnalyzeInterface" -> case ws of 
       s1:s2:s3:[] -> checkFormat s2 $ AnalyzeModule s1 s2 s3 True
       _ -> ParseError

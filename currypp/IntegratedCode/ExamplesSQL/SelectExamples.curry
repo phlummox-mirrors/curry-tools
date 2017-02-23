@@ -63,7 +63,7 @@ queryS81 = ``sql Select Distinct t.Name, l.Title
                  Where (Satisfies l taught_by t And t.Name like "Klein");''
 
 testS81 :: PropIO
-testS81 = queryS81 `returns` Right [("Klein","Technische Informatik")]
+testS81 = queryS81 `returns` Right [("Klein","Theoretical Computer Science")]
 
 queryS82 :: IO (SQLResult [(String, (Maybe Float))])
 queryS82 = ``sql Select Distinct s.Name, r.Grade 

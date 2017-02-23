@@ -27,7 +27,7 @@ exectests() {
   # compile model:
   $CURRYBIN/curry erd2cdbi Uni_ERD.term `pwd`/Uni.db  
   # fill database:
-  $CURRYBIN/curry :l CreateData :eval createTestData :q
+  $CURRYBIN/curry $REPL_OPTS :l CreateData :eval createTestData :q
   # run query tests:
   $CURRYBIN/curry check SelectExamples
 }

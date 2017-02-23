@@ -33,7 +33,7 @@ import AbstractCurry.Types
 import AbstractCurry.Select
 import Char
 import Directory
-import Distribution         (modNameToPath)
+import Distribution         (lookupModuleSourceInLoadPath, modNameToPath)
 import FilePath             (dropExtension, takeDirectory)
 import List
 
@@ -80,11 +80,12 @@ deleteNonAlphanNum = filter isAlphaNum
 
 ------------------------------------------------------------------------
 --- Get all theorems which are contained in a given program.
---- A theorem is a property for which a proof file exists.
-getTheoremFunctions :: CurryProg -> IO [CFuncDecl]
-getTheoremFunctions (CurryProg mname _ _ _ _ _ functions _) = do
+--- A theorem is a property for which a proof file exists in the
+--- directory provided as first argument.
+getTheoremFunctions :: String -> CurryProg -> IO [CFuncDecl]
+getTheoremFunctions proofdir (CurryProg _ _ _ _ _ _ functions _) = do
   let propfuncs = filter isProperty functions -- all properties
-  prooffiles <- getProofFiles (takeDirectory (modNameToPath mname))
+  prooffiles <- getProofFiles proofdir
   return $ filter (\fd -> existsProofFor (snd (funcName fd)) prooffiles)
                   propfuncs
 

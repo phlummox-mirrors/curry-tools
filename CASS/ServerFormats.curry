@@ -3,13 +3,14 @@
 --- anlysis server.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version May 2015
+--- @version January 2017
 --------------------------------------------------------------------
 
 module ServerFormats(serverFormats,formatResult) where
 
 import GenericProgInfo
 import FlatCurry.Types(QName,showQNameInModule)
+import Sort(sortBy)
 import XML
 
 --------------------------------------------------------------------
@@ -39,6 +40,7 @@ formatResult moduleName outForm (Just name) _ (Left pinfo) =
            "CurryTerm" -> value
            "Text"      -> value
            "XML"       -> showXmlDoc (xml "result" [xtxt value])
+           _ -> error "Internal error ServerFormats.formatResult"
 -- Format a complete module:
 formatResult moduleName outForm Nothing public (Left pinfo) =
   case outForm of
@@ -48,9 +50,12 @@ formatResult moduleName outForm Nothing public (Left pinfo) =
                     in showXmlDoc
                         (xml "results"
                           (pubxml ++ if public then [] else privxml))
+    _ -> error "Internal error ServerFormats.formatResult"
  where
    entities = let (pubents,privents) = progInfo2Lists pinfo
-               in if public then pubents else pubents++privents
+               in if public then pubents
+                            else sortBy (\ (qf1,_) (qf2,_) -> qf1<=qf2)
+                                        (pubents++privents)
 
 -- Format a list of analysis results as a string (lines of analysis results).
 formatAsText :: String -> [(QName,String)] -> String

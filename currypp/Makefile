@@ -42,8 +42,8 @@ compile: Main
 
 install: compile
 	rm -f $(TOOL) $(BINDIR)/currypp
-	ln -s $(CURDIR)/Main $(TOOL)
-	ln -s $(TOOL) $(BINDIR)/currypp # for backward compatibility
+	cd $(BINDIR) && ln -s ../currytools/currypp/Main $(notdir $(TOOL))
+	cd $(BINDIR) && ln -s $(notdir $(TOOL)) currypp # for backward compatibility
 
 clean:
 	$(CLEANCURRY) -r
@@ -51,6 +51,7 @@ clean:
 
 uninstall: clean
 	rm -f $(TOOL)
+	rm -f $(BINDIR)/currypp # for backward compatibility
 
 # generate executable of currypp translator:
 Main: $(DEPS)
@@ -60,7 +61,7 @@ Main: $(DEPS)
 # run the test suites for the Curry preprocessor
 .PHONY: runtest
 runtest:
-	cd IntegratedCode/Examples    && ./test.sh
-	cd IntegratedCode/ExamplesSQL && ./test.sh
-	cd DefaultRules/Examples      && ./test.sh
-	cd ContractWrapper/Examples   && ./test.sh
+	cd IntegratedCode/Examples    && ./test.sh $(RUNTESTPARAMS)
+	cd IntegratedCode/ExamplesSQL && ./test.sh $(RUNTESTPARAMS)
+	cd DefaultRules/Examples      && ./test.sh $(RUNTESTPARAMS)
+	cd ContractWrapper/Examples   && ./test.sh $(RUNTESTPARAMS)

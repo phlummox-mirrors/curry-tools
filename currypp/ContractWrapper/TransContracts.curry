@@ -172,7 +172,8 @@ transformCProg verb opts srctxt orgprog outmodname = do
       prenames     = map (fromPreCondName  . snd . funcName) preconds
       opostconds   = getFunDeclsWith isPostCondName prog
   -- filter theorems which have a proof file:
-  theofuncs <- getTheoremFunctions prog                         
+  theofuncs <- getTheoremFunctions
+                (takeDirectory (modNameToPath (progName prog))) prog
   postconds <- simplifyPostConditionsWithTheorems verb theofuncs opostconds
   let postnames = map (fromPostCondName  . snd . funcName) postconds
       checkfuns = union specnames (union prenames postnames)

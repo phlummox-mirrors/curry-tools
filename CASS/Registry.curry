@@ -5,7 +5,7 @@
 --- registered in the top part of this module.
 ---
 --- @author Heiko Hoffmann, Michael Hanus
---- @version July 2016
+--- @version January 2017
 --------------------------------------------------------------------
 
 module Registry
@@ -32,24 +32,27 @@ import LoadAnalysis(loadCompleteAnalysis)
 -- Configurable part of this module.
 --------------------------------------------------------------------
 
-import Deterministic
-import HigherOrder
-import RightLinearity
-import SolutionCompleteness
-import TotallyDefined
-import Indeterministic
 import Demandedness
+import Deterministic
 import Groundness
+import HigherOrder
+import Indeterministic
 import RequiredValue
 import qualified RequiredValues as RVS
+import RightLinearity
 import RootReplaced
+import SolutionCompleteness
+import Termination
+import TotallyDefined
+import TypeUsage
 
 --------------------------------------------------------------------
 --- Each analysis used in our tool must be registered in this list
 --- together with an operation to show the analysis result as a string.
 registeredAnalysis :: [RegisteredAnalysis]
 registeredAnalysis =
-  [cassAnalysis "Overlapping rules"          overlapAnalysis  showOverlap
+  [cassAnalysis "Functionally defined"       functionalAnalysis showFunctional
+  ,cassAnalysis "Overlapping rules"          overlapAnalysis  showOverlap
   ,cassAnalysis "Deterministic operations"   nondetAnalysis   showDet
   ,cassAnalysis "Depends on non-deterministic operations"
                                              nondetDepAnalysis showNonDetDeps
@@ -66,10 +69,14 @@ registeredAnalysis =
   ,cassAnalysis "Higher-order datatypes"     hiOrdType        showOrder
   ,cassAnalysis "Higher-order constructors"  hiOrdCons        showOrder
   ,cassAnalysis "Higher-order functions"     hiOrdFunc        showOrder
+  ,cassAnalysis "Productive operations"    productivityAnalysis showProductivity
   ,cassAnalysis "Sibling constructors"       siblingCons      showSibling
   ,cassAnalysis "Required value"             reqValueAnalysis showAFType
   ,cassAnalysis "Required value sets"        RVS.reqValueAnalysis RVS.showAFType
+  ,cassAnalysis "Root cyclic replacements"   rootCyclicAnalysis showRootCyclic
   ,cassAnalysis "Root replacements"          rootReplAnalysis showRootRepl
+  ,cassAnalysis "Terminating operations"     terminationAnalysis showTermination
+  ,cassAnalysis "Types in values"            typesInValuesAnalysis showTypeNames
   ]
 
 
@@ -242,14 +249,18 @@ prepareCombinedAnalysis analysis moduleName depmods handles =
     then do
       -- the directly imported interface information might be required...
       importedModules <- getImports moduleName
-      mapIO_ (runAnalysisWithWorkersNoLoad baseAnaName handles)
-             (importedModules++[moduleName])
-    else do
+      mapIO_ (\basename ->
+                mapIO_ (runAnalysisWithWorkersNoLoad basename handles)
+                       (importedModules++[moduleName]))
+             baseAnaNames
+    else
       -- for a dependency analysis, the information of all implicitly
       -- imported modules might be required:
-      mapIO_ (runAnalysisWithWorkersNoLoad baseAnaName handles) depmods
+      mapIO_ (\baseaname ->
+                mapIO_ (runAnalysisWithWorkersNoLoad baseaname handles) depmods)
+             baseAnaNames
   else done
  where
-   baseAnaName = baseAnalysisName analysis
+   baseAnaNames = baseAnalysisNames analysis
 
 --------------------------------------------------------------------

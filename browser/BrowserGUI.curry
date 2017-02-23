@@ -3,7 +3,7 @@
 --- programs.
 ---
 --- @author Michael Hanus
---- @version September 2016
+--- @version January 2017
 ---------------------------------------------------------------------
 
 module BrowserGUI where
@@ -49,7 +49,7 @@ title :: String
 title = "CurryBrowser"
 
 version :: String
-version = "Version of 07/09/2016"
+version = "Version of 22/01/2017"
 
 patchReadmeVersion :: IO ()
 patchReadmeVersion = do

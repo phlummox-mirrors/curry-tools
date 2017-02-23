@@ -15,7 +15,7 @@ compile: BindingOpt
 
 install: compile
 	rm -f $(TOOL)
-	ln -s $(CURDIR)/BindingOpt $(TOOL)
+	cd .. && ln -s binding_optimization/BindingOpt $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY) -r

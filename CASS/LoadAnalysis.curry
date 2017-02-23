@@ -44,8 +44,9 @@ getAnalysisPublicFile modname ananame = do
 -- Usually, it is $HOME.
 getAnalysisDirectory :: IO String
 getAnalysisDirectory = do
-  homeDir <- getHomeDirectory
-  let cassStoreDir = if null homeDir then installDir else homeDir
+  homedir <- getHomeDirectory
+  hashomedir <- doesDirectoryExist homedir
+  let cassStoreDir = if hashomedir then homedir else installDir
   return $ cassStoreDir </> ".curry" </> "Analysis"
 
 -- loads analysis results for a list of modules

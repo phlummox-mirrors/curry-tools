@@ -14,6 +14,7 @@ casc/CASC
 casc/Docs/curry-style-guide.html
 CASS/cass
 CASS/cass_worker
+cpns/CPNSD
 createmakefile/CreateMakefile
 curry2js/Curry2JS
 currypp/Main
@@ -23,11 +24,13 @@ currydoc/CurryDoc
 currytest/CurryTest
 cusage/CheckUsage
 ertools/ERD2CDBI
-ertools/erd2curry
+ertools/ERD2Curry
 importcalls/ImportCalls
 optimize/bindingopt
 optimize/binding_optimization/BindingOpt
 runcurry/RunCurry
 spicey/spiceup
 verification/ToVerifier
+www/Registry
+www/SubmitForm
 xmldata/Data2Xml

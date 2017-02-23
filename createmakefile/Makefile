@@ -10,7 +10,7 @@ compile: CreateMakefile
 
 install: compile
 	rm -f $(TOOL)
-	ln -s $(CURDIR)/CreateMakefile $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/createmakefile/CreateMakefile $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY)

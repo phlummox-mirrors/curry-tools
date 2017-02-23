@@ -16,7 +16,9 @@ import FlatCurry.Goodies
 import List((\\),intercalate)
 
 ------------------------------------------------------------------------------
---- Data type to represent determinism information.
+--- Data type to represent information about demanded arguments.
+--- Demanded arguments are represented as a list of indices
+--- for the arguments, where arguments are numbered from 1.
 type DemandedArgs = [Int]
 
 -- Show determinism information as a string.

@@ -17,7 +17,7 @@ compile: ToVerifier
 
 install: ToVerifier
 	rm -f $(TOOL) $(BINDIR)/curry2verify
-	ln -s $(CURDIR)/ToVerifier $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/verification/ToVerifier $(notdir $(TOOL))
 
 clean:
 	$(CLEANCURRY)

@@ -21,8 +21,18 @@ install_TOOLDIRS=$(addprefix install_,$(TOOLDIRS))
 clean_TOOLDIRS=$(addprefix clean_,$(TOOLDIRS))
 uninstall_TOOLDIRS=$(addprefix uninstall_,$(TOOLDIRS))
 
+# Tools to be compiled sequentially to avoid conflict with parallel make:
+CONFLICTINGTOOLS = analysis optimize CASS currycheck
+
+empty     :=
+space     := $(empty) $(empty)
+# make_seq "a b c" = "make a && make b && make c"
+make_seq = $(subst MAKE,$(MAKE) ,$(subst $(space), && ,$(addprefix MAKE,$(1))))
+
 .PHONY: all
-all: $(TOOLDIRS)
+all:
+	$(call make_seq,$(CONFLICTINGTOOLS))
+	$(MAKE) $(filter-out $(CONFLICTINGTOOLS), $(TOOLDIRS))
 
 .PHONY: force
 
@@ -56,10 +66,10 @@ $(uninstall_TOOLDIRS):
 # run the test suites to check the tools
 .PHONY: runtest
 runtest:
-	cd optimize/binding_optimization/Examples && ./test.sh
+	cd optimize/binding_optimization/Examples && ./test.sh $(RUNTESTPARAMS)
 	cd currypp  && $(MAKE) runtest
-	cd runcurry/Examples && ./test.sh
-	cd currycheck/Examples && ./test.sh
-	cd currycheck/Examples/WithVerification && ./test.sh
-	cd spicey/Examples && ./test.sh
-	cd xmldata/Examples && ./test.sh
+	cd runcurry/Examples && ./test.sh $(RUNTESTPARAMS)
+	cd currycheck/Examples && ./test.sh $(RUNTESTPARAMS)
+	cd currycheck/Examples/WithVerification && ./test.sh $(RUNTESTPARAMS)
+	cd spicey/Examples && ./test.sh $(RUNTESTPARAMS)
+	cd xmldata/Examples && ./test.sh $(RUNTESTPARAMS)
