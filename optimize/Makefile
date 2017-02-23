@@ -3,7 +3,7 @@
 # Required:
 # - root location of the Curry System specified by variable ROOT
 
-.PHONY: all compile install clean uninstall
+.PHONY: all compile install clean uninstall runtest
 
 all:
 	@cd binding_optimization && $(MAKE) all
@@ -19,3 +19,7 @@ clean:
 
 uninstall:
 	@cd binding_optimization && $(MAKE) uninstall
+
+# run the test suite
+runtest:
+	cd binding_optimization/Examples && ./test.sh $(RUNTESTPARAMS)

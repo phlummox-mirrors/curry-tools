@@ -63,13 +63,15 @@ uninstall: $(uninstall_TOOLDIRS)
 $(uninstall_TOOLDIRS):
 	@cd $(patsubst uninstall_%,%,$@) && $(MAKE) uninstall
 
+########################################################################
+# Testing the tools
+
+# Tools with test suites:
+TESTTOOLS = optimize currypp runcurry currycheck spicey xmldata   
+
 # run the test suites to check the tools
 .PHONY: runtest
-runtest:
-	cd optimize/binding_optimization/Examples && ./test.sh $(RUNTESTPARAMS)
-	cd currypp  && $(MAKE) runtest
-	cd runcurry/Examples && ./test.sh $(RUNTESTPARAMS)
-	cd currycheck/Examples && ./test.sh $(RUNTESTPARAMS)
-	cd currycheck/Examples/WithVerification && ./test.sh $(RUNTESTPARAMS)
-	cd spicey/Examples && ./test.sh $(RUNTESTPARAMS)
-	cd xmldata/Examples && ./test.sh $(RUNTESTPARAMS)
+runtest: $(addprefix runtest_,$(TESTTOOLS))
+
+runtest_%:
+	cd $* && $(MAKE) runtest

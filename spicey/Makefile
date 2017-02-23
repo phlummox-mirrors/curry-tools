@@ -12,7 +12,7 @@ PROJECT_GEN_DIR=project_generator
 DEPS = $(PROJECT_GEN_DIR)/SpiceUp.curry scaffolding/*.curry \
        $(LIBDIR)/AbstractCurry/*.curry $(LIBDIR)/Database/ERD*.curry
 
-.PHONY: all compile install clean uninstall
+.PHONY: all compile install clean uninstall runtest
 
 all: install
 
@@ -36,3 +36,7 @@ spiceup: $(DEPS)
 	  $(REPL) $(REPL_OPTS) :set path ../scaffolding:../../erd2curry \
 	                       :load SpiceUp :save :quit
 	mv $(PROJECT_GEN_DIR)/SpiceUp $@
+
+# run the test suite
+runtest:
+	cd Examples && ./test.sh $(RUNTESTPARAMS)
