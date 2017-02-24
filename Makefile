@@ -16,28 +16,47 @@ EXCLUDES = .git
 # Directory names of all tools having a Makefile:
 TOOLDIRS = $(foreach d, $(ALLTOOLDIRS), $(shell test -f $(d)/Makefile && echo $(d)))
 
+make_TOOLDIRS=$(addprefix make_,$(TOOLDIRS))
 compile_TOOLDIRS=$(addprefix compile_,$(TOOLDIRS))
 install_TOOLDIRS=$(addprefix install_,$(TOOLDIRS))
 clean_TOOLDIRS=$(addprefix clean_,$(TOOLDIRS))
 uninstall_TOOLDIRS=$(addprefix uninstall_,$(TOOLDIRS))
 
-# Tools to be compiled sequentially to avoid conflict with parallel make:
-CONFLICTINGTOOLS = analysis optimize CASS currycheck
-
-empty     :=
-space     := $(empty) $(empty)
-# make_seq "a b c" = "make a && make b && make c"
-make_seq = $(subst MAKE,$(MAKE) ,$(subst $(space), && ,$(addprefix MAKE,$(1))))
-
 .PHONY: all
-all:
-	$(call make_seq,$(CONFLICTINGTOOLS))
-	$(MAKE) $(filter-out $(CONFLICTINGTOOLS), $(TOOLDIRS))
+all: $(make_TOOLDIRS)
 
-.PHONY: force
+###########################################################################
+# Define dependencies between the different tools:
 
-$(TOOLDIRS): force
-	@cd $@ && $(MAKE)
+make_browser: | make_analysis make_CASS make_addtypes make_importcalls
+	@$(MAKE) now_$@
+
+make_analysis:
+	@$(MAKE) now_$@
+
+make_CASS: | make_analysis
+	@$(MAKE) now_$@
+
+make_currydoc: | make_analysis make_CASS
+	@$(MAKE) now_$@
+
+make_currypp: | make_analysis make_CASS make_currycheck make_verification
+	@$(MAKE) now_$@
+
+make_optimize: | make_analysis make_CASS
+	@$(MAKE) now_$@
+
+make_verification: | make_analysis make_CASS make_currycheck
+	@$(MAKE) now_$@
+
+make_%:
+	@$(MAKE) now_make_$*
+
+# now we really make the tool:
+now_make_%:
+	@cd $* && $(MAKE)
+
+###########################################################################
 
 .PHONY: compile
 compile: $(compile_TOOLDIRS)
