@@ -28,7 +28,8 @@ all: $(make_TOOLDIRS)
 ###########################################################################
 # Define dependencies between the different tools:
 
-make_browser: | make_analysis make_CASS make_addtypes make_importcalls
+make_browser: | make_analysis make_CASS make_addtypes make_importcalls \
+                make_currydoc make_verification # avoid conflicts in analysis
 	@$(MAKE) now_$@
 
 make_analysis:
@@ -37,7 +38,8 @@ make_analysis:
 make_CASS: | make_analysis
 	@$(MAKE) now_$@
 
-make_currydoc: | make_analysis make_CASS
+make_currydoc: | make_analysis make_CASS \
+	         make_currypp make_verification # avoid conflicts in analysis
 	@$(MAKE) now_$@
 
 make_currypp: | make_analysis make_CASS make_currycheck make_verification
