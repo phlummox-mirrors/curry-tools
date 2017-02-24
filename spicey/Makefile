@@ -33,8 +33,7 @@ uninstall: clean
 spiceup: $(DEPS)
 	CURRYPATH=scaffolding && export CURRYPATH && \
 	cd $(PROJECT_GEN_DIR) && \
-	  $(REPL) $(REPL_OPTS) :set path ../scaffolding:../../erd2curry \
-	                       :load SpiceUp :save :quit
+	  $(REPL) $(REPL_OPTS) :set path ../scaffolding :load SpiceUp :save :q
 	mv $(PROJECT_GEN_DIR)/SpiceUp $@
 
 # run the test suite
