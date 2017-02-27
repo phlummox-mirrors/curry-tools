@@ -2,18 +2,18 @@
 --- A tool to create a simple makefile for a Curry application.
 ---
 --- @author Michael Hanus
---- @version November 2016
+--- @version February 2017
 -----------------------------------------------------------------
 
 module CreateMakefile where
 
-import Distribution
-import FileGoodies
-import FlatCurry.Types
-import FlatCurry.Files
-import FlatCurry.Read
-import List
-import System
+import Distribution    ( curryCompiler, installDir
+                       , lookupModuleSourceInLoadPath, stripCurrySuffix )
+import FlatCurry.Types ( Prog(..) )
+import FlatCurry.Read  ( readFlatCurryIntWithImports )
+import List            ( intercalate, union )
+import Sort            ( sort )
+import System          ( exitWith, getArgs )
 
 main :: IO ()
 main = do
@@ -24,8 +24,7 @@ main = do
     ["-?"]     -> printUsage
     [mainmod] -> createMake (stripCurrySuffix mainmod) Nothing
     [mainmod,target] -> createMake (stripCurrySuffix mainmod) (Just target)
-    _ -> do putStrLn $ "ERROR: Illegal arguments: " ++
-                       concat (intersperse " " args) ++ "\n"
+    _ -> do putStrLn $ "ERROR: Illegal arguments: " ++ unwords args ++ "\n"
             printUsage
             exitWith 1
 
@@ -45,16 +44,18 @@ createMake mainmod target = do
                        (map (\ (Prog _ imps _ _ _) -> imps) allints))
   allsources <- mapIO findSourceFileInLoadPath (filter (/="Prelude") allmods)
   (maybe putStr writeFile target)
-     (showMake mainmod (map replacePakcsLib allsources))
+     (showMake mainmod (sort (map replacePakcsLib allsources)))
 
 showMake :: String -> [String] -> String
 showMake mainmod sourcefiles =
   "# Makefile for main module \""++mainmod++"\":\n\n"++
   "CURRYHOME="++installDir++"\n"++
   "CURRYLIB=$(CURRYHOME)/lib\n\n"++
+  "# Source modules:\n" ++
+  "DEPS = " ++ intercalate " \\\n       " sourcefiles ++ "\n\n" ++
   ".PHONY: all\n"++
   "all: "++mainmod++"\n\n"++
-  mainmod++": " ++ concat (intersperse " \\\n\t  " sourcefiles) ++"\n"++
+  mainmod++": $(DEPS)\n"++
   "\t# create saved state for top-level function \"main\":\n"++
   "\t$(CURRYHOME)/bin/"++curryCompiler++" :l "++mainmod++" :save :q\n\n"++
   ".PHONY: clean\n"++
@@ -64,10 +65,9 @@ showMake mainmod sourcefiles =
 -- current load path (CURRYPATH):
 findSourceFileInLoadPath :: String -> IO String
 findSourceFileInLoadPath modname = do
-  loadpath <- getLoadPathForModule modname
-  mbfname <- lookupFileInPath (baseName modname) [".lcurry",".curry"] loadpath
+  mbfname <- lookupModuleSourceInLoadPath modname
   maybe (error ("Curry file for module \""++modname++"\" not found!"))
-        (return . dropLocal)
+        (return . dropLocal . snd)
         mbfname
  where
   dropLocal f = if take 2 f == "./" then drop 2 f else f
