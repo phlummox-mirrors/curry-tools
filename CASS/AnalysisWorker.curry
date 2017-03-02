@@ -5,7 +5,7 @@
 --- @version March 2013
 ------------------------------------------------------------------------
 
-module AnalysisWorker(main) where
+module AnalysisWorker(main,startWorker) where
 
 import IO(Handle,hClose,hFlush,hWaitForInput,hPutStrLn,hGetLine)
 import ReadShowTerm(readQTerm)
@@ -21,12 +21,14 @@ main = do
   args <- getArgs
   if length args /= 2
    then error "Analysis worker program started with illegal arguments"
-   else do
-     let port = readQTerm (args!!1)
-     debugMessage 2 ("start analysis worker on port " ++ show port)
-     getDefaultPath >>= setEnviron "CURRYPATH" 
-     handle <- connectToSocket (head args) port
-     worker handle
+   else startWorker (head args) (readQTerm (args!!1))
+
+startWorker :: String -> Int -> IO ()
+startWorker host port = do
+  debugMessage 2 ("start analysis worker on port " ++ show port)
+  getDefaultPath >>= setEnviron "CURRYPATH" 
+  handle <- connectToSocket host port
+  worker handle
 
 -- communication loop
 worker :: Handle -> IO ()

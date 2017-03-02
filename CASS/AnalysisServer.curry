@@ -180,7 +180,7 @@ startWorkers number workersocket serveraddress workerport handles = do
   if number>0
     then do
       debugMessage 4 ("Number:"++(show number))
-      let command = baseDir++"/cass_worker "++serveraddress++" "
+      let command = baseDir++"/cass --worker "++serveraddress++" "
                                             ++(show workerport)++" &"
       debugMessage 4 ("system command: "++command)
       system command

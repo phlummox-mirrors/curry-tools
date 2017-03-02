@@ -2,7 +2,7 @@
 --- This is the main module to start the executable of the analysis system.
 ---
 --- @author Michael Hanus
---- @version January 2017
+--- @version March 2017
 --------------------------------------------------------------------------
 
 module Main(main) where
@@ -13,6 +13,7 @@ import FilePath       ((</>), (<.>))
 import GetOpt
 import List           (isPrefixOf)
 import ReadNumeric    (readNat)
+import ReadShowTerm   (readQTerm)
 import Sort           (sort)
 import System         (exitWith,getArgs)
 
@@ -21,6 +22,7 @@ import AnalysisServer
 import Configuration
 import LoadAnalysis   (deleteAllAnalysisFiles)
 import Registry
+import AnalysisWorker (startWorker)
 
 --- Main function to start the analysis system.
 --- With option -s or --server, the server is started on a socket.
@@ -38,17 +40,23 @@ main = do
   when ((optServer opts && not (null args)) ||
         (not (optServer opts) && length args /= 2))
        (error "Illegal arguments (try `-h' for help)" >> exitWith 1)
+  when (optWorker opts && length args /= 2)
+       (error "Illegal arguments (try `-h' for help)" >> exitWith 1)
   mapIO_ (\ (k,v) -> updateCurrentProperty k v) (optProp opts)
   let verb = optVerb opts
   when (verb >= 0) (updateCurrentProperty "debugLevel" (show verb))
   debugMessage 1 systemBanner
   if optServer opts
    then mainServer (let p = optPort opts in if p == 0 then Nothing else Just p)
-   else do let [ananame,mname] = args
-           fullananame <- checkAnalysisName ananame
-           putStrLn $ "Computing results for analysis `" ++ fullananame ++ "'"
-           analyzeModuleAsText fullananame (stripCurrySuffix mname)
-                               (optAll opts) (optReAna opts) >>= putStrLn
+   else
+     if optWorker opts
+       then startWorker (head args) (readQTerm (args!!1))
+       else do
+         let [ananame,mname] = args
+         fullananame <- checkAnalysisName ananame
+         putStrLn $ "Computing results for analysis `" ++ fullananame ++ "'"
+         analyzeModuleAsText fullananame (stripCurrySuffix mname)
+                             (optAll opts) (optReAna opts) >>= putStrLn
  where
   deleteFiles args = case args of
     [aname] -> do fullaname <- checkAnalysisName aname
@@ -78,6 +86,7 @@ data Options = Options
   { optHelp    :: Bool     -- print help?
   , optVerb    :: Int      -- verbosity level
   , optServer  :: Bool     -- start CASS in server mode?
+  , optWorker  :: Bool     -- start CASS in worker mode?
   , optPort    :: Int      -- port number (if used in server mode)
   , optAll     :: Bool     -- show analysis results for all operations?
   , optReAna   :: Bool     -- force re-analysis?
@@ -91,6 +100,7 @@ defaultOptions = Options
   { optHelp    = False
   , optVerb    = -1
   , optServer  = False
+  , optWorker  = False
   , optPort    = 0
   , optAll     = False
   , optReAna   = False
@@ -120,6 +130,9 @@ options =
   , Option "s" ["server"]
            (NoArg (\opts -> opts { optServer = True }))
            "start analysis system in server mode"
+  , Option "w" ["worker"]
+           (NoArg (\opts -> opts { optWorker = True }))
+           "start analysis system in worker mode"
   , Option "p" ["port"]
            (ReqArg (safeReadNat (\n opts -> opts { optPort = n })) "<n>")
            "port number for communication\n(only for server mode;\n if omitted, a free port number is selected)"
@@ -161,7 +174,8 @@ printHelp args =
 usageText :: String
 usageText =
   usageInfo ("Usage: curry analyze <options> <analysis name> <module name>\n" ++
-             "   or: curry analyze <options> [-s|--server]\n")
+             "   or: curry analyze <options> [-s|--server]\n" ++
+             "   or: curry analyze [-w|--worker] <host> <port>\n")
             options ++
   unlines ("" : "Registered analyses names:" :
            "(use option `-h <analysis name>' for more documentation)" :

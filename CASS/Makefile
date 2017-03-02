@@ -18,9 +18,7 @@ DEPS = *.curry \
 
 all: install
 
-compile:
-	$(MAKE) cass_worker
-	$(MAKE) cass
+compile: cass
 
 install: compile
 	rm -f $(TOOL) $(BINDIR)/cass
@@ -32,11 +30,6 @@ clean:
 
 uninstall: clean
 	rm -f $(TOOL)
-
-# generate executable for analysis worker:
-cass_worker: $(DEPS)
-	$(REPL) $(REPL_OPTS) :set path $(ANADIR) :l AnalysisWorker :save :q
-	mv AnalysisWorker $@
 
 # generate executable for analysis server program:
 cass: $(DEPS)
