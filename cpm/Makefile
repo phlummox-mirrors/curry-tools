@@ -21,8 +21,7 @@ install: compile
 compile: src/CPM.Main
 
 clean:
-	rm -Rf src/.curry vendor/*/src/.curry
-	rm src/CPM.Main
+	rm -Rf src/CPM.Main src/.curry vendor/*/src/.curry
 
 uninstall: clean
 	rm -f $(TOOL)
