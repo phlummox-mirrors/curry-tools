@@ -14,6 +14,7 @@ casc/CASC
 casc/Docs/curry-style-guide.html
 CASS/cass
 CASS/cass_worker
+cpm/src/CPM.Main
 cpns/CPNSD
 createmakefile/CreateMakefile
 curry2js/Curry2JS
