@@ -4,13 +4,13 @@
 
 module CPM.Main where
 
+import Char         ( toLower )
 import CSV          ( showCSV )
 import Directory    ( doesFileExist, getAbsolutePath, doesDirectoryExist
                     , createDirectory, createDirectoryIfMissing
                     , getDirectoryContents, getModificationTime
                     , renameFile, removeFile, setCurrentDirectory )
-import Distribution ( installDir, stripCurrySuffix, addCurrySubdir
-                    , curryCompiler )
+import Distribution ( stripCurrySuffix, addCurrySubdir )
 import Either
 import FilePath     ( (</>), splitSearchPath, takeExtension )
 import IO           ( hFlush, stdout )
@@ -25,7 +25,7 @@ import CPM.ErrorLogger
 import CPM.FileUtil ( fileInPath, joinSearchPath, safeReadFile, whenFileExists
                     , ifFileExists, inDirectory, removeDirectoryComplete )
 import CPM.Config              ( Config ( packageInstallDir, binInstallDir
-                                        , binPackageDir )
+                                        , binPackageDir, curryExec )
                                , readConfigurationWithDefault )
 import CPM.PackageCache.Global ( GlobalCache, readInstalledPackagesFromDir
                                , installFromZip, checkoutPackage
@@ -44,7 +44,7 @@ cpmBanner :: String
 cpmBanner = unlines [bannerLine,bannerText,bannerLine]
  where
  bannerText =
-  "Curry Package Manager <curry-language.org/tools/cpm> (version of 27/03/2017)"
+  "Curry Package Manager <curry-language.org/tools/cpm> (version of 31/03/2017)"
  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -263,9 +263,10 @@ diffOpts s = case optCommand s of
   _         -> DiffOptions Nothing Nothing True True True
 
 readLogLevel :: String -> Either String LogLevel
-readLogLevel s = if s == "debug"
-  then Right $ Debug
-  else Right $ Info
+readLogLevel s = case map toLower s of
+  "debug" -> Right Debug
+  "info"  -> Right Info
+  _       -> Left $ "Illegal verbosity value: " ++ s
 
 readRcOption :: String -> Either String (String,String)
 readRcOption s =
@@ -515,19 +516,23 @@ compiler o cfg getRepo getGC =
   tryFindLocalPackageSpec "." |>= \specDir ->
   loadCurryPathFromCache specDir |>=
   maybe (computePackageLoadPath specDir) succeedIO |>= \currypath ->
-  log Info ("Starting Curry with CURRYPATH " ++ currypath) |>
+  log Info ("Starting '" ++ currybin ++ "' with") |>
+  log Info ("CURRYPATH=" ++ currypath) |>
   do setEnviron "CURRYPATH" $ currypath
-     ecode <- system $ "curry " ++ comCommand o
+     ecode <- system $ currybin ++ " " ++ comCommand o
      unsetEnviron "CURRYPATH"
      unless (ecode==0) (exitWith ecode)
      succeedIO ()
  where
+  currybin = curryExec cfg
+
   computePackageLoadPath pkgdir =
     getRepo >>= \repo -> getGC >>= \gc ->
-    resolveAndCopyDependencies cfg repo gc pkgdir |>= \pkgs ->
+    loadPackageSpec pkgdir |>= \pkg ->
+    resolveAndCopyDependenciesForPackage cfg repo gc pkgdir pkg |>= \pkgs ->
     getAbsolutePath pkgdir >>= \abs -> succeedIO () |>
-    succeedIO (abs </> "src") |>= \srcDir ->
-    let currypath = joinSearchPath (srcDir : dependencyPathsSeparate pkgs abs)
+    let srcdirs = map (abs </>) (sourceDirsOf pkg)
+        currypath = joinSearchPath (srcdirs ++ dependencyPathsSeparate pkgs abs)
     in saveCurryPathToCache pkgdir currypath >> succeedIO currypath
 
 
@@ -569,6 +574,7 @@ install :: InstallOptions -> Config -> Repository -> GlobalCache
         -> IO (ErrorLogger ())
 install (InstallOptions Nothing Nothing _) cfg repo gc =
   tryFindLocalPackageSpec "." |>= \specDir ->
+  cleanCurryPathCache specDir |>
   installLocalDependencies cfg repo gc specDir |>= \ (pkg,_) ->
   installExecutable cfg repo pkg specDir
 install (InstallOptions (Just pkg) Nothing pre) cfg repo gc = do
@@ -601,10 +607,8 @@ installExecutable cfg repo pkg pkgdir =
            getEnviron "PATH" >>= \path ->
            log Info ("Compiling main module: " ++ mainmod) |>
            let cmd = unwords $
-                       [":set", if levelGte Debug lvl then "v1" else "v0"] ++
-                       (if curryCompiler == "pakcs" && not (levelGte Debug lvl)
-                          then [":set","-warn"] else []) ++
-                       [":load", mainmod, ":save", ":quit"]
+                       [":set", if levelGte Debug lvl then "v1" else "v0",
+                        ":load", mainmod, ":save", ":quit"]
                bindir     = binInstallDir cfg
                binexec    = bindir </> name
            in writePackageConfig cfg pkgdir pkg |>
@@ -613,7 +617,7 @@ installExecutable cfg repo pkg pkgdir =
               log Info ("Installing executable '" ++ name ++ "' into '" ++
                         bindir ++ "'") |>
               (whenFileExists binexec (backupExistingBin binexec) >>
-               -- renaming might not work across file systems:
+               -- renaming might not work across file systems, hence we move:
                system (unwords ["mv", mainmod, binexec]) >>
                checkPath path bindir))
         (executableSpec pkg)
@@ -692,19 +696,23 @@ search (SearchOptions q) _ repo = putStr rendered >> succeedIO ()
 
 upgrade :: UpgradeOptions -> Config -> Repository -> GlobalCache
         -> IO (ErrorLogger ())
-upgrade (UpgradeOptions Nothing) cfg repo gc = tryFindLocalPackageSpec "." |>=
-  \specDir -> log Info "Upgrading all packages" |>
+upgrade (UpgradeOptions Nothing) cfg repo gc =
+  tryFindLocalPackageSpec "." |>= \specDir ->
+  cleanCurryPathCache specDir |>
+  log Info "Upgrading all packages" |>
   upgradeAllPackages cfg repo gc specDir
 upgrade (UpgradeOptions (Just pkg)) cfg repo gc =
-  tryFindLocalPackageSpec "." |>=
-  \specDir -> log Info ("Upgrade " ++ pkg) |>
+  tryFindLocalPackageSpec "." |>= \specDir ->
+  log Info ("Upgrade " ++ pkg) |>
   upgradeSinglePackage cfg repo gc specDir pkg
 
 
 link :: LinkOptions -> Config -> Repository -> GlobalCache
      -> IO (ErrorLogger ())
-link (LinkOptions src) _ _ _ = tryFindLocalPackageSpec "." |>=
-  \specDir -> log Info ("Linking '" ++ src ++ "' into local package cache") |>
+link (LinkOptions src) _ _ _ =
+  tryFindLocalPackageSpec "." |>= \specDir ->
+  cleanCurryPathCache specDir |>
+  log Info ("Linking '" ++ src ++ "' into local package cache") |>
   linkToLocalCache src specDir
 
 --- `test` command: run `curry check` on exported or top-level modules
@@ -721,13 +729,20 @@ test opts cfg getRepo getGC =
       then putStrLn "No modules to be tested!" >> succeedIO ()
       else foldEL (\_ -> execTest aspecDir) () tests
  where
-  execTest apkgdir (dir,mods) = do
-    putStrLn $ "Testing modules (in directory '" ++ dir ++ "', " ++
-               "with CurryCheck, showing raw output):\n" ++
+  currycheck = curryExec cfg ++ " check"
+  
+  execTest apkgdir (PackageTest dir mods ccopts) = do
+    putStrLn $ "Running CurryCheck (" ++ currycheck ++
+               (if null ccopts then "" else " " ++ ccopts) ++ ")\n" ++
+               "(in directory '" ++ dir ++
+               "', showing raw output) on modules:\n" ++
                unwords mods ++ "\n"
-    inDirectory dir $
+    let currysubdir = apkgdir </> addCurrySubdir dir
+    debugMessage $ "Removing directory: " ++ currysubdir
+    system (unwords ["rm", "-rf", currysubdir])
+    inDirectory (apkgdir </> dir) $
      execWithPkgDir
-      (ExecOptions (installDir </> "bin" </> "curry check " ++ unwords mods) [])
+      (ExecOptions (unwords (currycheck : ccopts : mods)) [])
       cfg getRepo getGC apkgdir
 
   testsuites spec mainprogs = case testModules opts of
@@ -735,11 +750,11 @@ test opts cfg getRepo getGC =
                       in if null exports
                            then if null mainprogs
                                   then []
-                                  else [("src",mainprogs)]
-                           else [("src",exports)])
-                     (\ (PackageTests tests) -> tests)
+                                  else [PackageTest "src" mainprogs ""]
+                           else [PackageTest "src" exports ""])
+                     id
                      (testSuite spec)
-    Just ms -> [("src",ms)]
+    Just ms -> [PackageTest "src" ms ""]
 
 --- Get the names of all Curry modules containing in a directory.
 --- Modules in subdirectories are returned as hierarchical modules.
@@ -823,10 +838,11 @@ execWithPkgDir o cfg getRepo getGC specDir =
  where
   computePackageLoadPath pkgdir =
     getRepo >>= \repo -> getGC >>= \gc ->
-    resolveAndCopyDependencies cfg repo gc pkgdir |>= \pkgs ->
+    loadPackageSpec pkgdir |>= \pkg ->
+    resolveAndCopyDependenciesForPackage cfg repo gc pkgdir pkg |>= \pkgs ->
     getAbsolutePath pkgdir >>= \abs -> succeedIO () |>
-    succeedIO (abs </> "src") |>= \srcDir ->
-    let currypath = joinSearchPath (srcDir : dependencyPathsSeparate pkgs abs)
+    let srcdirs = map (abs </>) (sourceDirsOf pkg)
+        currypath = joinSearchPath (srcdirs ++ dependencyPathsSeparate pkgs abs)
     in saveCurryPathToCache pkgdir currypath >> succeedIO currypath
 
 
@@ -836,9 +852,11 @@ cleanPackage ll =
   tryFindLocalPackageSpec "." |>= \specDir ->
   loadPackageSpec specDir     |>= \pkg ->
   let dotcpm   = specDir </> ".cpm"
-      srcdirs  = [specDir </> "src"]
-      testdirs = maybe [] (\ (PackageTests tests) -> map fst tests)
-                       (testSuite pkg)
+      srcdirs  = map (specDir </>) (sourceDirsOf pkg)
+      testdirs = map (specDir </>)
+                     (maybe []
+                            (map (\ (PackageTest m _ _) -> m))
+                            (testSuite pkg))
       rmdirs   = dotcpm : map addCurrySubdir (srcdirs ++ testdirs)
   in log ll ("Removing directories: " ++ unwords rmdirs) |>
      (system (unwords (["rm", "-rf"] ++ rmdirs)) >> succeedIO ())
@@ -898,21 +916,22 @@ newPackage = do
 -- Caching the current CURRYPATH of a package for faster startup.
 
 --- The name of the cache file in a package directory.
-curryPathCachFile :: String -> String
-curryPathCachFile pkgdir = pkgdir </> ".cpm" </> "currypath_cache"
+curryPathCacheFile :: String -> String
+curryPathCacheFile pkgdir = pkgdir </> ".cpm" </> "currypath_cache"
 
 --- Saves package CURRYPATH in local cache file in the given package dir.
 saveCurryPathToCache :: String -> String -> IO ()
 saveCurryPathToCache pkgdir path = do
   let cpmdir = pkgdir </> ".cpm"
   createDirectoryIfMissing False cpmdir
-  writeFile (curryPathCachFile pkgdir) (path ++ "\n")
+  writeFile (curryPathCacheFile pkgdir) (path ++ "\n")
 
 --- Restores package CURRYPATH from local cache file in the given package dir,
---- if it is still up-to-date.
+--- if it is still up-to-date, i.e., it exists and is newer than the package
+--- specification.
 loadCurryPathFromCache :: String -> IO (ErrorLogger (Maybe String))
 loadCurryPathFromCache pkgdir = do
-  let cachefile = curryPathCachFile pkgdir
+  let cachefile = curryPathCacheFile pkgdir
   excache <- doesFileExist cachefile
   if excache
     then do
@@ -925,5 +944,13 @@ loadCurryPathFromCache pkgdir = do
                                        else Just (head ls)
         else succeedIO Nothing
     else succeedIO Nothing
+
+--- Cleans the local cache file for CURRYPATH. This might be necessary
+--- for upgrade/install/link commands.
+cleanCurryPathCache :: String -> IO (ErrorLogger ())
+cleanCurryPathCache pkgdir = do
+  let cachefile = curryPathCacheFile pkgdir
+  whenFileExists cachefile $ removeFile cachefile
+  succeedIO ()
 
 ---------------------------------------------------------------------------
