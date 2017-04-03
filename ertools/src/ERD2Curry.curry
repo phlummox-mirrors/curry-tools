@@ -1,4 +1,5 @@
-module ERD2Curry where
+module ERD2Curry( main, erd2curryWithDBandERD )
+  where
 
 import AbstractCurry.Files  (readCurry)
 import AbstractCurry.Select (imports)
@@ -13,16 +14,38 @@ import System               (exitWith, getArgs, system)
 import Time
 import XML
 
-import XML2ERD
-import Transformation
 import CodeGeneration
+import ERD2CDBI (writeCDBI)
 import ERD2Graph
+import ERToolsPackageConfig(packagePath, packageVersion)
+import Transformation
+import XML2ERD
 
 systemBanner :: String
 systemBanner =
-  let bannerText = "ERD->Curry Compiler (Version of 12/01/17)"
+  let bannerText = "ERD->Curry Compiler (Version " ++ packageVersion ++
+                   " of 09/03/17)"
       bannerLine = take (length bannerText) (repeat '-')
    in bannerLine ++ "\n" ++ bannerText ++ "\n" ++ bannerLine
+
+data EROptions = EROptions
+  { optERProg    :: String  -- Curry program containing ERD
+  , optFromXml   :: Bool    -- read ERD from XML file?
+  , optVisualize :: Bool    -- visualize ERD?
+  , optStorage   :: Storage -- storage of data
+  , optToERDT    :: Bool    -- only transform into ERDT term file
+  , optCDBI      :: Bool    -- generate Curry for Database.CDBI libraries
+  }
+
+defaultEROptions :: EROptions
+defaultEROptions = EROptions
+  { optERProg    = ""
+  , optFromXml   = False
+  , optVisualize = False
+  , optStorage   = SQLite ""
+  , optToERDT    = False
+  , optCDBI      = False
+  }
 
 --- Main function for saved state. The argument is the directory containing
 --- these sources.
@@ -30,92 +53,103 @@ main :: IO ()
 main = do
   putStrLn systemBanner
   args <- getArgs
-  configs <- parseArgs ("",False,SQLite ".",False,False) args
-  -- the directory containing the sources of this tool:
-  let erd2currydir = installDir </> "currytools" </> "ertools"
-  callStart erd2currydir configs
+  configs <- parseArgs defaultEROptions args
+  startERD2Curry configs
 
-parseArgs :: (String,Bool,Storage,Bool,Bool) -> [String]
-          -> IO (Maybe (String,Bool,Storage,Bool,Bool))
+parseArgs :: EROptions -> [String] -> IO (Maybe EROptions)
 parseArgs _ [] = return Nothing
-parseArgs (file,fromxml,storage,vis,trerdt) (arg:args) = case arg of
+parseArgs opts (arg:args) = case arg of
   "-h" -> putStrLn helpText >> exitWith 0
   "-?" -> putStrLn helpText >> exitWith 0
   "--help" -> putStrLn helpText >> exitWith 0
-  "-x" -> parseArgs (file,True,storage,vis,trerdt) args
-  "-l" -> parseArgs (file,fromxml,setSQLite storage,vis,trerdt) args
-  "-f" -> if curryCompiler == "pakcs"
-          then parseArgs (file,fromxml,setFileDB storage,vis,trerdt) args
-          else error "Wrong parameter -f: file-based database only available in PAKCS!"
-  "-d" -> parseArgs (file,fromxml,DB,vis,trerdt) args
-  "-p" -> if null args then return Nothing else
-          parseArgs (file,fromxml,setFilePath (head args) storage,vis,trerdt)
-                    (tail args)
-  "--dbpath" ->
-          if null args then return Nothing else
-            parseArgs (file,fromxml,setFilePath (head args) storage,vis,trerdt)
-                      (tail args)
-  "-t" -> parseArgs (file,fromxml,storage,vis,True) args
-  "-v" -> parseArgs (file,fromxml,storage,True,trerdt) args
-  f    -> return $ if null args then Just (f,fromxml,storage,vis,trerdt)
+  "-x" -> parseArgs opts { optFromXml = True } args
+  "-l" -> parseArgs (setSQLite (optStorage opts)) args
+  "-d" -> parseArgs opts { optStorage = DB } args
+  "--db" -> if null args
+              then return Nothing
+              else parseArgs (setFilePath (head args) (optStorage opts))
+                             (tail args)
+  "-t" -> parseArgs opts { optToERDT = True } args
+  "-v" -> parseArgs opts { optVisualize = True } args
+  "--cdbi" -> parseArgs opts { optCDBI = True } args
+  f    -> return $ if null args then Just opts { optERProg = f }
                                 else Nothing
  where
-  setFilePath path (Files  _) = Files  path
-  setFilePath path (SQLite _) = SQLite path
-  setFilePath _    DB         = DB
+  setFilePath path (Files  _) = opts { optStorage = Files  path }
+  setFilePath path (SQLite _) = opts { optStorage = SQLite path }
+  setFilePath _    DB         = opts { optStorage = DB }
 
-  setSQLite (Files  p) = SQLite p
-  setSQLite (SQLite p) = SQLite p
-  setSQLite DB         = SQLite "."
+  setSQLite (Files  p) = opts { optStorage = SQLite p  }
+  setSQLite (SQLite p) = opts { optStorage = SQLite p  }
+  setSQLite DB         = opts { optStorage = SQLite "" }
 
-  setFileDB (Files  p) = Files p
-  setFileDB (SQLite p) = Files p
-  setFileDB DB         = Files "."
+storagePath :: Storage -> String
+storagePath (Files  p) = p
+storagePath (SQLite p) = p
+storagePath DB         = ""
 
 helpText :: String
 helpText = unlines
   [ "Usage:"
   , ""
-  , "    curry erd2curry [-l] [-f] [-d] [-t] [-x] [-v] [--dbpath <dir>] <prog>"
+  , "    erd2curry [-l] [-d] [-t] [-x] [-v] [--db <dbfile>] [--cdbi] <prog>"
   , ""
   , "Parameters:"
   , "-l: generate interface to SQLite3 database (default)"
-  , "-f: generate interface to file-based database implementation (only in PAKCS)"
   , "-d: generate interface to SQL database (experimental)"
   , "-x: generate from ERD xmi document instead of ERD Curry program"
   , "-t: only transform ERD into ERDT term file"
   , "-v: only show visualization of ERD with dotty"
-  , "--dbpath <dir>: name of the directory where DB files are stored"
-  , "<prog>        : name of Curry program file containing ERD definition"
+  , "--db <dbfile>: file of the SQLite3 database"
+  , "--cdbi       : generate Curry module for Database.CDBI modules"
+  , "<prog>       : name of Curry program file containing ERD definition"
   ]
 
-callStart :: String -> Maybe (String,Bool,Storage,Bool,Bool) -> IO ()
-callStart _ Nothing = do
+--- Runs ERD2Curry with a given database and ERD term file or program.
+erd2curryWithDBandERD :: String -> String -> IO ()
+erd2curryWithDBandERD dbname erfile =
+  startERD2Curry
+    (Just defaultEROptions
+             { optStorage = SQLite dbname, optERProg = erfile })
+
+startERD2Curry :: Maybe EROptions -> IO ()
+startERD2Curry Nothing = do
   putStrLn $ "ERROR: Illegal arguments\n\n" ++ helpText
   exitWith 1
-callStart erd2currydir (Just (orgfile,fromxml,storage,vis,trerdt)) = do
-  file <- if ".curry" `isSuffixOf` orgfile
-            then storeERDFromProgram orgfile
-            else return orgfile
-  if vis
-   then readERDTermFile file >>= viewERD
-   else start erd2currydir (storage,WithConsistencyTest) fromxml trerdt file "."
+startERD2Curry (Just opts) = do
+  -- the directory containing the sources of this tool:
+  let erd2currysrcdir = packagePath </> "src"
+      orgfile         = optERProg opts
+  erdfile <- if ".curry"  `isSuffixOf` orgfile ||
+                ".lcurry" `isSuffixOf` orgfile
+               then storeERDFromProgram orgfile
+               else return orgfile
+  if optVisualize opts
+   then readERDTermFile erdfile >>= viewERD
+   else start erd2currysrcdir opts erdfile "."
 
 --- Main function to invoke the ERD->Curry translator.
-start :: String -> Option -> Bool -> Bool -> String -> String -> IO ()
-start erd2currydir opt fromxml trerdt srcfile path = do
-  (erdfile,erd) <- if fromxml
+start :: String -> EROptions -> String -> String -> IO ()
+start erd2currysrcdir opts srcfile path = do
+  (erdfile,erd) <- if optFromXml opts
                    then transformXmlFile srcfile path
                    else readERDTermFile srcfile >>= \e -> return (srcfile,e)
-  let transerdfile = addPath path (erdName erd ++ "_ERDT.term")
-      curryfile    = addPath path (erdName erd ++ ".curry")
+  let erdname      = erdName erd
+      transerdfile = addPath path (erdname ++ "_ERDT.term")
+      curryfile    = addPath path (erdname ++ ".curry")
       transerd     = transform erd
+      opt          = ( if optStorage opts == SQLite ""
+                         then SQLite (erdname ++ ".db")
+                         else optStorage opts
+                     , WithConsistencyTest )
       erdprog      = erd2code opt (transform erd)
   writeFile transerdfile
             ("{- ERD specification transformed from "++erdfile++" -}\n\n " ++
              showERD 2 transerd ++ "\n")
   putStrLn $ "Transformed ERD term written into file '"++transerdfile++"'."
-  unless trerdt $ do
+  when (optCDBI opts) $
+    writeCDBI srcfile transerd (storagePath (fst opt))
+  unless (optToERDT opts || optCDBI opts) $ do
     copyAuxiliaryFiles
     moveOldVersion curryfile
     curdir <- getCurrentDirectory
@@ -126,27 +160,23 @@ start erd2currydir opt fromxml trerdt srcfile path = do
       prettyCurryProg
         (setOnDemandQualification (erdprog:impprogs) defaultOptions)
         erdprog
-    putStrLn $ "Database operations generated into file '"++curryfile++"'\n"++
-               "with " ++ showOption (erdName erd) opt ++ ".\n"
+    putStrLn $ "Database operations generated into file '" ++ curryfile ++
+               "'\nwith " ++ showOption opt ++ ".\n"
  where
   -- Copy auxiliary files ERDGeneric.curry and KeyDatabase.curry to target dir
   copyAuxiliaryFiles = do
-    if isSQLite opt
-      then copyFile (erd2currydir </> "KeyDatabase.curry.sqlite")
-                    (addPath path "KeyDatabase.curry")
-      else done
-    copyFile (erd2currydir </> "ERDGeneric.curry")
+    copyFile (erd2currysrcdir </> "ERDGeneric.curry")
              (addPath path "ERDGeneric.curry")
 
-  showOption _ (Files f,_) = "database files stored in directory '"++f++"'"
-  showOption ername (SQLite p,_) =
-    "SQLite3 database stored in file '"++p++"/"++ername++".db'"
-  showOption _ (DB,_) = "SQL database interface"
+  showOption (Files f,_) = "database files stored in directory '"++f++"'"
+  showOption (SQLite f,_) =
+    "SQLite3 database stored in file '" ++ f ++ "'"
+  showOption (DB,_) = "SQL database interface"
 
 --- Adds a path to a file name.
 addPath :: String -> String -> String
 addPath path fname | path=="." = fname
-                   | otherwise = path++"/"++fname
+                   | otherwise = path </> fname
 
 --- Moves a file (if it exists) to one with extension ".versYYMMDDhhmmss".
 moveOldVersion :: String -> IO ()

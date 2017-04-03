@@ -11,9 +11,9 @@ ERD2CDBI compiler
 
 This tool transforms an ERD term into datatypes used in the
 Database.CDBI. libraries. It also creates an information file
-for the currypp SQL-Parser.
-If the tool is invoked with the option -db, it creates a
-corresponding sqlite database.
+for the currypp SQL-Parser. This compiler is invoked by
+
+    erd2curry --db <sqlite3 db file> --cdbi <Curry program with ERD>
 
 ----------------------------------------------------------------------
 
@@ -70,11 +70,12 @@ erd2curry -v mymodel.erdterm
 Examples:
 ---------
 
-This directory contains two examples for ERD term files:
+The directory `examples` contains two examples for the specification
+of ERD models:
 
-* `Blog.erdterm`: a simple ERD model for a blog with entries, comments,
+* `BlogERD.curry`: a simple ERD model for a blog with entries, comments,
   and tags.
-* `Uni.erdterm`: an ERD model for university lectures as
+* `UniERD.curry`: an ERD model for university lectures as
   presented in the original paper cited above.
 
 ---

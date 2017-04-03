@@ -17,7 +17,7 @@ export PATH
 cleandir () {
   $CURRYBIN/cleancurry
   /bin/rm -f $LOGFILE *_PUBLIC.curry TEST*.curry
-  /bin/rm -f Uni_ERDT.term Uni_SQLCode.info Uni_CDBI.curry Uni.db
+  /bin/rm -f Uni.erdterm Uni_ERDT.term Uni_SQLCode.info Uni_CDBI.curry Uni.db
   $CURRYBIN/cleancurry
 }
 
@@ -25,7 +25,7 @@ cleandir () {
 exectests() {
   cleandir
   # compile model:
-  $CURRYBIN/curry erd2cdbi Uni_ERD.term `pwd`/Uni.db  
+  $CURRYBIN/curry erd2curry --db `pwd`/Uni.db --cdbi UniERD.curry
   # fill database:
   $CURRYBIN/curry $REPL_OPTS :l CreateData :eval createTestData :q
   # run query tests:

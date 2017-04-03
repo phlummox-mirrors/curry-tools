@@ -24,7 +24,6 @@ currycheck/CurryCheck
 currydoc/CurryDoc
 currytest/CurryTest
 cusage/CheckUsage
-ertools/ERD2CDBI
 ertools/ERD2Curry
 importcalls/ImportCalls
 optimize/BindingOpt

@@ -1,46 +1,37 @@
 #****************************************************************************
-# The ERD2CDBI tool transforms an ERD term into datatypes for CDBI.
+# The ERD2Curry tool transforms an ERD term into datatypes for CDBI.
 # It also creates an information file for the currypp SQL-Parser.
-# If the tool is invoked with the option -db, it creates a
+# If the tool is invoked with the option --db, it creates a
 # corresponding sqlite database.
 #
 #****************************************************************************
 
-# installation binaries
-ERD2CURRY = $(BINDIR)/$(CURRYSYSTEM)-erd2curry
-ERD2CDBI  = $(BINDIR)/$(CURRYSYSTEM)-erd2cdbi
+# The tool name of the application:
+TOOL = $(BINDIR)/$(CURRYSYSTEM)-erd2curry
+
+# The load path of the application:
+LOADPATH = src
 
 # Some modules required by the erd2curry tool:
-DEPSERD2CURRY = ERD2Curry.curry CodeGeneration.curry Transformation.curry \
-                XML2ERD.curry ERD2Graph.curry \
-                $(ROOT)/lib/Database/ERD*.curry $(LIBDIR)/AbstractCurry/*.curry
-
-# Some modules required by the erd2cdbi tool:
-DEPSERD2CDBI = ERD2CDBI.curry $(ROOT)/lib/Database/ERD*.curry \
-               $(ROOT)/lib/Database/CDBI/*.curry 
+DEP = src/*.curry \
+      $(ROOT)/lib/Database/ERD*.curry $(ROOT)/lib/Database/CDBI/*.curry \
+      $(LIBDIR)/AbstractCurry/*.curry
 
 .PHONY: all compile install clean uninstall
 
 all: install
 
-compile:
-	$(MAKE) ERD2Curry
-	$(MAKE) ERD2CDBI
+compile: ERD2Curry
 
 install: compile
-	rm -f $(ERD2CURRY) $(ERD2CDBI) $(BINDIR)/erd2curry $(BINDIR)/erd2cdbi
-	cd $(BINDIR) && ln -s ../currytools/ertools/ERD2Curry $(notdir $(ERD2CURRY))
-	cd $(BINDIR) && ln -s ../currytools/ertools/ERD2CDBI $(notdir $(ERD2CDBI))
+	rm -f $(TOOL)
+	cd $(BINDIR) && ln -s ../currytools/ertools/ERD2Curry $(notdir $(TOOL))
 
 clean:
-	$(CLEANCURRY)
-	rm -f erd2curry ERD2CDBI
+	cd src && $(CLEANCURRY)
 
 uninstall: clean
-	rm -f $(ERD2CURRY) $(ERD2CDBI)
+	rm -f ERD2Curry $(TOOL)
 
-ERD2Curry: $(DEPSERD2CURRY)
-	$(REPL) $(REPL_OPTS) :load ERD2Curry :save :quit
-
-ERD2CDBI: $(DEPSERD2CDBI)
-	$(REPL) $(REPL_OPTS) :load ERD2CDBI :save :quit
+ERD2Curry: $(DEPS)
+	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) :load ERD2Curry :save :quit

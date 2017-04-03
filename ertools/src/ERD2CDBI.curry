@@ -7,7 +7,7 @@
 --- `x_SQLCODE.info` that is used when embedded SQL statements are
 --- translated by the Curry preprocessor `currypp`.
 ---
---- @author Mike Tallarek, extensions by Julia Krone
+--- @author Mike Tallarek, extensions by Julia Krone and Michael Hanus
 --- @version 0.2
 --- ----------------------------------------------------------------------------
 
@@ -20,7 +20,7 @@ import AbstractCurry.Build
 import Char           ( toLower, toUpper )
 import Database.ERD
 import Database.ERDGoodies
-import Directory      ( doesFileExist )
+import Directory      ( doesFileExist, getAbsolutePath )
 import Distribution   ( installDir )
 import qualified FilePath as FP ( (</>), combine, splitFileName)
 import IO
@@ -32,45 +32,13 @@ import SetFunctions   ( selectValue, set2 )
 import System
 import Time
 
--- Takes a x_ERD.term or x_ERDT.term (an ER-Model translated by erd2curry)
--- and the absolute path to the database.
--- Creates a SQLite database (if it does not exist,
--- a .curry program with all datatypes
--- and an .info-file for the CurryPP-SQLParser
-main ::  IO ()
-main  = do
-  args <- getArgs
-  case args of
-    [erdfname, dbPath] -> do erdterm <- translateERD2ERDT erdfname
-                             writeCDBI erdfname erdterm dbPath
-    _                  -> showUsageString
-
-showUsageString :: IO ()
-showUsageString = do
-  putStrLn $ unlines
-    ["Usage: curry erd2cdbi <ERD file> <DB path>",
-     "",
-     "<ERD file>: name of file containing ERD specification",
-     "<DB path> : absolute path to database (including name of database)>"]
-  exitWith 1
-
--- Translate the ERD file, if it is not a ERDT file, into ERDT format
--- by the use of erd2curry tools, and read ERDT file:
-translateERD2ERDT :: String -> IO ERD
-translateERD2ERDT erdfname = do
-  erdterm <- readERDTermFile erdfname
-  let (dir,file) = FP.splitFileName erdfname
-      erdtfile = erdName erdterm ++ "_ERDT.term"
-  if file == erdtfile
-   then return erdterm
-   else do system (unwords [installDir FP.</> "bin" FP.</> "curry", "erd2curry",
-                            "-t ",erdfname])
-           readERDTermFile (FP.combine dir erdtfile)
-
--- Write all the data so CDBI can be used, create a database 
--- when option is set and a .info file
+-- Write all the data so CDBI can be used, create a database (if it does
+-- not exist) and a .info file/
+-- The parameters are the name of the file containing the ERD term,
+-- the ER model, and the name of the SQLite3 database.
 writeCDBI :: String -> ERD -> String -> IO ()
-writeCDBI erdfname (ERD name ents rels)  dbPath = do
+writeCDBI erdfname (ERD name ents rels) dbname = do
+  dbPath <- getAbsolutePath dbname
   let cdbiMod  = name++"_CDBI"
       cdbiFile = cdbiMod++".curry"
       imports = [ "Time"
