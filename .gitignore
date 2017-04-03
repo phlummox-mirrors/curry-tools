@@ -27,8 +27,7 @@ cusage/CheckUsage
 ertools/ERD2CDBI
 ertools/ERD2Curry
 importcalls/ImportCalls
-optimize/bindingopt
-optimize/binding_optimization/BindingOpt
+optimize/BindingOpt
 runcurry/RunCurry
 spicey/spiceup
 verification/ToVerifier
