@@ -45,9 +45,6 @@ make_currydoc: | make_analysis make_CASS \
 make_currypp: | make_analysis make_CASS make_currycheck make_verification
 	@$(MAKE) now_$@
 
-make_optimize: | make_analysis make_CASS
-	@$(MAKE) now_$@
-
 make_verification: | make_analysis make_CASS make_currycheck
 	@$(MAKE) now_$@
 

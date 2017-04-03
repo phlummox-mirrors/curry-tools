@@ -17,7 +17,6 @@ CASS/cass
 CASS/cass_worker
 cpm/src/CPM.Main
 cpns/CPNSD
-createmakefile/CreateMakefile
 curry2js/Curry2JS
 currypp/Main
 currypp/ContractWrapper/cwrapper
