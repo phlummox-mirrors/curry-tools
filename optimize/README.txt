@@ -1,9 +1,15 @@
-This directory contains the implementation of a transformation tool
+This package contains the implementation of a transformation tool
 that replaces Boolean equalities by equational constraints
 in FlatCurry programs.
 
 The tool is integrated into the compilation chain of PAKCS/KiCS2.
-The ideas of this tool are described in a paper presented at LOPSTR 2015.
+The motivation and ideas of this tool are described in the following paper:
+
+Antoy, S., Hanus, M.: From Boolean Equalities to Constraints
+Proceedings of the 25th International Symposium on Logic-based Program
+Synthesis and Transformation (LOPSTR 2015), Springer LNCS 9527, 2015, 73-88
+http://dx.doi.org/10.1007/978-3-319-27436-2_5
+
 
 Statistics about the number of transformations are shown
 with increased verbosity levels. For instance, if one sets the

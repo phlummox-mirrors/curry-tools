@@ -4,6 +4,24 @@
 #
 # Note that the execution of this script requires an already installed 'cpm'!
 
+echo "Updating 'optimize'..."
+mv optimize/Makefile Makefile.optimize  # keep old Makefile
+rm -rf optimize
+cpm checkout transbooleq
+mv transbooleq optimize
+cd optimize
+cpm install --noexec
+rm -rf .git*
+rm -rf .cpm/*_cache
+rm -rf .cpm/packages/*/.git*
+cd .cpm/packages
+ mv cass-analysis-* cass-analysis
+ mv cass-*\.*\.* cass
+cd ../..
+cd ..
+mv Makefile.optimize optimize/Makefile
+echo "'optimize' updated from package repository."
+
 echo "Updating 'cpm'..."
 mv cpm/Makefile Makefile.cpm  # keep old Makefile
 rm -rf cpm

@@ -8,23 +8,24 @@
 
 module BindingOpt (main, transformFlatProg) where
 
-import AnalysisServer    (analyzeGeneric, analyzePublic, analyzeInterface)
-import Analysis
-import GenericProgInfo
-import RequiredValues
-
 import CSV
-import Directory         (renameFile)
+import Directory         ( renameFile )
 import Distribution      ( installDir, curryCompiler, currySubdir
                          , addCurrySubdir, splitModuleFileName
                          )
 import FileGoodies
-import FilePath          ((</>), (<.>), normalise, pathSeparator)
+import FilePath          ( (</>), (<.>), normalise, pathSeparator )
 import List
-import System            (getArgs,system,exitWith,getCPUTime)
+import System            ( getArgs,system,exitWith,getCPUTime )
 import FlatCurry.Types hiding  (Cons)
 import FlatCurry.Files
 import FlatCurry.Goodies
+
+import Analysis.Types
+import Analysis.ProgInfo
+import Analysis.RequiredValues
+import CASS.Server       ( analyzeGeneric, analyzePublic, analyzeInterface )
+
 
 type Options = (Int, Bool, Bool) -- (verbosity, use analysis?, auto-load?)
 
@@ -39,7 +40,7 @@ systemBanner =
 
 usageComment :: String
 usageComment = unlines
-  [ "Usage: bindingopt [option] ... [module or FlatCurry file] ..."
+  [ "Usage: curry-transbooleq [option] ... [module or FlatCurry file] ..."
   , "       -v<n>  : set verbosity level (n=0|1|2|3)"
   , "       -f     : fast transformation without analysis"
   , "                (uses only information about the standard prelude)"
