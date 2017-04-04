@@ -10,7 +10,7 @@ packageVersion = "0.0.1"
 --- Package location.
 packagePath :: String
 packagePath =
-  installDir </> "currytools" </> "browser" </> ".cpm" </> "packages" </> "cass"
+  installDir </> "currytools" </> "optimize" </> ".cpm" </> "packages" </> "cass"
 
 --- Location of the executable installed by this package.
 packageExecutable :: String
