@@ -4,6 +4,11 @@
 Curry_Main_Goal.curry
 *.agdai
 *_cache
+browser/.cpm/packages/addtypes-0.0.1
+browser/.cpm/packages/cass-0.0.1
+browser/.cpm/packages/cass-analysis-0.0.4
+browser/.cpm/packages/importusage-0.0.1
+browser/.cpm/packages/showflatcurry-0.0.1
 optimize/.cpm/packages/cass-0.0.1
 optimize/.cpm/packages/cass-analysis-0.0.4
 
@@ -13,8 +18,6 @@ browser/BrowserGUI
 browser/GenInt
 browser/ShowFlatCurry
 browser/SourceProgGUI
-casc/CASC
-casc/Docs/curry-style-guide.html
 CASS/cass
 CASS/cass_worker
 cpm/src/CPM.Main
@@ -23,7 +26,6 @@ curry2js/Curry2JS
 currypp/Main
 currycheck/CurryCheck
 currydoc/CurryDoc
-currytest/CurryTest
 importcalls/ImportCalls
 optimize/BindingOpt
 runcurry/RunCurry

@@ -28,10 +28,6 @@ all: $(make_TOOLDIRS)
 ###########################################################################
 # Define dependencies between the different tools:
 
-make_browser: | make_analysis make_CASS make_addtypes make_importcalls \
-                make_currydoc # avoid conflicts in analysis
-	@$(MAKE) now_$@
-
 make_analysis:
 	@$(MAKE) now_$@
 
