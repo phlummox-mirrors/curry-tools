@@ -13,11 +13,7 @@ optimize/.cpm/packages/cass-0.0.1
 optimize/.cpm/packages/cass-analysis-0.0.4
 
 # executables
-addtypes/AddTypes
 browser/BrowserGUI
-browser/GenInt
-browser/ShowFlatCurry
-browser/SourceProgGUI
 CASS/cass
 CASS/cass_worker
 cpm/src/CPM.Main
@@ -26,7 +22,6 @@ curry2js/Curry2JS
 currypp/Main
 currycheck/CurryCheck
 currydoc/CurryDoc
-importcalls/ImportCalls
 optimize/BindingOpt
 runcurry/RunCurry
 www/Registry
