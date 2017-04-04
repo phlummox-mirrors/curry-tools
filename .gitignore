@@ -4,6 +4,8 @@
 Curry_Main_Goal.curry
 *.agdai
 *_cache
+optimize/.cpm/packages/cass-0.0.1
+optimize/.cpm/packages/cass-analysis-0.0.4
 
 # executables
 addtypes/AddTypes
@@ -19,17 +21,11 @@ cpm/src/CPM.Main
 cpns/CPNSD
 curry2js/Curry2JS
 currypp/Main
-currypp/ContractWrapper/cwrapper
 currycheck/CurryCheck
 currydoc/CurryDoc
 currytest/CurryTest
-cusage/CheckUsage
-ertools/ERD2Curry
 importcalls/ImportCalls
 optimize/BindingOpt
 runcurry/RunCurry
-spicey/spiceup
-verification/ToVerifier
 www/Registry
 www/SubmitForm
-xmldata/Data2Xml

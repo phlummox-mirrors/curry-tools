@@ -34,8 +34,12 @@ rm -rf .git*
 rm -rf .cpm/*_cache
 rm -rf .cpm/packages/*/.git*
 cd .cpm/packages
- mv cass-analysis-* cass-analysis
- mv cass-*\.*\.* cass
+ CANAV=`ls -d cass-analysis-*`
+ mv $CANAV cass-analysis
+ CASSV=`ls -d cass-*\.*\.*`
+ mv $CASSV cass
+ ln -s cass-analysis $CANAV
+ ln -s cass $CASSV
 cd ../..
 cd ..
 mv Makefile.optimize optimize/Makefile

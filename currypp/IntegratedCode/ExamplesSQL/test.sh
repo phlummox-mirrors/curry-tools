@@ -3,6 +3,17 @@
 
 CURRYBIN="../../../../bin"
 
+ERD2CURRY=$HOME/.cpm/bin/erd2curry
+if [ ! -x "$ERD2CURRY" ] ; then
+  ERD2CURRY=$CURRYBIN/$CURRYSYSTEM-erd2curry
+  if [ ! -x "$ERD2CURRY" ] ; then
+    echo "SQL integration not tested: no executable 'erd2curry' found!"
+    echo "To run the SQL integration test, install 'erd2curry' by:"
+    echo "> cpm installbin ertools"
+    exit
+  fi
+fi
+
 ALLTESTS="test*.curry"
 
 VERBOSE=no
@@ -25,7 +36,7 @@ cleandir () {
 exectests() {
   cleandir
   # compile model:
-  $CURRYBIN/curry erd2curry --db `pwd`/Uni.db --cdbi UniERD.curry
+  "$ERD2CURRY" --db `pwd`/Uni.db --cdbi UniERD.curry
   # fill database:
   $CURRYBIN/curry $REPL_OPTS :l CreateData :eval createTestData :q
   # run query tests:
