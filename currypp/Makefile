@@ -43,4 +43,4 @@ Main: $(DEPS)
 # Testing the preprocessor via CPM
 .PHONY: runtest
 runtest:
-	cpm test
+	$(BINDIR)/cpm test

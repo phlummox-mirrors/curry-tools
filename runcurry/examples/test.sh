@@ -1,13 +1,15 @@
 #!/bin/sh
 # Shell script to test the current set of examples
-CURRYBIN="../../../bin"
+
+# Root location of the Curry System specified by variable CURRYROOT
+CURRYROOT=`curry :set v0 :set -time :add Distribution :eval "putStrLn installDir" :quit`
+
+CURRYBIN=$CURRYROOT/bin
 
 if [ -x "$CURRYBIN/pakcs" ] ; then
     CURRYEXEC=pakcs
-    CURRYOPTIONS="-q :set v0 :set -free :set +verbose"
 elif [ -x "$CURRYBIN/kics2" ] ; then
     CURRYEXEC=kics2
-    CURRYOPTIONS=":set v0 :set -ghci"
 else
     echo "ERROR: Unknown Curry system!"
     exit 1

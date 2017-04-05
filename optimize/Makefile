@@ -24,9 +24,8 @@ compile: BindingOpt
 load: 
 	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) :l BindingOpt
 
-# Compile and create an executable of the application:
+# Compile and create an executable of the binding optimizer:
 BindingOpt: $(DEPS)
-	# create executable for top-level function "main":
 	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) :l BindingOpt :save :q
 
 # Clean intermediate files:
@@ -40,4 +39,4 @@ uninstall: clean
 
 # run the test suite
 runtest:
-	cpm test
+	$(BINDIR)/cpm test

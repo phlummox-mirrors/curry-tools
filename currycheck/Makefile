@@ -35,4 +35,4 @@ CurryCheck: $(DEPS)
 
 # run the test suite
 runtest:
-	cpm test
+	$(BINDIR)/cpm test

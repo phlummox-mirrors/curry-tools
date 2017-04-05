@@ -5,6 +5,20 @@
 # Note that the execution of this script requires an already installed 'cpm'!
 
 ##############################################################################
+echo "Updating 'cpm'..."
+mv cpm/Makefile Makefile.cpm  # keep old Makefile
+rm -rf cpm
+cpm checkout cpm
+cd cpm
+rm -rf .git* bin package.json
+make fetchdeps
+rm -rf vendor/*/.git*
+rm -rf dependencies.txt fetch-dependencies.sh Makefile
+cd ..
+mv Makefile.cpm cpm/Makefile
+echo "'cpm' updated from package repository."
+
+##############################################################################
 echo "Updating 'currypp'..."
 mv currypp/Makefile Makefile.currypp  # keep old Makefile
 rm -rf currypp
@@ -148,15 +162,12 @@ mv Makefile.optimize optimize/Makefile
 echo "'optimize' updated from package repository."
 
 ##############################################################################
-echo "Updating 'cpm'..."
-mv cpm/Makefile Makefile.cpm  # keep old Makefile
-rm -rf cpm
-cpm checkout cpm
-cd cpm
-rm -rf .git* bin package.json
-make fetchdeps
-rm -rf vendor/*/.git*
-rm -rf dependencies.txt fetch-dependencies.sh Makefile
+echo "Updating 'runcurry'..."
+mv runcurry/Makefile Makefile.runcurry  # keep old Makefile
+rm -rf runcurry
+cpm checkout runcurry
+cd runcurry
+rm -rf .cpm .git*
 cd ..
-mv Makefile.cpm cpm/Makefile
-echo "'cpm' updated from package repository."
+mv Makefile.runcurry runcurry/Makefile
+echo "'runcurry' updated from package repository."
