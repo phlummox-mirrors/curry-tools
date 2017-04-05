@@ -38,6 +38,7 @@ import System                  (system, exitWith, getArgs, getPID)
 
 import CheckDetUsage           (checkDetUse, containsDetOperations)
 import ContractUsage
+import CurryCheckConfig        (packagePath, packageVersion)
 import DefaultRuleUsage        (checkDefaultRules, containsDefaultRules)
 import PropertyUsage
 import SimplifyPostConds       (simplifyPostConditionsWithTheorems)
@@ -52,8 +53,8 @@ maxArity = 5
 ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
-   bannerText =
-     "CurryCheck: a tool for testing Curry programs (version of 06/02/2017)"
+   bannerText = "CurryCheck: a tool for testing Curry programs (Version " ++
+                packageVersion ++ " of 06/02/2017)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -759,8 +760,7 @@ genMainTestModule opts mainmodname modules = do
                            , searchTreeModule, generatorModule
                            , "AnsiCodes","Maybe","System"] ++
                            map fst testtypes ++ map testModuleName modules
-  appendix <- readFile (installDir </> "currytools" </> "currycheck"
-                                   </> "TestAppendix.curry")
+  appendix <- readFile (packagePath </> "src" </> "TestAppendix.curry")
   writeCurryProgram opts "."
                     (CurryProg mainmodname imports [] (mainFunction : funcs) [])
                     appendix
@@ -874,12 +874,13 @@ cleanup opts mainmodname modules =
     removeCurryModule mainmodname
     mapIO_ removeCurryModule (map testModuleName modules)
  where
-  removeCurryModule modname = do
-    (_,srcfilename) <- lookupModuleSourceInLoadPath modname >>=
-        return .
-        maybe (error $ "Source file of module '"++modname++"' not found!") id
-    system $ installDir </> "bin" </> "cleancurry" ++ " " ++ modname
-    system $ "rm -f " ++ srcfilename
+  removeCurryModule modname =
+    lookupModuleSourceInLoadPath modname >>=
+    maybe done
+          (\ (_,srcfilename) -> do
+            system $ installDir </> "bin" </> "cleancurry" ++ " " ++ modname
+            system $ "rm -f " ++ srcfilename
+            done )
 
 -- Show some statistics about number of tests:
 showTestStatistics :: [TestModule] -> String

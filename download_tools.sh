@@ -5,6 +5,34 @@
 # Note that the execution of this script requires an already installed 'cpm'!
 
 ##############################################################################
+echo "Updating 'currycheck'..."
+mv currycheck/Makefile Makefile.currycheck  # keep old Makefile
+rm -rf currycheck
+cpm checkout currycheck
+cd currycheck
+cpm install --noexec
+rm -rf .git*
+rm -rf .cpm/*_cache
+rm -rf .cpm/packages/*/.git*
+cd .cpm/packages
+ PKGV=`ls -d rewriting-*`
+ mv $PKGV rewriting
+ ln -s rewriting $PKGV
+cd ../..
+# Generate package configuration file:
+CCCONFIG=src/CurryCheckConfig.curry
+echo "module CurryCheckConfig where"     > $CCCONFIG
+echo "import Distribution(installDir)"  >> $CCCONFIG
+echo "import FilePath(combine)"         >> $CCCONFIG
+echo "packageVersion :: String"         >> $CCCONFIG
+echo "packageVersion = \"1.0.1\""       >> $CCCONFIG
+echo "packagePath :: String"            >> $CCCONFIG
+echo "packagePath = combine installDir (combine \"currytools\" \"currycheck\")" >> $CCCONFIG
+cd ..
+mv Makefile.currycheck currycheck/Makefile
+echo "'currycheck' updated from package repository."
+
+##############################################################################
 echo "Updating 'browser'..."
 mv browser/Makefile Makefile.browser  # keep old Makefile
 rm -rf browser
@@ -34,7 +62,7 @@ cd .cpm/packages
 cd ../..
 # Generate package configuration file:
 CBCONFIG=src/BrowsePackageConfig.curry
-echo "module BrowsePackageConfig where" > $CBCONFIG
+echo "module BrowsePackageConfig where"  > $CBCONFIG
 echo "import Distribution(installDir)"  >> $CBCONFIG
 echo "import FilePath(combine)"         >> $CBCONFIG
 echo "packageVersion :: String"         >> $CBCONFIG

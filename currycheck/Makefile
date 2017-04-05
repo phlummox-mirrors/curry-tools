@@ -2,8 +2,16 @@
 
 TOOL=$(BINDIR)/$(CURRYSYSTEM)-check
 
-# currycheck (main) dependencies:
-DEPS = *.curry $(LIBDIR)/Test/EasyCheck.curry $(LIBDIR)/AbstractCurry/*.curry
+# replacement stuff
+empty     :=
+space     := $(empty) $(empty)
+
+# The load path of the browser:
+LOADPATH = src:$(subst $(space),:,$(wildcard .cpm/packages/*/src))
+
+# Source modules:
+DEPS = .cpm/packages/*/src/*/*curry src/*.curry \
+       $(LIBDIR)/Test/EasyCheck.curry $(LIBDIR)/AbstractCurry/*.curry
 
 .PHONY: all compile install clean uninstall runtest
 
@@ -23,9 +31,8 @@ uninstall: clean
 	rm -f $(TOOL)
 
 CurryCheck: $(DEPS)
-	$(REPL) $(REPL_OPTS) :l CurryCheck :save :q
+	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) :l CurryCheck :save :q
 
 # run the test suite
 runtest:
-	cd Examples                  && ./test.sh $(RUNTESTPARAMS)
-	cd Examples/WithVerification && ./test.sh $(RUNTESTPARAMS)
+	cpm test

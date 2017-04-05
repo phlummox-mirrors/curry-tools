@@ -9,6 +9,7 @@ browser/.cpm/packages/cass-0.0.1
 browser/.cpm/packages/cass-analysis-0.0.4
 browser/.cpm/packages/importusage-0.0.1
 browser/.cpm/packages/showflatcurry-0.0.1
+currycheck/.cpm/packages/rewriting-0.0.1
 optimize/.cpm/packages/cass-0.0.1
 optimize/.cpm/packages/cass-analysis-0.0.4
 
