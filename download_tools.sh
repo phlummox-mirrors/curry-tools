@@ -5,6 +5,37 @@
 # Note that the execution of this script requires an already installed 'cpm'!
 
 ##############################################################################
+echo "Updating 'currypp'..."
+mv currypp/Makefile Makefile.currypp  # keep old Makefile
+rm -rf currypp
+cpm checkout currypp
+cd currypp
+cpm install --noexec
+rm -rf .git*
+rm -rf .cpm/*_cache
+rm -rf .cpm/packages/*/.git*
+cd .cpm/packages
+ CANAV=`ls -d cass-analysis-*`
+ mv $CANAV cass-analysis
+ CASSV=`ls -d cass-*\.*\.*`
+ mv $CASSV cass
+ ln -s cass-analysis $CANAV
+ ln -s cass $CASSV
+ PKGV=`ls -d currycheck-*`
+ mv $PKGV currycheck
+ ln -s currycheck $PKGV
+ PKGV=`ls -d rewriting-*`
+ mv $PKGV rewriting
+ ln -s rewriting $PKGV
+ PKGV=`ls -d verify-*`
+ mv $PKGV verify
+ ln -s verify $PKGV
+cd ../..
+cd ..
+mv Makefile.currypp currypp/Makefile
+echo "'currypp' updated from package repository."
+
+##############################################################################
 echo "Updating 'currycheck'..."
 mv currycheck/Makefile Makefile.currycheck  # keep old Makefile
 rm -rf currycheck

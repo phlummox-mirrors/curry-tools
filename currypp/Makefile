@@ -1,38 +1,20 @@
 #****************************************************************************
-# A Code Integrator for Curry
-#
-# Contact:
-# Max Deppert - made@informatik.uni-kiel.de
-# Jasper Sikorra - jsi@informatik.uni-kiel.de
-#
-#****************************************************************************
 # Makefile for Curry preprocessor
 #****************************************************************************
 
 # Tool binary
-TOOL = $(BINDIR)/$(CURRYSYSTEM)-pp
+TOOL = $(BINDIR)/currypp
 
-# Source filepaths
-ICODEDIR      = $(CURDIR)/IntegratedCode
-PARSEDIR      = $(ICODEDIR)/Parser
-MLDIR         = $(PARSEDIR)/ML
-SQLDIR        = $(PARSEDIR)/SQL
-SEQRULESDIR   = $(CURDIR)/SequentialRules
-DEFRULESDIR   = $(CURDIR)/DefaultRules
-CONTRACTDIR   = $(CURDIR)/ContractWrapper
-# for modules ContractUsage and DefaultRuleUsage:
-CURRYCHECKDIR = $(CURDIR)/../currycheck/src
-# for determinism analysis used in contract wrapper:
-DETANAPATH    = ../analysis:../CASS
+# replacement stuff
+empty     :=
+space     := $(empty) $(empty)
 
-# preprocessor input path and dependencies:
-PPPATH = $(ICODEDIR):$(PARSEDIR):$(MLDIR):$(SQLDIR):$(SEQRULESDIR):$(DEFRULESDIR):$(CONTRACTDIR):$(CURRYCHECKDIR):$(DETANAPATH)
-DEPS   = Main.curry $(ICODEDIR)/*.curry $(PARSEDIR)/*.curry $(MLDIR)/*.curry \
-          $(SQLDIR)/*.curry $(SEQRULESDIR)/*.curry $(DEFRULESDIR)/*.curry \
-	  $(CONTRACTDIR)/*.curry $(CURRYCHECKDIR)/ContractUsage.curry \
-	  $(CURRYCHECKDIR)/DefaultRuleUsage.curry \
-	  $(CURRYCHECKDIR)/TheoremUsage.curry \
-	  $(LIBDIR)/AbstractCurry/*.curry
+# The load path of the browser:
+LOADPATH = src:src/IntegratedCode:src/IntegratedCode/Parser:src/IntegratedCode/Parser/ML:src/IntegratedCode/Parser/SQL:src/SequentialRules:src/DefaultRules:src/ContractWrapper:$(subst $(space),:,$(wildcard .cpm/packages/*/src))
+
+# Source modules:
+DEPS = .cpm/packages/*/src/*/*curry\
+       src/*.curry src/*/*.curry src/*/*/*.curry src/*/*/*/*.curry
 
 .PHONY: all compile install clean uninstall
 
@@ -41,9 +23,8 @@ all: install
 compile: Main
 
 install: compile
-	rm -f $(TOOL) $(BINDIR)/currypp
+	rm -f $(TOOL)
 	cd $(BINDIR) && ln -s ../currytools/currypp/Main $(notdir $(TOOL))
-	cd $(BINDIR) && ln -s $(notdir $(TOOL)) currypp # for backward compatibility
 
 clean:
 	$(CLEANCURRY) -r
@@ -51,24 +32,15 @@ clean:
 
 uninstall: clean
 	rm -f $(TOOL)
-	rm -f $(BINDIR)/currypp # for backward compatibility
 
 # generate executable of currypp translator:
 Main: $(DEPS)
 	@echo Compiling Curry Preprocessor...
-	$(REPL) $(REPL_OPTS) :set path $(PPPATH) :load Main :save :quit
+	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) :load Main :save :quit
 
 
 ########################################################################
-# Testing the preprocessor
-
-# Directories with test suites for the preprocessor:
-TESTTOOLS = IntegratedCode.Examples IntegratedCode.ExamplesSQL \
-            DefaultRules.Examples ContractWrapper.Examples
-
-# run the test suites to check the tools
+# Testing the preprocessor via CPM
 .PHONY: runtest
-runtest: $(addprefix runtest_,$(TESTTOOLS))
-
-runtest_%:
-	cd $(subst .,/,$*) && ./test.sh $(RUNTESTPARAMS)
+runtest:
+	cpm test

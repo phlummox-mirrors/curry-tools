@@ -34,9 +34,6 @@ make_analysis:
 make_CASS: | make_analysis
 	@$(MAKE) now_$@
 
-make_currypp: | make_analysis make_CASS make_currycheck
-	@$(MAKE) now_$@
-
 make_%:
 	@$(MAKE) now_make_$*
 
