@@ -34,10 +34,6 @@ make_analysis:
 make_CASS: | make_analysis
 	@$(MAKE) now_$@
 
-make_currydoc: | make_analysis make_CASS \
-	         make_currypp # avoid conflicts in analysis
-	@$(MAKE) now_$@
-
 make_currypp: | make_analysis make_CASS make_currycheck
 	@$(MAKE) now_$@
 
