@@ -26,19 +26,9 @@ uninstall_TOOLDIRS=$(addprefix uninstall_,$(TOOLDIRS))
 all: $(make_TOOLDIRS)
 
 ###########################################################################
-# Define dependencies between the different tools:
-
-make_analysis:
-	@$(MAKE) now_$@
-
-make_CASS: | make_analysis
-	@$(MAKE) now_$@
+# Make the different tools:
 
 make_%:
-	@$(MAKE) now_make_$*
-
-# now we really make the tool:
-now_make_%:
 	@cd $* && $(MAKE)
 
 ###########################################################################
