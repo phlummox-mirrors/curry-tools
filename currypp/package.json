@@ -5,21 +5,6 @@
     "synopsis": "The standard preprocessor of Curry",
     "category": [ "Analysis" ],
     "dependencies": {
-        "cass-analysis": ">= 0.0.4",
-        "cass"         : ">= 0.0.1",
-        "currycheck"   : ">= 1.0.0",
-        "verify"       : ">= 0.0.1"
-    },
-    "sourceDirs": [ "src", "src/IntegratedCode", "src/IntegratedCode/Parser",
-                    "src/IntegratedCode/Parser/ML",
-                    "src/IntegratedCode/Parser/SQL",
-                    "src/SequentialRules", "src/DefaultRules",
-                    "src/ContractWrapper"
-                  ],
-    "exportedModules": [ "Main" ],
-    "executable": {
-        "name": "currypp",
-        "main": "Main"
     },
     "testsuite": [
         { "src-dir": "src/IntegratedCode/Examples",

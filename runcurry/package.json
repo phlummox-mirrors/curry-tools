@@ -5,10 +5,6 @@
     "synopsis": "Implementation of a command to run Curry programs directly",
     "category": [ "Programming" ],
     "dependencies": {  },
-    "executable": {
-        "name": "runcurry",
-        "main": "RunCurry"
-    },
     "testsuite": {
         "src-dir": "examples",
         "options": "-v",

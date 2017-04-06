@@ -5,12 +5,6 @@
     "synopsis": "A tool to support automatic testing of Curry programs",
     "category": [ "Testing" ],
     "dependencies": {
-        "rewriting" : ">= 0.0.1"
-    },
-    "configModule": "CurryCheckConfig",
-    "executable": {
-        "name": "curry-check",
-        "main": "CurryCheck"
     },
     "testsuite": [
         { "src-dir": "examples",
