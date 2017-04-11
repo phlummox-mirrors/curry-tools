@@ -119,26 +119,6 @@ mv Makefile.browser browser/Makefile
 echo "'browser' updated from package repository."
 
 ##############################################################################
-echo "Updating 'ertools'..."
-mv ertools/Makefile Makefile.ertools  # keep old Makefile
-rm -rf ertools
-cpm checkout ertools
-cd ertools
-rm -rf .cpm .git*
-# Generate package configuration file:
-ERTCONFIG=src/ERToolsPackageConfig.curry
-echo "module ERToolsPackageConfig where" > $ERTCONFIG
-echo "import Distribution(installDir)"  >> $ERTCONFIG
-echo "import FilePath(combine)"         >> $ERTCONFIG
-echo "packageVersion :: String"         >> $ERTCONFIG
-echo "packageVersion = \"1.0.0\""       >> $ERTCONFIG
-echo "packagePath :: String"            >> $ERTCONFIG
-echo "packagePath = combine installDir (combine \"currytools\" \"ertools\")" >> $ERTCONFIG
-cd ..
-mv Makefile.ertools ertools/Makefile
-echo "'ertools' updated from package repository."
-
-##############################################################################
 echo "Updating 'optimize'..."
 mv optimize/Makefile Makefile.optimize  # keep old Makefile
 rm -rf optimize

@@ -14,7 +14,7 @@ import Distribution ( stripCurrySuffix, addCurrySubdir )
 import Either
 import FilePath     ( (</>), splitSearchPath, takeExtension )
 import IO           ( hFlush, stdout )
-import List         ( intercalate, split, splitOn )
+import List         ( groupBy, intercalate, nub, split, splitOn )
 import Sort         ( sortBy )
 import System       ( getArgs, getEnviron, setEnviron, system, unsetEnviron
                     , exitWith )
@@ -24,14 +24,14 @@ import OptParse
 import CPM.ErrorLogger
 import CPM.FileUtil ( fileInPath, joinSearchPath, safeReadFile, whenFileExists
                     , ifFileExists, inDirectory, removeDirectoryComplete )
-import CPM.Config              ( Config ( packageInstallDir, binInstallDir
-                                        , binPackageDir, curryExec )
-                               , readConfigurationWithDefault )
+import CPM.Config   ( Config ( packageInstallDir, binInstallDir
+                             , binPackageDir, curryExec )
+                    , readConfigurationWithDefault, showCompilerVersion )
 import CPM.PackageCache.Global ( GlobalCache, readInstalledPackagesFromDir
                                , installFromZip, checkoutPackage
                                , uninstallPackage )
 import CPM.Package
-import CPM.Resolution ( showResult )
+import CPM.Resolution ( isCompatibleToCompiler, showResult )
 import CPM.Repository ( Repository, readRepository, findVersion, listPackages
                       , findLatestVersion, updateRepository, searchPackages )
 import CPM.PackageCache.Runtime ( dependencyPathsSeparate, writePackageConfig )
@@ -44,7 +44,7 @@ cpmBanner :: String
 cpmBanner = unlines [bannerLine,bannerText,bannerLine]
  where
  bannerText =
-  "Curry Package Manager <curry-language.org/tools/cpm> (version of 03/04/2017)"
+  "Curry Package Manager <curry-language.org/tools/cpm> (version of 10/04/2017)"
  bannerLine = take (length bannerText) (repeat '-')
 
 main :: IO ()
@@ -173,8 +173,10 @@ data InfoOptions = InfoOptions
   , infoAll     :: Bool }
 
 data ListOptions = ListOptions
-  { listAll :: Bool
-  , listCSV :: Bool }
+  { listAll :: Bool   -- list all versions of each package
+  , listCSV :: Bool   -- list in CSV format
+  , listCat :: Bool   -- list all categories
+  }
 
 data SearchOptions = SearchOptions
   { searchQuery :: String }
@@ -226,7 +228,7 @@ infoOpts s = case optCommand s of
 listOpts :: Options -> ListOptions
 listOpts s = case optCommand s of
   List opts -> opts
-  _         -> ListOptions False False
+  _         -> ListOptions False False False
 
 searchOpts :: Options -> SearchOptions
 searchOpts s = case optCommand s of
@@ -449,14 +451,18 @@ optionParser = optParser
                                                          { listAll = True } })
                     (  short "a"
                     <> long "all"
-                    <> help "Show all versions"
-                    <> optional ) 
+                    <> help "Show all versions" ) 
               <.> flag (\a -> Right $ a { optCommand = List (listOpts a)
                                                       { listCSV = True } })
-                    (  short "c"
+                    (  short "t"
                     <> long "csv"
-                    <> help "Show in CSV format"
-                    <> optional ) )
+                    <> help "Show in CSV table format" )
+              <.> flag (\a -> Right $ a { optCommand = List (listOpts a)
+                                                      { listCat = True } })
+                    (  short "c"
+                    <> long "category"
+                    <> help "Show all categories" )
+              )
         <|> command "search" (help "Search the package repository") Right
               (   arg (\s a -> Right $ a { optCommand = Search (searchOpts a) { searchQuery = s } }) 
                     (  metavar "QUERY"
@@ -498,8 +504,8 @@ info :: InfoOptions -> Config -> Repository -> GlobalCache
 info (InfoOptions Nothing Nothing allinfos) _ repo gc =
   tryFindLocalPackageSpec "." |>= \specDir ->
   loadPackageSpec specDir |>= printInfo allinfos repo gc
-info (InfoOptions (Just pkg) Nothing allinfos) _ repo gc =
-  case findLatestVersion repo pkg False of
+info (InfoOptions (Just pkg) Nothing allinfos) cfg repo gc =
+  case findLatestVersion cfg repo pkg False of
    Nothing -> failIO $
                 "Package '" ++ pkg ++ "' not found in package repository."
    Just p  -> printInfo allinfos repo gc p
@@ -518,9 +524,11 @@ printInfo allinfos repo gc pkg =
 compiler :: CompilerOptions -> Config -> IO Repository -> IO GlobalCache
          -> IO (ErrorLogger ())
 compiler o cfg getRepo getGC =
-  tryFindLocalPackageSpec "." |>= \specDir ->
-  loadCurryPathFromCache specDir |>=
-  maybe (computePackageLoadPath specDir) succeedIO |>= \currypath ->
+  tryFindLocalPackageSpec "." |>= \pkgdir ->
+  loadPackageSpec pkgdir |>= \pkg ->
+  checkCompiler cfg pkg >>
+  loadCurryPathFromCache pkgdir |>=
+  maybe (computePackageLoadPath pkgdir pkg) succeedIO |>= \currypath ->
   log Info ("Starting '" ++ currybin ++ "' with") |>
   log Info ("CURRYPATH=" ++ currypath) |>
   do setEnviron "CURRYPATH" $ currypath
@@ -531,9 +539,9 @@ compiler o cfg getRepo getGC =
  where
   currybin = curryExec cfg
 
-  computePackageLoadPath pkgdir =
-    getRepo >>= \repo -> getGC >>= \gc ->
-    loadPackageSpec pkgdir |>= \pkg ->
+  computePackageLoadPath pkgdir pkg =
+    getRepo >>= \repo ->
+    getGC >>= \gc ->
     resolveAndCopyDependenciesForPackage cfg repo gc pkgdir pkg |>= \pkgs ->
     getAbsolutePath pkgdir >>= \abs -> succeedIO () |>
     let srcdirs = map (abs </>) (sourceDirsOf pkg)
@@ -544,7 +552,7 @@ compiler o cfg getRepo getGC =
 checkout :: CheckoutOptions -> Config -> Repository -> GlobalCache
          -> IO (ErrorLogger ())
 checkout (CheckoutOptions pkg Nothing pre) cfg repo gc =
- case findLatestVersion repo pkg pre of
+ case findLatestVersion cfg repo pkg pre of
   Nothing -> failIO $ "Package '" ++ pkg ++
                       "' not found in package repository."
   Just  p -> acquireAndInstallPackageWithDependencies cfg repo gc p |>
@@ -581,15 +589,15 @@ installbin opts cfg repo gc = do
 install :: InstallOptions -> Config -> Repository -> GlobalCache
         -> IO (ErrorLogger ())
 install (InstallOptions Nothing Nothing _ instexec) cfg repo gc =
-  tryFindLocalPackageSpec "." |>= \specDir ->
-  cleanCurryPathCache specDir |>
-  installLocalDependencies cfg repo gc specDir |>= \ (pkg,_) ->
-  if instexec then installExecutable cfg repo pkg specDir else succeedIO ()
+  tryFindLocalPackageSpec "." |>= \pkgdir ->
+  cleanCurryPathCache pkgdir |>
+  installLocalDependencies cfg repo gc pkgdir |>= \ (pkg,_) ->
+  if instexec then installExecutable cfg repo pkg pkgdir else succeedIO ()
 install (InstallOptions (Just pkg) Nothing pre _) cfg repo gc = do
   fileExists <- doesFileExist pkg
   if fileExists
     then installFromZip cfg pkg
-    else case findLatestVersion repo pkg pre of
+    else case findLatestVersion cfg repo pkg pre of
       Nothing -> failIO $ "Package '" ++ pkg ++
                           "' not found in package repository."
       Just  p -> acquireAndInstallPackageWithDependencies cfg repo gc p
@@ -601,11 +609,18 @@ install (InstallOptions (Just pkg) (Just ver) _ _) cfg repo gc =
 install (InstallOptions Nothing (Just _) _ _) _ _ _ =
   failIO "Must specify package name"
 
+--- Checks the compiler compatibility.
+checkCompiler :: Config -> Package -> IO ()
+checkCompiler cfg pkg =
+  unless (isCompatibleToCompiler cfg pkg)
+    (error $ "Incompatible compiler: " ++ showCompilerVersion cfg)
+
 --- Installs the executable specified in the package in the
 --- bin directory of CPM (compare .cpmrc).
 installExecutable :: Config -> Repository -> Package -> String
                   -> IO (ErrorLogger ())
 installExecutable cfg repo pkg pkgdir =
+  checkCompiler cfg pkg >>
   -- we read the global cache again since it might be modified by
   -- the installation of the package:
   getGlobalCache cfg >>= \gc ->
@@ -652,8 +667,8 @@ uninstall (UninstallOptions (Just _) Nothing) _ _ _ =
 uninstall (UninstallOptions Nothing (Just _)) _ _ _ =
   log Error "Please provide a package and version number!"
 uninstall (UninstallOptions Nothing Nothing) cfg _ _ =
-  tryFindLocalPackageSpec "." |>= \specDir ->
-  loadPackageSpec specDir |>= \pkg ->
+  tryFindLocalPackageSpec "." |>= \pkgdir ->
+  loadPackageSpec pkgdir |>= \pkg ->
   maybe (succeedIO ())
         (\ (PackageExecutable name _) ->
            let binexec = binInstallDir cfg </> name
@@ -671,25 +686,47 @@ tryFindVersion pkg ver repo = case findVersion repo pkg ver of
 
 --- Lists all packages in the given repository.
 listCmd :: ListOptions -> Config -> Repository -> IO (ErrorLogger ())
-listCmd (ListOptions lv csv) _ repo = putStr rendered >> succeedIO ()
+listCmd (ListOptions lv csv cat) _ repo =
+  if cat then putStr (renderCats catgroups) >> succeedIO ()
+         else putStr (renderPkgs allpkgs)   >> succeedIO ()
  where
-  results = concatMap (if lv then id else ((:[]) . head))
+  -- all packages (and versions if `lv`)
+  allpkgs = concatMap (if lv then id else ((:[]) . head))
                       (sortBy (\ps1 ps2 -> name (head ps1) <= name (head ps2))
                               (listPackages repo))
 
-  rendered =
-    if csv
-      then showCSV (head columns : drop 2 columns)
-      else render (table columns [nameLen + 4, 66 - nameLen, 10]) ++
-             "\nUse 'cpm info PACKAGE' for more information about a package." ++
-             "\nUse 'cpm update' to download the newest package index.\n"
+  -- all categories together with their package names:
+  catgroups =
+    let newpkgs = map head (listPackages repo)
+        catpkgs = concatMap (\p -> map (\c -> (c, name p)) (category p)) newpkgs
+        nocatps = map name (filter (null . category) newpkgs)
+    in map (\cg -> (fst (head cg), map snd cg))
+           (groupBy (\ (c1,_) (c2,_) -> c1==c2) (nub $ sortBy (<=) catpkgs)) ++
+       if null nocatps then []
+                       else [("???", nub $ sortBy (<=) nocatps)]
 
-  header = [ ["Name", "Synopsis", "Version"]
-           , ["----", "--------", "-------"]]
+  renderPkgs pkgs =
+    let namelen = foldl max 4 $ map (length . name) pkgs
+        header = [ ["Name", "Synopsis", "Version"]
+                 , ["----", "--------", "-------"]]
+        formatPkg p = [name p, synopsis p, showVersion (version p)]
+        columns = header ++ map formatPkg pkgs
+    in renderTable [namelen + 4, 66 - namelen, 10] columns
 
-  formatPkg p = [name p, synopsis p, showVersion (version p)]
-  columns = header ++ map formatPkg results
-  nameLen = foldl max 0 $ map (length . name) results
+  renderCats catgrps =
+    let namelen = foldl max 8 $ map (length . fst) catgrps
+        header = [ ["Category", "Packages"]
+                 , ["--------", "--------"]]
+        columns = header ++ map (\ (c,ns) -> [c, unwords ns]) catgrps
+    in renderTable [namelen + 4, 76 - namelen] columns
+  
+  renderTable colsizes cols =
+    if csv then showCSV (head cols : drop 2 cols)
+           else render (table cols colsizes) ++ cpmInfo
+
+  cpmInfo = "\nUse 'cpm info PACKAGE' for more information about a package." ++
+            "\nUse 'cpm update' to download the newest package index.\n"
+
 
 search :: SearchOptions -> Config -> Repository -> IO (ErrorLogger ())
 search (SearchOptions q) _ repo = putStr rendered >> succeedIO ()
@@ -729,10 +766,11 @@ test :: TestOptions -> Config -> IO Repository -> IO GlobalCache
      -> IO (ErrorLogger ())
 test opts cfg getRepo getGC =
   tryFindLocalPackageSpec "." |>= \specDir ->
-  loadPackageSpec specDir |>= \localSpec -> do
+  loadPackageSpec specDir |>= \pkg -> do
+    checkCompiler cfg pkg
     aspecDir <- getAbsolutePath specDir
     mainprogs <- curryModulesInDir (aspecDir </> "src")
-    let tests = testsuites localSpec mainprogs
+    let tests = testsuites pkg mainprogs
     if null tests
       then putStrLn "No modules to be tested!" >> succeedIO ()
       else foldEL (\_ -> execTest aspecDir) () tests
@@ -803,7 +841,7 @@ diff opts cfg repo gc =
          diffBehaviorIfEnabled specDir localSpec diffv
  where
   getDiffVersion localname = case diffVersion opts of
-    Nothing -> case findLatestVersion repo localname False of
+    Nothing -> case findLatestVersion cfg repo localname False of
                  Nothing -> failIO $ "No other version of local package '" ++
                                  localname ++ "' found in package repository."
                  Just p  -> succeedIO (version p)
