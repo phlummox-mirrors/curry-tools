@@ -43,4 +43,4 @@ Main: $(DEPS)
 # Testing the preprocessor via CPM
 .PHONY: runtest
 runtest:
-	$(BINDIR)/cpm test
+	$(BINDIR)/cpm -d curry_bin=$(REPL) test

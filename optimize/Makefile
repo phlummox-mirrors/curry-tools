@@ -39,4 +39,4 @@ uninstall: clean
 
 # run the test suite
 runtest:
-	$(BINDIR)/cpm test
+	$(BINDIR)/cpm -d curry_bin=$(REPL) test
