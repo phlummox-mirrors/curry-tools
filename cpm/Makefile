@@ -26,7 +26,7 @@ clean:
 uninstall: clean
 	rm -f $(TOOL)
 
-src/CPM.Main: $(DEPS)
+src/CPM.Main: src/CPM/ConfigPackage.curry $(DEPS)
 	@echo Root location of Curry system: $(ROOT)
 	@if [ ! -d "$(ROOT)" ] ; then echo "Error: not a valid directory!" ; exit 1; fi
 	@export CURRYPATH="";						\
@@ -35,6 +35,12 @@ src/CPM.Main: $(DEPS)
 	done; 								\
 	echo "Set CURRYPATH to $$CURRYPATH"; 				\
 	cd src; $(REPL) $(REPL_OPTS) :l CPM.Main :save :quit
+
+src/CPM/ConfigPackage.curry: Makefile
+	@echo "module CPM.ConfigPackage where" > $@
+	@echo "packagePath :: String" >> $@
+	@echo "packagePath = \"$(CURDIR)\"" >> $@
+	@echo "Curry configuration module '$@' written."
 
 runtest:
 	@export CURRYPATH="";						\
