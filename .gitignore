@@ -2,6 +2,7 @@
 *~
 .curry
 Curry_Main_Goal.curry
+cpm/src/CPM/ConfigPackage.curry
 *.agdai
 *_cache
 browser/.cpm/packages/addtypes-0.0.1
