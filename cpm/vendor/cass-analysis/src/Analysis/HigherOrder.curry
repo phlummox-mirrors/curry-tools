@@ -13,12 +13,7 @@ import Maybe
 
 -- datatype order: higher-order or first-order
 data Order = HO | FO
-
-instance Eq Order where
-  HO == HO = True
-  FO == FO = True
-  HO == FO = False
-  FO == HO = False
+  deriving Eq
 
 -- Show higher-order information as a string.
 showOrder :: AOutFormat -> Order -> String

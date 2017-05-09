@@ -55,7 +55,7 @@ ccBanner :: String
 ccBanner = unlines [bannerLine,bannerText,bannerLine]
  where
    bannerText = "CurryCheck: a tool for testing Curry programs (Version " ++
-                packageVersion ++ " of 06/02/2017)"
+                packageVersion ++ " of 08/05/2017)"
    bannerLine = take (length bannerText) (repeat '-')
 
 -- Help text
@@ -954,13 +954,12 @@ cleanup opts mainmodname modules =
     removeCurryModule mainmodname
     mapIO_ removeCurryModule (map testModuleName modules)
  where
-  removeCurryModule modname =
-    lookupModuleSourceInLoadPath modname >>=
-    maybe done
-          (\ (_,srcfilename) -> do
-            system $ installDir </> "bin" </> "cleancurry" ++ " " ++ modname
-            system $ "rm -f " ++ srcfilename
-            done )
+  removeCurryModule modname = do
+    (_,srcfilename) <- lookupModuleSourceInLoadPath modname >>=
+        return .
+        maybe (error $ "Source file of module '"++modname++"' not found!") id
+    system $ installDir </> "bin" </> "cleancurry" ++ " " ++ modname
+    system $ "rm -f " ++ srcfilename
 
 -- Show some statistics about number of tests:
 showTestStatistics :: [TestModule] -> String

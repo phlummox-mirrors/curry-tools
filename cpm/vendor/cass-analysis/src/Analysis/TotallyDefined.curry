@@ -48,11 +48,7 @@ data Completeness =
      Complete       -- completely defined
    | InComplete     -- incompletely defined
    | InCompleteOr   -- incompletely defined in each branch of an "Or"
-
-instance Eq Completeness where
-  Complete == x = case x of { Complete -> True ; _ -> False }
-  InComplete == x = case x of { InComplete -> True ; _ -> False }
-  InCompleteOr == x = case x of { InCompleteOr -> True ; _ -> False }
+ deriving Eq
 
 --- A function is totally defined if it is pattern complete and depends
 --- only on totally defined functions.

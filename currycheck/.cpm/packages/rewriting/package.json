@@ -1,6 +1,6 @@
 {
     "name": "rewriting",
-    "version": "0.0.1",
+    "version": "2.0.0",
     "author": "Jan-Hendrick Matthes, Michael Hanus <mh@informatik.uni-kiel.de>",
     "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
     "synopsis": "Libraries for term rewriting and narrowing",
@@ -14,6 +14,10 @@
        PAKCS/KiCS2 distributions.",
     "category": [ "Rewriting", "Narrowing" ],
     "dependencies": { },
+    "compilerCompatibility": {
+        "pakcs": ">= 2.0.0",
+        "kics2": ">= 2.0.0"
+    },
     "exportedModules": [
         "Rewriting.CriticalPairs", "Rewriting.Narrowing", "Rewriting.Strategy",
         "Rewriting.Unification", "Rewriting.DefinitionalTree",
