@@ -4,11 +4,20 @@
 #
 # Note that the execution of this script requires an already installed 'cpm'!
 
+# use local Curry executable if it exists (e.g., we are inside the distro):
+CURRYBIN=`pwd`/../bin/curry
+if [ -x "$CURRYBIN" ] ; then
+  CPMOPTS="-d curry_bin=$CURRYBIN"
+else
+  CPMOPTS=
+fi
+CPM="cpm $CPMOPTS"
+
 ##############################################################################
 echo "Updating 'cpm'..."
 mv cpm/Makefile Makefile.cpm  # keep old Makefile
 rm -rf cpm
-cpm checkout cpm
+$CPM checkout cpm
 cd cpm
 rm -rf .git* bin package.json
 make fetchdeps
@@ -22,9 +31,9 @@ echo "'cpm' updated from package repository."
 echo "Updating 'currypp'..."
 mv currypp/Makefile Makefile.currypp  # keep old Makefile
 rm -rf currypp
-cpm checkout currypp
+$CPM checkout currypp
 cd currypp
-cpm install --noexec
+$CPM install --noexec
 rm -rf .git*
 rm -rf .cpm/*_cache
 rm -rf .cpm/packages/*/.git*
@@ -53,9 +62,9 @@ echo "'currypp' updated from package repository."
 echo "Updating 'currycheck'..."
 mv currycheck/Makefile Makefile.currycheck  # keep old Makefile
 rm -rf currycheck
-cpm checkout currycheck
+$CPM checkout currycheck
 cd currycheck
-cpm install --noexec
+$CPM install --noexec
 rm -rf .git*
 rm -rf .cpm/*_cache
 rm -rf .cpm/packages/*/.git*
@@ -81,10 +90,10 @@ echo "'currycheck' updated from package repository."
 echo "Updating 'optimize'..."
 mv optimize/Makefile Makefile.optimize  # keep old Makefile
 rm -rf optimize
-cpm checkout transbooleq
+$CPM checkout transbooleq
 mv transbooleq optimize
 cd optimize
-cpm install --noexec
+$CPM install --noexec
 rm -rf .git*
 rm -rf .cpm/*_cache
 rm -rf .cpm/packages/*/.git*
@@ -104,7 +113,7 @@ echo "'optimize' updated from package repository."
 echo "Updating 'runcurry'..."
 mv runcurry/Makefile Makefile.runcurry  # keep old Makefile
 rm -rf runcurry
-cpm checkout runcurry
+$CPM checkout runcurry
 cd runcurry
 rm -rf .cpm .git*
 cd ..
