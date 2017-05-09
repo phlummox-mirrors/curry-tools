@@ -31,9 +31,6 @@ Curry Port Name Server (CPNS) which is responsible for managing the
 symbolic names assigned to the named sockes and ports on a local machine
 (see libraries `NamedSocket` and `Ports` for more details).
 
-`createmakefile`:
-A tool to create a simple makefile for a Curry application.
-
 `curry2js`:
 A compiler for Curry into JavaScript programs used in the
 generation of web user interfaces (WUIs).

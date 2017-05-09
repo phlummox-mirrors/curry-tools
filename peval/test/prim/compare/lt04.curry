@@ -1,1 +1,0 @@
-main = PEVAL ('a' < 'a')

@@ -1,0 +1,16 @@
+{
+  "name": "json",
+  "version": "0.0.3",
+  "author": "Jonas Oberschweiber",
+  "maintainer": "Michael Hanus <mh@informatik.uni-kiel.de>",
+  "synopsis": "A JSON library for Curry",
+    "category": [ "Data", "Web" ],
+  "dependencies": {
+    "det-parse": "= 0.0.1"
+  },
+    "exportedModules": ["JSON.Data", "JSON.Parser", "JSON.Pretty"],
+  "source": {
+    "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/json.git",
+    "tag": "$version"
+  }
+}

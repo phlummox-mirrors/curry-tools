@@ -1,0 +1,13 @@
+{
+  "name": "boxes",
+  "version": "0.0.2",
+  "author": "Jonas Oberschweiber <jonas@oberschweiber.com>",
+  "category": [ "Printing" ],
+  "synopsis": "A pretty printer for boxes",
+  "dependencies": {},
+  "exportedModules": ["Boxes"],
+  "source": {
+    "git": "https://git.ps.informatik.uni-kiel.de/curry-packages/boxes.git",
+    "tag": "$version"
+  }
+}

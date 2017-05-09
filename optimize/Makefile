@@ -1,25 +1,42 @@
-# Generate optimization tools for Curry
+# Makefile for binding optimizer:
 
-# Required:
-# - root location of the Curry System specified by variable ROOT
+# replacement stuff
+empty     :=
+space     := $(empty) $(empty)
 
-.PHONY: all compile install clean uninstall runtest
+# The load path of the application:
+LOADPATH = src:$(subst $(space),:,$(wildcard .cpm/packages/*/src))
 
-all:
-	@cd binding_optimization && $(MAKE) all
+# Source modules:
+DEPS = .cpm/packages/*/src/*/*curry src/BindingOpt.curry
 
-compile:
-	@cd binding_optimization && $(MAKE) compile
+.PHONY: all
+all: install
 
-install:
-	@cd binding_optimization && $(MAKE) install
+.PHONY: install
+install: compile
 
-clean:
-	@cd binding_optimization && $(MAKE) clean
+.PHONY: compile
+compile: BindingOpt
 
-uninstall:
-	@cd binding_optimization && $(MAKE) uninstall
+# Load the application into the interactive Curry system:
+.PHONY: load
+load: 
+	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) :l BindingOpt
+
+# Compile and create an executable of the binding optimizer:
+BindingOpt: $(DEPS)
+	$(REPL) $(REPL_OPTS) :set path $(LOADPATH) :l BindingOpt :save :q
+
+# Clean intermediate files:
+.PHONY: clean
+clean: 
+	$(CLEANCURRY) -r
+
+.PHONY: uninstall
+uninstall: clean
+	rm -f BindingOpt
 
 # run the test suite
 runtest:
-	cd binding_optimization/Examples && ./test.sh $(RUNTESTPARAMS)
+	$(BINDIR)/cpm -d curry_bin=$(REPL) test

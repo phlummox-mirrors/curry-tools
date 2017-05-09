@@ -26,34 +26,9 @@ uninstall_TOOLDIRS=$(addprefix uninstall_,$(TOOLDIRS))
 all: $(make_TOOLDIRS)
 
 ###########################################################################
-# Define dependencies between the different tools:
-
-make_browser: | make_analysis make_CASS make_addtypes make_importcalls
-	@$(MAKE) now_$@
-
-make_analysis:
-	@$(MAKE) now_$@
-
-make_CASS: | make_analysis
-	@$(MAKE) now_$@
-
-make_currydoc: | make_analysis make_CASS
-	@$(MAKE) now_$@
-
-make_currypp: | make_analysis make_CASS make_currycheck make_verification
-	@$(MAKE) now_$@
-
-make_optimize: | make_analysis make_CASS
-	@$(MAKE) now_$@
-
-make_verification: | make_analysis make_CASS make_currycheck
-	@$(MAKE) now_$@
+# Make the different tools:
 
 make_%:
-	@$(MAKE) now_make_$*
-
-# now we really make the tool:
-now_make_%:
 	@cd $* && $(MAKE)
 
 ###########################################################################
@@ -86,7 +61,7 @@ $(uninstall_TOOLDIRS):
 # Testing the tools
 
 # Tools with test suites:
-TESTTOOLS = optimize currypp runcurry currycheck spicey xmldata   
+TESTTOOLS = optimize currypp runcurry currycheck cpm
 
 # run the test suites to check the tools
 .PHONY: runtest
