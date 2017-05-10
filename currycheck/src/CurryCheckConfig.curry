@@ -2,6 +2,6 @@ module CurryCheckConfig where
 import Distribution(installDir)
 import FilePath(combine)
 packageVersion :: String
-packageVersion = "1.0.1"
+packageVersion = "2.0.0"
 packagePath :: String
 packagePath = combine installDir (combine "currytools" "currycheck")

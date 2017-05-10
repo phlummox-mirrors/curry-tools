@@ -50,9 +50,6 @@ cd .cpm/packages
  PKGV=`ls -d rewriting-*`
  mv $PKGV rewriting
  ln -s rewriting $PKGV
- PKGV=`ls -d verify-*`
- mv $PKGV verify
- ln -s verify $PKGV
 cd ../..
 cd ..
 mv Makefile.currypp currypp/Makefile
@@ -79,7 +76,7 @@ echo "module CurryCheckConfig where"     > $CCCONFIG
 echo "import Distribution(installDir)"  >> $CCCONFIG
 echo "import FilePath(combine)"         >> $CCCONFIG
 echo "packageVersion :: String"         >> $CCCONFIG
-echo "packageVersion = \"1.0.1\""       >> $CCCONFIG
+echo "packageVersion = \"2.0.0\""       >> $CCCONFIG
 echo "packagePath :: String"            >> $CCCONFIG
 echo "packagePath = combine installDir (combine \"currytools\" \"currycheck\")" >> $CCCONFIG
 cd ..
