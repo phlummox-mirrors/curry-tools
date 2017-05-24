@@ -4,8 +4,13 @@
 # The tool name of the application:
 TOOL = $(BINDIR)/cpm
 
-# The default options for the REPL
+# The default options for the REPL (options "rts -T" required for KiCS2
+# in order to get elapsed times):
+ifeq ($(CURRYSYSTEM),kics2)
+export REPL_OPTS = --noreadline :set -time :set rts -T
+else
 export REPL_OPTS = --noreadline :set -time
+endif
 
 # Source modules of CPM:
 DEPS = src/CPM/*.curry src/CPM/*/*.curry
